@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subscription Successful - ThinkReview</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #333;
+    }
+    
+    .container {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    .success-icon {
+      width: 80px;
+      height: 80px;
+      background-color: #4CAF50;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto 24px;
+    }
+    
+    .success-icon svg {
+      width: 40px;
+      height: 40px;
+      fill: white;
+    }
+    
+    h1 {
+      color: #4CAF50;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+    
+    p {
+      margin-bottom: 24px;
+      line-height: 1.6;
+      color: #666;
+    }
+    
+    .details {
+      background-color: #f9f9f9;
+      border-radius: 4px;
+      padding: 16px;
+      margin-bottom: 24px;
+      text-align: left;
+    }
+    
+    .details p {
+      margin: 8px 0;
+    }
+    
+    .button {
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      text-decoration: none;
+      display: inline-block;
+      margin-top: 8px;
+    }
+    
+    .button:hover {
+      background-color: #1976D2;
+    }
+    
+    .session-id {
+      font-size: 12px;
+      color: #999;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="success-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M0 0h24v24H0z" fill="none"/>
+        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+      </svg>
+    </div>
+    
+    <h1>Subscription Successful!</h1>
+    
+    <p>Thank you for subscribing to ThinkReview. Your account has been successfully upgraded and you now have access to all premium features.</p>
+    
+    <div class="details">
+      <p><strong>Plan:</strong> <span id="plan-type">Premium</span></p>
+      <p><strong>Status:</strong> <span id="status">Active</span></p>
+      <p><strong>Next billing date:</strong> <span id="next-billing">Calculating...</span></p>
+    </div>
+    
+    <p>You can now return to GitLab and start using all the premium features of ThinkReview for your merge requests.</p>
+    
+    <a href="#" class="button" id="close-button">Close and Return to Extension</a>
+    
+    <div class="session-id">
+      Session ID: <span id="session-id">Loading...</span>
+    </div>
+  </div>
+
+  <script>
+    // Debug toggle: set to false to disable console logs in production
+    const DEBUG = true;
+    function dbgLog(...args) { if (DEBUG) console.log('[success-page]', ...args); }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      // Get the session ID from the URL query parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session_id');
+      
+      if (sessionId) {
+        document.getElementById('session-id').textContent = sessionId;
+        dbgLog('Session ID:', sessionId);
+        
+        // Calculate next billing date (30 days from now)
+        const nextBillingDate = new Date();
+        nextBillingDate.setDate(nextBillingDate.getDate() + 30);
+        document.getElementById('next-billing').textContent = nextBillingDate.toLocaleDateString();
+      } else {
+        document.getElementById('session-id').textContent = 'Not available';
+      }
+      
+      // Close button handler
+      document.getElementById('close-button').addEventListener('click', function(e) {
+        e.preventDefault();
+        window.close();
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "ThinkReview: AI Code Review for GitLab & Azure DevOps",
+  "version": "1.3.8",
+  "description": "AI Copilot & AI Code Reviews for GitLab Merge Requests and Azure DevOps Pull Requests powered by Gemini",
+  "permissions": [
+    "storage", 
+    "identity",  
+    "webNavigation", 
+    "scripting", 
+    "activeTab"
+  ],
+
+  "host_permissions": [
+    "https://gitlab.com/*",
+    "https://us-central1-thinkgpt.cloudfunctions.net/*",
+    "https://dev.azure.com/*",
+    "https://*.visualstudio.com/*"
+  ],
+  "optional_host_permissions": [
+    "http://*:*/*",
+    "https://*:*/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_icon": {
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
+    }
+  },
+  "content_scripts": [
+  ],
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["patch-viewer.html", "patch-viewer.js", "patch-viewer.css", "icons/*", "components/*", "components/integrated-review.css", "components/review-prompt/*", "services/*", "utils/*", "stripe-redirect.html","stripe-redirect.js", "onboarding.html", "onboarding.js","components/subscription-section.html","components/subscription-section.css"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

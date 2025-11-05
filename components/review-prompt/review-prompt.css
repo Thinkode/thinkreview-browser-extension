@@ -1,0 +1,368 @@
+/**
+ * Review Prompt Component Styles
+ * Modular CSS for the review prompt functionality
+ */
+
+/* Review Prompt Container */
+#review-prompt {
+  margin-top: 16px;
+}
+
+/* Alert Styles */
+#review-prompt .gl-alert {
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+#review-prompt .gl-alert-info {
+  background-color: #e3f2fd;
+  border: 1px solid #2196f3;
+  color: #1976d2;
+}
+
+#review-prompt .gl-alert-success {
+  background-color: #e8f5e8;
+  border: 1px solid #4caf50;
+  color: #2e7d32;
+}
+
+#review-prompt .gl-alert-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* Modern Review Prompt */
+#review-prompt .review-prompt-modern {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+#review-prompt .review-prompt-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+#review-prompt .review-prompt-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+#review-prompt .review-prompt-subtitle {
+  margin: 4px 0 0 0;
+  opacity: 0.9;
+  font-size: 14px;
+}
+
+#review-prompt .review-prompt-content {
+  padding-top: 8px;
+}
+
+#review-prompt .review-prompt-question {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Star Rating Container */
+#review-prompt .star-rating-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+#review-prompt .star-rating {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+#review-prompt .star {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#review-prompt .star:hover {
+  transform: scale(1.1);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+#review-prompt .star:active {
+  transform: scale(0.95);
+}
+
+#review-prompt .star:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+#review-prompt .star-icon {
+  width: 32px;
+  height: 32px;
+  stroke: #d1d5db;
+  fill: none;
+  stroke-width: 2;
+  transition: all 0.2s ease;
+}
+
+#review-prompt .star.active .star-icon {
+  fill: #ffc107;
+  stroke: #ffc107;
+  filter: drop-shadow(0 0 8px rgba(255, 193, 7, 0.3));
+}
+
+/* Rating Labels */
+#review-prompt .rating-labels {
+  display: flex;
+  justify-content: center;
+  min-height: 20px;
+}
+
+#review-prompt .rating-label {
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  text-align: center;
+}
+
+#review-prompt .rating-label.active {
+  opacity: 1;
+}
+
+/* Modern Button Styles */
+#review-prompt .review-prompt-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+#review-prompt .review-prompt-btn {
+  padding: 10px 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  background-color: transparent;
+  color: white;
+  user-select: none;
+}
+
+#review-prompt .review-prompt-btn-secondary {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+#review-prompt .review-prompt-btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+  transform: translateY(-1px);
+}
+
+#review-prompt .review-prompt-btn-secondary:active {
+  transform: translateY(0);
+}
+
+#review-prompt .review-prompt-btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+  font-weight: 600;
+}
+
+#review-prompt .review-prompt-btn-primary:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: not-allowed;
+  transform: none;
+}
+
+#review-prompt .review-prompt-btn-primary:enabled:hover,
+#review-prompt .review-prompt-btn-primary.enabled:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  border-color: rgba(255, 255, 255, 0.7);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+}
+
+#review-prompt .review-prompt-btn-primary:enabled:active,
+#review-prompt .review-prompt-btn-primary.enabled:active {
+  transform: translateY(0);
+}
+
+/* Legacy button styles for compatibility */
+#review-prompt .gl-btn {
+  padding: 6px 12px;
+  border: 1px solid #e1e4e8;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.2s ease;
+  background-color: #f6f8fa;
+  color: #24292e;
+  user-select: none;
+}
+
+#review-prompt .gl-btn-default {
+  background-color: #f6f8fa;
+  border-color: #e1e4e8;
+  color: #24292e;
+}
+
+#review-prompt .gl-btn-default:hover {
+  background-color: #e1e4e8;
+  border-color: #d1d5da;
+}
+
+#review-prompt .gl-btn-sm {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+/* Layout Utilities */
+#review-prompt .gl-display-flex {
+  display: flex;
+}
+
+#review-prompt .gl-align-items-center {
+  align-items: center;
+}
+
+#review-prompt .gl-justify-content-center {
+  justify-content: center;
+}
+
+#review-prompt .gl-gap-2 {
+  gap: 8px;
+}
+
+#review-prompt .gl-gap-3 {
+  gap: 12px;
+}
+
+/* Spacing Utilities */
+#review-prompt .gl-mt-3 {
+  margin-top: 12px;
+}
+
+#review-prompt .gl-mt-4 {
+  margin-top: 16px;
+}
+
+#review-prompt .gl-mb-3 {
+  margin-bottom: 12px;
+}
+
+#review-prompt .gl-mr-3 {
+  margin-right: 12px;
+}
+
+#review-prompt .gl-p-3 {
+  padding: 12px;
+}
+
+#review-prompt .gl-mt-2 {
+  margin-top: 8px;
+}
+
+#review-prompt .gl-mb-2 {
+  margin-bottom: 8px;
+}
+
+/* Thank You Message */
+.review-thank-you-message {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  #review-prompt .star-rating-btn {
+    font-size: 18px;
+    padding: 3px 6px;
+  }
+  
+  #review-prompt .gl-btn-sm {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+  
+  #review-prompt .gl-gap-3 {
+    gap: 8px;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  #review-prompt .star-rating-btn {
+    border: 1px solid currentColor;
+  }
+  
+  #review-prompt .gl-btn {
+    border-width: 2px;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  #review-prompt .star-rating-btn {
+    transition: none;
+  }
+  
+  #review-prompt .star-rating-btn:hover {
+    transform: none;
+  }
+  
+  #review-prompt .star-rating-btn:active {
+    transform: none;
+  }
+  
+  .review-thank-you-message {
+    animation: none;
+  }
+}
+
+/* Print Styles */
+@media print {
+  #review-prompt {
+    display: none !important;
+  }
+}

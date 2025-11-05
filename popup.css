@@ -1,0 +1,1024 @@
+/* GitLab MR Reviews - Popup Styles */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  background-color: #f9f9f9;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  padding: 16px;
+}
+
+header {
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e1e4e8;
+  padding-bottom: 12px;
+}
+
+.app-header {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e1e4e8;
+}
+
+.header-top-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.title-with-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.title-with-logo h2 {
+  color: #6b4fbb;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.header-bottom-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.signin-message {
+  font-size: 13px;
+  color: #666;
+  margin-top: 10px;
+  text-align: center;
+  font-style: italic;
+  display: none;
+}
+
+.header-logo {
+  width: 48px;
+  height: 48px;
+}
+
+h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2e2e2e;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: #666;
+}
+
+.review-stats {
+  font-size: 13px;
+  color: #6b4fbb;
+  margin: 8px 0 12px;
+  padding: 6px 10px;
+  background-color: #f3f0ff;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.status-container {
+  background-color: #f1f8ff;
+  border: 1px solid #c8e1ff;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+/* Loading and Error States */
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #6b4fbb;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-state {
+  background-color: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 8px 0;
+  color: #c53030;
+  font-size: 13px;
+}
+
+.error-state::before {
+  content: "⚠️ ";
+  margin-right: 4px;
+}
+
+/* Authentication States */
+#authenticated-content {
+  transition: opacity 0.3s ease-in-out;
+}
+
+#authenticated-content.hidden {
+  display: none;
+}
+
+#authenticated-content.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Status Messages */
+#current-status {
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #495057;
+  border-left: 3px solid #6b4fbb;
+}
+
+#current-status.loading {
+  background-color: #e3f2fd;
+  border-left-color: #2196f3;
+  color: #1976d2;
+}
+
+#current-status.error {
+  background-color: #ffebee;
+  border-left-color: #f44336;
+  color: #c62828;
+}
+
+#current-status.success {
+  background-color: #e8f5e8;
+  border-left-color: #4caf50;
+  color: #2e7d32;
+}
+
+/* Review Count Section */
+.review-count-section {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+  text-align: center;
+}
+
+.review-count-label {
+  font-size: 12px;
+  color: #6c757d;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.review-count {
+  font-size: 24px;
+  font-weight: 700;
+  color: #6b4fbb;
+  line-height: 1;
+}
+
+.review-count.error {
+  color: #e53e3e;
+}
+
+/* Subscription Status Section */
+.subscription-status-section {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+  text-align: center;
+}
+
+.subscription-status-label {
+  font-size: 12px;
+  color: #6c757d;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.subscription-status {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.subscription-status.free {
+  color: #6c757d;
+}
+
+.subscription-status.premium {
+  color: #6b4fbb;
+}
+
+.subscription-status.cancelled {
+  color: #dc3545;
+}
+
+.subscription-status.expired {
+  color: #6c757d;
+}
+
+.next-payment-info {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e9ecef;
+}
+
+.next-payment-label {
+  font-size: 11px;
+  color: #6c757d;
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+
+.next-payment-date {
+  font-size: 14px;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.cancel-subscription-container {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #e9ecef;
+}
+
+.cancel-subscription-btn {
+  padding: 6px 12px;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.cancel-subscription-btn:hover {
+  background-color: #c82333;
+}
+
+/* Subscription Section Styles */
+.subscription-section {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.subscription-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.upgrade-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #6b4fbb;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upgrade-btn:hover {
+  background-color: #f3f0ff;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(107, 79, 187, 0.2);
+}
+
+.monthly-btn {
+  border-color: #6b4fbb;
+  color: #6b4fbb;
+}
+
+.annual-btn {
+  border-color: #6b4fbb;
+  color: #6b4fbb;
+  position: relative;
+}
+
+.plan-name {
+  font-weight: 500;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.plan-price {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.plan-savings {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #4caf50;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  #popup-container {
+    padding: 16px;
+  }
+  
+  .title-with-logo h2 {
+    font-size: 20px;
+  }
+  
+  .header-logo {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  #popup-container {
+    padding: 12px;
+  }
+  
+  .title-with-logo h2 {
+    font-size: 18px;
+  }
+  
+  .review-count {
+    font-size: 20px;
+  }
+  
+  .header-logo {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* Accessibility Improvements */
+button:focus,
+input:focus {
+  outline: 2px solid #6b4fbb;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .review-count {
+    color: #000;
+  }
+  
+  #current-status {
+    border-left-width: 4px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner {
+    animation: none;
+  }
+  
+  #authenticated-content {
+    transition: none;
+  }
+  
+  .footer-button {
+    transition: none;
+  }
+}
+
+/* Container and Layout */
+#popup-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  background: #fff;
+  font-family: 'Roboto', system-ui, sans-serif;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* Footer styles */
+.app-footer {
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid #e1e4e8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.footer-buttons-left {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.footer-button {
+  padding: 4px 8px;
+  background-color: #f6f8fa;
+  color: #6b4fbb;
+  border: 1px solid #e1e4e8;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.2s;
+}
+
+.footer-button:hover {
+  background-color: #6b4fbb;
+  color: white;
+}
+
+/* Button styles */
+.btn {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid #e1e4e8;
+  background-color: #f6f8fa;
+  color: #24292e;
+  transition: background-color 0.2s;
+}
+
+.btn:hover {
+  background-color: #e1e4e8;
+}
+
+.btn-primary {
+  background-color: #2ea44f;
+  color: #fff;
+  border-color: #2ea44f;
+}
+
+.btn-primary:hover {
+  background-color: #2c974b;
+}
+
+.action-button {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin: 15px 0;
+  background-color: #6b4fbb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.2s;
+}
+
+.action-button:hover {
+  background-color: #5a3da8;
+}
+
+/* Modal styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 6px;
+  width: 90%;
+  max-width: 350px;
+  max-height: 90%;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 20px;
+  cursor: pointer;
+  color: #666;
+}
+
+.close-button:hover {
+  color: #333;
+}
+
+.how-it-works-content {
+  margin-top: 15px;
+}
+
+.how-it-works-content p {
+  margin-bottom: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.how-it-works-content ul {
+  margin-left: 20px;
+  margin-bottom: 12px;
+}
+
+.how-it-works-content li {
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+/* Typography */
+h2 {
+  margin-top: 0;
+  font-size: 1.3em;
+  color: #e24329;
+}
+
+h3 {
+  margin-bottom: 8px;
+  font-size: 1.1em;
+}
+
+/* Loading and empty states */
+.loading {
+  padding: 16px;
+  text-align: center;
+  color: #666;
+}
+
+.empty-state {
+  padding: 24px 16px;
+  text-align: center;
+  color: #666;
+}
+
+/* Footer */
+footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e1e4e8;
+  text-align: right;
+}
+
+.version {
+  font-size: 11px;
+  color: #888;
+}
+
+/* Welcome Content Styles - Inspired by onboarding page */
+.welcome-content {
+  padding: 16px 0;
+}
+
+.welcome-hero {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.welcome-title {
+  margin-bottom: 8px;
+}
+
+.welcome-title h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 6px 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gemini-badge {
+  background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  display: inline-block;
+  margin-top: 4px;
+}
+
+.welcome-subtitle {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.4;
+  margin: 8px 0 0 0;
+}
+
+/* Feature Preview Grid */
+.feature-preview-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.feature-preview-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.feature-preview-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.feature-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.feature-icon.ai-powered {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.feature-preview-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 2px 0;
+}
+
+.feature-preview-card p {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+  line-height: 1.3;
+}
+
+/* Sign-in CTA */
+.signin-cta {
+  text-align: center;
+  margin: 16px 0;
+  padding: 12px;
+  background: rgba(102, 126, 234, 0.05);
+  border: 1px solid rgba(102, 126, 234, 0.1);
+  border-radius: 8px;
+}
+
+.signin-message {
+  font-size: 13px;
+  color: #6b4fbb;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Zero Setup Preview */
+.zero-setup-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(76, 175, 80, 0.05);
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  border-radius: 6px;
+  margin-top: 12px;
+}
+
+.zero-setup-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.zero-setup-text {
+  font-size: 12px;
+  color: #2e7d32;
+  line-height: 1.3;
+}
+
+.zero-setup-text strong {
+  font-weight: 600;
+}
+
+/* Responsive adjustments for welcome content */
+@media (max-width: 480px) {
+  .welcome-title h2 {
+    font-size: 18px;
+  }
+  
+  .welcome-subtitle {
+    font-size: 12px;
+  }
+  
+  .feature-preview-card {
+    padding: 10px;
+    gap: 10px;
+  }
+  
+  .feature-icon {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .feature-preview-card h3 {
+    font-size: 13px;
+  }
+  
+  .feature-preview-card p {
+    font-size: 11px;
+  }
+  
+}
+
+/* Domain Settings Styles */
+.domain-settings-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e1e4e8;
+}
+
+.settings-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.settings-description {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.domain-input-section {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.domain-input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  background-color: #fff;
+  transition: border-color 0.2s ease;
+}
+
+.domain-input:focus {
+  outline: none;
+  border-color: #4caf50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+}
+
+.add-domain-btn {
+  padding: 8px 16px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.add-domain-btn:hover {
+  background-color: #45a049;
+}
+
+.add-domain-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.domain-list {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.domain-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.domain-name {
+  flex: 1;
+  color: #333;
+  font-family: 'Roboto Mono', 'Monaco', 'Menlo', monospace;
+}
+
+.domain-item.default {
+  background-color: #e8f5e8;
+  border-color: #c3e6c3;
+}
+
+.default-label {
+  font-size: 11px;
+  color: #4caf50;
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+.remove-domain-btn {
+  padding: 4px 8px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.remove-domain-btn:hover {
+  background-color: #da190b;
+}
+
+.no-domains {
+  text-align: center;
+  color: #666;
+  font-size: 12px;
+  padding: 20px;
+  font-style: italic;
+}
+
+/* Azure DevOps Settings Styles */
+.azure-settings-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e1e4e8;
+}
+
+.token-input-section {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.token-input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  background-color: #fff;
+  transition: border-color 0.2s ease;
+  font-family: 'Roboto Mono', 'Monaco', 'Menlo', monospace;
+}
+
+.token-input:focus {
+  outline: none;
+  border-color: #0078d4;
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.1);
+}
+
+.save-token-btn {
+  padding: 8px 16px;
+  background-color: #0078d4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.save-token-btn:hover {
+  background-color: #106ebe;
+}
+
+.save-token-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.token-status {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.token-status.success {
+  background-color: #e8f5e8;
+  border: 1px solid #c3e6c3;
+  color: #2e7d32;
+}
+
+.token-status.error {
+  background-color: #ffebee;
+  border: 1px solid #ffcdd2;
+  color: #c62828;
+}
+
+.token-status.info {
+  background-color: #e3f2fd;
+  border: 1px solid #bbdefb;
+  color: #1976d2;
+}
+
+.token-help {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.help-text {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.help-text strong {
+  color: #333;
+  font-weight: 600;
+}

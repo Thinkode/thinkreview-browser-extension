@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subscription Canceled - ThinkReview</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #333;
+    }
+    
+    .container {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    .cancel-icon {
+      width: 80px;
+      height: 80px;
+      background-color: #FF5722;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto 24px;
+    }
+    
+    .cancel-icon svg {
+      width: 40px;
+      height: 40px;
+      fill: white;
+    }
+    
+    h1 {
+      color: #FF5722;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+    
+    p {
+      margin-bottom: 24px;
+      line-height: 1.6;
+      color: #666;
+    }
+    
+    .button {
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      text-decoration: none;
+      display: inline-block;
+      margin: 8px;
+    }
+    
+    .button:hover {
+      background-color: #1976D2;
+    }
+    
+    .button.secondary {
+      background-color: #757575;
+    }
+    
+    .button.secondary:hover {
+      background-color: #616161;
+    }
+    
+    .button-group {
+      margin-top: 24px;
+    }
+    
+    .reasons {
+      background-color: #f9f9f9;
+      border-radius: 4px;
+      padding: 16px;
+      margin-bottom: 24px;
+      text-align: left;
+    }
+    
+    .reasons ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    
+    .reasons li {
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="cancel-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M0 0h24v24H0z" fill="none"/>
+        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+      </svg>
+    </div>
+    
+    <h1>Subscription Canceled</h1>
+    
+    <p>Your subscription process was canceled. No charges have been made to your account.</p>
+    
+    <div class="reasons">
+      <p><strong>Common reasons for cancellation:</strong></p>
+      <ul>
+        <li>Changed your mind about subscribing</li>
+        <li>Wanted to select a different plan</li>
+        <li>Had questions about the subscription</li>
+        <li>Encountered an issue with payment</li>
+      </ul>
+    </div>
+    
+    <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+    
+    <div class="button-group">
+      <a href="#" class="button" id="try-again-button">Try Again</a>
+      <a href="#" class="button secondary" id="close-button">Close</a>
+    </div>
+  </div>
+
+  <script>
+    // Debug toggle: set to false to disable console logs in production
+    const DEBUG = true;
+    function dbgLog(...args) { if (DEBUG) console.log('[cancel-page]', ...args); }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      // Get the canceled parameter from the URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const canceled = urlParams.get('canceled');
+      
+      dbgLog('Checkout canceled:', canceled);
+      
+      // Try again button handler - reopen the extension popup
+      document.getElementById('try-again-button').addEventListener('click', function(e) {
+        e.preventDefault();
+        // This will close this tab and focus on the extension popup if it's still open
+        window.close();
+      });
+      
+      // Close button handler
+      document.getElementById('close-button').addEventListener('click', function(e) {
+        e.preventDefault();
+        window.close();
+      });
+    });
+  </script>
+</body>
+</html>

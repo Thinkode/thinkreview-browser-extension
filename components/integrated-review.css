@@ -1,0 +1,1650 @@
+/* integrated-review.css */
+/* Styles for the integrated review panel in GitLab MR pages */
+
+.thinkreview-panel-container {
+  position: fixed;
+  right: 20px;
+  top: 100px;
+  width: 500px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 1000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  transition: transform 0.3s ease, opacity 0.3s ease, right 0.5s ease, bottom 0.5s ease, width 0.5s ease, height 0.5s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Legacy support for old ID selector */
+#gitlab-mr-integrated-review {
+  position: fixed;
+  right: 20px;
+  top: 100px;
+  width: 500px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 1000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  transition: transform 0.3s ease, opacity 0.3s ease, right 0.5s ease, bottom 0.5s ease, width 0.5s ease, height 0.5s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Resize handle styles */
+#gitlab-mr-integrated-review .thinkreview-resize-handle {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  width: 8px;
+  height: 100%;
+  cursor: ew-resize;
+  background: linear-gradient(to right, transparent 0%, transparent 2px, #6b4fbb 2px, #6b4fbb 6px, transparent 6px, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 1001;
+}
+
+#gitlab-mr-integrated-review:hover .thinkreview-resize-handle {
+  opacity: 1;
+}
+
+#gitlab-mr-integrated-review.resizing .thinkreview-resize-handle {
+  opacity: 1;
+  background: linear-gradient(to right, transparent 0%, transparent 2px, #8c6be8 2px, #8c6be8 6px, transparent 6px, transparent 100%);
+}
+
+#gitlab-mr-integrated-review.resizing {
+  transition: none;
+  user-select: none;
+}
+
+#gitlab-mr-integrated-review.resizing * {
+  user-select: none;
+  pointer-events: none;
+}
+
+#gitlab-mr-integrated-review.resizing .thinkreview-resize-handle {
+  pointer-events: auto;
+}
+
+#gitlab-mr-integrated-review .thinkreview-card {
+  border: 1px solid #6b4fbb;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+#gitlab-mr-integrated-review .thinkreview-card-header {
+  padding: 12px 16px;
+  background-color: #6b4fbb;
+  color: white;
+  border-bottom: 1px solid #5a3ea5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+#gitlab-mr-integrated-review .thinkreview-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-language-dropdown {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #333;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  min-width: 100px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-language-dropdown:hover {
+  background-color: rgba(255, 255, 255, 1);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#gitlab-mr-integrated-review .thinkreview-language-dropdown:focus {
+  background-color: white;
+  border-color: white;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+}
+
+#gitlab-mr-integrated-review .thinkreview-card-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: calc(80vh - 50px); /* Adjust height based on max-height of the panel and header height */
+  /* Default to dark theme for better readability */
+  background-color: #1e1e1e;
+  color: #ffffff;
+}
+
+#review-content {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  overflow: hidden; /* Prevent content from overflowing card-body */
+}
+
+#review-scroll-container {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+#chat-log {
+  padding: 8px 0;
+}
+
+#chat-log .chat-message-wrapper:last-child {
+  margin-bottom: 0;
+}
+
+/* Suggested Questions Styling */
+.thinkreview-suggested-questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.thinkreview-suggested-question-btn {
+  background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%);
+  border: 2px solid #6b4fbb;
+  border-radius: 8px;
+  padding: 12px 16px 12px 40px; /* Add left padding for emoji */
+  font-size: 13px;
+  font-weight: 500;
+  color: #ffffff;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(107, 79, 187, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.thinkreview-suggested-question-btn::before {
+  content: '💬';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  transition: left 0.3s ease;
+}
+
+.thinkreview-suggested-question-btn.static-question {
+  background: linear-gradient(135deg, #3d2a1a 0%, #4a331f 100%);
+  border-color: #f97316;
+  color: #ffffff;
+}
+
+.thinkreview-suggested-question-btn.static-question::before {
+  content: '✍️';
+}
+
+.thinkreview-suggested-question-btn.static-question:hover {
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+  color: white;
+}
+
+.thinkreview-suggested-question-btn:hover {
+  background: linear-gradient(135deg, #6b4fbb 0%, #8c6be8 100%);
+  color: white;
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(107, 79, 187, 0.25);
+}
+
+.thinkreview-suggested-question-btn:hover::before {
+  left: 12px;
+}
+
+.thinkreview-suggested-question-btn:active {
+  transform: translateX(2px) scale(0.98);
+  box-shadow: 0 2px 6px rgba(107, 79, 187, 0.2);
+}
+
+.thinkreview-suggested-question-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  background: #404040;
+  border-color: #666666;
+  color: #cccccc;
+  padding-left: 40px; /* Add padding to make room for the checkmark */
+}
+
+.thinkreview-suggested-question-btn:disabled::before {
+  content: '✓';
+  left: 12px;
+  color: #48bb78;
+}
+
+/* Chat message styling for better visual differentiation */
+.chat-message-wrapper {
+  margin-bottom: 12px;
+}
+
+.chat-message-wrapper.user-message {
+  justify-content: flex-end;
+}
+
+.chat-message-wrapper.ai-message {
+  justify-content: flex-start;
+}
+
+.chat-message {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 18px;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
+.chat-message.user-message {
+  background-color: #6b4fbb;
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-message.ai-message {
+  background-color: #2d2d2d;
+  color: #ffffff;
+  border: 1px solid #404040;
+  border-bottom-left-radius: 4px;
+}
+
+/* Add subtle shadow for depth */
+.chat-message {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Typing indicator styling */
+.chat-message.typing-indicator {
+  background-color: #2d2d2d;
+  color: #cccccc;
+  font-style: italic;
+  border: 1px solid #404040;
+}
+
+/* Formatted content styling - with higher specificity to override general panel styles */
+#gitlab-mr-integrated-review .chat-message pre {
+  background-color: #1a1a1a;
+  border: 1px solid #333333;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 8px 0;
+  overflow-x: auto;
+  white-space: pre;
+  word-wrap: normal;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #e0e0e0;
+}
+
+#gitlab-mr-integrated-review .chat-message pre code {
+  background-color: transparent;
+  border: none;
+  color: #e0e0e0;
+  padding: 0;
+  font-size: 13px;
+  white-space: pre;
+  display: block;
+}
+
+/* ChatGPT-style code block wrapper */
+#gitlab-mr-integrated-review .thinkreview-code-block {
+  background: #0d0d0d;
+  border: 1px solid #262626;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+#gitlab-mr-integrated-review .thinkreview-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: #111111;
+  border-bottom: 1px solid #262626;
+}
+
+#gitlab-mr-integrated-review .thinkreview-code-lang {
+  color: #c9d1d9;
+  font-size: 12px;
+  text-transform: lowercase;
+}
+
+#gitlab-mr-integrated-review .thinkreview-copy-btn {
+  background: #1f2937;
+  color: #e5e7eb;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#gitlab-mr-integrated-review .thinkreview-copy-btn:hover {
+  background: #374151;
+}
+
+#gitlab-mr-integrated-review .thinkreview-code-block pre {
+  background: transparent;
+  border: none;
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  white-space: pre;
+  word-wrap: normal;
+}
+
+#gitlab-mr-integrated-review .thinkreview-code-block pre code {
+  white-space: pre;
+  display: block;
+}
+
+/* Lightweight syntax highlighting tokens */
+#gitlab-mr-integrated-review .chat-message .token.comment { color: #6a9955; }
+#gitlab-mr-integrated-review .chat-message .token.string { color: #ce9178; }
+#gitlab-mr-integrated-review .chat-message .token.number { color: #b5cea8; }
+#gitlab-mr-integrated-review .chat-message .token.keyword { color: #c586c0; }
+#gitlab-mr-integrated-review .chat-message .token.function { color: #dcdcaa; }
+#gitlab-mr-integrated-review .chat-message .token.property { color: #9cdcfe; }
+#gitlab-mr-integrated-review .chat-message .token.variable { color: #4fc1ff; }
+#gitlab-mr-integrated-review .chat-message .token.builtin { color: #4ec9b0; }
+#gitlab-mr-integrated-review .chat-message .token.operator { color: #d4d4d4; }
+#gitlab-mr-integrated-review .chat-message .token.punctuation { color: #d4d4d4; }
+#gitlab-mr-integrated-review .chat-message .token.insert { color: #b5f7b7; }
+#gitlab-mr-integrated-review .chat-message .token.delete { color: #ff9da4; }
+#gitlab-mr-integrated-review .chat-message .token.hunk { color: #ffd700; }
+
+#gitlab-mr-integrated-review .chat-message code {
+  background-color: rgba(107, 79, 187, 0.2);
+  border: 2px solid rgba(107, 79, 187, 0.4);
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+  color: #8c6be8;
+}
+
+#gitlab-mr-integrated-review .chat-message h1,
+#gitlab-mr-integrated-review .chat-message h2,
+#gitlab-mr-integrated-review .chat-message h3 {
+  margin: 12px 0 8px 0;
+  font-weight: 600;
+}
+
+#gitlab-mr-integrated-review .chat-message h1 {
+  font-size: 18px;
+  color: #ffffff;
+}
+
+#gitlab-mr-integrated-review .chat-message h2 {
+  font-size: 16px;
+  color: #ffffff;
+}
+
+#gitlab-mr-integrated-review .chat-message h3 {
+  font-size: 14px;
+  color: #ffffff;
+}
+
+#gitlab-mr-integrated-review .chat-message blockquote {
+  border-left: 4px solid #6b4fbb;
+  padding-left: 12px;
+  margin: 8px 0;
+  color: #cccccc;
+  font-style: italic;
+}
+
+#gitlab-mr-integrated-review .chat-message ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+#gitlab-mr-integrated-review .chat-message li {
+  margin: 4px 0;
+}
+
+#gitlab-mr-integrated-review .chat-message strong {
+  font-weight: 600;
+}
+
+#gitlab-mr-integrated-review .chat-message em {
+  font-style: italic;
+}
+
+#chat-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-top: 1px solid #6b4fbb;
+  background-color: #2d2d2d; /* Dark theme background */
+}
+
+#chat-input {
+  flex-grow: 1;
+  resize: none;
+  border-radius: 18px;
+  padding: 8px 16px;
+  border: 1px solid #6b4fbb;
+  margin-right: 8px;
+  line-height: 1.5;
+  transition: border-color 0.2s ease;
+  background-color: #1e1e1e;
+  color: #ffffff;
+}
+
+#chat-input:focus {
+  outline: none;
+  border-color: #8c6be8;
+  box-shadow: 0 0 0 2px rgba(140, 107, 232, 0.2);
+}
+
+.char-counter {
+  position: absolute;
+  bottom: 4px;
+  right: 60px;
+  font-size: 11px;
+  color: #cccccc;
+  background-color: rgba(45, 45, 45, 0.9);
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+#gitlab-mr-integrated-review .thinkreview-bug-report-btn {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+#gitlab-mr-integrated-review .thinkreview-bug-report-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
+  opacity: 1;
+  transform: scale(1.02);
+}
+
+#gitlab-mr-integrated-review .thinkreview-bug-report-btn:active {
+  transform: scale(0.95);
+}
+
+#gitlab-mr-integrated-review .thinkreview-regenerate-btn {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  opacity: 0.7;
+  margin-left: 8px;
+  margin-right: 8px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-regenerate-btn:hover {
+  background-color: rgba(107, 79, 187, 0.2);
+  color: white;
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+#gitlab-mr-integrated-review .thinkreview-regenerate-btn:active {
+  transform: scale(0.95);
+  background-color: rgba(107, 79, 187, 0.3);
+}
+
+.thinkreview-chat-send-btn {
+  background-color: #6b4fbb;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(107, 79, 187, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.thinkreview-chat-send-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.thinkreview-chat-send-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(107, 79, 187, 0.4);
+}
+
+.thinkreview-chat-send-btn:hover::before {
+  opacity: 1;
+}
+
+.thinkreview-chat-send-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(107, 79, 187, 0.2);
+}
+
+.thinkreview-chat-send-btn:disabled {
+  background-color: #a99fd1;
+  color: rgba(255, 255, 255, 0.6);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Enhanced Loader Styles */
+#gitlab-mr-integrated-review .enhanced-loader {
+  margin: 0;
+  padding: 40px 20px;
+  width: 100%;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent; /* Use panel's background instead of own gradient */
+  border-radius: 8px;
+}
+
+.loader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  max-width: 400px;
+  width: 100%;
+}
+
+.loader-animation {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.loader-circle {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  animation: loader-rotate 2s linear infinite;
+}
+
+.loader-dot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(45deg, #6b4fbb, #8c6be8);
+  border-radius: 50%;
+  animation: loader-pulse 1.5s ease-in-out infinite;
+}
+
+.loader-dot:nth-child(1) {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  animation-delay: 0s;
+}
+
+.loader-dot:nth-child(2) {
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  animation-delay: 0.5s;
+}
+
+.loader-dot:nth-child(3) {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  animation-delay: 1s;
+}
+
+@keyframes loader-rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes loader-pulse {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% { 
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+.loader-content {
+  text-align: center;
+  width: 100%;
+}
+
+.loader-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 20px 0;
+  background: linear-gradient(45deg, #6b4fbb, #8c6be8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.loader-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.loader-stage {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #1e1e1e;
+  border-radius: 8px;
+  border: 2px solid #404040;
+  transition: all 0.3s ease;
+  opacity: 0.6;
+}
+
+.loader-stage.active {
+  border-color: #6b4fbb;
+  background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%);
+  opacity: 1;
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(107, 79, 187, 0.15);
+}
+
+.loader-stage.completed {
+  border-color: #48bb78;
+  background: linear-gradient(135deg, #1a2e1a 0%, #2d3a2d 100%);
+  opacity: 1;
+  animation: stage-complete 0.6s ease-out;
+}
+
+@keyframes stage-complete {
+  0% { 
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(107, 79, 187, 0.15);
+  }
+  50% { 
+    transform: scale(1.02);
+    box-shadow: 0 6px 20px rgba(72, 187, 120, 0.3);
+  }
+  100% { 
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(72, 187, 120, 0.2);
+  }
+}
+
+.stage-icon {
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2d2d2d;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.loader-stage.active .stage-icon {
+  background: #6b4fbb;
+  color: white;
+  transform: scale(1.1);
+}
+
+.loader-stage.completed .stage-icon {
+  background: #48bb78;
+  color: white;
+}
+
+.stage-text {
+  flex: 1;
+  text-align: left;
+}
+
+.stage-title {
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 2px;
+  font-size: 14px;
+}
+
+.stage-description {
+  font-size: 12px;
+  color: #cccccc;
+  line-height: 1.4;
+}
+
+.loader-progress {
+  width: 100%;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #404040;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6b4fbb, #8c6be8);
+  border-radius: 3px;
+  width: 0%;
+  animation: progress-fill 3s ease-in-out infinite;
+}
+
+@keyframes progress-fill {
+  0% { width: 0%; }
+  50% { width: 70%; }
+  100% { width: 100%; }
+}
+
+.progress-text {
+  font-size: 12px;
+  color: #cccccc;
+  font-style: italic;
+}
+
+/* Legacy loader styles for backward compatibility */
+#gitlab-mr-integrated-review #review-loading {
+  margin: 0;
+  padding: 60px 0;
+  width: 100%;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#gitlab-mr-integrated-review .gl-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 12px;
+  margin-left: 8px;
+}
+
+#gitlab-mr-integrated-review .gl-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top-color: #1f75cb;
+  border-radius: 50%;
+  animation: gl-spinner-rotate 0.6s linear infinite;
+}
+
+@keyframes gl-spinner-rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+#gitlab-mr-integrated-review .gl-hidden {
+  display: none !important;
+}
+
+#gitlab-mr-integrated-review .gl-alert {
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+#gitlab-mr-integrated-review .gl-alert-danger {
+  background-color: #fbe9e7;
+  border: 1px solid #f44336;
+  color: #d32f2f;
+}
+
+#gitlab-mr-integrated-review .gl-alert-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  color: #856404;
+}
+
+#gitlab-mr-integrated-review .gl-alert-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+#gitlab-mr-integrated-review #review-summary {
+  padding: 8px 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #6b4fbb;
+}
+
+/* Dark theme text styling for better readability */
+#gitlab-mr-integrated-review .thinkreview-section-title {
+  color: #ffffff;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-section-content {
+  color: #e0e0e0;
+  line-height: 1.5;
+}
+
+#gitlab-mr-integrated-review .thinkreview-section-list {
+  color: #e0e0e0;
+  /* Ensure bullets render even if host page resets list styles (e.g., Azure DevOps) */
+  list-style: disc outside !important;
+  padding-left: 20px !important;
+}
+
+#gitlab-mr-integrated-review .thinkreview-section-list li {
+  color: #e0e0e0;
+  margin-bottom: 4px;
+  /* Critical: if LI is not a list-item, bullets will not show */
+  display: list-item !important;
+}
+
+/* Increase specificity for the three main lists to beat host CSS */
+#gitlab-mr-integrated-review #review-suggestions,
+#gitlab-mr-integrated-review #review-security,
+#gitlab-mr-integrated-review #review-practices {
+  list-style: disc outside !important;
+  padding-left: 20px !important;
+}
+
+#gitlab-mr-integrated-review #review-suggestions li,
+#gitlab-mr-integrated-review #review-security li,
+#gitlab-mr-integrated-review #review-practices li {
+  display: list-item !important;
+}
+
+/* Azure DevOps: fallback custom bullets to defeat aggressive resets */
+#gitlab-mr-integrated-review.azure-devops-platform .thinkreview-section-list {
+  list-style: none !important;
+  padding-left: 0 !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform .thinkreview-section-list li {
+  position: relative !important;
+  padding-left: 18px !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform .thinkreview-section-list li::before {
+  content: '•' !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0.1em !important;
+  color: currentColor !important;
+  font-weight: bold !important;
+}
+
+/* General list styling for review summary sections only (not chat messages) */
+#gitlab-mr-integrated-review #review-summary ul,
+#gitlab-mr-integrated-review #review-suggestions,
+#gitlab-mr-integrated-review #review-security,
+#gitlab-mr-integrated-review #review-practices {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+#gitlab-mr-integrated-review #review-summary li,
+#gitlab-mr-integrated-review #review-suggestions li,
+#gitlab-mr-integrated-review #review-security li,
+#gitlab-mr-integrated-review #review-practices li {
+  margin-bottom: 4px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  display: flex;
+  align-items: center;
+}
+
+#gitlab-mr-integrated-review .thinkreview-toggle-icon {
+  margin-left: 8px;
+  transition: transform 0.3s ease;
+  cursor: pointer;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+#gitlab-mr-integrated-review.minimized .thinkreview-toggle-icon {
+  transform: rotate(180deg);
+}
+
+#gitlab-mr-integrated-review.minimized .thinkreview-card-body {
+  display: none;
+}
+
+.thinkreview-panel-container.thinkreview-panel-minimized,
+#gitlab-mr-integrated-review.minimized {
+  width: 200px !important;
+}
+
+#gitlab-mr-integrated-review.minimized .resize-handle,
+#gitlab-mr-integrated-review.minimized-to-button .resize-handle {
+  display: none;
+}
+
+.thinkreview-panel-container.thinkreview-panel-hidden,
+#gitlab-mr-integrated-review.hidden {
+  display: none;
+}
+
+.thinkreview-panel-container.thinkreview-panel-minimized-to-button,
+#gitlab-mr-integrated-review.minimized-to-button {
+  transform: scale(0.1);
+  opacity: 0;
+  right: 24px;
+  bottom: 150px;
+  top: auto;
+  pointer-events: none;
+}
+
+/* Toggle button styles removed - using only arrow down and AI Review button */
+
+#gitlab-mr-integrated-review .btn {
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #e5e5e5;
+  background-color: #fff;
+  color: #333;
+}
+
+#gitlab-mr-integrated-review .btn:hover {
+  background-color: #6b4fbb;
+}
+
+/* Review Prompt Styles */
+#gitlab-mr-integrated-review .gl-alert-info {
+  background-color: #e3f2fd;
+  border: 1px solid #2196f3;
+  color: #1976d2;
+}
+
+#gitlab-mr-integrated-review .gl-alert-success {
+  background-color: #e8f5e8;
+  border: 1px solid #4caf50;
+  color: #2e7d32;
+}
+
+#gitlab-mr-integrated-review .star-rating-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  color: #666;
+}
+
+#gitlab-mr-integrated-review .star-rating-btn:hover {
+  background-color: #f0f0f0;
+  color: #ffc107;
+  transform: scale(1.1);
+}
+
+#gitlab-mr-integrated-review .star-rating-btn:active {
+  transform: scale(0.95);
+}
+
+#gitlab-mr-integrated-review .gl-btn {
+  padding: 6px 12px;
+  border: 1px solid #e1e4e8;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.2s ease;
+  background-color: #f6f8fa;
+  color: #24292e;
+}
+
+#gitlab-mr-integrated-review .gl-btn-default {
+  background-color: #f6f8fa;
+  border-color: #e1e4e8;
+  color: #24292e;
+}
+
+#gitlab-mr-integrated-review .gl-btn-default:hover {
+  background-color: #e1e4e8;
+  border-color: #d1d5da;
+}
+
+#gitlab-mr-integrated-review .gl-btn-sm {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+#gitlab-mr-integrated-review .gl-display-flex {
+  display: flex;
+}
+
+#gitlab-mr-integrated-review .gl-align-items-center {
+  align-items: center;
+}
+
+#gitlab-mr-integrated-review .gl-justify-content-center {
+  justify-content: center;
+}
+
+#gitlab-mr-integrated-review .gl-gap-2 {
+  gap: 8px;
+}
+
+#gitlab-mr-integrated-review .gl-gap-3 {
+  gap: 12px;
+}
+
+#gitlab-mr-integrated-review .gl-mt-3 {
+  margin-top: 12px;
+}
+
+#gitlab-mr-integrated-review .gl-mt-4 {
+  margin-top: 16px;
+}
+
+#gitlab-mr-integrated-review .gl-mb-3 {
+  margin-bottom: 12px;
+}
+
+#gitlab-mr-integrated-review .gl-mr-3 {
+  margin-right: 12px;
+}
+
+#gitlab-mr-integrated-review .gl-p-3 {
+  padding: 12px;
+}
+
+#gitlab-mr-integrated-review .gl-mt-2 {
+  margin-top: 8px;
+}
+
+#gitlab-mr-integrated-review .gl-mb-2 {
+  margin-bottom: 8px;
+}
+
+#gitlab-mr-integrated-review .gl-font-monospace {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+#gitlab-mr-integrated-review .gl-text-purple-500 {
+  color: #8b5cf6;
+}
+
+#gitlab-mr-integrated-review .gl-text-blue-500 {
+  color: #3b82f6;
+}
+
+#gitlab-mr-integrated-review .gl-text-gray-900 {
+  color: #111827;
+}
+
+#gitlab-mr-integrated-review .gl-bg-gray-10 {
+  background-color: #f9fafb;
+}
+
+#gitlab-mr-integrated-review .gl-rounded-base {
+  border-radius: 4px;
+}
+
+/* General pre styling removed - specific rules for code blocks handle this */
+
+/* Platform-specific styling for Azure DevOps */
+/* Azure DevOps Light Theme - Default to dark for better readability */
+body[data-theme="light"] #gitlab-mr-integrated-review .thinkreview-card-body,
+body[data-theme=""] #gitlab-mr-integrated-review .thinkreview-card-body,
+body:not([data-theme]) #gitlab-mr-integrated-review .thinkreview-card-body {
+  background-color: #1e1e1e;
+  color: #ffffff;
+}
+
+/* Azure DevOps Dark Theme */
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-card-body {
+  background-color: #1e1e1e;
+  color: #ffffff;
+}
+
+/* Azure DevOps High Contrast Theme */
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-body {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+/* Fallback: Detect Azure DevOps by URL and apply appropriate styling */
+/* This will work even if Azure DevOps doesn't set data-theme attributes */
+body:has([data-testid*="azure"], [class*="azure"], [id*="azure"]) #gitlab-mr-integrated-review .thinkreview-card-body,
+body:has([data-testid*="devops"], [class*="devops"], [id*="devops"]) #gitlab-mr-integrated-review .thinkreview-card-body {
+  background-color: #1e1e1e; /* Default to dark theme */
+  color: #ffffff;
+}
+
+/* Additional Azure DevOps specific styling */
+/* Ensure proper contrast for text in Azure DevOps */
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-card-body,
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-body {
+  color: #ffffff;
+}
+
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-card-body .thinkreview-section-title,
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-body .thinkreview-section-title {
+  color: #ffffff;
+}
+
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-card-body .thinkreview-section-content,
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-body .thinkreview-section-content {
+  color: #e0e0e0;
+}
+
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-card-body .thinkreview-section-list li,
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-body .thinkreview-section-list li {
+  color: #e0e0e0;
+}
+
+/* Platform-specific classes for additional styling control */
+#gitlab-mr-integrated-review.azure-devops-platform .thinkreview-card-body {
+  /* Ensure Azure DevOps panels have proper dark background */
+  background-color: #1e1e1e !important;
+  color: #ffffff !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform .thinkreview-card-body .thinkreview-section-title {
+  color: #ffffff !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform .thinkreview-card-body .thinkreview-section-content {
+  color: #e0e0e0 !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform .thinkreview-card-body .thinkreview-section-list li {
+  color: #e0e0e0 !important;
+}
+
+/* Dark theme overrides for Azure DevOps */
+#gitlab-mr-integrated-review.azure-devops-platform[data-theme="dark"] .thinkreview-card-body,
+#gitlab-mr-integrated-review.azure-devops-platform.dark-theme .thinkreview-card-body {
+  background-color: #1e1e1e !important;
+  color: #ffffff !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform[data-theme="dark"] .thinkreview-card-body .thinkreview-section-title,
+#gitlab-mr-integrated-review.azure-devops-platform.dark-theme .thinkreview-card-body .thinkreview-section-title {
+  color: #ffffff !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform[data-theme="dark"] .thinkreview-card-body .thinkreview-section-content,
+#gitlab-mr-integrated-review.azure-devops-platform.dark-theme .thinkreview-card-body .thinkreview-section-content {
+  color: #e0e0e0 !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform[data-theme="dark"] .thinkreview-card-body .thinkreview-section-list li,
+#gitlab-mr-integrated-review.azure-devops-platform.dark-theme .thinkreview-card-body .thinkreview-section-list li {
+  color: #e0e0e0 !important;
+}
+
+/* High contrast theme overrides for Azure DevOps */
+#gitlab-mr-integrated-review.azure-devops-platform[data-theme="high-contrast"] .thinkreview-card-body,
+#gitlab-mr-integrated-review.azure-devops-platform.high-contrast-theme .thinkreview-card-body {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform[data-theme="high-contrast"] .thinkreview-card-body .thinkreview-section-title,
+#gitlab-mr-integrated-review.azure-devops-platform.high-contrast-theme .thinkreview-card-body .thinkreview-section-title {
+  color: #ffffff !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform[data-theme="high-contrast"] .thinkreview-card-body .thinkreview-section-content,
+#gitlab-mr-integrated-review.azure-devops-platform.high-contrast-theme .thinkreview-card-body .thinkreview-section-content {
+  color: #ffffff !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform[data-theme="high-contrast"] .thinkreview-card-body .thinkreview-section-list li,
+#gitlab-mr-integrated-review.azure-devops-platform.high-contrast-theme .thinkreview-card-body .thinkreview-section-list li {
+  color: #ffffff !important;
+}
+
+/* Login prompt styling - distinctive classes to avoid GitLab conflicts */
+#gitlab-mr-integrated-review .thinkreview-login-heading {
+  font-weight: bold !important;
+  margin-bottom: 12px !important;
+  color: #ffffff !important;
+  font-size: 18px !important;
+  text-align: center !important;
+}
+
+#gitlab-mr-integrated-review .thinkreview-login-description {
+  margin-bottom: 20px !important;
+  color: #e0e0e0 !important;
+  font-size: 14px !important;
+  text-align: center !important;
+  line-height: 1.4 !important;
+}
+
+/* Dark theme overrides for login prompt */
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-login-heading,
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login-heading {
+  color: #ffffff !important;
+}
+
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-login-description,
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login-description {
+  color: #e0e0e0 !important;
+}
+
+/* Login prompt icon and button centering - distinctive classes to avoid Azure DevOps conflicts */
+#gitlab-mr-integrated-review .thinkreview-login-icon {
+  margin-bottom: 16px !important;
+  text-align: center !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+#gitlab-mr-integrated-review .thinkreview-signin-container {
+  margin-bottom: 12px !important;
+  text-align: center !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+#gitlab-mr-integrated-review .thinkreview-signin-button {
+  background-color: #4285F4 !important;
+  color: white !important;
+  border: none !important;
+  padding: 10px 16px !important;
+  border-radius: 4px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  text-align: center !important;
+  margin: 0 auto !important;
+}
+
+#gitlab-mr-integrated-review .thinkreview-signin-button:hover {
+  background-color: #3367d6 !important;
+}
+
+#gitlab-mr-integrated-review .thinkreview-signin-button:active {
+  background-color: #2c5bb8 !important;
+}
+
+/* Sign-in instructions styling - distinctive classes to avoid conflicts */
+#gitlab-mr-integrated-review .signin-help-text {
+  margin: 12px 0 0 0 !important;
+  font-size: 13px !important;
+  color: #4285F4 !important;
+  text-align: center !important;
+  font-weight: 500 !important;
+}
+
+#gitlab-mr-integrated-review .signin-instructions-container {
+  margin: 16px 0 0 0 !important;
+  padding: 12px !important;
+  background: #f8f9fa !important;
+  border-radius: 4px !important;
+  border-left: 3px solid #4285F4 !important;
+}
+
+#gitlab-mr-integrated-review .signin-instructions-title {
+  margin: 0 0 8px 0 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #333 !important;
+}
+
+#gitlab-mr-integrated-review .signin-instructions-list {
+  margin: 0 !important;
+  padding-left: 20px !important;
+  font-size: 12px !important;
+  color: #555 !important;
+  display: block !important;
+  list-style-type: decimal !important;
+}
+
+#gitlab-mr-integrated-review .signin-instructions-list li {
+  margin-bottom: 6px !important;
+  display: list-item !important;
+  list-style-position: outside !important;
+}
+
+/* Quality Scorecard Styles */
+#gitlab-mr-integrated-review .thinkreview-quality-scorecard {
+  padding: 16px;
+  background-color: transparent;
+  border-radius: 4px;
+  border: none;
+}
+
+#gitlab-mr-integrated-review .thinkreview-scorecard-header {
+  margin-bottom: 12px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-scorecard-content {
+  display: flex;
+  flex-direction: column;
+}
+
+#gitlab-mr-integrated-review .thinkreview-overall-score {
+  margin-bottom: 20px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 4px solid;
+  transition: transform 0.2s ease;
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle:hover {
+  transform: scale(1.05);
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle.score-excellent {
+  border-color: #1f883d;
+  background-color: rgba(31, 136, 61, 0.1);
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle.score-good {
+  border-color: #f79009;
+  background-color: rgba(247, 144, 9, 0.1);
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle.score-poor {
+  border-color: #c9190b;
+  background-color: rgba(201, 25, 11, 0.1);
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-value {
+  font-size: 32px;
+  font-weight: bold;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle.score-excellent .thinkreview-score-value {
+  color: #1f883d;
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle.score-good .thinkreview-score-value {
+  color: #f79009;
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle.score-poor .thinkreview-score-value {
+  color: #c9190b;
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-label {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle.score-excellent .thinkreview-score-label {
+  color: #1f883d;
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle.score-good .thinkreview-score-label {
+  color: #f79009;
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle.score-poor .thinkreview-score-label {
+  color: #c9190b;
+}
+
+#gitlab-mr-integrated-review .thinkreview-metrics-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-metric-item {
+  display: flex;
+  flex-direction: column;
+}
+
+#gitlab-mr-integrated-review .thinkreview-metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-metric-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+#gitlab-mr-integrated-review .thinkreview-metric-score {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  min-width: 40px;
+  text-align: center;
+}
+
+#gitlab-mr-integrated-review .thinkreview-metric-score.score-excellent {
+  background-color: rgba(31, 136, 61, 0.1);
+  color: #1f883d;
+}
+
+#gitlab-mr-integrated-review .thinkreview-metric-score.score-good {
+  background-color: rgba(247, 144, 9, 0.1);
+  color: #f79009;
+}
+
+#gitlab-mr-integrated-review .thinkreview-metric-score.score-poor {
+  background-color: rgba(201, 25, 11, 0.1);
+  color: #c9190b;
+}
+
+#gitlab-mr-integrated-review .thinkreview-progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #e5e7ea;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+#gitlab-mr-integrated-review .thinkreview-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+#gitlab-mr-integrated-review .thinkreview-progress-fill.score-excellent {
+  background-color: #1f883d;
+}
+
+#gitlab-mr-integrated-review .thinkreview-progress-fill.score-good {
+  background-color: #f79009;
+}
+
+#gitlab-mr-integrated-review .thinkreview-progress-fill.score-poor {
+  background-color: #c9190b;
+}
+
+/* Dark theme support for scorecard */
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-quality-scorecard,
+#gitlab-mr-integrated-review[data-theme="dark"] .thinkreview-quality-scorecard {
+  background-color: #2d2d2d;
+  border-color: #404040;
+}
+
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-metric-label,
+#gitlab-mr-integrated-review[data-theme="dark"] .thinkreview-metric-label {
+  color: #ffffff;
+}
+
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
+#gitlab-mr-integrated-review[data-theme="dark"] .thinkreview-progress-bar {
+  background-color: #404040;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 600px) {
+  #gitlab-mr-integrated-review .thinkreview-score-circle {
+    width: 80px;
+    height: 80px;
+  }
+
+  #gitlab-mr-integrated-review .thinkreview-score-value {
+    font-size: 24px;
+  }
+
+  #gitlab-mr-integrated-review .thinkreview-metrics-grid {
+    gap: 12px;
+  }
+}
+
+/* User-friendly Error Display Styles */
+#gitlab-mr-integrated-review #review-error {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 200px;
+  width: 100%;
+}
+
+#gitlab-mr-integrated-review .thinkreview-error-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  max-width: 450px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(251, 233, 231, 0.95) 0%, rgba(255, 245, 245, 0.95) 100%);
+  border: 2px solid #ff6b6b;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(255, 107, 107, 0.15);
+  backdrop-filter: blur(10px);
+  animation: errorSlideIn 0.3s ease-out;
+  margin-right: auto;
+}
+
+@keyframes errorSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+#gitlab-mr-integrated-review .thinkreview-error-icon {
+  font-size: 32px;
+  line-height: 1;
+  flex-shrink: 0;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+#gitlab-mr-integrated-review .thinkreview-error-content {
+  flex: 1;
+  text-align: left;
+}
+
+#gitlab-mr-integrated-review .thinkreview-error-message {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #c92a2a;
+  font-weight: 500;
+  margin: 0;
+  text-align: left;
+  word-wrap: break-word;
+}
+
+/* Dark theme support for error display */
+@media (prefers-color-scheme: dark) {
+  #gitlab-mr-integrated-review .thinkreview-error-container {
+    background: linear-gradient(135deg, rgba(68, 0, 0, 0.8) 0%, rgba(40, 0, 0, 0.8) 100%);
+    border-color: #ff6b6b;
+  }
+  
+  #gitlab-mr-integrated-review .thinkreview-error-message {
+    color: #ff8787;
+  }
+}
+

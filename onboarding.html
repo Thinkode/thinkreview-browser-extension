@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to ThinkReview: AI Code Reviews for GitLab</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .feature-card {
+      transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .feature-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      border-color: rgba(102, 126, 234, 0.3);
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .ai-powered {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .step-number {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .domain-input {
+      background: rgba(255, 255, 255, 0.9);
+      border: 2px solid transparent;
+      transition: all 0.3s ease;
+    }
+    .domain-input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      outline: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      transition: all 0.3s ease;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+    .gemini-badge {
+      background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-block;
+      margin-left: 8px;
+    }
+    
+    /* Responsive improvements */
+    @media (max-width: 768px) {
+      .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      h1 {
+        font-size: 2.5rem !important;
+      }
+      h2 {
+        font-size: 2rem !important;
+      }
+      .step-number {
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
+      }
+      .feature-card {
+        padding: 1.5rem !important;
+      }
+    }
+    
+    /* Smooth scrolling */
+    html {
+      scroll-behavior: smooth;
+    }
+    
+    /* Loading animation for better UX */
+    .loading {
+      opacity: 0;
+      animation: fadeIn 0.5s ease-in forwards;
+    }
+    
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+      }
+    }
+    
+    /* Enhanced button styles */
+    button {
+      font-family: 'Inter', sans-serif;
+    }
+    
+         /* Better focus states for accessibility */
+     button:focus,
+     input:focus {
+       outline: 2px solid #667eea;
+       outline-offset: 2px;
+     }
+   </style>
+</head>
+<body>
+  <!-- Header Section -->
+  <header class="text-white text-center py-16">
+    <div class="container mx-auto px-6">
+      <img src="images/icon128.png" alt="ThinkReview Logo" class="mx-auto h-24 mb-8 drop-shadow-lg">
+      <h1 class="text-5xl font-bold mb-6">Welcome to ThinkReview</h1>
+      <p class="text-2xl mb-4">AI-Powered Code Reviews for GitLab</p>
+      <div class="gemini-badge text-sm">Powered by Gemini 2.5 Pro</div>
+      <p class="text-lg opacity-90 mt-4">Transform your merge request workflow with intelligent AI code analysis</p>
+      <div class="mt-8">
+        <button 
+          id="get-started-header-button"
+          class="btn-primary px-8 py-4 rounded-lg text-white font-semibold text-lg"
+        >
+          Get Started
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Zero Setup Section -->
+  <section class="py-16 bg-white">
+    <div class="container mx-auto px-6">
+      <div class="max-w-4xl mx-auto text-center">
+        <div class="ai-powered rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+          <svg class="w-10 h-10" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <h2 class="text-4xl font-bold mb-6 gradient-text">Zero Setup Required</h2>
+        <p class="text-xl text-gray-600 mb-8">No API keys, no tokens, no configuration needed. ThinkReview works straight out of the box!</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+          <div class="text-center p-6">
+            <div class="ai-powered rounded-full w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <h3 class="font-bold mb-2">No API Keys</h3>
+            <p class="text-sm text-gray-600">No need to manage or configure any API keys</p>
+          </div>
+          
+          <div class="text-center p-6">
+            <div class="ai-powered rounded-full w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <h3 class="font-bold mb-2">No Tokens</h3>
+            <p class="text-sm text-gray-600">No authentication tokens or credentials required</p>
+          </div>
+          
+          <div class="text-center p-6">
+            <div class="ai-powered rounded-full w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <h3 class="font-bold mb-2">Instant Start</h3>
+            <p class="text-sm text-gray-600">Start using AI reviews immediately after installation</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+   <!-- Features Section -->
+   <section class="py-16">
+    <div class="container mx-auto px-6">
+      <h2 class="text-4xl font-bold text-center mb-16 text-white">Why Choose ThinkReview?</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Feature 1 -->
+        <div class="feature-card rounded-2xl p-8 shadow-xl">
+          <div class="text-center mb-6">
+            <div class="ai-powered rounded-full w-16 h-16 mx-auto flex items-center justify-center mb-4">
+              <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <h3 class="text-2xl font-bold mb-3 gradient-text">Instant AI Reviews</h3>
+            <p class="text-gray-600">Get comprehensive code reviews powered by Google's Gemini 2.5 Pro AI in seconds, not hours.</p>
+          </div>
+        </div>
+        
+        <!-- Feature 2 -->
+        <div class="feature-card rounded-2xl p-8 shadow-xl">
+          <div class="text-center mb-6">
+            <div class="ai-powered rounded-full w-16 h-16 mx-auto flex items-center justify-center mb-4">
+              <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"></path>
+              </svg>
+            </div>
+            <h3 class="text-2xl font-bold mb-3 gradient-text">Integrated Experience</h3>
+            <p class="text-gray-600">Seamlessly integrated into your GitLab merge request workflow with a beautiful, resizable review panel.</p>
+          </div>
+        </div>
+        
+        <!-- Feature 3 -->
+        <div class="feature-card rounded-2xl p-8 shadow-xl">
+          <div class="text-center mb-6">
+            <div class="ai-powered rounded-full w-16 h-16 mx-auto flex items-center justify-center mb-4">
+              <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"></path>
+              </svg>
+            </div>
+            <h3 class="text-2xl font-bold mb-3 gradient-text">Custom Domains</h3>
+            <p class="text-gray-600">Works with any GitLab instance - self-hosted, GitLab.com, or your custom domain.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Privacy Assurance Section - PROMINENT -->
+  <section class="py-12 bg-white border-b-4 border-green-500">
+    <div class="container mx-auto px-6">
+      <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-8">
+          <div class="flex justify-center mb-4">
+            <div class="bg-green-100 rounded-full p-4 border-4 border-green-300">
+              <svg class="w-10 h-10 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+              </svg>
+            </div>
+          </div>
+          <h2 class="text-4xl font-bold mb-4 text-gray-800">🔒 Your Code Privacy is Protected</h2>
+          <p class="text-xl text-gray-600 mb-8">We want you to know exactly how we protect your intellectual property</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+          <div class="text-center p-6 bg-green-50 rounded-xl border-2 border-green-200">
+            <div class="bg-green-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <svg class="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold mb-3 text-gray-800">No Code Storage</h3>
+            <p class="text-gray-700">We <strong>never store your source code</strong> on our servers. Your code stays on your GitLab instance.</p>
+          </div>
+          <div class="text-center p-6 bg-blue-50 rounded-xl border-2 border-blue-200">
+            <div class="bg-blue-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <svg class="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold mb-3 text-gray-800">Secure Processing</h3>
+            <p class="text-gray-700">Code is processed securely through Google's Gemini API and <strong>immediately discarded</strong> after analysis.</p>
+          </div>
+          <div class="text-center p-6 bg-purple-50 rounded-xl border-2 border-purple-200">
+            <div class="bg-purple-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <svg class="w-8 h-8 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold mb-3 text-gray-800">Privacy First</h3>
+            <p class="text-gray-700">We only store your review preferences and settings, <strong>never your actual code</strong> or sensitive data.</p>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+  </section>
+
+
+
+  <!-- Custom Domain Setup Section -->
+  <section class="py-16">
+    <div class="container mx-auto px-6">
+      <div class="glass-card rounded-2xl p-8 max-w-4xl mx-auto">
+        <h2 class="text-3xl font-bold text-center mb-8 gradient-text">ThinkReview in Action</h2>
+        <p class="text-center text-gray-600 mb-8 text-lg">See how ThinkReview seamlessly integrates with your GitLab workflow and generates AI-powered code reviews.</p>
+        
+        <div class="bg-white rounded-xl p-6 mb-6">
+          <h3 class="text-xl font-bold mb-4 text-center">Add custom domain from the extension</h3>
+          <div class="flex justify-center">
+            <img 
+              src="media/ThinkReview-Main-2.png" 
+              alt="ThinkReview Extension Screenshot" 
+              class="max-w-full h-auto rounded-lg shadow-lg"
+              style="max-height: 500px;"
+            >
+          </div>
+          <p class="text-sm text-gray-500 mt-4 text-center">The ThinkReview extension seamlessly integrates with your GitLab workflow</p>
+          <div class="mt-6 text-center">
+            <button 
+              id="configure-domain-button"
+              class="btn-primary px-6 py-3 rounded-lg text-white font-semibold text-base"
+            >
+              Configure Custom Domains
+            </button>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-xl p-6">
+          <h3 class="text-xl font-bold mb-4 text-center">AI Review Generation Demo</h3>
+          <div class="flex justify-center">
+            <img 
+              src="media/thinkreview2.gif" 
+              alt="ThinkReview AI Review Generation Animation" 
+              class="max-w-full h-auto rounded-lg shadow-lg"
+              style="max-height: 500px;"
+            >
+          </div>
+          <p class="text-sm text-gray-500 mt-4 text-center">Watch how ThinkReview generates comprehensive AI code reviews powered by Gemini 2.5 Pro</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI Features Section -->
+  <section class="py-16 bg-white">
+    <div class="container mx-auto px-6">
+      <h2 class="text-4xl font-bold text-center mb-16 gradient-text">AI-Powered Analysis Features</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="text-center p-6">
+          <div class="ai-powered rounded-full w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <h3 class="font-bold mb-2">Code Quality</h3>
+          <p class="text-sm text-gray-600">Identifies code quality issues and suggests improvements</p>
+        </div>
+        
+        <div class="text-center p-6">
+          <div class="ai-powered rounded-full w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+            </svg>
+          </div>
+          <h3 class="font-bold mb-2">Security Issues</h3>
+          <p class="text-sm text-gray-600">Detects potential security vulnerabilities and risks</p>
+        </div>
+        
+        <div class="text-center p-6">
+          <div class="ai-powered rounded-full w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+          </div>
+          <h3 class="font-bold mb-2">Best Practices</h3>
+          <p class="text-sm text-gray-600">Recommends industry best practices and patterns</p>
+        </div>
+        
+        <div class="text-center p-6">
+          <div class="ai-powered rounded-full w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <h3 class="font-bold mb-2">Performance</h3>
+          <p class="text-sm text-gray-600">Analyzes performance implications and optimizations</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Get Started Section -->
+  <section class="py-16">
+    <div class="container mx-auto px-6 text-center">
+      <div class="glass-card rounded-2xl p-12 max-w-2xl mx-auto">
+        <h2 class="text-3xl font-bold mb-6 gradient-text">Ready to Get Started?</h2>
+        <p class="text-lg text-gray-600 mb-8">Click "Get Started" to begin using ThinkReview. Navigate to any GitLab merge request and click the "AI Review" button to experience the power of AI-driven code reviews.</p>
+        
+        <div class="flex flex-col sm:flex-row lg:flex-wrap gap-4 justify-center max-w-4xl mx-auto">
+          <button 
+            id="get-started-bottom-button"
+            class="btn-primary px-8 py-4 rounded-lg text-white font-semibold text-lg"
+          >
+            Get Started
+          </button>
+          <button 
+            id="gitlab-button"
+            class="px-8 py-4 rounded-lg border-2 border-blue-300 text-blue-700 font-semibold text-lg hover:bg-blue-50 transition-colors"
+          >
+            Go to GitLab.com
+          </button>
+          <button 
+            id="close-button"
+            class="px-8 py-4 rounded-lg border-2 border-gray-300 text-gray-700 font-semibold text-lg hover:bg-gray-50 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="onboarding.js"></script>
+</body>
+</html>

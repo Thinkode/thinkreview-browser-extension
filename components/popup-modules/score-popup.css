@@ -1,0 +1,64 @@
+/* Score Popup on AI Review Button - Circular Gauge */
+.thinkreview-score-popup {
+  position: fixed;
+  background: transparent;
+  backdrop-filter: blur(8px);
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 10000;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(-5px) scale(0.8);
+  animation: thinkreview-popup-fade-in 0.3s ease-out forwards;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  width: 45px;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+@keyframes thinkreview-popup-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-5px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.thinkreview-score-popup-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.thinkreview-score-gauge-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.thinkreview-score-gauge-text {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+/* Arrow pointing down */
+.thinkreview-score-popup::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid transparent;
+}
+
+

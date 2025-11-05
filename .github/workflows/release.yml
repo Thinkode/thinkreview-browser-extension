@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'V*'
+      - '*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.2.3)'
+        required: true
+        type: string
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linting
+      run: npm run lint
+      
+    - name: Update version and client_id in manifest
+      if: github.event.inputs.version
+      run: |
+        node -e "
+          const fs = require('fs');
+          const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+          manifest.version = '${{ github.event.inputs.version }}';
+          manifest.oauth2.client_id = '201038166512-5iscl7q3780849f9mghvjsd3k9eg2cpd.apps.googleusercontent.com';
+          fs.writeFileSync('manifest.json', JSON.stringify(manifest, null, 2));
+          console.log('Updated manifest version to ${{ github.event.inputs.version }}');
+          console.log('Updated client_id for production');
+        "
+        
+    - name: Create extension package
+      run: |
+        # Use the build script to create the package
+        npm run build
+        
+        # Get version from manifest for zip filename
+        VERSION=$(node -e "console.log(require('./manifest.json').version)")
+        
+        # Create zip package with ThinkReview_version naming
+        cd build
+        zip -r ../ThinkReview_${VERSION}.zip .
+        cd ..
+        
+        echo "Extension packaged as ThinkReview_${VERSION}.zip"
+        
+    - name: Get version from manifest
+      id: version
+      run: |
+        VERSION=$(node -e "console.log(require('./manifest.json').version)")
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.version.outputs.version }}
+        release_name: ThinkReview v${{ steps.version.outputs.version }}
+        body: |
+          ## Changes in this Release
+          - Chrome extension package ready for installation
+          - Version ${{ steps.version.outputs.version }}
+          
+          ## Installation
+          1. Download the `thinkreview-extension.zip` file
+          2. Extract the contents
+          3. Go to `chrome://extensions/`
+          4. Enable Developer mode
+          5. Click "Load unpacked" and select the extracted folder
+          
+        draft: false
+        prerelease: false
+        
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./ThinkReview_${{ steps.version.outputs.version }}.zip
+        asset_name: ThinkReview_${{ steps.version.outputs.version }}.zip
+        asset_content_type: application/zip

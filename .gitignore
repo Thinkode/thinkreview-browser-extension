@@ -1,0 +1,46 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Node modules (if you add npm scripts for build/test)
+node_modules/
+package-lock.json
+
+# Chrome extension build output (if you add a build step)
+dist/
+build/
+*.crx
+*.pem
+*.zip
+
+# IDE settings
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS/Editor swap files
+*.swp
+*~
+*.tmp
+*.bak
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+temp/
+tmp/

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ThinkReview: Gitlab AI Code Reviews</title>
+  <link rel="stylesheet" href="popup.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="popup-container">
+    <header class="app-header">
+      <div class="header-top-row">
+        <div class="title-with-logo">
+          <img src="images/icon48.png" alt="GitLab MR Reviews Logo" class="header-logo">
+          <h2>ThinkReview: Gitlab AI Code Reviews</h2>
+        </div>
+      </div>
+      <div class="header-bottom-row">
+        <google-signin></google-signin>
+      </div>
+    </header>
+    
+    <!-- Welcome Section for Non-Logged-In Users -->
+    <div id="welcome-content" class="welcome-content" style="display: none;">
+      <div class="welcome-hero">
+        <div class="welcome-title">
+          <h2>AI-Powered Code Reviews</h2>
+          <div class="gemini-badge">Powered by Gemini 2.5 Pro</div>
+        </div>
+        <p class="welcome-subtitle">Transform your GitLab merge request workflow with intelligent AI code analysis</p>
+      </div>
+      
+      <!-- Feature Preview Cards -->
+      <div class="feature-preview-grid">
+        <div class="feature-preview-card">
+          <div class="feature-icon ai-powered">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <h3>Instant AI Reviews</h3>
+          <p>Get comprehensive code reviews in seconds</p>
+        </div>
+        
+        <div class="feature-preview-card">
+          <div class="feature-icon ai-powered">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"></path>
+            </svg>
+          </div>
+          <h3>GitLab Integration</h3>
+          <p>Seamlessly integrated into your workflow</p>
+        </div>
+        
+        <div class="feature-preview-card">
+          <div class="feature-icon ai-powered">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+            </svg>
+          </div>
+          <h3>Privacy Protected</h3>
+          <p>Your code never stored on our servers</p>
+        </div>
+      </div>
+      
+      <!-- Sign-in CTA -->
+      <div class="signin-cta">
+        <p class="signin-message">Sign in to start generating AI reviews for your merge requests</p>
+      </div>
+      
+      <!-- Zero Setup Preview -->
+      <div class="zero-setup-preview">
+        <div class="zero-setup-icon">
+          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <div class="zero-setup-text">
+          <strong>Zero Setup Required</strong> - No API keys, no tokens, works instantly!
+        </div>
+      </div>
+    </div>
+
+    <div id="authenticated-content">
+      <div id="current-status">Loading...</div>
+      <div id="review-count-section" class="review-count-section">
+        <div class="review-count-label">Total AI Reviews Generated:</div>
+        <div id="review-count" class="review-count">-</div>
+      </div>
+      
+      <!-- Subscription Status Section -->
+      <div id="subscription-status-section" class="subscription-status-section">
+        <div class="subscription-status-label">Current Plan:</div>
+        <div id="subscription-status" class="subscription-status">Free Plan</div>
+        <div id="next-payment-info" class="next-payment-info" style="display: none;">
+          <div class="next-payment-container">
+            <div class="next-payment-label">Valid To:</div>
+            <div id="next-payment-date" class="next-payment-date">-</div>
+          </div>
+        </div>
+        <div id="cancel-subscription-container" style="display: none;" class="cancel-subscription-container">
+          <button id="cancel-subscription-btn" class="cancel-subscription-btn">Cancel Subscription</button>
+        </div>
+      </div>
+      
+      <!-- Domain Settings Section -->
+      <div id="domain-settings" class="domain-settings-section">
+        <h3 class="settings-title">GitLab Domains</h3>
+        <p class="settings-description">Add custom GitLab domains where the extension should work</p>
+        
+        <div class="domain-input-section">
+          <input type="text" id="domain-input" placeholder="e.g., gitlab.example.com, localhost:8083" class="domain-input">
+          <button id="add-domain-btn" class="add-domain-btn">Add</button>
+        </div>
+        
+        <div id="domain-list" class="domain-list">
+          <!-- Domain items will be populated by JavaScript -->
+        </div>
+      </div>
+      
+      <!-- Azure DevOps Settings Section -->
+      <div id="azure-settings" class="azure-settings-section">
+        <h3 class="settings-title">Azure DevOps Integration</h3>
+        <p class="settings-description">Configure your Azure DevOps Personal Access Token for code review functionality</p>
+        
+        <div class="token-input-section">
+          <input type="password" id="azure-token-input" placeholder="Enter your Azure DevOps Personal Access Token" class="token-input">
+          <button id="save-token-btn" class="save-token-btn">Save Token</button>
+        </div>
+        
+        <div id="token-status" class="token-status">
+          <!-- Token status will be populated by JavaScript -->
+        </div>
+        
+        <div class="token-help">
+          <p class="help-text">
+            <strong>How to get your token:</strong><br>
+            1. Go to Azure DevOps → User Settings → Personal Access Tokens<br>
+            2. Create a new token with "Code (read)" permissions<br>
+            3. Copy the token and paste it above
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <footer class="app-footer">
+      <div class="footer-buttons-left">
+        <button 
+          id="need-help-btn" 
+          class="footer-button"
+          aria-label="Get help with problems - Opens in new tab"
+          title="Get help with problems">
+          Having Problems?
+        </button>
+        <button 
+          id="report-bug-btn" 
+          class="footer-button"
+          aria-label="Report a bug - Opens in new tab"
+          title="Report a bug">
+          Report a Bug
+        </button>
+      </div>
+      <button 
+        id="how-it-works-btn" 
+        class="footer-button"
+        aria-label="View how ThinkReview works - Opens in new tab"
+        title="View how ThinkReview works">
+        How it works
+      </button>
+    </footer>
+  </div>
+  
+  <script type="module" src="popup-imports.js"></script>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

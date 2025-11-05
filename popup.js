@@ -1,0 +1,963 @@
+// popup.js
+// Shows patch status and recent patches
+
+// Import modules for better modularity
+import { subscriptionStatus } from './components/popup-modules/subscription-status.js';
+import { reviewCount } from './components/popup-modules/review-count.js';
+
+// Debug toggle: set to false to disable console logs in production
+const DEBUG = false;
+function dbgLog(...args) { if (DEBUG) console.log('[popup]', ...args); }
+function dbgWarn(...args) { if (DEBUG) console.warn('[popup]', ...args); }
+
+// State management
+let isInitialized = false;
+let cloudServiceReady = false;
+let pendingUserDataFetch = false; // Track if we need to fetch user data when CloudService becomes ready
+
+// Listen for messages from background script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Handle review count refresh messages
+  if (message.type === 'REVIEW_COUNT_UPDATED') {
+    dbgLog('[popup] Received review count update:', message.count);
+    updateReviewCount(message.count);
+  }
+});
+
+// Function to show loading state
+function showLoadingState() {
+  const authenticatedContent = document.getElementById('authenticated-content');
+  const statusDiv = document.getElementById('current-status');
+  
+  if (authenticatedContent) {
+    authenticatedContent.style.display = 'block';
+    authenticatedContent.classList.add('loading');
+  }
+  
+  if (statusDiv) {
+    statusDiv.textContent = 'Loading...';
+    statusDiv.className = 'loading';
+  }
+}
+
+// Function to show error state
+function showErrorState(message) {
+  const authenticatedContent = document.getElementById('authenticated-content');
+  const statusDiv = document.getElementById('current-status');
+  
+  if (authenticatedContent) {
+    authenticatedContent.style.display = 'block';
+    authenticatedContent.classList.remove('loading');
+  }
+  
+  if (statusDiv) {
+    statusDiv.textContent = message || 'An error occurred';
+    statusDiv.className = 'error';
+  }
+}
+
+// Function to show success state
+function showSuccessState(message) {
+  const authenticatedContent = document.getElementById('authenticated-content');
+  const statusDiv = document.getElementById('current-status');
+  
+  if (authenticatedContent) {
+    authenticatedContent.style.display = 'block';
+    authenticatedContent.classList.remove('loading');
+  }
+  
+  if (statusDiv) {
+    statusDiv.textContent = message || 'Success';
+    statusDiv.className = 'success';
+  }
+}
+
+// Function to clear status state
+function clearStatusState() {
+  const statusDiv = document.getElementById('current-status');
+  if (statusDiv) {
+    statusDiv.className = '';
+  }
+}
+
+// Function to update review count display
+function updateReviewCount(count) {
+  reviewCount.updateCount(count);
+}
+
+// Function to force refresh user data (can be called when popup opens)
+async function forceRefreshUserData() {
+  try {
+    const isLoggedIn = await isUserLoggedIn();
+    if (isLoggedIn && window.CloudService) {
+      dbgLog('[popup] Force refreshing user data');
+      cloudServiceReady = true;
+      await fetchAndDisplayUserData();
+      showSuccessState('Ready to generate AI reviews');
+      return true;
+    }
+    return false;
+  } catch (error) {
+    dbgWarn('[popup] Error in force refresh:', error);
+    return false;
+  }
+}
+
+// Function to update subscription status display
+async function updateSubscriptionStatus(subscriptionType, nextPaymentDate, currentPlanValidTo, cancellationRequested, stripeCanceledDate) {
+  await subscriptionStatus.updateStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate);
+  
+  // Show or hide cancel button based on subscription type, plan validity, and cancellation status
+  dbgLog(`[popup] Updating cancel button visibility for subscriptionType: '${subscriptionType}', currentPlanValidTo: '${currentPlanValidTo}', cancellationRequested: '${cancellationRequested}'`);
+  const cancelContainer = document.getElementById('cancel-subscription-container');
+  if (cancelContainer) {
+    // Check if plan is free, expired, or already cancelled
+    const isFreePlan = subscriptionType && subscriptionType.toLowerCase().includes('free');
+    // Use date utility to check if expired
+    let isExpired = false;
+    if (currentPlanValidTo) {
+      try {
+        const dateUtils = await import(chrome.runtime.getURL('utils/date-utils.js'));
+        isExpired = dateUtils.isPast(currentPlanValidTo);
+      } catch (error) {
+        // Fallback to simple comparison if import fails
+        dbgWarn('[popup] Error importing date utils, using fallback:', error);
+        isExpired = new Date(currentPlanValidTo) < new Date();
+      }
+    }
+    const isCancelled = cancellationRequested === true;
+    
+    if (!isFreePlan && !isExpired && !isCancelled) {
+      cancelContainer.style.display = 'block';
+    } else {
+      cancelContainer.style.display = 'none';
+    }
+  }
+}
+
+// Function to check if user is logged in with better error handling
+function isUserLoggedIn() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['user', 'userData'], (result) => {
+      if (chrome.runtime.lastError) {
+        dbgWarn('[popup] Error accessing storage:', chrome.runtime.lastError);
+        resolve(false);
+        return;
+      }
+      
+      // Debug: Log the user data to see what fields are available
+      dbgLog('[popup] User data from storage:', result);
+      
+      // Check both user and userData fields for backward compatibility
+      if (result.userData && result.userData.email) {
+        dbgLog('[popup] Using userData object:', result.userData);
+        resolve(true);
+      } else if (result.user) {
+        try {
+          // Try to parse the user data to ensure it's valid
+          const userData = JSON.parse(result.user);
+          dbgLog('[popup] Using parsed user object:', userData);
+          resolve(!!userData && !!userData.email);
+        } catch (e) {
+          dbgWarn('[popup] Failed to parse user data:', e);
+          resolve(false);
+        }
+      } else {
+        resolve(false);
+      }
+    });
+  });
+}
+
+// Function to fetch and display review count with retry logic
+async function fetchAndDisplayUserData(retryCount = 0) {
+  const maxRetries = 3;
+  
+  try {
+    // Check if CloudService is available
+    if (!window.CloudService) {
+      if (retryCount < maxRetries) {
+        // Use exponential backoff for retries (1s, 2s, 4s)
+        const backoffTime = Math.pow(2, retryCount) * 500;
+        dbgLog(`[popup] CloudService not available, retrying in ${backoffTime/1000}s (attempt ${retryCount + 1}/${maxRetries})`);
+        setTimeout(() => fetchAndDisplayUserData(retryCount + 1), backoffTime);
+        return;
+      } else {
+        dbgWarn('[popup] CloudService not available after retries');
+              showErrorState('Unable to load user data');
+      updateReviewCount('error');
+      await updateSubscriptionStatus('Free Plan', null, null, false, null);
+        return;
+      }
+    }
+    
+    // Double-check that CloudService is actually ready
+    if (!cloudServiceReady) {
+      cloudServiceReady = true; // Mark as ready since we have the service
+      dbgLog('[popup] CloudService detected as ready during fetch');
+    }
+    const userData = await window.CloudService.getUserDataWithSubscription();
+    updateReviewCount(userData.reviewCount);
+    await updateSubscriptionStatus(userData.stripeSubscriptionType, userData.nextPaymentDate, userData.currentPlanValidTo, userData.cancellationRequested, userData.stripeCanceledDate);
+    dbgLog('[popup] User data updated:', userData);
+    
+    // Show success state if we got valid data
+    if (userData.reviewCount !== null && userData.reviewCount !== undefined) {
+      // showSuccessState('User data loaded successfully');
+    }
+  } catch (error) {
+    dbgWarn('[popup] Error fetching user data:', error);
+    if (retryCount < maxRetries) {
+      // Use exponential backoff for retries (1s, 2s, 4s)
+      const backoffTime = Math.pow(2, retryCount) * 500;
+      dbgLog(`[popup] Retrying user data fetch in ${backoffTime/1000}s (attempt ${retryCount + 1}/${maxRetries})`);
+      setTimeout(() => fetchAndDisplayUserData(retryCount + 1), backoffTime);
+    } else {
+      showErrorState('Failed to load user data');
+      updateReviewCount('error');
+      await updateSubscriptionStatus('Free Plan', null, null, false, null);
+    }
+  }
+}
+
+// Function to update UI based on login status with better state management
+async function updateUIForLoginStatus() {
+  try {
+    showLoadingState();
+    
+    const isLoggedIn = await isUserLoggedIn();
+    const authenticatedContent = document.getElementById('authenticated-content');
+    const welcomeContent = document.getElementById('welcome-content');
+    
+    dbgLog('[popup] updateUIForLoginStatus - isLoggedIn:', isLoggedIn, 'cloudServiceReady:', cloudServiceReady, 'CloudService available:', !!window.CloudService);
+    
+    if (isLoggedIn) {
+      // User is logged in - show authenticated content, hide welcome
+      if (authenticatedContent) {
+        authenticatedContent.style.display = 'block';
+        authenticatedContent.classList.remove('loading');
+      }
+      if (welcomeContent) {
+        welcomeContent.style.display = 'none';
+      }
+      
+      // Fetch review count if CloudService is ready
+      if (cloudServiceReady && window.CloudService) {
+        dbgLog('[popup] CloudService ready, fetching review count immediately');
+        await fetchAndDisplayUserData();
+        showSuccessState('Ready to generate AI reviews');
+        pendingUserDataFetch = false; // Clear pending flag
+      } else {
+        // Mark that we need to fetch review count when CloudService becomes ready
+        pendingUserDataFetch = true;
+        dbgLog('[popup] CloudService not ready yet, marking review count fetch as pending. cloudServiceReady:', cloudServiceReady, 'CloudService available:', !!window.CloudService);
+        showLoadingState();
+      }
+    } else {
+      // User is not logged in - show welcome content, hide authenticated content
+      if (authenticatedContent) {
+        authenticatedContent.style.display = 'none';
+        authenticatedContent.classList.remove('loading');
+      }
+      if (welcomeContent) {
+        welcomeContent.style.display = 'block';
+      }
+      clearStatusState();
+      pendingUserDataFetch = false; // Clear pending fetch
+    }
+  } catch (error) {
+    dbgWarn('[popup] Error updating UI for login status:', error);
+    showErrorState('Failed to check login status');
+  }
+}
+
+// Function to update current status based on tab
+function updateCurrentStatus() {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    const statusDiv = document.getElementById('current-status');
+    if (!statusDiv) return;
+    
+    if (!tab || !tab.url || !tab.url.includes('gitlab.com')) {
+      statusDiv.textContent = 'Navigate to a Gitlab MR to start generating Reviews';
+      statusDiv.className = '';
+      return;
+    }
+    if (!/\/merge_requests\//.test(tab.url)) {
+      statusDiv.textContent = 'Navigate to a Gitlab MR to start generating Reviews';
+      statusDiv.className = '';
+      return;
+    }
+    
+    const patchUrl = tab.url.replace(/[#?].*$/, '') + '.patch';
+    chrome.storage.local.get({ patches: [] }, (data) => {
+      if (chrome.runtime.lastError) {
+        dbgWarn('[popup] Error accessing patches storage:', chrome.runtime.lastError);
+        statusDiv.textContent = 'Error checking patch status';
+        statusDiv.className = 'error';
+        return;
+      }
+      
+      const found = data.patches.find(p => p.patchUrl === patchUrl);
+      if (found) {
+        statusDiv.textContent = 'Patch fetched and stored.';
+        statusDiv.className = 'success';
+      } else {
+        statusDiv.textContent = 'Patch not yet fetched.';
+        statusDiv.className = '';
+      }
+    });
+  });
+}
+
+// Initialize popup
+async function initializePopup() {
+  if (isInitialized) return;
+  
+  try {
+    dbgLog('[popup] Initializing popup...');
+    
+    // Update UI based on login status
+    await updateUIForLoginStatus();
+    
+    // Update current status
+    updateCurrentStatus();
+    
+    // Check if CloudService is already ready and we have a pending fetch
+    if (cloudServiceReady && window.CloudService && pendingUserDataFetch) {
+      dbgLog('[popup] CloudService already ready during initialization, processing pending fetch');
+      pendingUserDataFetch = false;
+      await fetchAndDisplayUserData();
+      showSuccessState('Ready to generate AI reviews');
+    }
+    
+    isInitialized = true;
+    dbgLog('[popup] Popup initialized successfully');
+  } catch (error) {
+    dbgWarn('[popup] Error initializing popup:', error);
+    showErrorState('Failed to initialize popup');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Check if CloudService is already available before initialization
+  if (window.CloudService) {
+    cloudServiceReady = true;
+    dbgLog('[popup] CloudService already available on popup load');
+  }
+  
+  // Initialize popup
+  await initializePopup();
+  
+  // Trigger immediate CloudService data fetch when popup opens
+  await forceRefreshUserData();
+  
+  // Also trigger after a small delay as backup
+  setTimeout(async () => {
+    await forceRefreshUserData();
+  }, 200); // Small delay to ensure everything is loaded
+  
+  // Set up domain settings
+  initializeDomainSettings();
+  
+  // Set up Azure DevOps settings
+  initializeAzureSettings();
+  
+  // Check if we should auto-trigger sign-in (from content script)
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('autoSignIn') === 'true') {
+    dbgLog('[popup] Auto sign-in requested, triggering Google Sign-In');
+    
+    // Wait a bit for the google-signin component to be ready
+    setTimeout(() => {
+      const googleSignInElement = document.querySelector('google-signin');
+      if (googleSignInElement) {
+        // Check if user is already signed in
+        const isLoggedIn = isUserLoggedIn();
+        isLoggedIn.then(loggedIn => {
+          if (!loggedIn) {
+            dbgLog('[popup] User not logged in, triggering sign-in button click');
+            // Find the sign-in button inside the shadow DOM and click it
+            const signInButton = googleSignInElement.shadowRoot?.querySelector('#signin');
+            if (signInButton) {
+              signInButton.click();
+              dbgLog('[popup] Sign-in button clicked automatically');
+            } else {
+              dbgWarn('[popup] Could not find sign-in button in shadow DOM');
+            }
+          } else {
+            dbgLog('[popup] User already logged in, skipping auto sign-in');
+          }
+        });
+      } else {
+        dbgWarn('[popup] Could not find google-signin element for auto sign-in');
+      }
+    }, 500); // Wait for component to be fully loaded
+  }
+  
+  // Subscription component will be initialized when it's loaded
+  
+  
+  // Listen for popup visibility changes (when popup is reopened)
+  document.addEventListener('visibilitychange', async () => {
+    if (!document.hidden && isInitialized) {
+      dbgLog('[popup] Popup became visible, checking if review count needs refresh');
+      
+      // Force check CloudService availability
+      if (window.CloudService && !cloudServiceReady) {
+        cloudServiceReady = true;
+        dbgLog('[popup] CloudService detected on visibility change');
+      }
+      
+      // Add a small delay to ensure everything is loaded
+      setTimeout(async () => {
+        const isLoggedIn = await isUserLoggedIn();
+        
+        // Double check CloudService again after the delay
+        if (window.CloudService && !cloudServiceReady) {
+          cloudServiceReady = true;
+          dbgLog('[popup] CloudService detected after delay on visibility change');
+        }
+        
+        if (isLoggedIn) {
+          // Force refresh user data when popup is reopened
+          dbgLog('[popup] Popup reopened - force refreshing user data');
+          await forceRefreshUserData();
+        }
+      }, 100);
+    }
+  });
+  
+  // Listen for sign-in state changes with improved event handling
+  // Note: After successful sign-in, the page will reload, so this mainly handles sign-out
+  document.addEventListener('signInStateChanged', async (event) => {
+    dbgLog('[popup] Sign-in state changed:', event.detail);
+    
+    // Handle both camelCase and snake_case event details
+    const isSignedIn = event.detail.signed_in || event.detail.signedIn;
+    
+    if (isSignedIn) {
+      // User signed in - page will reload automatically after sign-in
+      // This code path is for any edge cases where reload doesn't happen
+      dbgLog('[popup] User signed in, refreshing UI');
+      await updateUIForLoginStatus();
+      
+      // If CloudService is already ready, fetch review count immediately
+      if (cloudServiceReady && window.CloudService) {
+        dbgLog('[popup] CloudService ready, fetching review count immediately after sign-in');
+        await fetchAndDisplayUserData();
+        showSuccessState('Ready to generate AI reviews');
+        pendingUserDataFetch = false;
+      } else {
+        // Mark that we need to fetch review count when CloudService becomes ready
+        pendingUserDataFetch = true;
+        dbgLog('[popup] CloudService not ready, marking review count fetch as pending after sign-in');
+      }
+    } else {
+      // User signed out - hide authenticated content, show welcome content
+      const authenticatedContent = document.getElementById('authenticated-content');
+      const welcomeContent = document.getElementById('welcome-content');
+      if (authenticatedContent) {
+        authenticatedContent.style.display = 'none';
+        authenticatedContent.classList.remove('loading');
+      }
+      if (welcomeContent) {
+        welcomeContent.style.display = 'block';
+      }
+      clearStatusState();
+      pendingUserDataFetch = false; // Clear pending fetch
+    }
+  });
+  
+  // Listen for sign-in errors
+  document.addEventListener('signin-error', (event) => {
+    dbgWarn('[popup] Sign-in error:', event.detail);
+    showErrorState('Sign-in failed. Please try again.');
+  });
+  
+  // Listen for sign-out errors
+  document.addEventListener('signout-error', (event) => {
+    dbgWarn('[popup] Sign-out error:', event.detail);
+    showErrorState('Sign-out failed. Please try again.');
+  });
+  
+  // Listen for CloudService ready event
+  window.addEventListener('cloud-service-ready', async (event) => {
+    dbgLog('[popup] CloudService ready event received');
+    cloudServiceReady = true;
+    
+    // Check if user is logged in and fetch review count
+    const isLoggedIn = await isUserLoggedIn();
+    dbgLog('[popup] CloudService ready - isLoggedIn:', isLoggedIn, 'pendingUserDataFetch:', pendingUserDataFetch);
+    
+    if (isLoggedIn) {
+      // If we have a pending review count fetch, handle it now
+      if (pendingUserDataFetch) {
+        dbgLog('[popup] Processing pending review count fetch');
+        pendingUserDataFetch = false;
+        await fetchAndDisplayUserData();
+        showSuccessState('Ready to generate AI reviews');
+      } else {
+        // Otherwise, just fetch the review count normally
+        dbgLog('[popup] No pending fetch, fetching review count normally');
+        await fetchAndDisplayUserData();
+      }
+    }
+  });
+  
+  // Listen for module loading errors
+  window.addEventListener('modules-error', (event) => {
+    dbgWarn('[popup] Module loading error:', event.detail);
+    showErrorState('Failed to load extension modules');
+  });
+  
+  // Set up the How it works button
+  const howItWorksBtn = document.getElementById('how-it-works-btn');
+  if (howItWorksBtn) {
+    howItWorksBtn.addEventListener('click', () => {
+      // Open the onboarding page in a new tab
+      chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') });
+    });
+  }
+  
+  // Set up the Need Help button
+  const needHelpBtn = document.getElementById('need-help-btn');
+  if (needHelpBtn) {
+    needHelpBtn.addEventListener('click', () => {
+      // Open the contact page in a new tab
+      chrome.tabs.create({ url: 'https://thinkreview.dev/contact' });
+    });
+  }
+  
+  // Set up the Report a Bug button
+  const reportBugBtn = document.getElementById('report-bug-btn');
+  if (reportBugBtn) {
+    reportBugBtn.addEventListener('click', () => {
+      // Open the bug report page in a new tab
+      chrome.tabs.create({ url: 'https://thinkreview.dev/bug-report' });
+    });
+  }
+  
+  // Set up the Cancel Subscription button
+  const cancelSubscriptionBtn = document.getElementById('cancel-subscription-btn');
+  if (cancelSubscriptionBtn) {
+    cancelSubscriptionBtn.addEventListener('click', async () => {
+      if (confirm('Are you sure you want to cancel your subscription? You will still have access until the end of your current billing period.')) {
+        try {
+          showLoadingState();
+          
+          if (!window.CloudService) {
+            throw new Error('Cloud service not available');
+          }
+          
+          await window.CloudService.cancelSubscription();
+          
+          // Update UI to reflect cancellation
+          showSuccessState('Subscription cancelled successfully');
+          
+          // Refresh user data to update subscription status
+          await fetchAndDisplayUserData();
+        } catch (error) {
+          dbgWarn('[popup] Error cancelling subscription:', error);
+          showErrorState('Failed to cancel subscription. Please try again.');
+        }
+      }
+    });
+  }
+  
+  // Initialize domain settings
+  initializeDomainSettings();
+});
+
+// Domain Management Functionality
+const DEFAULT_DOMAINS = ['https://gitlab.com'];
+
+function initializeDomainSettings() {
+  loadDomains();
+  setupDomainEventListeners();
+}
+
+function setupDomainEventListeners() {
+  const addButton = document.getElementById('add-domain-btn');
+  const domainInput = document.getElementById('domain-input');
+  
+  // Add domain button click
+  addButton.addEventListener('click', addDomain);
+  
+  // Enter key in input field
+  domainInput.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') {
+      addDomain();
+    }
+  });
+  
+  // Input validation
+  domainInput.addEventListener('input', () => {
+    const isValid = validateDomainInput(domainInput.value.trim());
+    addButton.disabled = !isValid;
+  });
+}
+
+function validateDomainInput(domain) {
+  if (!domain) return false;
+  
+  // Allow domains with or without protocol and port
+  // Examples: gitlab.com, localhost:8083, http://localhost:8083, https://gitlab.example.com
+  const domainRegex = /^(https?:\/\/)?(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}|localhost)(:\d+)?(\/.*)?$/;
+  return domainRegex.test(domain);
+}
+
+function normalizeDomain(input) {
+  // Remove trailing slashes
+  let normalized = input.replace(/\/+$/, '');
+  
+  // If it starts with http:// or https://, keep as is
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+    return normalized;
+  }
+  
+  // For localhost or domains with ports, default to http://
+  if (normalized.includes('localhost') || /:\d+/.test(normalized)) {
+    return `http://${normalized}`;
+  }
+  
+  // For regular domains, default to https://
+  return `https://${normalized}`;
+}
+
+function formatDomainForDisplay(domain) {
+  // Remove https:// for cleaner display, but keep http:// to show it's not secure
+  if (domain.startsWith('https://')) {
+    return domain.replace('https://', '');
+  }
+  return domain;
+}
+
+async function loadDomains() {
+  try {
+    const result = await chrome.storage.local.get(['gitlabDomains']);
+    const domains = result.gitlabDomains || DEFAULT_DOMAINS;
+    renderDomainList(domains);
+  } catch (error) {
+    dbgWarn('Error loading domains:', error);
+    renderDomainList(DEFAULT_DOMAINS);
+  }
+}
+
+function renderDomainList(domains) {
+  const domainList = document.getElementById('domain-list');
+  
+  if (domains.length === 0) {
+    domainList.innerHTML = '<div class="no-domains">No custom domains added</div>';
+    return;
+  }
+  
+  domainList.innerHTML = domains.map(domain => {
+    const isDefault = DEFAULT_DOMAINS.includes(domain);
+    const displayDomain = formatDomainForDisplay(domain);
+    return `
+      <div class="domain-item ${isDefault ? 'default' : ''}">
+        <span class="domain-name">${displayDomain}</span>
+        <div>
+          ${isDefault ? '<span class="default-label">DEFAULT</span>' : ''}
+          ${!isDefault ? `<button class="remove-domain-btn" data-domain="${domain}">Remove</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  // Add event listeners to remove buttons
+  domainList.querySelectorAll('.remove-domain-btn').forEach(button => {
+    button.addEventListener('click', () => removeDomain(button.dataset.domain));
+  });
+}
+
+// Flag to prevent duplicate calls
+let isAddingDomain = false;
+
+async function addDomain() {
+  // Prevent duplicate calls
+  if (isAddingDomain) {
+    return;
+  }
+  
+  const domainInput = document.getElementById('domain-input');
+  const inputValue = domainInput.value.trim().toLowerCase();
+  
+  if (!validateDomainInput(inputValue)) {
+    alert('Please enter a valid domain (e.g., gitlab.example.com, localhost:8083, http://localhost:8083)');
+    return;
+  }
+  
+  // Normalize the domain (store as full URL format for consistency)
+  const domain = normalizeDomain(inputValue);
+  
+  try {
+    // Set flag to prevent duplicate calls
+    isAddingDomain = true;
+    
+    // Show loading state
+    const addButton = document.getElementById('add-domain-btn');
+    const originalButtonText = addButton.textContent;
+    addButton.textContent = 'Adding...';
+    addButton.disabled = true;
+    
+    // Get current domains
+    const result = await chrome.storage.local.get(['gitlabDomains']);
+    const domains = result.gitlabDomains || DEFAULT_DOMAINS;
+    
+    if (domains.includes(domain)) {
+      alert('Domain already exists');
+      addButton.textContent = originalButtonText;
+      addButton.disabled = false;
+      return;
+    }
+    
+    // Create origin pattern for permission request
+    let originPattern;
+    if (domain.startsWith('http://') || domain.startsWith('https://')) {
+      const url = new URL(domain);
+      originPattern = `${url.protocol}//${url.host}/*`;
+    } else {
+      originPattern = `https://${domain}/*`;
+    }
+    
+    dbgLog(`[popup] Adding domain with pattern: ${originPattern}`);
+    
+    // Request permission for this domain
+    const granted = await chrome.permissions.request({
+      origins: [originPattern]
+    });
+    
+    if (!granted) {
+      alert('Permission not granted. The extension needs permission to access this domain.');
+      addButton.textContent = originalButtonText;
+      addButton.disabled = false;
+      return;
+    }
+    
+    // Add the domain to storage
+    const updatedDomains = [...domains, domain];
+    await chrome.storage.local.set({ gitlabDomains: updatedDomains });
+    
+    // Track custom domain in cloud asynchronously (fire-and-forget)
+    // This runs in the background without blocking the domain addition
+    isUserLoggedIn().then(isLoggedIn => {
+      if (isLoggedIn && window.CloudService) {
+        dbgLog('[popup] User logged in, tracking custom domain in cloud (async)');
+        window.CloudService.trackCustomDomains(domain, 'add')
+          .then(() => dbgLog('[popup] Custom domain tracked successfully in cloud'))
+          .catch(trackError => dbgWarn('[popup] Error tracking custom domain in cloud (non-critical):', trackError));
+      } else {
+        dbgLog('[popup] User not logged in or CloudService not available, skipping cloud tracking');
+      }
+    }).catch(err => dbgWarn('[popup] Error checking login status for cloud tracking:', err));
+    
+    // Explicitly trigger content script update via message to background
+    chrome.runtime.sendMessage({ 
+      type: 'UPDATE_CONTENT_SCRIPTS',
+      domains: updatedDomains 
+    });
+    
+    dbgLog('[popup] Domain added successfully:', domain);
+    domainInput.value = '';
+    addButton.textContent = originalButtonText;
+    addButton.disabled = true;
+    
+    renderDomainList(updatedDomains);
+    
+    // Show success message
+    showMessage('Domain added successfully! You may need to reload GitLab pages for changes to take effect.', 'success');
+    
+  } catch (error) {
+    dbgWarn('[popup] Error adding domain:', error);
+    alert(`Error adding domain: ${error.message}. Please try again.`);
+    document.getElementById('add-domain-btn').textContent = 'Add';
+    document.getElementById('add-domain-btn').disabled = false;
+  } finally {
+    // Reset flag to allow future calls
+    isAddingDomain = false;
+  }
+}
+
+async function removeDomain(domain) {
+  if (DEFAULT_DOMAINS.includes(domain)) {
+    alert('Cannot remove default domain');
+    return;
+  }
+  
+  if (!confirm(`Remove domain "${domain}"?`)) {
+    return;
+  }
+  
+  try {
+    const result = await chrome.storage.local.get(['gitlabDomains']);
+    const domains = result.gitlabDomains || DEFAULT_DOMAINS;
+    
+    const updatedDomains = domains.filter(d => d !== domain);
+    await chrome.storage.local.set({ gitlabDomains: updatedDomains });
+    
+    // Track custom domain removal in cloud asynchronously (fire-and-forget)
+    // This runs in the background without blocking the domain removal
+    isUserLoggedIn().then(isLoggedIn => {
+      if (isLoggedIn && window.CloudService) {
+        dbgLog('[popup] User logged in, tracking custom domain removal in cloud (async)');
+        window.CloudService.trackCustomDomains(domain, 'remove')
+          .then(() => dbgLog('[popup] Custom domain removal tracked successfully in cloud'))
+          .catch(trackError => dbgWarn('[popup] Error tracking custom domain removal in cloud (non-critical):', trackError));
+      } else {
+        dbgLog('[popup] User not logged in or CloudService not available, skipping cloud tracking');
+      }
+    }).catch(err => dbgWarn('[popup] Error checking login status for cloud tracking:', err));
+    
+    dbgLog('Domain removed:', domain);
+    renderDomainList(updatedDomains);
+    
+    showMessage('Domain removed successfully!', 'success');
+    
+  } catch (error) {
+    dbgWarn('Error removing domain:', error);
+    alert('Error removing domain. Please try again.');
+  }
+}
+
+function showMessage(text, type = 'info') {
+  // Create a temporary message element
+  const message = document.createElement('div');
+  message.style.cssText = `
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: ${type === 'success' ? '#4caf50' : type === 'error' ? '#f44336' : '#2196f3'};
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 10000;
+    max-width: 300px;
+    text-align: center;
+  `;
+  message.textContent = text;
+  
+  document.body.appendChild(message);
+  
+  setTimeout(() => {
+    if (document.body.contains(message)) {
+      document.body.removeChild(message);
+    }
+  }, 3000);
+}
+
+// Azure DevOps Settings Functionality
+function initializeAzureSettings() {
+  loadAzureToken();
+  setupAzureEventListeners();
+}
+
+function setupAzureEventListeners() {
+  const saveButton = document.getElementById('save-token-btn');
+  const tokenInput = document.getElementById('azure-token-input');
+  
+  // Save token button click
+  saveButton.addEventListener('click', saveAzureToken);
+  
+  // Enter key in input field
+  tokenInput.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') {
+      saveAzureToken();
+    }
+  });
+  
+  // Input validation
+  tokenInput.addEventListener('input', () => {
+    const isValid = validateTokenInput(tokenInput.value.trim());
+    saveButton.disabled = !isValid;
+  });
+}
+
+function validateTokenInput(token) {
+  if (!token) return false;
+  
+  // Azure DevOps PATs are typically base64 encoded strings
+  // They usually start with a specific pattern and are 52 characters long
+  // But we'll be more lenient and just check for reasonable length and characters
+  const tokenRegex = /^[A-Za-z0-9+/=_-]{20,}$/;
+  return tokenRegex.test(token);
+}
+
+async function loadAzureToken() {
+  try {
+    const result = await chrome.storage.local.get(['azureDevOpsToken']);
+    const token = result.azureDevOpsToken;
+    
+    if (token) {
+      // Show that token is saved (but don't display the actual token)
+      updateTokenStatus('Token saved successfully', 'success');
+      
+      // Pre-fill the input with masked token for user reference
+      const tokenInput = document.getElementById('azure-token-input');
+      if (tokenInput) {
+        tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
+        tokenInput.type = 'password';
+      }
+    } else {
+      updateTokenStatus('No token configured', 'info');
+    }
+  } catch (error) {
+    dbgWarn('Error loading Azure token:', error);
+    updateTokenStatus('Error loading token', 'error');
+  }
+}
+
+async function saveAzureToken() {
+  const tokenInput = document.getElementById('azure-token-input');
+  const saveButton = document.getElementById('save-token-btn');
+  const token = tokenInput.value.trim();
+  
+  if (!validateTokenInput(token)) {
+    updateTokenStatus('Please enter a valid Azure DevOps Personal Access Token', 'error');
+    return;
+  }
+  
+  try {
+    // Show loading state
+    const originalButtonText = saveButton.textContent;
+    saveButton.textContent = 'Saving...';
+    saveButton.disabled = true;
+    
+    // Save token to storage
+    await chrome.storage.local.set({ azureDevOpsToken: token });
+    
+    // Update UI
+    updateTokenStatus('Token saved successfully', 'success');
+    
+    // Mask the token in the input field
+    tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
+    tokenInput.type = 'password';
+    
+    // Reset button
+    saveButton.textContent = originalButtonText;
+    saveButton.disabled = true;
+    
+    dbgLog('Azure DevOps token saved successfully');
+    
+  } catch (error) {
+    dbgWarn('Error saving Azure token:', error);
+    updateTokenStatus('Error saving token. Please try again.', 'error');
+    
+    // Reset button
+    saveButton.textContent = 'Save Token';
+    saveButton.disabled = false;
+  }
+}
+
+function updateTokenStatus(message, type) {
+  const statusDiv = document.getElementById('token-status');
+  if (statusDiv) {
+    statusDiv.textContent = message;
+    statusDiv.className = `token-status ${type}`;
+  }
+}
+
+// Subscription upgrade functionality has been moved to content.js and removed from popup

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Redirecting to Stripe Checkout</title>
+  <!-- Use external script file to comply with CSP -->
+  <script src="stripe-redirect.js"></script>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f5f5f5;
+    }
+    .container {
+      text-align: center;
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      color: #333;
+    }
+    #message {
+      margin-top: 20px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ThinkReview: Subscription</h1>
+    <div id="message">Preparing checkout...</div>
+  </div>
+</body>
+</html>

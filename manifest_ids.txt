@@ -1,0 +1,3 @@
+dev client id : 201038166512-1uh1itil3hmve5rnh31rd6e69ravt6i1.apps.googleusercontent.com
+
+prod live client id  : 201038166512-5iscl7q3780849f9mghvjsd3k9eg2cpd.apps.googleusercontent.com

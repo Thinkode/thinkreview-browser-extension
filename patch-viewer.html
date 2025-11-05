@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Patch Viewer</title>
+  <link rel="stylesheet" href="patch-viewer.css">
+</head>
+<body>
+  <div id="viewer-container">
+    <h2>Patch Diff Viewer</h2>
+    <div id="patch-meta"></div>
+    <pre id="patch-content">Loading...</pre>
+    <div id="viewer-actions">
+      <button id="download-patch">Download Patch</button>
+      <button id="toggle-format">Toggle Format</button>
+      <button id="review-code">Review Code</button>
+    </div>
+    <div id="review-results" class="hidden">
+      <h3>Code Review</h3>
+      <div id="review-loading" class="hidden">Analyzing code... <span class="spinner"></span></div>
+      <div id="review-content">
+        <div id="review-summary"></div>
+        <div class="review-section">
+          <h4>Suggestions</h4>
+          <ul id="review-suggestions"></ul>
+        </div>
+        <div class="review-section">
+          <h4>Security Issues</h4>
+          <ul id="review-security"></ul>
+        </div>
+        <div class="review-section">
+          <h4>Best Practices</h4>
+          <ul id="review-practices"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="patch-viewer.js"></script>
+</body>
+</html>

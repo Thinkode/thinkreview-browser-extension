@@ -1,0 +1,80 @@
+.subscription-section {
+  background-color: #2d3748;
+  border: 1px solid #4a5568;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.settings-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #e2e8f0;
+}
+
+.settings-description {
+  font-size: 12px;
+  color: #a0aec0;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.subscription-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.upgrade-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #6b4fbb;
+  background-color: #4a5568;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upgrade-btn:hover {
+  background-color: #2d3748;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(107, 79, 187, 0.3);
+}
+
+.monthly-btn {
+  border-color: #6b4fbb;
+  color: #e2e8f0;
+}
+
+.annual-btn {
+  border-color: #6b4fbb;
+  color: #e2e8f0;
+  position: relative;
+}
+
+.plan-name {
+  font-weight: 500;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.plan-price {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.plan-savings {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #4caf50;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+}
