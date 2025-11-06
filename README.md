@@ -14,6 +14,8 @@
 
 [🌐 Website](https://thinkreview.dev) • [📦 Install](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn) • [📖 Docs](#documentation) • [💬 Support](mailto:support@thinkode.co.uk)
 
+<img src="media/hero-banner.png" alt="ThinkReview - AI Code Review" width="800">
+
 </div>
 
 ---
@@ -41,6 +43,11 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 - **Code Quality**: Receive suggestions for improvements
 - **Smart Summaries**: Quickly understand complex changes
 
+<div align="center">
+  <img src="media/demo-ai-code-review.gif" alt="AI Code Review Demo" width="700">
+  <p><em>AI-powered code review in action</em></p>
+</div>
+
 ### 💬 AI Copilot
 - **Chat with PRs**: Ask questions about your pull requests
 - **Suggested Questions**: Get smart, context-aware queries
@@ -51,11 +58,35 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 - ✅ **Azure DevOps** (dev.azure.com, custom domains)
 - ✅ Works with **any GitLab instance** on custom domains
 
+<div align="center">
+  <img src="media/demo-azure-devops.gif" alt="Azure DevOps Integration" width="700">
+  <p><em>Seamless Azure DevOps integration</em></p>
+</div>
+
 ### 🚀 Zero Setup Required
 - **No API Keys**: Works out of the box
 - **No Configuration**: Install and start reviewing
 - **Automatic Detection**: Recognizes MR/PR pages instantly
 - **Seamless Integration**: Doesn't disrupt your workflow
+
+### 🌍 Multilingual Support
+- **Reviews in Your Language**: Get code reviews in 20+ languages
+- **Automatic Language Detection**: Adapts to your preferences
+
+<div align="center">
+  <img src="media/feature-language-selection.png" alt="Multilingual Support" width="600">
+  <p><em>Code reviews in your preferred language</em></p>
+</div>
+
+### ⚙️ Flexible Configuration
+- **Custom Domains**: Works with self-hosted GitLab instances
+- **Azure DevOps PAT**: Configure personal access tokens for private repos
+- **Team Settings**: Customize for your organization's needs
+
+<div align="center">
+  <img src="media/settings-custom-domain.png" alt="Custom Domain Configuration" width="600">
+  <p><em>Configure custom domains and Azure DevOps tokens</em></p>
+</div>
 
 ### 🔐 Privacy & Security
 - 🔒 **Secure Authentication**: Google OAuth
