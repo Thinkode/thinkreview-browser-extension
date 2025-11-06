@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to ThinkReview: AI Code Reviews for GitLab</title>
+  <title>Welcome to ThinkReview: AI Code Reviews for GitLab & Azure DevOps</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <style>
@@ -145,7 +145,7 @@
     <div class="container mx-auto px-6">
       <img src="images/icon128.png" alt="ThinkReview Logo" class="mx-auto h-24 mb-8 drop-shadow-lg">
       <h1 class="text-5xl font-bold mb-6">Welcome to ThinkReview</h1>
-      <p class="text-2xl mb-4">AI-Powered Code Reviews for GitLab</p>
+      <p class="text-2xl mb-4">AI-Powered Code Reviews for GitLab & Azure DevOps</p>
       <div class="gemini-badge text-sm">Powered by Gemini 2.5 Pro</div>
       <p class="text-lg opacity-90 mt-4">Transform your merge request workflow with intelligent AI code analysis</p>
       <div class="mt-8">
@@ -246,8 +246,8 @@
                 <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"></path>
               </svg>
             </div>
-            <h3 class="text-2xl font-bold mb-3 gradient-text">Custom Domains</h3>
-            <p class="text-gray-600">Works with any GitLab instance - self-hosted, GitLab.com, or your custom domain.</p>
+            <h3 class="text-2xl font-bold mb-3 gradient-text">Multi-Platform</h3>
+            <p class="text-gray-600">Works with GitLab (any instance) and Azure DevOps - self-hosted or cloud.</p>
           </div>
         </div>
       </div>
@@ -311,40 +311,53 @@
     <div class="container mx-auto px-6">
       <div class="glass-card rounded-2xl p-8 max-w-4xl mx-auto">
         <h2 class="text-3xl font-bold text-center mb-8 gradient-text">ThinkReview in Action</h2>
-        <p class="text-center text-gray-600 mb-8 text-lg">See how ThinkReview seamlessly integrates with your GitLab workflow and generates AI-powered code reviews.</p>
+        <p class="text-center text-gray-600 mb-8 text-lg">See how ThinkReview seamlessly integrates with your GitLab and Azure DevOps workflow and generates AI-powered code reviews.</p>
         
         <div class="bg-white rounded-xl p-6 mb-6">
-          <h3 class="text-xl font-bold mb-4 text-center">Add custom domain from the extension</h3>
+          <h3 class="text-xl font-bold mb-4 text-center">Configure Custom Domains & Azure DevOps</h3>
           <div class="flex justify-center">
             <img 
-              src="media/ThinkReview-Main-2.png" 
-              alt="ThinkReview Extension Screenshot" 
+              src="media/settings-custom-domain.png" 
+              alt="ThinkReview Settings - Custom Domain and Azure DevOps Configuration" 
               class="max-w-full h-auto rounded-lg shadow-lg"
               style="max-height: 500px;"
             >
           </div>
-          <p class="text-sm text-gray-500 mt-4 text-center">The ThinkReview extension seamlessly integrates with your GitLab workflow</p>
+          <p class="text-sm text-gray-500 mt-4 text-center">Configure custom GitLab domains and Azure DevOps Personal Access Tokens from the extension settings</p>
           <div class="mt-6 text-center">
             <button 
               id="configure-domain-button"
               class="btn-primary px-6 py-3 rounded-lg text-white font-semibold text-base"
             >
-              Configure Custom Domains
+              Configure Settings
             </button>
           </div>
         </div>
         
-        <div class="bg-white rounded-xl p-6">
-          <h3 class="text-xl font-bold mb-4 text-center">AI Review Generation Demo</h3>
+        <div class="bg-white rounded-xl p-6 mb-6">
+          <h3 class="text-xl font-bold mb-4 text-center">GitLab - AI Review Generation</h3>
           <div class="flex justify-center">
             <img 
-              src="media/thinkreview2.gif" 
-              alt="ThinkReview AI Review Generation Animation" 
+              src="media/demo-ai-code-review.gif" 
+              alt="ThinkReview AI Review Generation Animation for GitLab" 
               class="max-w-full h-auto rounded-lg shadow-lg"
               style="max-height: 500px;"
             >
           </div>
-          <p class="text-sm text-gray-500 mt-4 text-center">Watch how ThinkReview generates comprehensive AI code reviews powered by Gemini 2.5 Pro</p>
+          <p class="text-sm text-gray-500 mt-4 text-center">Watch how ThinkReview generates comprehensive AI code reviews for GitLab merge requests powered by Gemini 2.5 Pro</p>
+        </div>
+
+        <div class="bg-white rounded-xl p-6">
+          <h3 class="text-xl font-bold mb-4 text-center">Azure DevOps - AI Code Review</h3>
+          <div class="flex justify-center">
+            <img 
+              src="media/demo-azure-devops.gif" 
+              alt="ThinkReview AI Review for Azure DevOps Pull Requests" 
+              class="max-w-full h-auto rounded-lg shadow-lg"
+              style="max-height: 500px;"
+            >
+          </div>
+          <p class="text-sm text-gray-500 mt-4 text-center">ThinkReview also works seamlessly with Azure DevOps pull requests, providing the same powerful AI-driven insights</p>
         </div>
       </div>
     </div>
@@ -404,7 +417,7 @@
     <div class="container mx-auto px-6 text-center">
       <div class="glass-card rounded-2xl p-12 max-w-2xl mx-auto">
         <h2 class="text-3xl font-bold mb-6 gradient-text">Ready to Get Started?</h2>
-        <p class="text-lg text-gray-600 mb-8">Click "Get Started" to begin using ThinkReview. Navigate to any GitLab merge request and click the "AI Review" button to experience the power of AI-driven code reviews.</p>
+        <p class="text-lg text-gray-600 mb-8">Click "Get Started" to begin using ThinkReview. Navigate to any GitLab merge request or Azure DevOps pull request to experience the power of AI-driven code reviews.</p>
         
         <div class="flex flex-col sm:flex-row lg:flex-wrap gap-4 justify-center max-w-4xl mx-auto">
           <button 
@@ -417,7 +430,13 @@
             id="gitlab-button"
             class="px-8 py-4 rounded-lg border-2 border-blue-300 text-blue-700 font-semibold text-lg hover:bg-blue-50 transition-colors"
           >
-            Go to GitLab.com
+            Go to GitLab
+          </button>
+          <button 
+            id="azure-button"
+            class="px-8 py-4 rounded-lg border-2 border-blue-400 text-blue-800 font-semibold text-lg hover:bg-blue-50 transition-colors"
+          >
+            Go to Azure DevOps
           </button>
           <button 
             id="close-button"

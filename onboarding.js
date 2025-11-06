@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const getStartedHeaderButton = document.getElementById('get-started-header-button');
   const getStartedBottomButton = document.getElementById('get-started-bottom-button');
   const gitlabButton = document.getElementById('gitlab-button');
+  const azureButton = document.getElementById('azure-button');
   const closeButton = document.getElementById('close-button');
   
   if (configureDomainButton) {
@@ -49,6 +50,14 @@ document.addEventListener('DOMContentLoaded', function() {
       dbgLog('GitLab button clicked');
       e.preventDefault();
       openGitLab();
+    });
+  }
+  
+  if (azureButton) {
+    azureButton.addEventListener('click', function(e) {
+      dbgLog('Azure DevOps button clicked');
+      e.preventDefault();
+      openAzureDevOps();
     });
   }
   
@@ -117,6 +126,29 @@ function openGitLab() {
 }
 
 /**
+ * Open Azure DevOps in a new tab
+ */
+function openAzureDevOps() {
+  dbgLog('Opening Azure DevOps...');
+  
+  try {
+    // Try to use Chrome extension API first
+    if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+      chrome.tabs.create({ url: 'https://dev.azure.com' });
+      dbgLog('Azure DevOps opened via Chrome API');
+    } else {
+      // Fallback to regular window.open
+      window.open('https://dev.azure.com', '_blank');
+      dbgLog('Azure DevOps opened via window.open');
+    }
+  } catch (error) {
+    // console.error('Error opening Azure DevOps:', error);
+    // Fallback to regular window.open
+    window.open('https://dev.azure.com', '_blank');
+  }
+}
+
+/**
  * Close the onboarding page
  */
 function closeOnboarding() {
@@ -146,4 +178,5 @@ function markOnboardingComplete() {
 // Export functions for global access
 window.openExtensionPopup = openExtensionPopup;
 window.openGitLab = openGitLab;
+window.openAzureDevOps = openAzureDevOps;
 window.closeOnboarding = closeOnboarding;
