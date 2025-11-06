@@ -183,6 +183,9 @@ function createIntegratedReviewPanel(patchUrl) {
           <span class="thinkreview-toggle-icon gl-ml-2" title="Minimize">▲</span>
         </div>
         <div class="thinkreview-header-actions">
+          <button id="regenerate-review-btn" class="thinkreview-regenerate-btn" title="Force regenerate review">
+            🔄 Regenerate
+          </button>
           <select id="language-selector" class="thinkreview-language-dropdown" title="Select review language">
             <option value="English">English</option>
             <option value="Spanish">Español</option>
@@ -198,9 +201,6 @@ function createIntegratedReviewPanel(patchUrl) {
             <option value="Czech">Čeština</option>
             <option value="Hungarian">Magyar</option>
           </select>
-          <button id="regenerate-review-btn" class="thinkreview-regenerate-btn" title="Force regenerate review">
-            🔄 Regenerate
-          </button>
           <button id="bug-report-btn" class="thinkreview-bug-report-btn" title="Report a Bug">
             Report a 🐞
           </button>
