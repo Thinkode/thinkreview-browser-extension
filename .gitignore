@@ -44,3 +44,8 @@ coverage/
 # Temporary files
 temp/
 tmp/
+
+# Internal documentation
+OPEN_SOURCE_LAUNCH_GUIDE.md
+cleanup-media.sh
+*-backup*/
