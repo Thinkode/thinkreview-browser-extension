@@ -12,7 +12,7 @@
 
 **AI-powered code reviews for merge requests and pull requests, directly in your browser.**
 
-[🌐 Website](https://thinkreview.dev) • [📦 Install](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn) • [📖 Docs](#documentation) • [💬 Support](mailto:support@thinkode.co.uk)
+[🌐 Website](https://thinkreview.dev) • [📦 Install](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn) • [📖 Docs](#documentation) • [💬 Contact](https://thinkreview.dev/contact)
 
 <img src="media/hero-banner.png" alt="ThinkReview - AI Code Review" width="800">
 
@@ -254,7 +254,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 - Browser version and OS
 
 ### Need Help?
-- 📧 Email: [support@thinkode.co.uk](mailto:support@thinkode.co.uk)
+- 📧 Contact Form: [thinkreview.dev/contact](https://thinkreview.dev/contact)
+- 💬 Email: [support@thinkreview.dev](mailto:support@thinkreview.dev)
 - 🌐 Website: [thinkreview.dev](https://thinkreview.dev)
 - 💬 GitHub Discussions: [Ask questions](https://github.com/Thinkode/thinkreview-browser-extension/discussions)
 
@@ -281,7 +282,7 @@ This project is licensed under the **GNU Affero General Public License v3.0 (AGP
 ### Commercial Licensing
 
 For commercial deployments with your own backend or proprietary modifications:
-- 📧 Contact: [support@thinkode.co.uk](mailto:support@thinkode.co.uk)
+- 📧 Contact: [thinkreview.dev/contact](https://thinkreview.dev/contact)
 - 🌐 Learn more: [thinkreview.dev](https://thinkreview.dev)
 
 See [LICENSE](LICENSE) for full details.
@@ -292,7 +293,7 @@ See [LICENSE](LICENSE) for full details.
 
 - 🏪 **Chrome Web Store**: [Install ThinkReview](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
 - 🌐 **Official Website**: [thinkreview.dev](https://thinkreview.dev)
-- 📧 **Support**: [support@thinkode.co.uk](mailto:support@thinkode.co.uk)
+- 📧 **Contact & Support**: [thinkreview.dev/contact](https://thinkreview.dev/contact)
 - 🐛 **Report Issues**: [GitHub Issues](https://github.com/Thinkode/thinkreview-browser-extension/issues)
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/Thinkode/thinkreview-browser-extension/discussions)
 
