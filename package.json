@@ -1,7 +1,7 @@
 {
-  "name": "thinkreview-extension",
+  "name": "thinkreview-browser-extension",
   "version": "1.3.8",
-  "description": "AI Code Review for GitLab & Azure DevOps - Browser Extension",
+  "description": "AI-powered code reviews for GitLab & Azure DevOps. Zero setup. Powered by Google Gemini.",
   "type": "module",
   "scripts": {
     "lint": "node scripts/lint-manifest.js",
@@ -18,9 +18,10 @@
     "eslint-plugin-promise": "^6.1.1"
   },
   "keywords": [
-    "chrome-extension",
     "browser-extension",
+    "chrome-extension",
     "chromium",
+    "edge-extension",
     "gitlab",
     "azure-devops",
     "merge-request",
@@ -28,16 +29,19 @@
     "code-review",
     "ai",
     "gemini",
-    "developer-tools"
+    "ai-code-review",
+    "code-quality",
+    "developer-tools",
+    "devops"
   ],
   "author": "Thinkode Team",
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Thinkode/thinkreview-extension.git"
+    "url": "https://github.com/Thinkode/thinkreview-browser-extension.git"
   },
   "bugs": {
-    "url": "https://github.com/Thinkode/thinkreview-extension/issues"
+    "url": "https://github.com/Thinkode/thinkreview-browser-extension/issues"
   },
   "homepage": "https://thinkreview.dev",
   "engines": {

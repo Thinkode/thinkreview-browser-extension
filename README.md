@@ -5,7 +5,7 @@
 ### AI Code Review for GitLab & Azure DevOps
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-blue?logo=google-chrome)](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
-[![Version](https://img.shields.io/badge/version-1.3.8-green.svg)](https://github.com/Thinkode/thinkreview-extension/releases)
+[![Version](https://img.shields.io/badge/version-1.3.8-green.svg)](https://github.com/Thinkode/thinkreview-browser-extension/releases)
 [![Users](https://img.shields.io/badge/users-128+-brightgreen.svg)](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
 [![Rating](https://img.shields.io/badge/rating-5.0%2F5-yellow.svg)](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
@@ -110,8 +110,8 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 
 ```bash
 # Clone the repository
-git clone https://github.com/Thinkode/thinkreview-extension.git
-cd thinkreview-extension
+git clone https://github.com/Thinkode/thinkreview-browser-extension.git
+cd thinkreview-browser-extension
 
 # Load in Chrome
 # 1. Open Chrome and navigate to chrome://extensions/
@@ -163,7 +163,7 @@ ThinkReview consists of two main components:
 ### Project Structure
 
 ```
-thinkreview-extension/
+thinkreview-browser-extension/
 ├── manifest.json           # Extension configuration
 ├── background.js           # Service worker
 ├── content.js             # Main content script
@@ -223,8 +223,8 @@ We welcome contributions! ThinkReview is now open source and we'd love your help
 
 ```bash
 # Clone your fork
-git clone https://github.com/your-username/thinkreview-extension.git
-cd thinkreview-extension
+git clone https://github.com/your-username/thinkreview-browser-extension.git
+cd thinkreview-browser-extension
 
 # Install dependencies (if any)
 npm install
@@ -246,7 +246,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 ## 🐛 Issues & Support
 
 ### Found a Bug?
-[Open an issue](https://github.com/Thinkode/thinkreview-extension/issues/new) with:
+[Open an issue](https://github.com/Thinkode/thinkreview-browser-extension/issues/new) with:
 - Description of the bug
 - Steps to reproduce
 - Expected vs actual behavior
@@ -256,7 +256,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 ### Need Help?
 - 📧 Email: [support@thinkode.co.uk](mailto:support@thinkode.co.uk)
 - 🌐 Website: [thinkreview.dev](https://thinkreview.dev)
-- 💬 GitHub Discussions: [Ask questions](https://github.com/Thinkode/thinkreview-extension/discussions)
+- 💬 GitHub Discussions: [Ask questions](https://github.com/Thinkode/thinkreview-browser-extension/discussions)
 
 ---
 
@@ -293,8 +293,8 @@ See [LICENSE](LICENSE) for full details.
 - 🏪 **Chrome Web Store**: [Install ThinkReview](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
 - 🌐 **Official Website**: [thinkreview.dev](https://thinkreview.dev)
 - 📧 **Support**: [support@thinkode.co.uk](mailto:support@thinkode.co.uk)
-- 🐛 **Report Issues**: [GitHub Issues](https://github.com/Thinkode/thinkreview-extension/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/Thinkode/thinkreview-extension/discussions)
+- 🐛 **Report Issues**: [GitHub Issues](https://github.com/Thinkode/thinkreview-browser-extension/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/Thinkode/thinkreview-browser-extension/discussions)
 
 ---
 

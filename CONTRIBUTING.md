@@ -24,7 +24,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
 
 ### Reporting Bugs
 
-Before creating bug reports, please check the [issue list](https://github.com/Thinkode/thinkreview-extension/issues) as you might find out that you don't need to create one. When you are creating a bug report, please include as many details as possible:
+Before creating bug reports, please check the [issue list](https://github.com/Thinkode/thinkreview-browser-extension/issues) as you might find out that you don't need to create one. When you are creating a bug report, please include as many details as possible:
 
 **Before Submitting A Bug Report:**
 - Check the [documentation](README.md)
@@ -33,7 +33,7 @@ Before creating bug reports, please check the [issue list](https://github.com/Th
 
 **How Do I Submit A Good Bug Report?**
 
-Bugs are tracked as [GitHub issues](https://github.com/Thinkode/thinkreview-extension/issues). Create an issue and provide the following information:
+Bugs are tracked as [GitHub issues](https://github.com/Thinkode/thinkreview-browser-extension/issues). Create an issue and provide the following information:
 
 - **Use a clear and descriptive title**
 - **Describe the exact steps to reproduce the problem**
@@ -48,7 +48,7 @@ Bugs are tracked as [GitHub issues](https://github.com/Thinkode/thinkreview-exte
 
 ### Suggesting Enhancements
 
-Enhancement suggestions are tracked as [GitHub issues](https://github.com/Thinkode/thinkreview-extension/issues). When creating an enhancement suggestion, please include:
+Enhancement suggestions are tracked as [GitHub issues](https://github.com/Thinkode/thinkreview-browser-extension/issues). When creating an enhancement suggestion, please include:
 
 - **Use a clear and descriptive title**
 - **Provide a step-by-step description** of the suggested enhancement
@@ -82,8 +82,8 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/Thinko
 2. **Clone your fork**
 
    ```bash
-   git clone https://github.com/YOUR-USERNAME/thinkreview-extension.git
-   cd thinkreview-extension
+   git clone https://github.com/YOUR-USERNAME/thinkreview-browser-extension.git
+   cd thinkreview-browser-extension
    ```
 
 3. **Install dependencies (optional, for linting)**
@@ -97,7 +97,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/Thinko
    - Open Chrome and navigate to `chrome://extensions/`
    - Enable "Developer mode" (toggle in top right)
    - Click "Load unpacked"
-   - Select the `thinkreview-extension` directory
+   - Select the `thinkreview-browser-extension` directory
 
 5. **Make your changes**
 
@@ -246,7 +246,7 @@ For questions about backend API access or commercial licensing, please contact s
 ### Questions?
 
 Feel free to:
-- Open a [GitHub Discussion](https://github.com/Thinkode/thinkreview-extension/discussions)
+- Open a [GitHub Discussion](https://github.com/Thinkode/thinkreview-browser-extension/discussions)
 - Email us at support@thinkode.co.uk
 - Visit our website at [thinkreview.dev](https://thinkreview.dev)
 

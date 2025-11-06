@@ -34,8 +34,8 @@ Your repository is fully prepared for open source release at:
 Go to: https://github.com/organizations/Thinkode/repositories/new
 
 **Settings:**
-- Repository name: `thinkreview-extension`
-- Description: `AI Code Review for GitLab & Azure DevOps | Chrome Extension | 128+ users | 5.0★`
+- Repository name: `thinkreview-browser-extension`
+- Description: `AI-powered code reviews for GitLab & Azure DevOps. Zero setup. Powered by Google Gemini.`
 - Visibility: **Public**
 - DO NOT initialize with README, license, or .gitignore (we already have them)
 
@@ -61,7 +61,7 @@ pull-request
 cd /Users/jaysmac/Documents/Thinkode/Thinkreview-extension
 
 # Add remote
-git remote add origin git@github.com:Thinkode/thinkreview-extension.git
+git remote add origin git@github.com:Thinkode/thinkreview-browser-extension.git
 
 # Push to GitHub
 git branch -M main
@@ -97,7 +97,7 @@ Add `.github/PULL_REQUEST_TEMPLATE.md`
 Add to your extension description:
 ```
 🔓 Now Open Source!
-GitHub: https://github.com/Thinkode/thinkreview-extension
+GitHub: https://github.com/Thinkode/thinkreview-browser-extension
 ```
 
 ### 5. Update Website (thinkreview.dev)
@@ -111,9 +111,9 @@ Add prominent link:
 
 If you want to mirror on GitLab:
 
-1. Create repository on GitLab: `https://gitlab.com/Thinkode/thinkreview-extension`
+1. Create repository on GitLab: `https://gitlab.com/Thinkode/thinkreview-browser-extension`
 2. GitLab Settings → Repository → Mirroring repositories
-3. Add GitHub URL: `https://github.com/Thinkode/thinkreview-extension.git`
+3. Add GitHub URL: `https://github.com/Thinkode/thinkreview-browser-extension.git`
 4. Select "Pull from remote repository"
 5. Add GitHub personal access token
 6. Enable mirror
@@ -132,7 +132,7 @@ If you want to mirror on GitLab:
 After serving 128+ users with a 5.0★ rating, we're opening up our
 AI-powered code review extension for GitLab & Azure DevOps.
 
-⭐ Star: https://github.com/Thinkode/thinkreview-extension
+⭐ Star: https://github.com/Thinkode/thinkreview-browser-extension
 📦 Install: https://chromewebstore.google.com/detail/[...]
 🌐 Website: https://thinkreview.dev
 
@@ -150,7 +150,7 @@ Consider launching on Product Hunt as "Now Open Source"
 ## 📊 Repository Stats
 
 ```
-Repository: Thinkode/thinkreview-extension
+Repository: Thinkode/thinkreview-browser-extension
 Files: 118
 Lines: 20,887
 License: AGPL-3.0
@@ -167,9 +167,9 @@ Rating: 5.0/5
 - Support: support@thinkode.co.uk
 
 **After Publishing:**
-- GitHub: https://github.com/Thinkode/thinkreview-extension
-- Issues: https://github.com/Thinkode/thinkreview-extension/issues
-- Discussions: https://github.com/Thinkode/thinkreview-extension/discussions
+- GitHub: https://github.com/Thinkode/thinkreview-browser-extension
+- Issues: https://github.com/Thinkode/thinkreview-browser-extension/issues
+- Discussions: https://github.com/Thinkode/thinkreview-browser-extension/discussions
 
 ## 🎯 Success Metrics to Track
 
