@@ -497,22 +497,31 @@
   border: none;
   color: white;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 6px;
   border-radius: 4px;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
   opacity: 0.7;
   margin-right: 8px;
+  width: 28px;
+  height: 28px;
 }
 
 #gitlab-mr-integrated-review .thinkreview-regenerate-btn:hover {
   background-color: rgba(107, 79, 187, 0.2);
   color: white;
   opacity: 1;
-  transform: scale(1.05);
+  transform: scale(1.1);
+}
+
+#gitlab-mr-integrated-review .thinkreview-regenerate-btn svg {
+  transition: transform 0.3s ease;
+}
+
+#gitlab-mr-integrated-review .thinkreview-regenerate-btn:hover svg {
+  transform: rotate(180deg);
 }
 
 #gitlab-mr-integrated-review .thinkreview-regenerate-btn:active {
