@@ -7,6 +7,7 @@ function dbgLog(...args) { if (DEBUG) console.log('[Platform Detector]', ...args
 function dbgWarn(...args) { if (DEBUG) console.warn('[Platform Detector]', ...args); }
 
 import { azureDevOpsDetector } from './azure-devops-detector.js';
+import { errorReporter } from './error-reporter.js';
 
 /**
  * Platform Detector Service
@@ -151,6 +152,17 @@ export class PlatformDetector {
       return mrInfo;
     } catch (error) {
       dbgWarn('Error extracting GitLab MR info:', error);
+      
+      // Report MR info extraction error
+      if (errorReporter && errorReporter.isInitialized) {
+        errorReporter.reportIssue('info_extraction_error', 'Error extracting GitLab MR info', {
+          error: error.message,
+          stack: error.stack
+        }).catch(() => {
+          // Silently fail if error reporting fails
+        });
+      }
+      
       return null;
     }
   }

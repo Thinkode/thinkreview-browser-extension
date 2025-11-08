@@ -523,6 +523,70 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     return true; // Keep message channel open for async response
   }
+
+  // Handle detection issue logging
+  if (message.type === 'LOG_DETECTION_ISSUE') {
+    dbgLog('[GitLab MR Reviews][BG] Logging detection issue');
+    const DETECTION_ISSUE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net/logDetectionIssue';
+    
+    (async () => {
+      try {
+        // Get user email for authentication
+        let email = null;
+        try {
+          const storageData = await new Promise((resolve) => {
+            chrome.storage.local.get(['userData', 'user'], (result) => {
+              resolve(result);
+            });
+          });
+          
+          let userData = storageData.userData;
+          
+          if (userData && userData.email) {
+            email = userData.email;
+          } else if (storageData.user) {
+            try {
+              const parsedUser = JSON.parse(storageData.user);
+              if (parsedUser && parsedUser.email) {
+                email = parsedUser.email;
+              }
+            } catch (parseError) {
+              dbgWarn('[BG] Failed to parse user data for detection issue:', parseError);
+            }
+          }
+        } catch (storageError) {
+          dbgWarn('[BG] Error getting user email for detection issue:', storageError);
+        }
+
+        // If no email found, still log but without user context
+        const requestBody = {
+          ...message.data,
+          email: email || 'anonymous'
+        };
+
+        // Send detection issue to cloud function
+        const res = await fetch(DETECTION_ISSUE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`HTTP ${res.status}: ${errorText}`);
+        }
+
+        const data = await res.json();
+        dbgLog('[GitLab MR Reviews][BG] Detection issue logged successfully');
+        sendResponse({ success: true, data });
+      } catch (err) {
+        dbgWarn('[GitLab MR Reviews][BG] Error logging detection issue:', err);
+        sendResponse({ success: false, error: err.message });
+      }
+    })();
+    
+    return true; // Keep channel open for async response
+  }
 });
 
 // OAuth Handler Functions

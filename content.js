@@ -22,6 +22,9 @@ let AzureDevOpsAuthError = null;
 // Import Azure DevOps token error module
 let azureDevOpsTokenError = null;
 
+// Import error reporter
+let errorReporter = null;
+
 // Initialize platform detection
 async function initializePlatformDetection() {
   try {
@@ -42,9 +45,24 @@ async function initializePlatformDetection() {
     const tokenErrorModule = await import(chrome.runtime.getURL('components/azure-devops-token-error.js'));
     azureDevOpsTokenError = tokenErrorModule;
     
+    // Dynamically import error reporter
+    const errorReporterModule = await import(chrome.runtime.getURL('services/error-reporter.js'));
+    errorReporter = errorReporterModule.errorReporter;
+    errorReporter.init(platformDetector);
+    
     dbgLog('[Code Review Extension] Platform detection initialized');
   } catch (error) {
     dbgWarn('[Code Review Extension] Error initializing platform detection:', error);
+    
+    // Report platform initialization error
+    if (errorReporter) {
+      errorReporter.reportIssue('platform_init_error', 'Error initializing platform detection', {
+        error: error.message,
+        stack: error.stack
+      }).catch(() => {
+        // Silently fail if error reporting fails
+      });
+    }
   }
 }
 
@@ -291,6 +309,16 @@ function injectIntegratedReviewPanel() {
   // Check if we're on a supported page first
   if (!isSupportedPage()) {
     dbgLog('[Code Review Extension] Not on a supported page, skipping panel injection');
+    
+    // Report panel injection blocked
+    if (errorReporter) {
+      errorReporter.reportIssue('panel_injection_blocked', 'Not on a supported page, skipping panel injection', {
+        isSupportedPage: false,
+        pageInfo: pageInfo
+      }).catch(() => {
+        // Silently fail if error reporting fails
+      });
+    }
     return;
   }
   
@@ -960,6 +988,18 @@ async function toggleReviewPanel() {
   // For Azure DevOps, this ensures we're on a PR page
   if (!isSupportedPage()) {
     dbgLog('[Code Review Extension] Not on a supported page, showing alert');
+    
+    // Report user attempted to use button on unsupported page
+    if (errorReporter) {
+      errorReporter.reportIssue('button_clicked_unsupported_page', 'User clicked AI Review button on unsupported page', {
+        isSupportedPage: false,
+        pageInfo: pageInfo,
+        userAction: 'clicked_ai_review_button'
+      }).catch(() => {
+        // Silently fail if error reporting fails
+      });
+    }
+    
     alert('Please navigate to a Pull Request page to generate an AI code review.');
     return;
   }
@@ -1143,6 +1183,18 @@ async function initializeExtension() {
     }, 1000);
   } else {
     dbgLog('[Code Review Extension] Current page does not need the button');
+    
+    // Report detection failure
+    if (errorReporter) {
+      errorReporter.reportIssue('detection_failure', 'Current page does not need the button', {
+        shouldShowButton: false,
+        pageInfo: pageInfo,
+        isSupportedPage: isSupportedPage(),
+        getCurrentPlatform: getCurrentPlatform()
+      }).catch(() => {
+        // Silently fail if error reporting fails
+      });
+    }
   }
 }
 
