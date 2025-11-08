@@ -3,7 +3,7 @@
 // Debug toggle: set to false to disable console logs in production
 
 // Debug toggle: set to false to disable console logs in production
-var DEBUG = true;
+var DEBUG = false;
 function dbgLog(...args) { if (DEBUG) console.log(...args); }
 function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
 
