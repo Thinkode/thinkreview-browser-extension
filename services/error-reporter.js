@@ -3,7 +3,7 @@
 // This collects comprehensive environment data and sends it to cloud function for analysis
 
 // Debug toggle
-const DEBUG = false;
+const DEBUG = true;
 function dbgLog(...args) { if (DEBUG) console.log('[Error Reporter]', ...args); }
 function dbgWarn(...args) { if (DEBUG) console.warn('[Error Reporter]', ...args); }
 
@@ -370,7 +370,65 @@ class ErrorReporter {
   }
 
   /**
+   * Check if user should report errors (only if reviewCount is 0 or doesn't exist)
+   * @returns {Promise<boolean>} True if should report, false otherwise
+   */
+  async shouldReportErrors() {
+    try {
+      const storageData = await new Promise((resolve) => {
+        chrome.storage.local.get(['userData', 'user', 'todayReviewCount'], (result) => {
+          if (chrome.runtime.lastError) {
+            resolve({});
+          } else {
+            resolve(result);
+          }
+        });
+      });
+
+      // Try to get reviewCount from userData
+      let reviewCount = null;
+      
+      if (storageData.userData?.reviewCount !== undefined) {
+        reviewCount = storageData.userData.reviewCount;
+      } else if (storageData.user) {
+        // Try parsing user field
+        try {
+          const parsedUser = JSON.parse(storageData.user);
+          if (parsedUser?.reviewCount !== undefined) {
+            reviewCount = parsedUser.reviewCount;
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+
+      // Also check todayReviewCount as a fallback
+      if (reviewCount === null && storageData.todayReviewCount !== undefined) {
+        reviewCount = storageData.todayReviewCount;
+      }
+
+      // Report only if reviewCount is 0, null, or undefined
+      const shouldReport = reviewCount === 0 || reviewCount === null || reviewCount === undefined;
+      
+      dbgLog('Error reporting check:', {
+        reviewCount,
+        shouldReport,
+        hasUserData: !!storageData.userData,
+        hasTodayReviewCount: storageData.todayReviewCount !== undefined
+      });
+
+      return shouldReport;
+      
+    } catch (error) {
+      dbgWarn('Error checking if should report:', error);
+      // If check fails, don't report to be safe
+      return false;
+    }
+  }
+
+  /**
    * Report a detection issue to the cloud function
+   * Only reports if user has 0 reviews or reviewCount doesn't exist
    * @param {string} issueType - Type of issue
    * @param {string} errorMessage - Error message
    * @param {Object} additionalData - Additional context
@@ -379,6 +437,13 @@ class ErrorReporter {
   async reportIssue(issueType, errorMessage, additionalData = {}) {
     try {
       dbgLog('Reporting issue:', issueType);
+      
+      // Check if user should report errors
+      const shouldReport = await this.shouldReportErrors();
+      if (!shouldReport) {
+        dbgLog('Skipping error report: user has reviewCount > 0');
+        return Promise.resolve();
+      }
       
       // Collect debug info
       const debugInfo = await this.collectDebugInfo(issueType, errorMessage, additionalData);
