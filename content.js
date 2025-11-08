@@ -756,7 +756,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       const patchUrl = getPatchUrl();
       const response = await fetch(patchUrl, { credentials: 'include' });
       if (!response.ok) {
-        throw new Error(`No files are committed yet or Failed to fetch patch`);
+        throw new Error(`Not a Merge request page or there are no code changes yet in this MR- if you think this is a bug, please report it here: https://thinkreview.dev/bug-report`);
       }
       codeContent = await response.text();
       reviewId = getMergeRequestId();
