@@ -69,59 +69,29 @@ export class PlatformDetector {
 
   /**
    * Check if the current page is a GitLab merge request page
+   * Simplified: If content script loaded, Chrome already validated the domain
+   * via registration pattern in background.js. Just check URL pattern.
    * @returns {boolean} True if the current page is a GitLab MR page
    */
   isGitLabMRPage() {
-    const url = window.location.href;
-    const hostname = window.location.hostname;
+    // If content script is running, we're already on a registered GitLab domain
+    // (Chrome filtered via registration pattern in background.js)
+    // Just verify the URL path indicates an MR page
+    const pathname = window.location.pathname;
     
-    // Check if we're on GitLab domains
-    const isGitLabDomain = hostname.includes('gitlab.com') || 
-                          hostname.includes('gitlab.io') ||
-                          this.isCustomGitLabDomain();
+    // Check if URL contains merge request path pattern
+    // Handles both old (/merge_requests/) and new (/-/merge_requests/) formats
+    const isMRPath = pathname.includes('/merge_requests/') || 
+                     pathname.includes('/-/merge_requests/') ||
+                     pathname.includes('/merge_requests');
     
-    if (!isGitLabDomain) {
-      return false;
-    }
+    dbgLog('GitLab MR detection:', {
+      pathname,
+      isMRPath,
+      url: window.location.href
+    });
     
-    // Check if URL contains merge request path patterns
-    const isMRPath = url.includes('/merge_requests/');
-    
-    // Check for GitLab specific elements
-    const hasGitLabElements = !!(
-      document.querySelector('.merge-request') || 
-      document.querySelector('.merge-request-details') ||
-      document.querySelector('.diff-files-holder') ||
-      document.querySelector('.diffs') ||
-      document.querySelector('.mr-state-widget')
-    );
-    
-    return isMRPath && hasGitLabElements;
-  }
-
-  /**
-   * Check if current domain is a custom GitLab domain
-   * @returns {boolean} True if it's a custom GitLab domain
-   */
-  isCustomGitLabDomain() {
-    // This would need to check against stored custom domains
-    // For now, we'll use a simple heuristic
-    const hostname = window.location.hostname;
-    
-    // Skip localhost and IP addresses for custom domain detection
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
-      return true; // Assume localhost is GitLab for development
-    }
-    
-    // Check if it looks like a GitLab instance (has GitLab-specific elements)
-    const hasGitLabElements = !!(
-      document.querySelector('.navbar-gitlab') ||
-      document.querySelector('.gitlab-logo') ||
-      document.querySelector('[data-testid="gitlab-logo"]') ||
-      document.querySelector('.gl-logo')
-    );
-    
-    return hasGitLabElements;
+    return isMRPath;
   }
 
   /**

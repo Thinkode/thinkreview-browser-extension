@@ -209,29 +209,24 @@ function fetchAndStorePatch(triggerDownload) {
 
 /**
  * Checks if the current page is a GitLab merge request page
+ * Simplified: If content script loaded, Chrome already validated the domain
  * @returns {boolean} True if the current page is a GitLab MR page
  */
 function isGitLabMRPage() {
-  // More flexible detection for different GitLab instances
-  const isMRPathPattern = window.location.pathname.includes('/merge_requests/');
-  
-  // Different GitLab versions might use different CSS classes
-  // Check for various elements that would indicate we're on an MR page
-  const hasMRElements = !!(
-    document.querySelector('.merge-request') || 
-    document.querySelector('.merge-request-details') ||
-    document.querySelector('.diff-files-holder') ||
-    document.querySelector('.diffs') ||
-    document.querySelector('.mr-state-widget')
-  );
+  // If content script is running, we're already on a registered GitLab domain
+  // Chrome filtered via registration pattern in background.js
+  // Just verify URL path indicates an MR page
+  const pathname = window.location.pathname;
+  const isMRPathPattern = pathname.includes('/merge_requests/') || 
+                         pathname.includes('/-/merge_requests/') ||
+                         pathname.includes('/merge_requests');
   
   dbgLog('[GitLab MR Reviews] Page detection:', { 
     isMRPathPattern, 
-    hasMRElements, 
-    pathname: window.location.pathname 
+    pathname: pathname 
   });
   
-  return isMRPathPattern && hasMRElements;
+  return isMRPathPattern;
 }
 
 /**
