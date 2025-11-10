@@ -805,8 +805,10 @@ export class CloudService {
       const payload = {
         email,
         action,
-        ...(rating && { rating }),
-        ...(redirectUrl && { redirectUrl })
+        metadata: {
+          ...(rating && { rating }),
+          ...(redirectUrl && { redirectUrl })
+        }
       };
 
       dbgLog('[CloudService] Sending trackReviewPromptInteraction request:', payload);
