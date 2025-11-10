@@ -43,28 +43,18 @@ export class AzureDevOpsDetector {
     }
     
     // Check if URL contains pull request path patterns
+    // This is sufficient and more reliable than DOM checks
+    // URL patterns are consistent and available immediately in SPAs
     const isPRPath = url.includes('/pullrequest/') || 
-                    url.includes('/pullRequest/') ||
-                    url.includes('/_git/') && url.includes('/pullrequest/');
-    
-    // Check for Azure DevOps specific elements
-    const hasAzureElements = !!(
-      document.querySelector('[data-testid="pull-request-header"]') ||
-      document.querySelector('.repos-pr-header') ||
-      document.querySelector('.pr-header') ||
-      document.querySelector('[aria-label*="pull request"]') ||
-      document.querySelector('.pr-details-header') ||
-      document.querySelector('.pull-request-header')
-    );
+                    url.includes('/pullRequest/');
     
     dbgLog('Azure DevOps PR detection:', {
       isAzureDevOpsDomain,
       isPRPath,
-      hasAzureElements,
       url: url.substring(0, 100) + '...'
     });
     
-    return isAzureDevOpsDomain && (isPRPath || hasAzureElements);
+    return isAzureDevOpsDomain && isPRPath;
   }
 
   /**
