@@ -622,37 +622,22 @@ class ReviewPrompt {
         return;
       }
       
-      // Get current review count for context
-      const reviewCount = await this.getCurrentReviewCount();
-      
-      // Prepare the simplified payload
-      const payload = {
-        email,
-        action, // 'submit', 'later', or 'never'
-        metadata: {
-          reviewCount,
-          ...(rating && { rating }),
-          ...(redirectUrl && { redirectUrl }),
-          timestamp: new Date().toISOString()
+      // Ensure CloudService is available
+      if (!window.CloudService) {
+        try {
+          // Try to import CloudService dynamically
+          const module = await import(chrome.runtime.getURL('services/cloud-service.js'));
+          window.CloudService = module.CloudService;
+          dbgLog('[ReviewPrompt] CloudService loaded dynamically');
+        } catch (importError) {
+          dbgWarn('[ReviewPrompt] Failed to load CloudService:', importError);
+          throw new Error('CloudService not available');
         }
-      };
-      
-      // Make the request to the cloud function
-      const response = await fetch('https://us-central1-thinkgpt.cloudfunctions.net/trackReviewPromptInteractionHTTP', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error ${response.status}: ${errorText}`);
       }
       
-      const data = await response.json();
-      dbgLog('[ReviewPrompt] Interaction tracked successfully:', data);
+      // Use CloudService to track the interaction (follows architecture pattern)
+      const data = await window.CloudService.trackReviewPromptInteraction(email, action, rating, redirectUrl);
+      dbgLog('[ReviewPrompt] Interaction tracked successfully via CloudService:', data);
       
     } catch (error) {
       dbgWarn('[ReviewPrompt] Error tracking interaction:', error);
