@@ -56,10 +56,10 @@ ollama pull codegemma:7b
 
 **Important:** Browser extensions require CORS to be enabled.
 
-**Option A - Quick Start (macOS/Linux):**
+**Option A - Quick Start (Recommended):**
 ```bash
-# Use the convenience script
-~/start-ollama-with-cors.sh
+# From the extension directory
+./scripts/start-ollama-with-cors.sh
 ```
 
 **Option B - Manual Start:**
@@ -80,6 +80,11 @@ Then run:
 source ~/.zshrc  # or ~/.bashrc
 ollama serve
 ```
+
+**Note:** The startup script (`scripts/start-ollama-with-cors.sh`) automatically:
+- Stops existing Ollama processes
+- Sets CORS for browser extensions
+- Starts Ollama with proper configuration
 
 Keep this terminal running while using the extension.
 
@@ -126,12 +131,12 @@ Once configured, ThinkReview will automatically use Ollama for all code reviews:
 # Stop Ollama
 pkill ollama
 
-# Restart with CORS enabled
+# Restart with CORS enabled using the provided script
+./scripts/start-ollama-with-cors.sh
+
+# Or manually:
 export OLLAMA_ORIGINS="chrome-extension://*"
 ollama serve
-
-# Or use the convenience script
-~/start-ollama-with-cors.sh
 ```
 
 **Permanent Fix**: Add to `~/.zshrc` or `~/.bashrc`:
@@ -146,7 +151,7 @@ export OLLAMA_ORIGINS="chrome-extension://*"
 **Solutions**:
 1. Verify Ollama is running: `ollama list`
 2. Check the URL is correct: `http://localhost:11434`
-3. Restart Ollama with CORS: `~/start-ollama-with-cors.sh`
+3. Restart Ollama with CORS: `./scripts/start-ollama-with-cors.sh`
 4. Check firewall settings
 
 ### Model Not Found
