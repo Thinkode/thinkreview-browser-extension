@@ -567,6 +567,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Initialize domain settings
   initializeDomainSettings();
+  
+  // Initialize AI Provider settings
+  initializeAIProviderSettings();
 });
 
 // Domain Management Functionality
@@ -961,3 +964,247 @@ function updateTokenStatus(message, type) {
 }
 
 // Subscription upgrade functionality has been moved to content.js and removed from popup
+
+// AI Provider Management Functionality
+function initializeAIProviderSettings() {
+  loadAIProviderSettings();
+  setupAIProviderEventListeners();
+}
+
+function setupAIProviderEventListeners() {
+  const providerRadios = document.querySelectorAll('input[name="ai-provider"]');
+  const testButton = document.getElementById('test-ollama-btn');
+  const saveButton = document.getElementById('save-ollama-btn');
+  const refreshModelsButton = document.getElementById('refresh-models-btn');
+  
+  // Provider selection change
+  providerRadios.forEach(radio => {
+    radio.addEventListener('change', handleProviderChange);
+  });
+  
+  // Test Ollama connection
+  if (testButton) {
+    testButton.addEventListener('click', testOllamaConnection);
+  }
+  
+  // Save Ollama settings
+  if (saveButton) {
+    saveButton.addEventListener('click', saveOllamaSettings);
+  }
+  
+  // Refresh available models
+  if (refreshModelsButton) {
+    refreshModelsButton.addEventListener('click', refreshOllamaModels);
+  }
+}
+
+async function loadAIProviderSettings() {
+  try {
+    const result = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+    const provider = result.aiProvider || 'cloud';
+    const config = result.ollamaConfig || {
+      url: 'http://localhost:11434',
+      model: 'qwen3-coder:30b'
+    };
+    
+    // Set the selected provider
+    const providerRadio = document.getElementById(`provider-${provider}`);
+    if (providerRadio) {
+      providerRadio.checked = true;
+    }
+    
+    // Show/hide Ollama config based on provider
+    const ollamaConfig = document.getElementById('ollama-config');
+    if (ollamaConfig) {
+      ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
+    }
+    
+    // Load Ollama config values
+    const urlInput = document.getElementById('ollama-url');
+    const modelSelect = document.getElementById('ollama-model');
+    
+    if (urlInput) urlInput.value = config.url;
+    if (modelSelect) modelSelect.value = config.model;
+    
+    dbgLog('[popup] AI Provider settings loaded:', { provider, config });
+  } catch (error) {
+    dbgWarn('[popup] Error loading AI Provider settings:', error);
+  }
+}
+
+function handleProviderChange(event) {
+  const provider = event.target.value;
+  const ollamaConfig = document.getElementById('ollama-config');
+  
+  if (ollamaConfig) {
+    ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
+  }
+  
+  // Auto-save provider selection
+  chrome.storage.local.set({ aiProvider: provider }, () => {
+    dbgLog('[popup] AI Provider changed to:', provider);
+    showOllamaStatus(
+      provider === 'cloud' 
+        ? '☁️ Using Cloud AI (Gemini)' 
+        : '🖥️ Local Ollama selected - configure and test below',
+      provider === 'cloud' ? 'success' : 'info'
+    );
+  });
+}
+
+async function testOllamaConnection() {
+  const urlInput = document.getElementById('ollama-url');
+  const url = urlInput.value.trim();
+  
+  if (!url) {
+    showOllamaStatus('❌ Please enter a valid URL', 'error');
+    return;
+  }
+  
+  showOllamaStatus('🔄 Testing connection...', 'info');
+  
+  try {
+    // Dynamically import OllamaService
+    const { OllamaService } = await import(chrome.runtime.getURL('services/ollama-service.js'));
+    
+    const isConnected = await OllamaService.checkConnection(url);
+    
+    if (isConnected) {
+      showOllamaStatus('✅ Connection successful! Ollama is running.', 'success');
+      
+      // Try to fetch and update models
+      try {
+        const models = await OllamaService.getAvailableModels(url);
+        if (models.length > 0) {
+          updateModelSelect(models);
+          showOllamaStatus(`✅ Connected! Found ${models.length} model(s).`, 'success');
+        }
+      } catch (modelsError) {
+        dbgWarn('[popup] Error fetching models:', modelsError);
+        // Connection works but couldn't fetch models - still success
+      }
+    } else {
+      showOllamaStatus('❌ Cannot connect to Ollama. Make sure it\'s running.', 'error');
+    }
+  } catch (error) {
+    dbgWarn('[popup] Error testing Ollama connection:', error);
+    showOllamaStatus(`❌ Connection failed: ${error.message}`, 'error');
+  }
+}
+
+async function saveOllamaSettings() {
+  const urlInput = document.getElementById('ollama-url');
+  const modelSelect = document.getElementById('ollama-model');
+  
+  const url = urlInput.value.trim();
+  const model = modelSelect.value;
+  
+  if (!url) {
+    showOllamaStatus('❌ Please enter a valid URL', 'error');
+    return;
+  }
+  
+  if (!model) {
+    showOllamaStatus('❌ Please select a model', 'error');
+    return;
+  }
+  
+  try {
+    const config = { url, model };
+    
+    await chrome.storage.local.set({ ollamaConfig: config });
+    
+    dbgLog('[popup] Ollama settings saved:', config);
+    showOllamaStatus('✅ Settings saved successfully!', 'success');
+  } catch (error) {
+    dbgWarn('[popup] Error saving Ollama settings:', error);
+    showOllamaStatus('❌ Failed to save settings', 'error');
+  }
+}
+
+async function refreshOllamaModels() {
+  const urlInput = document.getElementById('ollama-url');
+  const refreshButton = document.getElementById('refresh-models-btn');
+  const url = urlInput.value.trim();
+  
+  if (!url) {
+    showOllamaStatus('❌ Please enter a valid URL first', 'error');
+    return;
+  }
+  
+  // Show loading state
+  refreshButton.disabled = true;
+  refreshButton.style.animation = 'spin 1s linear infinite';
+  showOllamaStatus('🔄 Fetching available models...', 'info');
+  
+  try {
+    // Dynamically import OllamaService
+    const { OllamaService } = await import(chrome.runtime.getURL('services/ollama-service.js'));
+    
+    const models = await OllamaService.getAvailableModels(url);
+    
+    if (models.length > 0) {
+      updateModelSelect(models);
+      showOllamaStatus(`✅ Found ${models.length} model(s)`, 'success');
+    } else {
+      showOllamaStatus('⚠️ No models found. Pull a model first: ollama pull codellama', 'error');
+    }
+  } catch (error) {
+    dbgWarn('[popup] Error refreshing models:', error);
+    showOllamaStatus(`❌ Failed to fetch models: ${error.message}`, 'error');
+  } finally {
+    // Reset button state
+    refreshButton.disabled = false;
+    refreshButton.style.animation = '';
+  }
+}
+
+function updateModelSelect(models) {
+  const modelSelect = document.getElementById('ollama-model');
+  if (!modelSelect) return;
+  
+  const currentValue = modelSelect.value;
+  
+  // Clear existing options
+  modelSelect.innerHTML = '';
+  
+  // Add models from Ollama
+  models.forEach(model => {
+    const option = document.createElement('option');
+    option.value = model.name;
+    option.textContent = model.name;
+    modelSelect.appendChild(option);
+  });
+  
+  // Restore previous selection if it exists
+  if (currentValue && Array.from(modelSelect.options).some(opt => opt.value === currentValue)) {
+    modelSelect.value = currentValue;
+  }
+  
+  dbgLog('[popup] Updated model select with', models.length, 'models');
+}
+
+function showOllamaStatus(message, type = 'info') {
+  const statusDiv = document.getElementById('ollama-status');
+  if (!statusDiv) return;
+  
+  statusDiv.textContent = message;
+  statusDiv.className = `ollama-status show ${type}`;
+  
+  // Auto-hide after 5 seconds for success messages
+  if (type === 'success') {
+    setTimeout(() => {
+      statusDiv.classList.remove('show');
+    }, 5000);
+  }
+}
+
+// Add CSS animation for spinner
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(style);
