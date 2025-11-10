@@ -1,8 +1,10 @@
 // background.js
 // Handles patch storage, downloads, and communication with content/popup
 
-// Import CloudService statically since dynamic imports aren't allowed in service workers
+// Import services statically since dynamic imports aren't allowed in service workers
 import { CloudService } from './services/cloud-service.js';
+import { OllamaService } from './services/ollama-service.js';
+
 // Debug toggle: set to false to disable console logs in production
 const DEBUG = false;
 function dbgLog(...args) { if (DEBUG) console.log('[background]', ...args); }
@@ -233,6 +235,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     (async () => {
       try {
+        // Get AI provider setting
+        const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+        const provider = settings.aiProvider || 'cloud';
+        
+        dbgLog('[BG] Using AI provider:', provider);
+        
+        // Route to appropriate service based on provider
+        if (provider === 'ollama') {
+          // Use Ollama for local code review
+          try {
+            const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'qwen3-coder:30b' };
+            
+            dbgLog('[BG] Reviewing with Ollama:', config);
+            
+            const data = await OllamaService.reviewPatchCode(patchContent, language, mrId, mrUrl);
+            
+            dbgLog('[BG] Ollama review completed successfully');
+            sendResponse({ success: true, data, provider: 'ollama' });
+            return;
+          } catch (ollamaError) {
+            console.warn('[BG] Ollama review failed:', ollamaError.message);
+            
+            // Provide a helpful error message
+            sendResponse({ 
+              success: false, 
+              error: ollamaError.message,
+              provider: 'ollama',
+              suggestion: 'Check if Ollama is running and configured correctly in extension settings.'
+            });
+            return;
+          }
+        }
+        
+        // Default: Use cloud service (Gemini)
         // Validate patchContent before sending
         if (!patchContent || patchContent.trim().length === 0) {
           throw new Error('There are no code changes yet in this merge request. If you think this is a bug, please report it here: https://thinkreview.dev/bug-report');
@@ -352,7 +388,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           dbgLog('[GitLab MR Reviews][BG] Review completed for MR:', mrId);
         }
         
-        sendResponse({ success: true, data });
+        sendResponse({ success: true, data, provider: 'cloud' });
       } catch (err) {
         console.warn('[GitLab MR Reviews][BG] Review fetch error:', err);
         sendResponse({ 
@@ -360,7 +396,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           error: err.message,
           isLimitExceeded: err.isLimitExceeded || false,
           dailyLimit: err.dailyLimit,
-          currentCount: err.currentCount
+          currentCount: err.currentCount,
+          provider: settings.aiProvider || 'cloud'
         });
       }
     })();
