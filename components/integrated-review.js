@@ -58,7 +58,7 @@ async function initReviewPromptComponent() {
     reviewPrompt = new module.ReviewPrompt({
       threshold: 5, // Show prompt after 5 daily reviews
       chromeStoreUrl: 'https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn/reviews',
-      feedbackUrl: 'https://thinkreview.dev/feedback'
+      feedbackUrl: 'https://thinkreview.dev/extension-feedback.html'
     });
     reviewPrompt.init('review-prompt-container');
     window.reviewPrompt = reviewPrompt; // Make accessible globally

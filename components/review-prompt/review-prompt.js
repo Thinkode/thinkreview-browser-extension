@@ -9,7 +9,7 @@ function dbgWarn(...args) { if (DEBUG) console.warn('[popup]', ...args); }
 const REVIEW_PROMPT_CONFIG = {
   threshold: 5, // Show prompt after 5 daily reviews
   chromeStoreUrl: 'https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn/reviews',
-  feedbackUrl: 'https://thinkreview.dev/feedback',
+  feedbackUrl: 'https://thinkreview.dev/extension-feedback.html', // Updated to new extension-specific feedback form
   storageKeys: {
     reviewCount: 'reviewCount',
     todayReviewCount: 'todayReviewCount'
@@ -359,21 +359,39 @@ class ReviewPrompt {
   async handleRating(rating) {
     dbgLog('[ReviewPrompt] User rated extension:', rating, 'stars');
     
-    // Determine redirect URL
-    const redirectUrl = rating >= 4 ? this.config.chromeStoreUrl : this.config.feedbackUrl;
-    
     // Hide the prompt immediately
     this.hide();
     
     // Open URL immediately to avoid delaying user feedback experience
     if (rating >= 4) {
       // 4-5 stars: Direct to Chrome Web Store
-      window.open(this.config.chromeStoreUrl, '_blank');
+      const redirectUrl = this.config.chromeStoreUrl;
+      window.open(redirectUrl, '_blank');
       this.showThankYouMessage('Thank you for your positive feedback! Please leave a review on the Chrome Web Store.');
+      
+      // Track the interaction with the cloud function in the background (non-blocking)
+      this.trackReviewPromptInteraction('submit', rating, redirectUrl)
+        .catch(error => {
+          // Silently handle errors to avoid affecting user experience
+          dbgWarn('[ReviewPrompt] Background tracking failed:', error);
+        });
     } else {
-      // 1-3 stars: Direct to feedback form
-      window.open(this.config.feedbackUrl, '_blank');
+      // 1-3 stars: Direct to feedback form with email parameter
+      // Get user email first
+      const userEmail = await this.getUserEmail();
+      const feedbackUrl = userEmail 
+        ? `https://thinkreview.dev/extension-feedback.html?email=${encodeURIComponent(userEmail)}`
+        : 'https://thinkreview.dev/extension-feedback.html';
+      
+      window.open(feedbackUrl, '_blank');
       this.showThankYouMessage('Thank you for your feedback! We\'d love to hear how we can improve.');
+      
+      // Track the interaction with the cloud function in the background (non-blocking)
+      this.trackReviewPromptInteraction('submit', rating, feedbackUrl)
+        .catch(error => {
+          // Silently handle errors to avoid affecting user experience
+          dbgWarn('[ReviewPrompt] Background tracking failed:', error);
+        });
     }
     
     // Note: We no longer set localStorage/sessionStorage flags
@@ -382,13 +400,6 @@ class ReviewPrompt {
     
     // Emit custom event
     this.emit('rated', { rating, reviewCount: this.getCurrentReviewCount() });
-    
-    // Track the interaction with the cloud function in the background (non-blocking)
-    this.trackReviewPromptInteraction('submit', rating, redirectUrl)
-      .catch(error => {
-        // Silently handle errors to avoid affecting user experience
-        dbgWarn('[ReviewPrompt] Background tracking failed:', error);
-      });
   }
 
   /**
