@@ -452,6 +452,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep the message channel open for async response
   }
   
+  // Handle request to refresh user data and update local storage
+  if (message.type === 'REFRESH_USER_DATA_STORAGE') {
+    dbgLog('[GitLab MR Reviews][BG] Refreshing user data and updating local storage');
+    
+    CloudService.refreshUserData()
+      .then(userData => {
+        dbgLog('[GitLab MR Reviews][BG] User data refreshed from CloudService:', userData);
+        
+        // Update chrome.storage.local with the data from CloudService
+        chrome.storage.local.set(userData, () => {
+          dbgLog('[GitLab MR Reviews][BG] Local storage updated:', userData);
+          sendResponse({ 
+            status: 'success', 
+            data: userData,
+            message: 'User data refreshed successfully' 
+          });
+        });
+      })
+      .catch(error => {
+        dbgWarn('[GitLab MR Reviews][BG] Error refreshing user data:', error);
+        sendResponse({ 
+          status: 'error', 
+          error: error.message 
+        });
+      });
+    
+    return true; // Keep the message channel open for async response
+  }
+  
   // Handle subscription upgrade request
   if (message.type === 'HANDLE_SUBSCRIPTION_UPGRADE') {
     const plan = message.plan || 'monthly';

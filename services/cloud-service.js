@@ -702,6 +702,79 @@ export class CloudService {
   }
 
   /**
+   * Refresh user data from the server - lightweight method for syncing storage
+   * @returns {Promise<Object>} - Promise that resolves with updated user data (reviewCount, todayReviewCount, lastReviewDate, lastFeedbackPromptInteraction)
+   */
+  static async refreshUserData() {
+    dbgLog('[CloudService] Refreshing user data from server');
+    
+    try {
+      // Get user email from storage
+      const storageData = await new Promise((resolve) => {
+        chrome.storage.local.get(['userData', 'user'], (result) => {
+          resolve(result);
+        });
+      });
+      
+      let email = null;
+      
+      // Try to get email from userData first
+      if (storageData.userData && storageData.userData.email) {
+        email = storageData.userData.email;
+        dbgLog('[CloudService] Using userData email:', email);
+      } else if (storageData.user) {
+        // Try to parse user data
+        try {
+          const parsedUser = JSON.parse(storageData.user);
+          if (parsedUser && parsedUser.email) {
+            email = parsedUser.email;
+            dbgLog('[CloudService] Using parsed user email:', email);
+          }
+        } catch (parseError) {
+          dbgWarn('[CloudService] Failed to parse user data:', parseError);
+        }
+      }
+      
+      if (!email) {
+        throw new Error('User not logged in - no email found');
+      }
+      
+      dbgLog('[CloudService] Fetching user data for email:', email);
+      
+      // Call GET_USER_DATA_URL endpoint
+      const response = await fetch(GET_USER_DATA_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
+      
+      const data = await response.json();
+      dbgLog('[CloudService] User data fetched successfully:', data);
+      
+      if (data.status === 'success') {
+        return {
+          reviewCount: data.reviewCount || 0,
+          todayReviewCount: data.todayReviewCount || 0,
+          lastReviewDate: data.lastReviewDate || null,
+          lastFeedbackPromptInteraction: data.lastFeedbackPromptInteraction || null
+        };
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (error) {
+      dbgWarn('[CloudService] Error refreshing user data:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Track user interaction with the review prompt
    * @param {string} email - User's email address
    * @param {string} action - The action taken ('submit', 'later', or 'never')

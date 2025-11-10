@@ -1030,6 +1030,19 @@ async function displayIntegratedReview(review, patchContent) {
   setTimeout(async () => {
     if (reviewPrompt) {
       try {
+        // Refresh user data from server before checking feedback prompt
+        // This ensures we have the latest todayReviewCount and lastFeedbackPromptInteraction
+        const refreshResponse = await chrome.runtime.sendMessage({ 
+          type: 'REFRESH_USER_DATA_STORAGE' 
+        });
+        
+        if (refreshResponse.status === 'success') {
+          console.log('[IntegratedReview] User data refreshed before feedback check:', refreshResponse.data);
+        } else {
+          console.warn('[IntegratedReview] Failed to refresh user data:', refreshResponse.error);
+        }
+        
+        // Now check if we should show the prompt (with fresh data in storage)
         await reviewPrompt.checkAndShow();
       } catch (error) {
         // console.warn('[IntegratedReview] Error checking review prompt:', error);
