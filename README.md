@@ -5,8 +5,7 @@
 ### AI Code Review for GitLab & Azure DevOps
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-blue?logo=google-chrome)](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
-[![Version](https://img.shields.io/badge/version-1.3.8-green.svg)](https://github.com/Thinkode/thinkreview-browser-extension/releases)
-[![Users](https://img.shields.io/badge/users-128+-brightgreen.svg)](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
+[![Latest Release](https://img.shields.io/badge/Latest-Release-green.svg)](https://thinkreview.dev/release-notes)
 [![Rating](https://img.shields.io/badge/rating-5.0%2F5-yellow.svg)](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 
@@ -22,13 +21,12 @@
 
 ## 🎉 Now Open Source!
 
-ThinkReview is a **production-ready browser extension** that brings AI-powered code reviews to GitLab and Azure DevOps. After months of development and serving **128+ users**, we're excited to open source the extension!
+ThinkReview is a **production-ready browser extension** that brings AI-powered code reviews to GitLab and Azure DevOps. After months of development, we're excited to open source the extension!
 
 ### 🌟 Key Stats
 
 - ⭐ **5.0/5** rating on Chrome Web Store
-- 👥 **128+** active users
-- 📦 **Version 1.3.8** - actively maintained
+- 📦 Check [latest releases](https://thinkreview.dev/release-notes)
 - 🏆 **Featured** by Chrome Web Store
 - ✅ **Good Publisher Record** with no violations
 - 📜 Follows **recommended practices** for Chrome extensions
@@ -184,26 +182,15 @@ thinkreview-browser-extension/
 
 ### Key Files
 
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and architecture
-- **[Release Notes](release-notes/)** - Detailed version history (v1.0.0 - v1.3.8)
-- **[TESTING_CHECKLIST.md](TESTING_CHECKLIST.md)** - Testing guidelines
+- **[Release Notes](release-notes/)** - Detailed version history
 
 ---
 
 ## 📈 Version History
 
-ThinkReview has been in active development with regular releases:
+ThinkReview has been in active development with regular releases. Check [latest releases](https://thinkreview.dev/release-notes) for the complete version history.
 
-| Version | Date | Highlights |
-|---------|------|------------|
-| **1.3.8** | Nov 4, 2024 | Current stable release |
-| 1.3.7 | Oct 2024 | Enhanced Azure DevOps support |
-| 1.3.0 | Sep 2024 | AI Copilot feature |
-| 1.2.x | Aug 2024 | Subscription management |
-| 1.1.x | Jul 2024 | Security improvements |
-| 1.0.0 | Jun 2024 | Initial public release |
-
-📁 **Full changelog**: See [`release-notes/`](release-notes/) directory
+📁 **Full changelog**: See [`release-notes/`](release-notes/) directory or visit [thinkreview.dev/release-notes](https://thinkreview.dev/release-notes)
 
 ---
 
