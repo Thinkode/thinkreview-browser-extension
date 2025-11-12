@@ -198,9 +198,49 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { patchContent, conversationHistory, mrId, mrUrl, language } = message;
     (async () => {
       try {
+        // Get AI provider setting
+        const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+        const provider = settings.aiProvider || 'cloud';
+        
+        dbgLog('[BG] Using AI provider for conversation:', provider);
+        
+        // Route to appropriate service based on provider
+        if (provider === 'ollama') {
+          // Use Ollama for conversational response
+          try {
+            const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'qwen3-coder:30b' };
+            
+            dbgLog('[BG] Getting conversational response from Ollama:', config);
+            
+            const data = await OllamaService.getConversationalResponse(
+              patchContent, 
+              conversationHistory, 
+              language || 'English',
+              mrId, 
+              mrUrl
+            );
+            
+            dbgLog('[BG] Ollama conversational response completed successfully');
+            sendResponse({ success: true, data: data, provider: 'ollama' });
+            return;
+          } catch (ollamaError) {
+            console.warn('[BG] Ollama conversational response failed:', ollamaError.message);
+            
+            // Provide a helpful error message
+            sendResponse({ 
+              success: false, 
+              error: ollamaError.message,
+              provider: 'ollama',
+              suggestion: 'Check if Ollama is running and configured correctly in extension settings.'
+            });
+            return;
+          }
+        }
+        
+        // Default: Use cloud service (Gemini)
         const data = await CloudService.getConversationalResponse(patchContent, conversationHistory, mrId, mrUrl, language || 'English');
         dbgLog('[GitLab MR Reviews][BG] Conversational response received:', data);
-        sendResponse({ success: true, data: data });
+        sendResponse({ success: true, data: data, provider: 'cloud' });
       } catch (err) {
         // Log error details for debugging
         // if (err.isRateLimit) {

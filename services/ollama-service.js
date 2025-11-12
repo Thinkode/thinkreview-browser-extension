@@ -229,6 +229,125 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
   }
 
   /**
+   * Get conversational response for follow-up questions
+   * @param {string} patchContent - The patch content in git diff format
+   * @param {Array<Object>} conversationHistory - The history of the conversation
+   * @param {string} [language] - Optional language preference for the response
+   * @param {string} [mrId] - Optional merge request ID for tracking
+   * @param {string} [mrUrl] - Optional merge request URL
+   * @returns {Promise<Object>} - Conversational response
+   */
+  static async getConversationalResponse(patchContent, conversationHistory, language = 'English', mrId = null, mrUrl = null) {
+    dbgLog('Getting conversational response from Ollama');
+    
+    if (!patchContent || !conversationHistory || conversationHistory.length === 0) {
+      throw new Error('Missing patch content or conversation history');
+    }
+    
+    try {
+      // Get Ollama config from storage
+      const config = await chrome.storage.local.get(['ollamaConfig']);
+      const { url = 'http://localhost:11434', model = 'codellama' } = config.ollamaConfig || {};
+      
+      dbgLog(`Using Ollama at ${url} with model ${model} for conversation`);
+      
+      // Truncate patch content if extremely large
+      const truncatedPatch = patchContent.length > 40000 
+        ? patchContent.substring(0, 20000) + '\n... (truncated for brevity)' 
+        : patchContent;
+      
+      // Build the conversation context for Ollama
+      // System context with the patch
+      const systemContext = `You are an expert code reviewer. The following code patch is being discussed:
+
+CODE PATCH (Git Diff Format):
+\`\`\`
+${truncatedPatch}
+\`\`\`
+
+Your role is to answer questions about this code review in a helpful, concise manner using Markdown formatting.`;
+      
+      // Build language instruction if not English
+      const languageInstruction = language && language !== 'English' 
+        ? `\n\nIMPORTANT: You MUST respond entirely in ${language}. Your entire response must be written in ${language}.`
+        : '';
+      
+      // Keep only the most recent messages to prevent token overflow
+      const MAX_HISTORY_MESSAGES = 11; // 1 initial + 10 recent
+      let truncatedHistory = conversationHistory;
+      
+      if (conversationHistory.length > MAX_HISTORY_MESSAGES) {
+        truncatedHistory = [
+          conversationHistory[0], // Initial review
+          ...conversationHistory.slice(-(MAX_HISTORY_MESSAGES - 1)) // Most recent messages
+        ];
+        dbgLog(`Truncated conversation history from ${conversationHistory.length} to ${truncatedHistory.length} messages`);
+      }
+      
+      // Get the last user message
+      const lastUserMessage = truncatedHistory[truncatedHistory.length - 1];
+      if (!lastUserMessage || lastUserMessage.role !== 'user') {
+        throw new Error('The last message in the history must be from the user');
+      }
+      
+      // Build the full prompt with context and conversation history
+      let fullPrompt = systemContext + '\n\n';
+      
+      // Add conversation history (excluding the last user message)
+      for (let i = 0; i < truncatedHistory.length - 1; i++) {
+        const msg = truncatedHistory[i];
+        const role = msg.role === 'user' ? 'User' : 'Assistant';
+        fullPrompt += `${role}: ${msg.content}\n\n`;
+      }
+      
+      // Add the current user question with formatting instructions
+      fullPrompt += `User: ${lastUserMessage.content}\n\nKeep your response concise and well-formatted using Markdown.${languageInstruction}\n\nAssistant:`;
+      
+      // Send request to Ollama
+      const response = await fetch(`${url}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: model,
+          prompt: fullPrompt,
+          stream: false,
+          options: {
+            temperature: 0.2,
+            num_predict: 800,
+            top_p: 0.8,
+            top_k: 20
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Ollama API error (${response.status}): ${errorText}`);
+      }
+      
+      const data = await response.json();
+      dbgLog('Ollama conversational response received');
+      
+      // Return in the format expected by the UI (matching Cloud API format)
+      return {
+        response: data.response || 'No response generated',
+        provider: 'ollama',
+        model: model
+      };
+      
+    } catch (error) {
+      dbgWarn('Error getting conversational response from Ollama:', error);
+      
+      // Provide helpful error messages
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        throw new Error(`Cannot connect to Ollama. Please ensure Ollama is running and accessible.\n\nTroubleshooting:\n1. Check if Ollama is running: 'ollama serve'\n2. Verify the URL in settings`);
+      } else {
+        throw new Error(`Ollama error: ${error.message}`);
+      }
+    }
+  }
+
+  /**
    * Check if Ollama is accessible at the given URL
    * @param {string} [url] - Ollama URL to check
    * @returns {Promise<boolean>} - True if connection successful
