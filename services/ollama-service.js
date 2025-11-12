@@ -65,13 +65,10 @@ Please analyze the following git diff/patch and provide your review in this EXAC
     "List of positive aspects of the code changes"
   ],
   "metrics": {
-    "codeQuality": 85,
-    "maintainability": 80,
-    "security": 90,
-    "performance": 75,
-    "testCoverage": 70,
-    "documentation": 65,
-    "overallScore": 78
+    "overallScore": 85,
+    "codeQuality": 80,
+    "securityScore": 90,
+    "bestPracticesScore": 85
   },
   "suggestedQuestions": [
     "Question 1 about the changes",
@@ -82,9 +79,11 @@ Please analyze the following git diff/patch and provide your review in this EXAC
 
 Note: 
 - All metric scores should be 0-100
-- overallScore is the weighted average of all metrics
-- Provide 3-5 relevant follow-up questions
-- Questions should be specific to this code review
+- overallScore is a holistic score based on all other factors
+- codeQuality: Assesses clarity, maintainability, and structure
+- securityScore: A score of 100 means no issues found. Deduct points for each vulnerability based on severity
+- bestPracticesScore: Assesses adherence to coding standards and language-specific idioms
+- Provide exactly 3 relevant follow-up questions that are specific to this code review
 
 Here is the patch to review:
 
@@ -153,15 +152,12 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
           // Use positives as best practices
           const bestPractices = parsedReview.positives || [];
           
-          // Get metrics (with fallback to reasonable defaults)
+          // Get metrics (with fallback to reasonable defaults matching Gemini format)
           const metrics = parsedReview.metrics || {
+            overallScore: 75,
             codeQuality: 75,
-            maintainability: 75,
-            security: 80,
-            performance: 75,
-            testCoverage: 70,
-            documentation: 70,
-            overallScore: 74
+            securityScore: 85,
+            bestPracticesScore: 75
           };
           
           // Get suggested questions (with fallback)
@@ -201,13 +197,10 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
             securityIssues: [],
             bestPractices: [],
             metrics: {
+              overallScore: 75,
               codeQuality: 75,
-              maintainability: 75,
-              security: 80,
-              performance: 75,
-              testCoverage: 70,
-              documentation: 70,
-              overallScore: 74
+              securityScore: 85,
+              bestPracticesScore: 75
             },
             suggestedQuestions: [
               "Can you explain this change in more detail?",
