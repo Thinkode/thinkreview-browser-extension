@@ -27,6 +27,8 @@ node scripts/validate-manifest.js
 
 ## Ollama Setup Script
 
+> 📖 **Full Setup Guide**: See [OLLAMA_SETUP.md on GitHub](https://github.com/Thinkode/thinkreview-browser-extension/blob/main/OLLAMA_SETUP.md) for comprehensive setup instructions including model recommendations, troubleshooting, and advanced configuration.
+
 ### `start-ollama-with-cors.sh`
 Starts Ollama with CORS enabled for browser extension support.
 
@@ -54,5 +56,7 @@ Add to your `~/.zshrc` or `~/.bashrc`:
 export OLLAMA_ORIGINS="chrome-extension://*"
 ```
 
-See [OLLAMA_SETUP.md](../OLLAMA_SETUP.md) for detailed instructions.
+**Need Help?**
+- 📖 [Complete Setup Guide](https://github.com/Thinkode/thinkreview-browser-extension/blob/main/OLLAMA_SETUP.md) - Full instructions with model recommendations and troubleshooting
+- 📁 Local: [OLLAMA_SETUP.md](../OLLAMA_SETUP.md)
 

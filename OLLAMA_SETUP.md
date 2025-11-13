@@ -1,5 +1,7 @@
 # Ollama Integration Setup Guide
 
+> 📖 **Latest Version**: Always refer to the [OLLAMA_SETUP.md on GitHub](https://github.com/Thinkode/thinkreview-browser-extension/blob/main/OLLAMA_SETUP.md) for the most up-to-date instructions.
+
 ThinkReview now supports local AI code reviews using Ollama! This gives you complete privacy and offline capabilities.
 
 ## Why Use Ollama?
@@ -58,7 +60,7 @@ ollama pull codegemma:7b
 
 **Option A - Quick Start (Recommended):**
 ```bash
-# From the extension directory
+# Simply run from the extension directory
 ./scripts/start-ollama-with-cors.sh
 ```
 
