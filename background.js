@@ -136,6 +136,110 @@ async function handleGoogleSignIn() {
   }
 }
 
+/**
+ * Track Ollama review in Firebase
+ * @param {string} patchContent - The patch content
+ * @param {string} mrId - Merge request ID
+ * @param {string} mrUrl - Merge request URL
+ * @param {Object} reviewData - The review data from Ollama
+ * @param {string} model - The Ollama model used
+ */
+async function trackOllamaReview(patchContent, mrId, mrUrl, reviewData, model) {
+  try {
+    // Get user email from storage
+    const storageData = await new Promise((resolve) => {
+      chrome.storage.local.get(['userData', 'user'], (result) => {
+        resolve(result);
+      });
+    });
+    
+    let email = null;
+    
+    // Extract email from userData or user
+    if (storageData.userData && storageData.userData.email) {
+      email = storageData.userData.email;
+    } else if (storageData.user) {
+      try {
+        const parsedUser = JSON.parse(storageData.user);
+        if (parsedUser && parsedUser.email) {
+          email = parsedUser.email;
+        }
+      } catch (e) {
+        console.warn('[BG] Failed to parse user data for Ollama tracking:', e);
+      }
+    }
+    
+    if (!email) {
+      console.warn('[BG] No email found for Ollama review tracking');
+      return;
+    }
+    
+    dbgLog('[BG] Tracking Ollama review for email:', email);
+    
+    // Extract review object from response
+    const review = reviewData.review || reviewData;
+    
+    // Calculate patch size
+    const originalPatchSize = patchContent.length;
+    const wasTruncated = originalPatchSize > 40000;
+    const truncatedPatchSize = wasTruncated ? 40000 : originalPatchSize;
+    
+    const patchSize = {
+      original: originalPatchSize,
+      truncated: truncatedPatchSize,
+      wasTruncated: wasTruncated
+    };
+    
+    // Generate checksum (simple MD5-like hash using crypto.subtle)
+    const encoder = new TextEncoder();
+    const data = encoder.encode(`${patchContent}:${mrId}`);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const patchChecksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
+    
+    // Extract metrics from review
+    const metrics = review.metrics || null;
+    
+    // Calculate review counts
+    const reviewCounts = {
+      suggestions: Array.isArray(review.suggestions) ? review.suggestions.length : 0,
+      securityIssues: Array.isArray(review.securityIssues) ? review.securityIssues.length : 0,
+      bestPractices: Array.isArray(review.bestPractices) ? review.bestPractices.length : 0,
+      suggestedQuestions: Array.isArray(review.suggestedQuestions) ? review.suggestedQuestions.length : 0
+    };
+    
+    // Send tracking request to Firebase
+    const TRACK_OLLAMA_REVIEW_URL = 'https://us-central1-thinkgpt.cloudfunctions.net/trackOllamaReviewThinkReview';
+    
+    const response = await fetch(TRACK_OLLAMA_REVIEW_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        mrId,
+        mrUrl,
+        review,
+        metrics,
+        reviewCounts,
+        patchSize,
+        patchChecksum,
+        model
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Failed to track Ollama review: ${response.status} - ${errorData.message || 'Unknown error'}`);
+    }
+    
+    const result = await response.json();
+    dbgLog('[BG] Ollama review tracked successfully:', result);
+  } catch (error) {
+    console.warn('[BG] Error tracking Ollama review:', error);
+    throw error;
+  }
+}
+
 // Listen for extension icon clicks to open full page
 chrome.action.onClicked.addListener((tab) => {
   dbgLog('[GitLab MR Reviews][BG] Extension icon clicked, opening full page');
@@ -292,6 +396,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const data = await OllamaService.reviewPatchCode(patchContent, language, mrId, mrUrl);
             
             dbgLog('[BG] Ollama review completed successfully');
+            
+            // Track the review in Firebase (fire-and-forget)
+            trackOllamaReview(patchContent, mrId, mrUrl, data, config.model).catch(err => {
+              console.warn('[BG] Failed to track Ollama review in Firebase:', err.message);
+            });
+            
             sendResponse({ success: true, data, provider: 'ollama' });
             return;
           } catch (ollamaError) {
