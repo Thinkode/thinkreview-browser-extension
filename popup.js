@@ -1049,6 +1049,22 @@ function handleProviderChange(event) {
         : '🖥️ Local Ollama selected - configure and test below',
       provider === 'cloud' ? 'success' : 'info'
     );
+    
+    // Track provider change in cloud asynchronously (fire-and-forget)
+    isUserLoggedIn().then(isLoggedIn => {
+      if (isLoggedIn && window.CloudService) {
+        dbgLog('[popup] User logged in, tracking AI provider change in cloud (async)');
+        // If switching to cloud, track Ollama as disabled
+        if (provider === 'cloud') {
+          window.CloudService.trackOllamaConfig(false, null)
+            .then(() => dbgLog('[popup] Ollama disabled tracked successfully in cloud'))
+            .catch(trackError => dbgWarn('[popup] Error tracking provider change in cloud (non-critical):', trackError));
+        }
+        // If switching to Ollama, it will be tracked when user saves the config
+      } else {
+        dbgLog('[popup] User not logged in or CloudService not available, skipping cloud tracking');
+      }
+    }).catch(err => dbgWarn('[popup] Error checking login status for cloud tracking:', err));
   });
 }
 
@@ -1116,6 +1132,18 @@ async function saveOllamaSettings() {
     
     dbgLog('[popup] Ollama settings saved:', config);
     showOllamaStatus('✅ Settings saved successfully!', 'success');
+    
+    // Track Ollama configuration in cloud asynchronously (fire-and-forget)
+    isUserLoggedIn().then(isLoggedIn => {
+      if (isLoggedIn && window.CloudService) {
+        dbgLog('[popup] User logged in, tracking Ollama config in cloud (async)');
+        window.CloudService.trackOllamaConfig(true, config)
+          .then(() => dbgLog('[popup] Ollama config tracked successfully in cloud'))
+          .catch(trackError => dbgWarn('[popup] Error tracking Ollama config in cloud (non-critical):', trackError));
+      } else {
+        dbgLog('[popup] User not logged in or CloudService not available, skipping cloud tracking');
+      }
+    }).catch(err => dbgWarn('[popup] Error checking login status for cloud tracking:', err));
   } catch (error) {
     dbgWarn('[popup] Error saving Ollama settings:', error);
     showOllamaStatus('❌ Failed to save settings', 'error');
