@@ -15,9 +15,7 @@
     "https://gitlab.com/*",
     "https://us-central1-thinkgpt.cloudfunctions.net/*",
     "https://dev.azure.com/*",
-    "https://*.visualstudio.com/*",
-    "http://localhost:*/*",
-    "http://127.0.0.1:*/*"
+    "https://*.visualstudio.com/*"
   ],
   "optional_host_permissions": [
     "http://*:*/*",
