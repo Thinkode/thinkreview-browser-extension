@@ -159,10 +159,11 @@
           
           <div class="ollama-help">
             <p class="help-text">
-              <strong>Setup Instructions:</strong><br>
+              <strong>📖 <a href="https://github.com/Thinkode/thinkreview-browser-extension/blob/main/OLLAMA_SETUP.md" target="_blank">Full Setup Guide</a></strong> - Complete instructions with model recommendations & troubleshooting<br><br>
+              <strong>Quick Start:</strong><br>
               1. Install Ollama: <a href="https://ollama.ai/download" target="_blank">ollama.ai/download</a><br>
               2. Pull a model: <code>ollama pull codellama</code><br>
-              3. Start Ollama: <code>ollama serve</code><br>
+              3. Start with CORS: <code>./scripts/start-ollama-with-cors.sh</code> or manually <code>export OLLAMA_ORIGINS="chrome-extension://*" && ollama serve</code><br>
               4. Click "Test Connection" to verify
             </p>
           </div>
