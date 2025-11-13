@@ -19,9 +19,9 @@ if [ -f "manifest.json" ]; then
   EXTENSION_ID=$(grep -o '"key"[[:space:]]*:[[:space:]]*"[^"]*"' manifest.json | cut -d'"' -f4 | head -1)
 fi
 
-# Set CORS origins for browser extensions
-# Note: Replace jmkdjjcbdpjohlgbifmiacploikmpien with your actual extension ID
-export OLLAMA_ORIGINS="chrome-extension://jmkdjjcbdpjohlgbifmiacploikmpien,chrome-extension://*"
+# Set CORS origins for ThinkReview extension
+# 
+export OLLAMA_ORIGINS="chrome-extension://admkcjpfbncmlllbpkgfemamdjkjdbni,chrome-extension://*"
 export OLLAMA_HOST="127.0.0.1:11434"
 
 echo "✅ CORS enabled for ThinkReview extension"
