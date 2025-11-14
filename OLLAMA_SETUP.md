@@ -65,9 +65,54 @@ ollama pull codegemma:7b
 ```
 
 **Option B - Manual Start:**
+
+Follow these manual steps to kill existing Ollama processes and start it with origin permissions:
+
+**macOS/Linux:**
 ```bash
-# Set CORS origins for browser extensions
+# Step 1: Kill existing Ollama processes (handles both 'ollama' and 'Ollama' process names)
+killall ollama 2>/dev/null || true; killall Ollama 2>/dev/null || true; sleep 2
+
+# Step 2: Verify Ollama is stopped (should return nothing)
+ps aux | grep ollama | grep -v grep
+
+# Step 3: Set CORS origins for browser extensions
 export OLLAMA_ORIGINS="chrome-extension://*"
+
+# Step 4: Start Ollama with origin permissions
+ollama serve
+```
+
+**Windows (PowerShell):**
+```powershell
+# Step 1: Kill existing Ollama processes
+Get-Process ollama -ErrorAction SilentlyContinue | Stop-Process -Force
+
+# Step 2: Wait a moment for processes to terminate (optional)
+Start-Sleep -Seconds 2
+
+# Step 3: Verify Ollama is stopped
+Get-Process ollama -ErrorAction SilentlyContinue
+
+# Step 4: Set CORS origins for browser extensions
+$env:OLLAMA_ORIGINS="chrome-extension://*"
+
+# Step 5: Start Ollama with origin permissions
+ollama serve
+```
+
+**Windows (Command Prompt):**
+```cmd
+REM Step 1: Kill existing Ollama processes
+taskkill /F /IM ollama.exe
+
+REM Step 2: Wait a moment for processes to terminate (optional)
+timeout /t 2
+
+REM Step 3: Set CORS origins for browser extensions
+set OLLAMA_ORIGINS=chrome-extension://*
+
+REM Step 4: Start Ollama with origin permissions
 ollama serve
 ```
 
@@ -129,15 +174,25 @@ Once configured, ThinkReview will automatically use Ollama for all code reviews:
 **Cause**: CORS (Cross-Origin Resource Sharing) is not enabled for browser extensions
 
 **Solution**:
-```bash
-# Stop Ollama
-pkill ollama
 
+**Quick Fix (Using Script):**
+```bash
 # Restart with CORS enabled using the provided script
 ./scripts/start-ollama-with-cors.sh
+```
 
-# Or manually:
+**Manual Fix:**
+See the "Option B - Manual Start" section above for detailed step-by-step instructions to kill Ollama and restart it with origin permissions.
+
+**Quick Manual Steps (macOS/Linux):**
+```bash
+# Kill existing Ollama processes (handles both 'ollama' and 'Ollama' process names)
+killall ollama 2>/dev/null || true; killall Ollama 2>/dev/null || true; sleep 2
+
+# Set CORS origins for browser extensions
 export OLLAMA_ORIGINS="chrome-extension://*"
+
+# Start Ollama with origin permissions
 ollama serve
 ```
 
