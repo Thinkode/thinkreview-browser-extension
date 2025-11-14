@@ -378,10 +378,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const REVIEW_CODE_URL_V1_1 = 'https://us-central1-thinkgpt.cloudfunctions.net/reviewPatchCode_1_1';
     
     (async () => {
+      // Get AI provider setting (declare outside try block so it's accessible in catch)
+      let settings = { aiProvider: 'cloud', ollamaConfig: null };
+      let provider = 'cloud';
+      
       try {
-        // Get AI provider setting
-        const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
-        const provider = settings.aiProvider || 'cloud';
+        settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+        provider = settings.aiProvider || 'cloud';
         
         dbgLog('[BG] Using AI provider:', provider);
         
