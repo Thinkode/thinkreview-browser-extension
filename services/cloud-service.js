@@ -1057,4 +1057,78 @@ export class CloudService {
       throw error;
     }
   }
+
+  /**
+   * Track Ollama configuration
+   * @param {boolean} enabled - Whether Ollama is enabled
+   * @param {Object} config - Ollama configuration (url, model)
+   * @returns {Promise<Object>} - Response from the backend
+   */
+  static async trackOllamaConfig(enabled, config = null) {
+    dbgLog('[CloudService] Tracking Ollama config:', { enabled, config });
+    
+    const TRACK_OLLAMA_CONFIG_URL = 'https://us-central1-thinkgpt.cloudfunctions.net/trackOllamaConfigThinkReview';
+    
+    try {
+      // Get user data from storage
+      const storageData = await new Promise((resolve) => {
+        chrome.storage.local.get(['userData', 'user'], (result) => {
+          resolve(result);
+        });
+      });
+      
+      let userData = storageData.userData;
+      let email = null;
+      
+      // If userData exists, use it
+      if (userData && userData.email) {
+        email = userData.email;
+        dbgLog('[CloudService] Using userData email for Ollama config tracking:', email);
+      } else if (storageData.user) {
+        // If userData doesn't exist but user does, try to parse it
+        try {
+          const parsedUser = JSON.parse(storageData.user);
+          if (parsedUser && parsedUser.email) {
+            email = parsedUser.email;
+            userData = parsedUser;
+            dbgLog('[CloudService] Using parsed user email for Ollama config tracking:', email);
+          }
+        } catch (parseError) {
+          dbgWarn('[CloudService] Failed to parse user data:', parseError);
+        }
+      }
+      
+      if (!email) {
+        dbgWarn('[CloudService] Cannot track Ollama config: No user data in storage');
+        throw new Error('User not authenticated');
+      }
+      
+      dbgLog('[CloudService] Tracking Ollama config for user:', { email, enabled, config });
+      
+      const response = await fetch(TRACK_OLLAMA_CONFIG_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          enabled,
+          config
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
+      
+      const data = await response.json();
+      dbgLog('[CloudService] Ollama config tracked successfully:', data);
+      
+      return data;
+    } catch (error) {
+      dbgWarn('[CloudService] Error tracking Ollama config:', error);
+      throw error;
+    }
+  }
 }

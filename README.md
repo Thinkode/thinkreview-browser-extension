@@ -8,10 +8,11 @@
 [![Latest Release](https://img.shields.io/badge/Latest-Release-green.svg)](https://thinkreview.dev/release-notes)
 [![Rating](https://img.shields.io/badge/rating-5.0%2F5-yellow.svg)](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
+[![Ollama](https://img.shields.io/badge/🆕%20Ollama-Local%20AI-purple?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3TDEyIDEyTDIyIDdMMTIgMloiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0yIDEwVjE0TDEyIDE5VjE1TDIgMTBaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMjIgMTBWMTRMMTIgMTlWMTVMMjIgMTBaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4=)](OLLAMA_SETUP.md)
 
 **AI-powered code reviews for merge requests and pull requests, directly in your browser.**
 
-[🌐 Website](https://thinkreview.dev) • [📦 Install](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn) • [📖 Docs](#documentation) • [💬 Contact](https://thinkreview.dev/contact)
+[🌐 Website](https://thinkreview.dev) • [📦 Install](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn) • [🖥️ Ollama Setup](OLLAMA_SETUP.md) • [📖 Docs](#documentation) • [💬 Contact](https://thinkreview.dev/contact)
 
 <img src="media/hero-banner.png" alt="ThinkReview - AI Code Review" width="800">
 
@@ -22,6 +23,11 @@
 ## 🎉 Now Open Source!
 
 ThinkReview is a **production-ready browser extension** that brings AI-powered code reviews to GitLab and Azure DevOps. After months of development, we're excited to open source the extension!
+
+> ### 🆕 NEW: Local AI Support with Ollama!
+> Run code reviews **100% privately** on your own hardware with Ollama.  
+> No cloud, no API calls, complete control over your code.  
+> **📖 [5-Minute Setup Guide →](OLLAMA_SETUP.md)**
 
 ### 🌟 Key Stats
 
@@ -36,10 +42,21 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 ## ✨ Features
 
 ### 🤖 AI-Powered Code Reviews
+
+**Choose Your AI Provider:**
+
+| Provider | Privacy | Cost | Speed | Setup |
+|----------|---------|------|-------|-------|
+| **☁️ Cloud AI (Gemini)** | Google Cloud | Free tier | ⚡ Very Fast | None - works instantly |
+| **🖥️ Local Ollama** 🆕 | 🔒 100% Local | Completely Free | Hardware dependent | [5 min setup](OLLAMA_SETUP.md) |
+
+**Features:**
 - **Instant Analysis**: Get AI-driven insights on code changes
 - **Security Detection**: Automatically identify potential vulnerabilities
 - **Code Quality**: Receive suggestions for improvements
 - **Smart Summaries**: Quickly understand complex changes
+- **Quality Metrics**: Code quality scores and metrics
+- **Suggested Questions**: Context-aware follow-up questions
 
 <div align="center">
   <img src="media/demo-ai-code-review.gif" alt="AI Code Review Demo" width="700">
@@ -61,9 +78,10 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
   <p><em>Seamless Azure DevOps integration</em></p>
 </div>
 
-### 🚀 Zero Setup Required
-- **No API Keys**: Works out of the box
-- **No Configuration**: Install and start reviewing
+### 🚀 Quick Start
+- **Cloud AI**: Zero setup - works instantly after install
+- **Local AI**: [5-minute Ollama setup](OLLAMA_SETUP.md) for private reviews
+- **No API Keys**: Works out of the box (cloud) or fully local (Ollama)
 - **Automatic Detection**: Recognizes MR/PR pages instantly
 - **Seamless Integration**: Doesn't disrupt your workflow
 
@@ -91,6 +109,7 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 - 🔐 **HTTPS**: All requests encrypted
 - 🛡️ **No Stored Keys**: No API keys in extension code
 - 📊 **Minimal Permissions**: Only activates on MR/PR pages
+- 🖥️ **🆕 100% Local Option**: Use Ollama for completely private reviews - [Setup Guide](OLLAMA_SETUP.md)
 
 ---
 
@@ -117,6 +136,14 @@ cd thinkreview-browser-extension
 # 3. Click "Load unpacked"
 # 4. Select the cloned directory
 ```
+
+### Choose Your AI Provider (Optional)
+
+**Cloud AI (Default)** - Works immediately, no setup required  
+**Local AI with Ollama** - For 100% private reviews:
+1. Follow the [Ollama Setup Guide](OLLAMA_SETUP.md) (5 minutes)
+2. Open extension popup → Settings → Select "Local Ollama"
+3. That's it! Your reviews now run locally
 
 ---
 
@@ -173,6 +200,7 @@ thinkreview-browser-extension/
 │   └── subscription.js
 ├── services/              # Backend integration
 │   ├── cloud-service.js
+│   ├── ollama-service.js  # 🆕 Local AI integration
 │   ├── azure-devops-api.js
 │   └── platform-detector.js
 ├── utils/                 # Helper utilities
@@ -180,9 +208,10 @@ thinkreview-browser-extension/
 └── release-notes/        # Version history
 ```
 
-### Key Files
+### Key Guides
 
 - **[Release Notes](release-notes/)** - Detailed version history
+- **🆕 [OLLAMA_SETUP.md](OLLAMA_SETUP.md)** - Run AI reviews locally with Ollama
 
 ---
 

@@ -103,6 +103,66 @@
         </div>
       </div>
       
+      <!-- AI Provider Settings Section -->
+      <div id="ai-provider-settings" class="ai-provider-settings-section">
+        <h3 class="settings-title">AI Provider</h3>
+        <p class="settings-description">Choose between cloud-based AI or local Ollama</p>
+        
+        <div class="provider-selection">
+          <label class="provider-option">
+            <input type="radio" name="ai-provider" value="cloud" id="provider-cloud" checked>
+            <div class="provider-info">
+              <span class="provider-name">☁️ Cloud AI (Gemini)</span>
+              <span class="provider-desc">Fast, powerful, internet required</span>
+            </div>
+          </label>
+          
+          <label class="provider-option">
+            <input type="radio" name="ai-provider" value="ollama" id="provider-ollama">
+            <div class="provider-info">
+              <span class="provider-name">🖥️ Local Ollama</span>
+              <span class="provider-desc">Private, offline, requires setup</span>
+            </div>
+          </label>
+        </div>
+        
+        <!-- Ollama Configuration (hidden by default) -->
+        <div id="ollama-config" class="ollama-config" style="display: none;">
+          <div class="ollama-config-row">
+            <label for="ollama-url" class="config-label">Ollama URL:</label>
+            <input type="text" id="ollama-url" class="config-input" value="http://localhost:11434" placeholder="http://localhost:11434">
+          </div>
+          
+          <div class="ollama-config-row">
+            <label for="ollama-model" class="config-label">Model:</label>
+            <div class="model-select-wrapper">
+              <select id="ollama-model" class="config-select">
+                <option value="">Loading models...</option>
+              </select>
+              <button id="refresh-models-btn" class="refresh-models-btn" title="Refresh available models">🔄</button>
+            </div>
+          </div>
+          
+          <div class="ollama-actions">
+            <button id="test-ollama-btn" class="test-ollama-btn">Test Connection</button>
+            <button id="save-ollama-btn" class="save-ollama-btn">Save Settings</button>
+          </div>
+          
+          <div id="ollama-status" class="ollama-status"></div>
+          
+          <div class="ollama-help">
+            <p class="help-text">
+              <strong>📖 <a href="https://github.com/Thinkode/thinkreview-browser-extension/blob/main/OLLAMA_SETUP.md" target="_blank">Full Setup Guide</a></strong> - Complete instructions with model recommendations & troubleshooting<br><br>
+              <strong>Quick Start:</strong><br>
+              1. Install Ollama: <a href="https://ollama.ai/download" target="_blank">ollama.ai/download</a><br>
+              2. Pull a model: <code>ollama pull codellama</code><br>
+              3. Start with CORS: <code>./scripts/start-ollama-with-cors.sh</code> or manually <code>export OLLAMA_ORIGINS="chrome-extension://*" && ollama serve</code><br>
+              4. Click "Test Connection" to verify
+            </p>
+          </div>
+        </div>
+      </div>
+      
       <!-- Domain Settings Section -->
       <div id="domain-settings" class="domain-settings-section">
         <h3 class="settings-title">GitLab Domains</h3>

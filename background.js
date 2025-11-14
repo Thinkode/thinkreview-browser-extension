@@ -1,8 +1,10 @@
 // background.js
 // Handles patch storage, downloads, and communication with content/popup
 
-// Import CloudService statically since dynamic imports aren't allowed in service workers
+// Import services statically since dynamic imports aren't allowed in service workers
 import { CloudService } from './services/cloud-service.js';
+import { OllamaService } from './services/ollama-service.js';
+
 // Debug toggle: set to false to disable console logs in production
 const DEBUG = false;
 function dbgLog(...args) { if (DEBUG) console.log('[background]', ...args); }
@@ -134,6 +136,110 @@ async function handleGoogleSignIn() {
   }
 }
 
+/**
+ * Track Ollama review in Firebase
+ * @param {string} patchContent - The patch content
+ * @param {string} mrId - Merge request ID
+ * @param {string} mrUrl - Merge request URL
+ * @param {Object} reviewData - The review data from Ollama
+ * @param {string} model - The Ollama model used
+ */
+async function trackOllamaReview(patchContent, mrId, mrUrl, reviewData, model) {
+  try {
+    // Get user email from storage
+    const storageData = await new Promise((resolve) => {
+      chrome.storage.local.get(['userData', 'user'], (result) => {
+        resolve(result);
+      });
+    });
+    
+    let email = null;
+    
+    // Extract email from userData or user
+    if (storageData.userData && storageData.userData.email) {
+      email = storageData.userData.email;
+    } else if (storageData.user) {
+      try {
+        const parsedUser = JSON.parse(storageData.user);
+        if (parsedUser && parsedUser.email) {
+          email = parsedUser.email;
+        }
+      } catch (e) {
+        console.warn('[BG] Failed to parse user data for Ollama tracking:', e);
+      }
+    }
+    
+    if (!email) {
+      console.warn('[BG] No email found for Ollama review tracking');
+      return;
+    }
+    
+    dbgLog('[BG] Tracking Ollama review for email:', email);
+    
+    // Extract review object from response
+    const review = reviewData.review || reviewData;
+    
+    // Calculate patch size
+    const originalPatchSize = patchContent.length;
+    const wasTruncated = originalPatchSize > 40000;
+    const truncatedPatchSize = wasTruncated ? 40000 : originalPatchSize;
+    
+    const patchSize = {
+      original: originalPatchSize,
+      truncated: truncatedPatchSize,
+      wasTruncated: wasTruncated
+    };
+    
+    // Generate checksum (simple MD5-like hash using crypto.subtle)
+    const encoder = new TextEncoder();
+    const data = encoder.encode(`${patchContent}:${mrId}`);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const patchChecksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
+    
+    // Extract metrics from review
+    const metrics = review.metrics || null;
+    
+    // Calculate review counts
+    const reviewCounts = {
+      suggestions: Array.isArray(review.suggestions) ? review.suggestions.length : 0,
+      securityIssues: Array.isArray(review.securityIssues) ? review.securityIssues.length : 0,
+      bestPractices: Array.isArray(review.bestPractices) ? review.bestPractices.length : 0,
+      suggestedQuestions: Array.isArray(review.suggestedQuestions) ? review.suggestedQuestions.length : 0
+    };
+    
+    // Send tracking request to Firebase
+    const TRACK_OLLAMA_REVIEW_URL = 'https://us-central1-thinkgpt.cloudfunctions.net/trackOllamaReviewThinkReview';
+    
+    const response = await fetch(TRACK_OLLAMA_REVIEW_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        mrId,
+        mrUrl,
+        review,
+        metrics,
+        reviewCounts,
+        patchSize,
+        patchChecksum,
+        model
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Failed to track Ollama review: ${response.status} - ${errorData.message || 'Unknown error'}`);
+    }
+    
+    const result = await response.json();
+    dbgLog('[BG] Ollama review tracked successfully:', result);
+  } catch (error) {
+    console.warn('[BG] Error tracking Ollama review:', error);
+    throw error;
+  }
+}
+
 // Listen for extension icon clicks to open full page
 chrome.action.onClicked.addListener((tab) => {
   dbgLog('[GitLab MR Reviews][BG] Extension icon clicked, opening full page');
@@ -196,9 +302,49 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { patchContent, conversationHistory, mrId, mrUrl, language } = message;
     (async () => {
       try {
+        // Get AI provider setting
+        const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+        const provider = settings.aiProvider || 'cloud';
+        
+        dbgLog('[BG] Using AI provider for conversation:', provider);
+        
+        // Route to appropriate service based on provider
+        if (provider === 'ollama') {
+          // Use Ollama for conversational response
+          try {
+            const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'qwen3-coder:30b' };
+            
+            dbgLog('[BG] Getting conversational response from Ollama:', config);
+            
+            const data = await OllamaService.getConversationalResponse(
+              patchContent, 
+              conversationHistory, 
+              language || 'English',
+              mrId, 
+              mrUrl
+            );
+            
+            dbgLog('[BG] Ollama conversational response completed successfully');
+            sendResponse({ success: true, data: data, provider: 'ollama' });
+            return;
+          } catch (ollamaError) {
+            console.warn('[BG] Ollama conversational response failed:', ollamaError.message);
+            
+            // Provide a helpful error message
+            sendResponse({ 
+              success: false, 
+              error: ollamaError.message,
+              provider: 'ollama',
+              suggestion: 'Check if Ollama is running and configured correctly in extension settings.'
+            });
+            return;
+          }
+        }
+        
+        // Default: Use cloud service (Gemini)
         const data = await CloudService.getConversationalResponse(patchContent, conversationHistory, mrId, mrUrl, language || 'English');
         dbgLog('[GitLab MR Reviews][BG] Conversational response received:', data);
-        sendResponse({ success: true, data: data });
+        sendResponse({ success: true, data: data, provider: 'cloud' });
       } catch (err) {
         // Log error details for debugging
         // if (err.isRateLimit) {
@@ -232,7 +378,50 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const REVIEW_CODE_URL_V1_1 = 'https://us-central1-thinkgpt.cloudfunctions.net/reviewPatchCode_1_1';
     
     (async () => {
+      // Get AI provider setting (declare outside try block so it's accessible in catch)
+      let settings = { aiProvider: 'cloud', ollamaConfig: null };
+      let provider = 'cloud';
+      
       try {
+        settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+        provider = settings.aiProvider || 'cloud';
+        
+        dbgLog('[BG] Using AI provider:', provider);
+        
+        // Route to appropriate service based on provider
+        if (provider === 'ollama') {
+          // Use Ollama for local code review
+          try {
+            const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'qwen3-coder:30b' };
+            
+            dbgLog('[BG] Reviewing with Ollama:', config);
+            
+            const data = await OllamaService.reviewPatchCode(patchContent, language, mrId, mrUrl);
+            
+            dbgLog('[BG] Ollama review completed successfully');
+            
+            // Track the review in Firebase (fire-and-forget)
+            trackOllamaReview(patchContent, mrId, mrUrl, data, config.model).catch(err => {
+              console.warn('[BG] Failed to track Ollama review in Firebase:', err.message);
+            });
+            
+            sendResponse({ success: true, data, provider: 'ollama' });
+            return;
+          } catch (ollamaError) {
+            console.warn('[BG] Ollama review failed:', ollamaError.message);
+            
+            // Provide a helpful error message
+            sendResponse({ 
+              success: false, 
+              error: ollamaError.message,
+              provider: 'ollama',
+              suggestion: 'Check if Ollama is running and configured correctly in extension settings.'
+            });
+            return;
+          }
+        }
+        
+        // Default: Use cloud service (Gemini)
         // Validate patchContent before sending
         if (!patchContent || patchContent.trim().length === 0) {
           throw new Error('There are no code changes yet in this merge request. If you think this is a bug, please report it here: https://thinkreview.dev/bug-report');
@@ -352,7 +541,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           dbgLog('[GitLab MR Reviews][BG] Review completed for MR:', mrId);
         }
         
-        sendResponse({ success: true, data });
+        sendResponse({ success: true, data, provider: 'cloud' });
       } catch (err) {
         console.warn('[GitLab MR Reviews][BG] Review fetch error:', err);
         sendResponse({ 
@@ -360,7 +549,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           error: err.message,
           isLimitExceeded: err.isLimitExceeded || false,
           dailyLimit: err.dailyLimit,
-          currentCount: err.currentCount
+          currentCount: err.currentCount,
+          provider: settings.aiProvider || 'cloud'
         });
       }
     })();

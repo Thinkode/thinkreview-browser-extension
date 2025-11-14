@@ -567,6 +567,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Initialize domain settings
   initializeDomainSettings();
+  
+  // Initialize AI Provider settings
+  initializeAIProviderSettings();
 });
 
 // Domain Management Functionality
@@ -961,3 +964,476 @@ function updateTokenStatus(message, type) {
 }
 
 // Subscription upgrade functionality has been moved to content.js and removed from popup
+
+// AI Provider Management Functionality
+function initializeAIProviderSettings() {
+  loadAIProviderSettings();
+  setupAIProviderEventListeners();
+}
+
+function setupAIProviderEventListeners() {
+  const providerRadios = document.querySelectorAll('input[name="ai-provider"]');
+  const testButton = document.getElementById('test-ollama-btn');
+  const saveButton = document.getElementById('save-ollama-btn');
+  const refreshModelsButton = document.getElementById('refresh-models-btn');
+  
+  // Provider selection change
+  providerRadios.forEach(radio => {
+    radio.addEventListener('change', handleProviderChange);
+  });
+  
+  // Test Ollama connection
+  if (testButton) {
+    testButton.addEventListener('click', testOllamaConnection);
+  }
+  
+  // Save Ollama settings
+  if (saveButton) {
+    saveButton.addEventListener('click', saveOllamaSettings);
+  }
+  
+  // Refresh available models
+  if (refreshModelsButton) {
+    refreshModelsButton.addEventListener('click', refreshOllamaModels);
+  }
+}
+
+async function loadAIProviderSettings() {
+  try {
+    const result = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+    const provider = result.aiProvider || 'cloud';
+    const config = result.ollamaConfig || {
+      url: 'http://localhost:11434',
+      model: 'qwen3-coder:30b'
+    };
+    
+    // Set the selected provider
+    const providerRadio = document.getElementById(`provider-${provider}`);
+    if (providerRadio) {
+      providerRadio.checked = true;
+    }
+    
+    // Show/hide Ollama config based on provider
+    const ollamaConfig = document.getElementById('ollama-config');
+    if (ollamaConfig) {
+      ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
+    }
+    
+    // Load Ollama config values
+    const urlInput = document.getElementById('ollama-url');
+    const modelSelect = document.getElementById('ollama-model');
+    
+    if (urlInput) urlInput.value = config.url;
+    
+    // If Ollama is the selected provider, fetch available models
+    if (provider === 'ollama') {
+      dbgLog('[popup] Ollama is selected provider, fetching available models...');
+      await fetchAndPopulateModels(config.url, config.model);
+    } else if (modelSelect) {
+      // If not Ollama, just set the saved model value
+      modelSelect.value = config.model;
+    }
+    
+    dbgLog('[popup] AI Provider settings loaded:', { provider, config });
+  } catch (error) {
+    dbgWarn('[popup] Error loading AI Provider settings:', error);
+  }
+}
+
+function handleProviderChange(event) {
+  const provider = event.target.value;
+  const ollamaConfig = document.getElementById('ollama-config');
+  
+  if (ollamaConfig) {
+    ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
+  }
+  
+  // Auto-save provider selection
+  chrome.storage.local.set({ aiProvider: provider }, () => {
+    dbgLog('[popup] AI Provider changed to:', provider);
+    showOllamaStatus(
+      provider === 'cloud' 
+        ? '☁️ Using Cloud AI (Gemini)' 
+        : '🖥️ Local Ollama selected - configure and test below',
+      provider === 'cloud' ? 'success' : 'info'
+    );
+    
+    // Automatically fetch models when Ollama is selected
+    if (provider === 'ollama') {
+      const urlInput = document.getElementById('ollama-url');
+      const url = urlInput ? urlInput.value.trim() : 'http://localhost:11434';
+      
+      dbgLog('[popup] Ollama selected, fetching available models...');
+      fetchAndPopulateModels(url).catch(err => {
+        dbgWarn('[popup] Error auto-fetching models (non-critical):', err);
+      });
+    }
+    
+    // Track provider change in cloud asynchronously (fire-and-forget)
+    isUserLoggedIn().then(isLoggedIn => {
+      if (isLoggedIn && window.CloudService) {
+        dbgLog('[popup] User logged in, tracking AI provider change in cloud (async)');
+        // If switching to cloud, track Ollama as disabled
+        if (provider === 'cloud') {
+          window.CloudService.trackOllamaConfig(false, null)
+            .then(() => dbgLog('[popup] Ollama disabled tracked successfully in cloud'))
+            .catch(trackError => dbgWarn('[popup] Error tracking provider change in cloud (non-critical):', trackError));
+        }
+        // If switching to Ollama, it will be tracked when user saves the config
+      } else {
+        dbgLog('[popup] User not logged in or CloudService not available, skipping cloud tracking');
+      }
+    }).catch(err => dbgWarn('[popup] Error checking login status for cloud tracking:', err));
+  });
+}
+
+async function fetchAndPopulateModels(url, savedModel = null) {
+  if (!url) {
+    dbgWarn('[popup] No URL provided for fetching models');
+    return;
+  }
+  
+  const modelSelect = document.getElementById('ollama-model');
+  if (!modelSelect) return;
+  
+  try {
+    // Dynamically import OllamaService
+    const { OllamaService } = await import(chrome.runtime.getURL('services/ollama-service.js'));
+    
+    // Check connection first
+    const connectionResult = await OllamaService.checkConnection(url);
+    
+    if (!connectionResult.connected) {
+      if (connectionResult.isCorsError) {
+        // Show CORS-specific error with instructions
+        modelSelect.innerHTML = '<option value="">🔒 CORS Error - Fix Required</option>';
+        showCorsInstructions();
+        return;
+      }
+      
+      modelSelect.innerHTML = '<option value="">⚠️ Ollama not running</option>';
+      showOllamaStatus('⚠️ Cannot connect to Ollama. Make sure it\'s running.', 'error');
+      return;
+    }
+    
+    // Fetch available models
+    const modelsResult = await OllamaService.getAvailableModels(url);
+    
+    if (modelsResult.isCorsError) {
+      // Show CORS-specific error with instructions
+      modelSelect.innerHTML = '<option value="">🔒 CORS Error - Fix Required</option>';
+      showCorsInstructions();
+      return;
+    }
+    
+    if (modelsResult.models.length > 0) {
+      updateModelSelect(modelsResult.models);
+      
+      // If a saved model was provided, try to select it
+      if (savedModel) {
+        const modelExists = Array.from(modelSelect.options).some(opt => opt.value === savedModel);
+        if (modelExists) {
+          modelSelect.value = savedModel;
+        }
+      }
+      
+      showOllamaStatus(`✅ Found ${modelsResult.models.length} installed model(s)`, 'success');
+      dbgLog('[popup] Successfully loaded', modelsResult.models.length, 'models from Ollama');
+    } else {
+      modelSelect.innerHTML = '<option value="">⚠️ No models installed</option>';
+      showOllamaStatus('⚠️ No models found. Install one with: ollama pull qwen3-coder:30b', 'error');
+    }
+  } catch (error) {
+    dbgWarn('[popup] Error fetching models:', error);
+    modelSelect.innerHTML = '<option value="">❌ Error loading models</option>';
+    showOllamaStatus(`❌ Failed to fetch models: ${error.message}`, 'error');
+  }
+}
+
+async function testOllamaConnection() {
+  const urlInput = document.getElementById('ollama-url');
+  const url = urlInput.value.trim();
+  
+  if (!url) {
+    showOllamaStatus('❌ Please enter a valid URL', 'error');
+    return;
+  }
+  
+  showOllamaStatus('🔄 Testing connection...', 'info');
+  
+  try {
+    // Dynamically import OllamaService
+    const { OllamaService } = await import(chrome.runtime.getURL('services/ollama-service.js'));
+    
+    const connectionResult = await OllamaService.checkConnection(url);
+    
+    if (connectionResult.connected) {
+      showOllamaStatus('✅ Connection successful! Ollama is running.', 'success');
+      
+      // Try to fetch and update models
+      try {
+        const modelsResult = await OllamaService.getAvailableModels(url);
+        if (modelsResult.isCorsError) {
+          showCorsInstructions();
+        } else if (modelsResult.models.length > 0) {
+          updateModelSelect(modelsResult.models);
+          showOllamaStatus(`✅ Connected! Found ${modelsResult.models.length} model(s).`, 'success');
+        }
+      } catch (modelsError) {
+        dbgWarn('[popup] Error fetching models:', modelsError);
+        // Connection works but couldn't fetch models - still success
+      }
+    } else if (connectionResult.isCorsError) {
+      showCorsInstructions();
+    } else {
+      showOllamaStatus('❌ Cannot connect to Ollama. Make sure it\'s running.', 'error');
+    }
+  } catch (error) {
+    dbgWarn('[popup] Error testing Ollama connection:', error);
+    showOllamaStatus(`❌ Connection failed: ${error.message}`, 'error');
+  }
+}
+
+async function saveOllamaSettings() {
+  const urlInput = document.getElementById('ollama-url');
+  const modelSelect = document.getElementById('ollama-model');
+  
+  const url = urlInput.value.trim();
+  const model = modelSelect.value;
+  
+  if (!url) {
+    showOllamaStatus('❌ Please enter a valid URL', 'error');
+    return;
+  }
+  
+  if (!model) {
+    showOllamaStatus('❌ Please select a model', 'error');
+    return;
+  }
+  
+  try {
+    const config = { url, model };
+    
+    await chrome.storage.local.set({ ollamaConfig: config });
+    
+    dbgLog('[popup] Ollama settings saved:', config);
+    showOllamaStatus('✅ Settings saved successfully!', 'success');
+    
+    // Track Ollama configuration in cloud asynchronously (fire-and-forget)
+    isUserLoggedIn().then(isLoggedIn => {
+      if (isLoggedIn && window.CloudService) {
+        dbgLog('[popup] User logged in, tracking Ollama config in cloud (async)');
+        window.CloudService.trackOllamaConfig(true, config)
+          .then(() => dbgLog('[popup] Ollama config tracked successfully in cloud'))
+          .catch(trackError => dbgWarn('[popup] Error tracking Ollama config in cloud (non-critical):', trackError));
+      } else {
+        dbgLog('[popup] User not logged in or CloudService not available, skipping cloud tracking');
+      }
+    }).catch(err => dbgWarn('[popup] Error checking login status for cloud tracking:', err));
+  } catch (error) {
+    dbgWarn('[popup] Error saving Ollama settings:', error);
+    showOllamaStatus('❌ Failed to save settings', 'error');
+  }
+}
+
+async function refreshOllamaModels() {
+  const urlInput = document.getElementById('ollama-url');
+  const refreshButton = document.getElementById('refresh-models-btn');
+  const url = urlInput.value.trim();
+  
+  if (!url) {
+    showOllamaStatus('❌ Please enter a valid URL first', 'error');
+    return;
+  }
+  
+  // Show loading state
+  refreshButton.disabled = true;
+  refreshButton.style.animation = 'spin 1s linear infinite';
+  showOllamaStatus('🔄 Fetching available models...', 'info');
+  
+  try {
+    // Dynamically import OllamaService
+    const { OllamaService } = await import(chrome.runtime.getURL('services/ollama-service.js'));
+    
+    const modelsResult = await OllamaService.getAvailableModels(url);
+    
+    if (modelsResult.isCorsError) {
+      showCorsInstructions();
+    } else if (modelsResult.models.length > 0) {
+      updateModelSelect(modelsResult.models);
+      showOllamaStatus(`✅ Found ${modelsResult.models.length} model(s)`, 'success');
+    } else {
+      showOllamaStatus('⚠️ No models found. Pull a model first: ollama pull codellama', 'error');
+    }
+  } catch (error) {
+    dbgWarn('[popup] Error refreshing models:', error);
+    showOllamaStatus(`❌ Failed to fetch models: ${error.message}`, 'error');
+  } finally {
+    // Reset button state
+    refreshButton.disabled = false;
+    refreshButton.style.animation = '';
+  }
+}
+
+function updateModelSelect(models) {
+  const modelSelect = document.getElementById('ollama-model');
+  if (!modelSelect) return;
+  
+  const currentValue = modelSelect.value;
+  
+  // Clear existing options
+  modelSelect.innerHTML = '';
+  
+  // Add models from Ollama
+  models.forEach(model => {
+    const option = document.createElement('option');
+    option.value = model.name;
+    option.textContent = model.name;
+    modelSelect.appendChild(option);
+  });
+  
+  // Restore previous selection if it exists
+  if (currentValue && Array.from(modelSelect.options).some(opt => opt.value === currentValue)) {
+    modelSelect.value = currentValue;
+  }
+  
+  dbgLog('[popup] Updated model select with', models.length, 'models');
+}
+
+function showOllamaStatus(message, type = 'info') {
+  const statusDiv = document.getElementById('ollama-status');
+  if (!statusDiv) return;
+  
+  statusDiv.textContent = message;
+  statusDiv.className = `ollama-status show ${type}`;
+  
+  // Auto-hide after 5 seconds for success messages
+  if (type === 'success') {
+    setTimeout(() => {
+      statusDiv.classList.remove('show');
+    }, 5000);
+  }
+}
+
+function showCorsInstructions() {
+  const statusDiv = document.getElementById('ollama-status');
+  if (!statusDiv) return;
+  
+  const killCommand = 'killall ollama 2>/dev/null || true; killall Ollama 2>/dev/null || true; sleep 2';
+  const startCommand = 'OLLAMA_ORIGINS="chrome-extension://*" ollama serve';
+  
+  const copyIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+    <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+    <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+  </svg>`;
+  
+  const checkIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+  </svg>`;
+  
+  statusDiv.className = 'ollama-status show cors-error';
+  statusDiv.innerHTML = `
+    <div style="text-align: left;">
+      <div style="font-weight: bold; margin-bottom: 10px; font-size: 14px;">🔒 CORS Error Detected</div>
+      <div style="margin-bottom: 10px; font-size: 12px;">Ollama needs CORS enabled for browser extensions.</div>
+      
+      <div style="font-weight: 600; margin-bottom: 6px; font-size: 12px;">1. Stop Ollama</div>
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+        <code style="flex: 1; background: #2a2a2a; padding: 6px 8px; border-radius: 4px; font-size: 10px; color: #00ff00; overflow-x: auto; white-space: nowrap;">${killCommand}</code>
+        <button class="cors-copy-btn" data-command-type="kill" style="background: none; border: none; cursor: pointer; padding: 6px; color: #3b82f6; transition: all 0.3s ease-in-out; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Copy">
+          ${copyIconSVG}
+        </button>
+      </div>
+      
+      <div style="font-weight: 600; margin-bottom: 6px; font-size: 12px;">2. Start with CORS</div>
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <code style="flex: 1; background: #2a2a2a; padding: 6px 8px; border-radius: 4px; font-size: 10px; color: #00ff00; overflow-x: auto; white-space: nowrap;">${startCommand}</code>
+        <button class="cors-copy-btn" data-command-type="start" style="background: none; border: none; cursor: pointer; padding: 6px; color: #3b82f6; transition: all 0.3s ease-in-out; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Copy">
+          ${copyIconSVG}
+        </button>
+      </div>
+      
+      <div style="margin-top: 8px; padding: 6px 8px; background: #f0f9ff; border-left: 3px solid #0ea5e9; font-size: 10px; color: #0c4a6e; border-radius: 2px;">
+        💡 You'll need to run step 2 each time you restart Ollama.
+      </div>
+    </div>
+  `;
+  
+  // Set the data-command attribute after innerHTML is set (avoids HTML escaping issues)
+  const copyButtons = statusDiv.querySelectorAll('.cors-copy-btn');
+  copyButtons.forEach(button => {
+    const commandType = button.getAttribute('data-command-type');
+    const command = commandType === 'kill' ? killCommand : startCommand;
+    // Use setAttribute to properly set the attribute value without HTML escaping issues
+    button.setAttribute('data-command', command);
+    
+    // Hover effects
+    button.addEventListener('mouseenter', () => {
+      button.style.color = '#2563eb';
+      button.style.transform = 'scale(1.1)';
+    });
+    button.addEventListener('mouseleave', () => {
+      button.style.color = '#3b82f6';
+      button.style.transform = 'scale(1)';
+    });
+    
+    // Click handler
+    button.addEventListener('click', () => {
+      // getAttribute automatically decodes HTML entities, but since we set it via setAttribute,
+      // it should already be the correct value
+      const command = button.getAttribute('data-command');
+      
+      navigator.clipboard.writeText(command).then(() => {
+        // Haptic feedback
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+        
+        // Change icon to checkmark
+        button.innerHTML = checkIconSVG;
+        button.style.color = '#22c55e';
+        button.style.transform = 'scale(1.2)';
+        
+        setTimeout(() => {
+          button.style.transform = 'scale(1)';
+        }, 100);
+        
+        // Revert back after 1.5 seconds
+        setTimeout(() => {
+          button.innerHTML = copyIconSVG;
+          button.style.color = '#3b82f6';
+        }, 1500);
+        
+        // Show toast notification
+        const toast = document.createElement('div');
+        toast.textContent = '✅ Copied to clipboard!';
+        toast.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #22c55e; color: white; padding: 12px 20px; border-radius: 6px; font-weight: 500; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.1); animation: slideInRight 0.3s ease-out;';
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+          toast.style.transition = 'opacity 0.3s ease-out';
+          toast.style.opacity = '0';
+          setTimeout(() => toast.remove(), 300);
+        }, 1500);
+      }).catch(err => {
+        console.warn('Copy failed:', err);
+        
+        // Show error state
+        button.style.color = '#ef4444';
+        setTimeout(() => {
+          button.style.color = '#3b82f6';
+        }, 1500);
+      });
+    });
+  });
+}
+
+// Add CSS animation for spinner
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(style);
