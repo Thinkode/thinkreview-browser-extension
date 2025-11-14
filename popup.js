@@ -1340,7 +1340,7 @@ function showCorsInstructions() {
       <div style="font-weight: 600; margin-bottom: 6px; font-size: 12px;">1. Stop Ollama</div>
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
         <code style="flex: 1; background: #2a2a2a; padding: 6px 8px; border-radius: 4px; font-size: 10px; color: #00ff00; overflow-x: auto; white-space: nowrap;">${killCommand}</code>
-        <button class="cors-copy-btn" data-command="${killCommand.replace(/'/g, '&#39;')}" style="background: none; border: none; cursor: pointer; padding: 6px; color: #3b82f6; transition: all 0.3s ease-in-out; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Copy">
+        <button class="cors-copy-btn" data-command-type="kill" style="background: none; border: none; cursor: pointer; padding: 6px; color: #3b82f6; transition: all 0.3s ease-in-out; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Copy">
           ${copyIconSVG}
         </button>
       </div>
@@ -1348,7 +1348,7 @@ function showCorsInstructions() {
       <div style="font-weight: 600; margin-bottom: 6px; font-size: 12px;">2. Start with CORS</div>
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
         <code style="flex: 1; background: #2a2a2a; padding: 6px 8px; border-radius: 4px; font-size: 10px; color: #00ff00; overflow-x: auto; white-space: nowrap;">${startCommand}</code>
-        <button class="cors-copy-btn" data-command="${startCommand}" style="background: none; border: none; cursor: pointer; padding: 6px; color: #3b82f6; transition: all 0.3s ease-in-out; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Copy">
+        <button class="cors-copy-btn" data-command-type="start" style="background: none; border: none; cursor: pointer; padding: 6px; color: #3b82f6; transition: all 0.3s ease-in-out; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Copy">
           ${copyIconSVG}
         </button>
       </div>
@@ -1359,9 +1359,14 @@ function showCorsInstructions() {
     </div>
   `;
   
-  // Add hover effect styles and event listeners to copy buttons
+  // Set the data-command attribute after innerHTML is set (avoids HTML escaping issues)
   const copyButtons = statusDiv.querySelectorAll('.cors-copy-btn');
   copyButtons.forEach(button => {
+    const commandType = button.getAttribute('data-command-type');
+    const command = commandType === 'kill' ? killCommand : startCommand;
+    // Use setAttribute to properly set the attribute value without HTML escaping issues
+    button.setAttribute('data-command', command);
+    
     // Hover effects
     button.addEventListener('mouseenter', () => {
       button.style.color = '#2563eb';
@@ -1374,7 +1379,9 @@ function showCorsInstructions() {
     
     // Click handler
     button.addEventListener('click', () => {
-      const command = button.getAttribute('data-command').replace(/&#39;/g, "'");
+      // getAttribute automatically decodes HTML entities, but since we set it via setAttribute,
+      // it should already be the correct value
+      const command = button.getAttribute('data-command');
       
       navigator.clipboard.writeText(command).then(() => {
         // Haptic feedback
