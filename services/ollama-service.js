@@ -350,7 +350,7 @@ Your role is to answer questions about this code review in a helpful, concise ma
   /**
    * Check if Ollama is accessible at the given URL
    * @param {string} [url] - Ollama URL to check
-   * @returns {Promise<boolean>} - True if connection successful
+   * @returns {Promise<{connected: boolean, error: string|null, isCorsError: boolean}>}
    */
   static async checkConnection(url = 'http://localhost:11434') {
     try {
@@ -361,17 +361,28 @@ Your role is to answer questions about this code review in a helpful, concise ma
       });
       const isOk = response.ok;
       dbgLog(`Connection check result: ${isOk ? 'Success' : 'Failed'}`);
-      return isOk;
+      return { connected: isOk, error: null, isCorsError: false };
     } catch (error) {
       dbgWarn('Connection check failed:', error);
-      return false;
+      
+      // Detect CORS errors
+      const errorMessage = error.message || error.toString();
+      const isCorsError = errorMessage.includes('CORS') || 
+                         errorMessage.includes('Access-Control-Allow-Origin') ||
+                         (error.name === 'TypeError' && errorMessage.includes('fetch'));
+      
+      return { 
+        connected: false, 
+        error: errorMessage,
+        isCorsError: isCorsError
+      };
     }
   }
 
   /**
    * Get list of available models from Ollama
    * @param {string} [url] - Ollama URL
-   * @returns {Promise<Array>} - List of available models
+   * @returns {Promise<{models: Array, error: string|null, isCorsError: boolean}>}
    */
   static async getAvailableModels(url = 'http://localhost:11434') {
     try {
@@ -388,10 +399,21 @@ Your role is to answer questions about this code review in a helpful, concise ma
       const data = await response.json();
       const models = data.models || [];
       dbgLog(`Found ${models.length} models:`, models.map(m => m.name));
-      return models;
+      return { models, error: null, isCorsError: false };
     } catch (error) {
       dbgWarn('Error fetching models:', error);
-      return [];
+      
+      // Detect CORS errors
+      const errorMessage = error.message || error.toString();
+      const isCorsError = errorMessage.includes('CORS') || 
+                         errorMessage.includes('Access-Control-Allow-Origin') ||
+                         (error.name === 'TypeError' && errorMessage.includes('fetch'));
+      
+      return { 
+        models: [], 
+        error: errorMessage,
+        isCorsError: isCorsError
+      };
     }
   }
 

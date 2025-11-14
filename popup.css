@@ -1029,6 +1029,28 @@ footer {
   color: #1976d2;
 }
 
+.ollama-status.cors-error {
+  background-color: #fff3e0;
+  border: 1px solid #ffb74d;
+  color: #e65100;
+  padding: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.cors-copy-btn svg.h-5 {
+  height: 1.25rem;
+  width: 1.25rem;
+}
+
+.cors-copy-btn:hover {
+  opacity: 0.8;
+}
+
+.cors-copy-btn:active {
+  transform: scale(0.95) !important;
+}
+
 .ollama-help {
   margin-top: 12px;
   padding: 12px;
