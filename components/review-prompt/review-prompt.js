@@ -2,7 +2,7 @@
  * Review Prompt Component
  * Modular component for handling user feedback prompts after generating reviews
  */
-const DEBUG = true;
+const DEBUG = false;
 function dbgLog(...args) { if (DEBUG) console.log('[popup]', ...args); }
 function dbgWarn(...args) { if (DEBUG) console.warn('[popup]', ...args); }
 // Configuration
