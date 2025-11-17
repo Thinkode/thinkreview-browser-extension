@@ -36,19 +36,51 @@ jobs:
           # Remove existing sourceforge remote if it exists
           git remote remove sourceforge 2>/dev/null || true
           # Add SourceForge remote
-          git remote add sourceforge ssh://${{ secrets.SOURCEFORGE_USERNAME }}@git.code.sf.net/p/${{ secrets.SOURCEFORGE_PROJECT }}/${{ secrets.SOURCEFORGE_REPO }}
+          SF_URL="ssh://${{ secrets.SOURCEFORGE_USERNAME }}@git.code.sf.net/p/${{ secrets.SOURCEFORGE_PROJECT }}/${{ secrets.SOURCEFORGE_REPO }}"
+          echo "Adding SourceForge remote: $SF_URL"
+          git remote add sourceforge "$SF_URL"
+          echo "Remote added successfully"
+        env:
+          GIT_SSH_COMMAND: "ssh -i ~/.ssh/sourceforge_key -o IdentitiesOnly=yes"
+
+      - name: Test SourceForge connection
+        run: |
+          echo "Testing SourceForge SSH connection..."
+          ssh -i ~/.ssh/sourceforge_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${{ secrets.SOURCEFORGE_USERNAME }}@git.code.sf.net "echo 'Connection successful'" || {
+            echo "✗ Failed to connect to SourceForge"
+            echo "Please verify:"
+            echo "1. SSH key is correctly added to SourceForge account"
+            echo "2. Username is correct: ${{ secrets.SOURCEFORGE_USERNAME }}"
+            exit 1
+          }
+          echo "✓ SSH connection successful"
+        env:
+          GIT_SSH_COMMAND: "ssh -i ~/.ssh/sourceforge_key -o IdentitiesOnly=yes"
 
       - name: Push to SourceForge
         run: |
+          set -e
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             # Push tag to SourceForge
-            git push sourceforge "${{ github.ref_name }}" || echo "Tag may already exist on SourceForge"
+            echo "Pushing tag ${{ github.ref_name }} to SourceForge..."
+            git push sourceforge "${{ github.ref_name }}" || echo "Warning: Tag push failed (may already exist)"
             # Also push the branch that the tag points to
-            git push sourceforge main || true
+            echo "Pushing main branch to SourceForge..."
+            git push sourceforge main:main --set-upstream || git push sourceforge main || echo "Warning: Branch push failed"
           else
-            # Push branch to SourceForge
-            git push sourceforge "${{ github.ref_name }}" || echo "Push failed or branch already up to date"
+            # Push branch to SourceForge (use --set-upstream for first push)
+            echo "Pushing branch ${{ github.ref_name }} to SourceForge..."
+            BRANCH_NAME="${{ github.ref_name }}"
+            # Remove refs/heads/ prefix if present
+            BRANCH_NAME="${BRANCH_NAME#refs/heads/}"
+            git push sourceforge "$BRANCH_NAME:$BRANCH_NAME" --set-upstream || git push sourceforge "$BRANCH_NAME" || {
+              echo "Error: Failed to push to SourceForge"
+              echo "Repository URL: ssh://${{ secrets.SOURCEFORGE_USERNAME }}@git.code.sf.net/p/${{ secrets.SOURCEFORGE_PROJECT }}/${{ secrets.SOURCEFORGE_REPO }}"
+              echo "Please verify the repository exists and is accessible"
+              exit 1
+            }
           fi
+          echo "✓ Push to SourceForge completed successfully"
         env:
           GIT_SSH_COMMAND: "ssh -i ~/.ssh/sourceforge_key -o IdentitiesOnly=yes"
 
