@@ -1,0 +1,54 @@
+name: Push to SourceForge
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  push-to-sourceforge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup SSH for SourceForge
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SOURCEFORGE_SSH_PRIVATE_KEY }}" > ~/.ssh/sourceforge_key
+          chmod 600 ~/.ssh/sourceforge_key
+          ssh-keyscan git.code.sf.net >> ~/.ssh/known_hosts
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Add SourceForge remote
+        run: |
+          # Remove existing sourceforge remote if it exists
+          git remote remove sourceforge 2>/dev/null || true
+          # Add SourceForge remote
+          git remote add sourceforge ssh://${{ secrets.SOURCEFORGE_USERNAME }}@git.code.sf.net/p/${{ secrets.SOURCEFORGE_PROJECT }}/${{ secrets.SOURCEFORGE_REPO }}
+
+      - name: Push to SourceForge
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            # Push tag to SourceForge
+            git push sourceforge "${{ github.ref_name }}" || echo "Tag may already exist on SourceForge"
+            # Also push the branch that the tag points to
+            git push sourceforge main || true
+          else
+            # Push branch to SourceForge
+            git push sourceforge "${{ github.ref_name }}" || echo "Push failed or branch already up to date"
+          fi
+        env:
+          GIT_SSH_COMMAND: "ssh -i ~/.ssh/sourceforge_key -o IdentitiesOnly=yes"
+
