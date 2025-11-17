@@ -507,9 +507,7 @@ window.createIntegratedReviewPanel = createIntegratedReviewPanel;
 function applyPlatformSpecificStyling(container) {
   // Detect if we're on Azure DevOps
   const isAzureDevOps = window.location.hostname.includes('dev.azure.com') || 
-                       window.location.hostname.includes('visualstudio.com') ||
-                       document.querySelector('[data-testid*="azure"], [class*="azure"], [id*="azure"]') ||
-                       document.querySelector('[data-testid*="devops"], [class*="devops"], [id*="devops"]');
+                       window.location.hostname.includes('visualstudio.com');
   
   if (isAzureDevOps) {
     console.log('[IntegratedReview] Detected Azure DevOps platform, applying Azure DevOps styling');

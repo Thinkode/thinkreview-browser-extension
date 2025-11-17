@@ -35,7 +35,8 @@ export class AzureDevOpsFetcher {
       token,
       prInfo.organization,
       prInfo.project,
-      prInfo.repository.name
+      prInfo.repository.name,
+      prInfo.hostname
     );
 
     this.isInitialized = true;

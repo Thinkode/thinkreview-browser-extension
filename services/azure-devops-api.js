@@ -34,8 +34,9 @@ export class AzureDevOpsAPI {
    * @param {string} organization - Organization name
    * @param {string} project - Project name
    * @param {string} repository - Repository name
+   * @param {string} hostname - Hostname (optional, used to determine base URL for visualstudio.com domains)
    */
-  async init(token, organization, project, repository) {
+  async init(token, organization, project, repository, hostname = null) {
     if (!token) {
       throw new Error('Azure DevOps token is required');
     }
@@ -45,8 +46,13 @@ export class AzureDevOpsAPI {
     this.project = project;
     this.repository = repository;
     
-    // Determine base URL based on organization
-    if (organization.includes('visualstudio.com')) {
+    // Determine base URL based on hostname or organization
+    // For visualstudio.com domains, use the hostname directly
+    // For dev.azure.com domains, construct the URL with organization
+    if (hostname && hostname.includes('visualstudio.com')) {
+      this.baseUrl = `https://${hostname}`;
+    } else if (organization.includes('visualstudio.com')) {
+      // Fallback: if organization already includes the domain
       this.baseUrl = `https://${organization}`;
     } else {
       this.baseUrl = `https://dev.azure.com/${organization}`;

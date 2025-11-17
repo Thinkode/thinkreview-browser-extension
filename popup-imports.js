@@ -1,5 +1,5 @@
 // Debug toggle: set to false to disable console logs in production
-const DEBUG = true;
+const DEBUG = false;
 function dbgLog(...args) { if (DEBUG) console.log('[popup-imports]', ...args); }
 function dbgWarn(...args) { if (DEBUG) console.warn('[popup-imports]', ...args); }
 
