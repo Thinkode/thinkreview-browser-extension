@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ThinkReview: AI Code Review for GitLab & Azure DevOps",
-  "version": "1.4.0",
+  "version": "1.4.2",
   "description": "AI Copilot & AI Code Reviews for GitLab Merge Requests and Azure DevOps Pull Requests powered by Gemini",
   "permissions": [
     "storage", 
