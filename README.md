@@ -210,7 +210,7 @@ thinkreview-browser-extension/
 
 ### Key Guides
 
-- **[Release Notes](release-notes/)** - Detailed version history
+- **[Release Notes](release%20notes/)** - Detailed version history
 - **🆕 [OLLAMA_SETUP.md](OLLAMA_SETUP.md)** - Run AI reviews locally with Ollama
 
 ---
@@ -219,7 +219,7 @@ thinkreview-browser-extension/
 
 ThinkReview has been in active development with regular releases. Check [latest releases](https://thinkreview.dev/release-notes) for the complete version history.
 
-📁 **Full changelog**: See [`release-notes/`](release-notes/) directory or visit [thinkreview.dev/release-notes](https://thinkreview.dev/release-notes)
+📁 **Full changelog**: See [`release-notes/`](release%20notes/) directory or visit [thinkreview.dev/release-notes](https://thinkreview.dev/release-notes)
 
 ---
 
