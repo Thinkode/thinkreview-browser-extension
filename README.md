@@ -31,11 +31,12 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 
 ### 🌟 Key Stats
 
-- ⭐ **5.0/5** rating on Chrome Web Store
-- 📦 Check [latest releases](https://thinkreview.dev/release-notes)
 - 🏆 **Featured** by Chrome Web Store
-- ✅ **Good Publisher Record** with no violations
+- 🔄 **Active Development** - Regular updates and improvements (2+ weekly releases on average)
+- 🤖 **Multi-Model AI** - Advanced cloud models or local Ollama
+- 📈 **Growing Community** - Growing user base
 - 📜 Follows **recommended practices** for Chrome extensions
+- 📦 Check [latest releases](https://thinkreview.dev/release-notes)
 
 ---
 
