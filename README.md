@@ -27,7 +27,7 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 > ### 🆕 NEW: Local AI Support with Ollama!
 > Run code reviews **100% privately** on your own hardware with Ollama.  
 > No cloud, no API calls, complete control over your code.  
-> **📖 [5-Minute Setup Guide →](OLLAMA_SETUP.md)**
+> **📖 [Quick Setup Guide →](OLLAMA_SETUP.md)** (30 seconds if model is downloaded)
 
 ### 🌟 Key Stats
 
@@ -48,7 +48,7 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 | Provider | Privacy | Cost | Speed | Setup |
 |----------|---------|------|-------|-------|
 | **☁️ Cloud AI (Gemini)** | Google Cloud | Free tier | ⚡ Very Fast | None - works instantly |
-| **🖥️ Local Ollama** 🆕 | 🔒 100% Local | Completely Free | Hardware dependent | [5 min setup](OLLAMA_SETUP.md) |
+| **🖥️ Local Ollama** 🆕 | 🔒 100% Local | Completely Free | Hardware dependent | [30 sec setup](OLLAMA_SETUP.md) (if model downloaded) |
 
 **Features:**
 - **Instant Analysis**: Get AI-driven insights on code changes
@@ -80,7 +80,7 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 
 ### 🚀 Quick Start
 - **Cloud AI**: Zero setup - works instantly after install
-- **Local AI**: [5-minute Ollama setup](OLLAMA_SETUP.md) for private reviews
+- **Local AI**: [Quick Ollama setup](OLLAMA_SETUP.md) (30 seconds if model is downloaded) for private reviews
 - **No API Keys**: Works out of the box (cloud) or fully local (Ollama)
 - **Automatic Detection**: Recognizes MR/PR pages instantly
 - **Seamless Integration**: Doesn't disrupt your workflow
@@ -141,7 +141,7 @@ cd thinkreview-browser-extension
 
 **Cloud AI (Default)** - Works immediately, no setup required  
 **Local AI with Ollama** - For 100% private reviews:
-1. Follow the [Ollama Setup Guide](OLLAMA_SETUP.md) (5 minutes)
+1. Follow the [Ollama Setup Guide](OLLAMA_SETUP.md) (30 seconds if model is downloaded)
 2. Open extension popup → Settings → Select "Local Ollama"
 3. That's it! Your reviews now run locally
 
