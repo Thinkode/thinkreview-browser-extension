@@ -32,108 +32,77 @@ Download the installer from [ollama.ai/download](https://ollama.ai/download)
 
 ### 2. Pull a Code Review Model
 
-Choose and install one of these recommended models:
+**Tested Models:**
+- `qwen2.5-coder:30b` - Tested and recommended
+- `qwen2.5:8b` - Tested and recommended
 
 ```bash
-# Recommended for beginners (fastest, 4GB)
-ollama pull codellama
+# Tested models (recommended)
+ollama pull qwen2.5-coder:30b
+ollama pull qwen2.5:8b
 
-# Better quality (8GB)
-ollama pull codellama:13b
-
-# Excellent for code understanding (4GB)
-ollama pull deepseek-coder:6.7b
-
-# Strong code analysis (5GB)
-ollama pull qwen2.5-coder:7b
-
-# Great multi-language support (9GB)
-ollama pull starcoder2:15b
-
-# Google's CodeGemma (5GB)
-ollama pull codegemma:7b
+# Other popular models
+ollama pull codellama              # Fast, 4GB
+ollama pull qwen2.5-coder:7b       # Good balance, 5GB
+ollama pull deepseek-coder:6.7b    # Code-focused, 4GB
 ```
 
 ### 3. Start Ollama Server with CORS Enabled
 
 **Important:** Browser extensions require CORS to be enabled.
 
-**Option A - Quick Start (Recommended):**
+**Option A - Quick Start (One-time):**
 ```bash
-# Simply run from the extension directory
-./scripts/start-ollama-with-cors.sh
-```
-
-**Option B - Manual Start:**
-
-Follow these manual steps to kill existing Ollama processes and start it with origin permissions:
-
-**macOS/Linux:**
-```bash
-# Step 1: Kill existing Ollama processes (handles both 'ollama' and 'Ollama' process names)
+# Step 1: Stop Ollama
 killall ollama 2>/dev/null || true; killall Ollama 2>/dev/null || true; sleep 2
 
-# Step 2: Verify Ollama is stopped (should return nothing)
-ps aux | grep ollama | grep -v grep
-
-# Step 3: Set CORS origins for browser extensions
-export OLLAMA_ORIGINS="chrome-extension://*"
-
-# Step 4: Start Ollama with origin permissions
-ollama serve
+# Step 2: Start Ollama with CORS enabled for browser extensions
+OLLAMA_ORIGINS="chrome-extension://*" ollama serve
 ```
+
+**Option B - Make it Permanent (Recommended):**
+
+Set `OLLAMA_ORIGINS` permanently so you don't need to set it every time you run `ollama serve`:
+
+**macOS/Linux:**
+1. Open your shell configuration file:
+   ```bash
+   # For Zsh
+   nano ~/.zshrc
+   
+   # For Bash
+   nano ~/.bashrc
+   ```
+
+2. Add this line at the end:
+   ```bash
+   export OLLAMA_ORIGINS="chrome-extension://*"
+   ```
+
+3. Save and reload:
+   ```bash
+   source ~/.zshrc  # or source ~/.bashrc
+   ```
+
+4. Now you can simply run `ollama serve` without setting the environment variable each time.
 
 **Windows (PowerShell):**
-```powershell
-# Step 1: Kill existing Ollama processes
-Get-Process ollama -ErrorAction SilentlyContinue | Stop-Process -Force
+1. Open PowerShell and run:
+   ```powershell
+   [System.Environment]::SetEnvironmentVariable('OLLAMA_ORIGINS', 'chrome-extension://*', [System.EnvironmentVariableTarget]::User)
+   ```
 
-# Step 2: Wait a moment for processes to terminate (optional)
-Start-Sleep -Seconds 2
-
-# Step 3: Verify Ollama is stopped
-Get-Process ollama -ErrorAction SilentlyContinue
-
-# Step 4: Set CORS origins for browser extensions
-$env:OLLAMA_ORIGINS="chrome-extension://*"
-
-# Step 5: Start Ollama with origin permissions
-ollama serve
-```
+2. Restart PowerShell or your terminal, then run `ollama serve`
 
 **Windows (Command Prompt):**
-```cmd
-REM Step 1: Kill existing Ollama processes
-taskkill /F /IM ollama.exe
+1. Open Command Prompt as Administrator and run:
+   ```cmd
+   setx OLLAMA_ORIGINS "chrome-extension://*"
+   ```
 
-REM Step 2: Wait a moment for processes to terminate (optional)
-timeout /t 2
+2. Restart Command Prompt, then run `ollama serve`
 
-REM Step 3: Set CORS origins for browser extensions
-set OLLAMA_ORIGINS=chrome-extension://*
-
-REM Step 4: Start Ollama with origin permissions
-ollama serve
-```
-
-**Option C - Make it Permanent (macOS/Linux):**
-Add to your `~/.zshrc` or `~/.bashrc`:
-```bash
-export OLLAMA_ORIGINS="chrome-extension://*"
-```
-
-Then run:
-```bash
-source ~/.zshrc  # or ~/.bashrc
-ollama serve
-```
-
-**Note:** The startup script (`scripts/start-ollama-with-cors.sh`) automatically:
-- Stops existing Ollama processes
-- Sets CORS for browser extensions
-- Starts Ollama with proper configuration
-
-Keep this terminal running while using the extension.
+**Note:** After setting it permanently, you can simply run `ollama serve` and it will automatically use the CORS settings. Keep the terminal running while using the extension.
 
 ### 4. Configure Extension
 
@@ -154,153 +123,46 @@ Once configured, ThinkReview will automatically use Ollama for all code reviews:
 3. Your code will be analyzed locally using Ollama
 4. Review results appear in the integrated panel
 
-## Model Comparison
+## Tested Models
 
-| Model | Size | Speed | Quality | Best For |
-|-------|------|-------|---------|----------|
-| codellama | 4GB | ⚡⚡⚡ | ⭐⭐⭐ | General use, fast reviews |
-| codellama:13b | 8GB | ⚡⚡ | ⭐⭐⭐⭐ | Better quality, slower |
-| deepseek-coder:6.7b | 4GB | ⚡⚡⚡ | ⭐⭐⭐⭐ | Code understanding |
-| qwen2.5-coder:7b | 5GB | ⚡⚡ | ⭐⭐⭐⭐⭐ | Comprehensive analysis |
-| starcoder2:15b | 9GB | ⚡ | ⭐⭐⭐⭐⭐ | Multi-language projects |
-| codegemma:7b | 5GB | ⚡⚡ | ⭐⭐⭐⭐ | Fast and capable |
+| Model | Size | Status |
+|-------|------|--------|
+| qwen2.5-coder:30b | ~20GB | ✅ Tested & Recommended |
+| qwen2.5:8b | ~5GB | ✅ Tested & Recommended |
+
+Other models may work but are not officially tested.
 
 ## Troubleshooting
 
 ### Connection Failed (403 Forbidden)
-
-**Problem**: Extension gets "403 Forbidden" error
-
-**Cause**: CORS (Cross-Origin Resource Sharing) is not enabled for browser extensions
-
-**Solution**:
-
-**Quick Fix (Using Script):**
-```bash
-# Restart with CORS enabled using the provided script
-./scripts/start-ollama-with-cors.sh
-```
-
-**Manual Fix:**
-See the "Option B - Manual Start" section above for detailed step-by-step instructions to kill Ollama and restart it with origin permissions.
-
-**Quick Manual Steps (macOS/Linux):**
-```bash
-# Kill existing Ollama processes (handles both 'ollama' and 'Ollama' process names)
-killall ollama 2>/dev/null || true; killall Ollama 2>/dev/null || true; sleep 2
-
-# Set CORS origins for browser extensions
-export OLLAMA_ORIGINS="chrome-extension://*"
-
-# Start Ollama with origin permissions
-ollama serve
-```
-
-**Permanent Fix**: Add to `~/.zshrc` or `~/.bashrc`:
-```bash
-export OLLAMA_ORIGINS="chrome-extension://*"
-```
+CORS is not enabled. Use Option A above to restart Ollama with CORS enabled.
 
 ### Connection Failed (Cannot Connect)
-
-**Problem**: Extension can't connect to Ollama
-
-**Solutions**:
 1. Verify Ollama is running: `ollama list`
-2. Check the URL is correct: `http://localhost:11434`
-3. Restart Ollama with CORS: `./scripts/start-ollama-with-cors.sh`
-4. Check firewall settings
+2. Check URL: `http://localhost:11434`
+3. Restart with CORS (Option A above)
 
 ### Model Not Found
+1. List models: `ollama list`
+2. Pull the model: `ollama pull qwen2.5-coder:30b`
+3. Refresh in extension settings (🔄 button)
 
-**Problem**: Selected model isn't available
-
-**Solutions**:
-1. List installed models: `ollama list`
-2. Pull the model: `ollama pull codellama`
-3. Refresh models in extension settings (🔄 button)
-
-### Slow Performance
-
-**Problem**: Reviews take too long
-
-**Solutions**:
-1. Use a smaller model (codellama instead of codellama:13b)
-2. Ensure sufficient RAM is available
-3. Close other applications
-4. Consider using Cloud AI for faster results
-
-### Poor Quality Reviews
-
-**Problem**: Reviews aren't detailed enough
-
-**Solutions**:
-1. Try a larger model (codellama:13b or qwen2.5-coder:7b)
-2. Ensure model is fully downloaded: `ollama list`
-3. Consider switching to Cloud AI for more sophisticated analysis
-
-## Advanced Configuration
+## Advanced
 
 ### Custom Ollama URL
-
-If running Ollama on a different machine or port:
-
-1. Update the URL in extension settings
-2. Example: `http://192.168.1.100:11434`
-3. Ensure firewall allows connections
-
-### Multiple Models
-
-You can switch between models anytime:
-
-1. Pull multiple models: `ollama pull model-name`
-2. Select different model in extension settings
-3. Click "Save Settings"
+Update URL in extension settings (e.g., `http://192.168.1.100:11434`)
 
 ### Performance Tuning
-
-Optimize Ollama for your hardware:
-
 ```bash
-# Set number of GPU layers (if you have a GPU)
-export OLLAMA_NUM_GPU=1
-
-# Set number of CPU threads
-export OLLAMA_NUM_THREAD=8
-
-# Start Ollama with custom settings
+export OLLAMA_NUM_GPU=1      # GPU layers
+export OLLAMA_NUM_THREAD=8   # CPU threads
 ollama serve
 ```
-
-## Cloud vs Local Comparison
-
-| Feature | Cloud AI (Gemini) | Local Ollama |
-|---------|------------------|--------------|
-| Privacy | Code sent to Google | 100% local |
-| Cost | Free tier limits | Completely free |
-| Speed | Very fast | Depends on hardware |
-| Quality | Excellent | Good to Excellent |
-| Internet | Required | Not required |
-| Setup | None | Install & configure |
-
-## Tips for Best Results
-
-1. **Start with codellama**: It's fast and effective for most use cases
-2. **Keep Ollama running**: Less startup time for reviews
-3. **Use larger models for critical reviews**: Switch to codellama:13b or qwen2.5-coder:7b
-4. **Hybrid approach**: Use Ollama for routine reviews, Cloud AI for complex analysis
-5. **Update models regularly**: `ollama pull model-name` to get latest versions
 
 ## Support
 
-For issues or questions:
 - Extension bugs: [thinkreview.dev/bug-report](https://thinkreview.dev/bug-report)
 - Ollama issues: [github.com/ollama/ollama/issues](https://github.com/ollama/ollama/issues)
 - Contact: [thinkreview.dev/contact](https://thinkreview.dev/contact)
-
-## Resources
-
-- [Ollama Documentation](https://github.com/ollama/ollama/blob/main/README.md)
 - [Ollama Model Library](https://ollama.ai/library)
-- [ThinkReview Website](https://thinkreview.dev)
 

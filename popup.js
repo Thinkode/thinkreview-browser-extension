@@ -1353,8 +1353,8 @@ function showCorsInstructions() {
         </button>
       </div>
       
-      <div style="margin-top: 8px; padding: 6px 8px; background: #f0f9ff; border-left: 3px solid #0ea5e9; font-size: 10px; color: #0c4a6e; border-radius: 2px;">
-        💡 You'll need to run step 2 each time you restart Ollama.
+      <div style="margin-top: 8px; padding: 8px; background: #f0f9ff; border-left: 3px solid #0ea5e9; font-size: 10px; color: #0c4a6e; border-radius: 2px;">
+        💡 You can make it permanent by exporting <code style="background: #e0f2fe; padding: 2px 4px; border-radius: 2px;">OLLAMA_ORIGINS</code> in your bash/zsh profile. <a href="https://github.com/Thinkode/thinkreview-browser-extension/blob/main/OLLAMA_SETUP.md" target="_blank" style="color: #0ea5e9; text-decoration: underline;">Visit the full setup guide</a> for details.
       </div>
     </div>
   `;

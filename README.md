@@ -27,15 +27,16 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 > ### 🆕 NEW: Local AI Support with Ollama!
 > Run code reviews **100% privately** on your own hardware with Ollama.  
 > No cloud, no API calls, complete control over your code.  
-> **📖 [5-Minute Setup Guide →](OLLAMA_SETUP.md)**
+> **📖 [Quick Setup Guide →](OLLAMA_SETUP.md)** (30 seconds if model is downloaded)
 
 ### 🌟 Key Stats
 
-- ⭐ **5.0/5** rating on Chrome Web Store
-- 📦 Check [latest releases](https://thinkreview.dev/release-notes)
 - 🏆 **Featured** by Chrome Web Store
-- ✅ **Good Publisher Record** with no violations
+- 🔄 **Active Development** - Regular updates and improvements (2+ weekly releases on average)
+- 🤖 **Multi-Model AI** - Advanced cloud models or local Ollama
+- 📈 **Growing Community** - Growing user base
 - 📜 Follows **recommended practices** for Chrome extensions
+- 📦 Check [latest releases](https://thinkreview.dev/release-notes)
 
 ---
 
@@ -47,8 +48,8 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 
 | Provider | Privacy | Cost | Speed | Setup |
 |----------|---------|------|-------|-------|
-| **☁️ Cloud AI (Gemini)** | Google Cloud | Free tier | ⚡ Very Fast | None - works instantly |
-| **🖥️ Local Ollama** 🆕 | 🔒 100% Local | Completely Free | Hardware dependent | [5 min setup](OLLAMA_SETUP.md) |
+| **☁️ Cloud AI (Advanced Models)** | Google Cloud | Free tier | ⚡ Very Fast | None - works instantly |
+| **🖥️ Local Ollama** 🆕 | 🔒 100% Local | Completely Free | Hardware dependent | [30 sec setup](OLLAMA_SETUP.md) (if model downloaded) |
 
 **Features:**
 - **Instant Analysis**: Get AI-driven insights on code changes
@@ -80,7 +81,7 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 
 ### 🚀 Quick Start
 - **Cloud AI**: Zero setup - works instantly after install
-- **Local AI**: [5-minute Ollama setup](OLLAMA_SETUP.md) for private reviews
+- **Local AI**: [Quick Ollama setup](OLLAMA_SETUP.md) (30 seconds if model is downloaded) for private reviews
 - **No API Keys**: Works out of the box (cloud) or fully local (Ollama)
 - **Automatic Detection**: Recognizes MR/PR pages instantly
 - **Seamless Integration**: Doesn't disrupt your workflow
@@ -141,7 +142,7 @@ cd thinkreview-browser-extension
 
 **Cloud AI (Default)** - Works immediately, no setup required  
 **Local AI with Ollama** - For 100% private reviews:
-1. Follow the [Ollama Setup Guide](OLLAMA_SETUP.md) (5 minutes)
+1. Follow the [Ollama Setup Guide](OLLAMA_SETUP.md) (30 seconds if model is downloaded)
 2. Open extension popup → Settings → Select "Local Ollama"
 3. That's it! Your reviews now run locally
 
@@ -174,7 +175,7 @@ ThinkReview consists of two main components:
 - OAuth authentication flow
 
 ### 2. **Backend Services** (Proprietary)
-- AI model integration (Google Gemini)
+- AI model integration (Advanced AI models)
 - Code review processing
 - User management and subscriptions
 - Hosted at `us-central1-thinkgpt.cloudfunctions.net`
@@ -333,7 +334,7 @@ ThinkReview is developed and maintained by the Thinkode team. The extension is p
 
 **Built with:**
 - Manifest V3
-- Google Gemini AI
+- Advanced AI Models
 - Vanilla JavaScript
 - Chrome Extensions API
 
