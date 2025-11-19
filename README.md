@@ -47,7 +47,7 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 
 | Provider | Privacy | Cost | Speed | Setup |
 |----------|---------|------|-------|-------|
-| **☁️ Cloud AI (Gemini)** | Google Cloud | Free tier | ⚡ Very Fast | None - works instantly |
+| **☁️ Cloud AI (Advanced Models)** | Google Cloud | Free tier | ⚡ Very Fast | None - works instantly |
 | **🖥️ Local Ollama** 🆕 | 🔒 100% Local | Completely Free | Hardware dependent | [30 sec setup](OLLAMA_SETUP.md) (if model downloaded) |
 
 **Features:**
@@ -174,7 +174,7 @@ ThinkReview consists of two main components:
 - OAuth authentication flow
 
 ### 2. **Backend Services** (Proprietary)
-- AI model integration (Google Gemini)
+- AI model integration (Advanced AI models)
 - Code review processing
 - User management and subscriptions
 - Hosted at `us-central1-thinkgpt.cloudfunctions.net`
@@ -333,7 +333,7 @@ ThinkReview is developed and maintained by the Thinkode team. The extension is p
 
 **Built with:**
 - Manifest V3
-- Google Gemini AI
+- Advanced AI Models
 - Vanilla JavaScript
 - Chrome Extensions API
 
