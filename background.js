@@ -902,44 +902,50 @@ async function updateContentScripts() {
     const existingScriptIds = registeredScripts.map(script => script.id);
     
     // Register content scripts for each domain
-    for (const domain of allDomains) {
-      try {
-        // Generate a safe script ID from the domain
-        const scriptId = `gitlab-mr-reviews-${domain.replace(/[^a-zA-Z0-9]/g, '-')}`;
-        targetScriptIds.push(scriptId);
+  for (const domain of allDomains) {
+    try {
+      // Generate a safe script ID from the domain
+      const scriptId = `gitlab-mr-reviews-${domain.replace(/[^a-zA-Z0-9]/g, '-')}`;
+      targetScriptIds.push(scriptId);
+      
+      // Check if this script ID already exists
+      const scriptExists = existingScriptIds.includes(scriptId);
+      
+      // Parse the domain to create the correct match pattern
+      let matchPattern;
+      let originPattern;
+      
+      const hasProtocol = domain.startsWith('http://') || domain.startsWith('https://');
+      const hasWildcard = domain.includes('*');
+      
+      if (hasWildcard) {
+        // Normalize wildcard domains (e.g., https://*.visualstudio.com)
+        const normalizedDomain = hasProtocol ? domain : `https://${domain}`;
+        const suffixedDomain = normalizedDomain.endsWith('/*') ? normalizedDomain : `${normalizedDomain}/*`;
+        originPattern = suffixedDomain;
+        matchPattern = suffixedDomain;
+      } else if (hasProtocol) {
+        // Full URL provided (e.g., http://localhost:8083, https://gitlab.example.com)
+        const url = new URL(domain);
+        originPattern = `${url.protocol}//${url.host}/*`;
         
-        // Check if this script ID already exists
-        const scriptExists = existingScriptIds.includes(scriptId);
-        
-        // Parse the domain to create the correct match pattern
-        let matchPattern;
-        let originPattern;
-        
-        if (domain.startsWith('http://') || domain.startsWith('https://')) {
-          // Full URL provided (e.g., http://localhost:8083, https://gitlab.example.com)
-          const url = new URL(domain);
-          originPattern = `${url.protocol}//${url.host}/*`;
-          
-          // Create more inclusive match patterns for local instances
-          if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-            // For localhost, be more permissive with paths
-            matchPattern = `${url.protocol}//${url.host}/*`;
-            dbgLog(`Using permissive localhost pattern: ${matchPattern}`);
-          } else if (url.hostname.includes('dev.azure.com')) {
-            // Azure DevOps: match all pages (SPA - button always visible, but only works on PR pages)
-            matchPattern = `${url.protocol}//${url.host}/*`;
-          } else if (url.hostname.includes('visualstudio.com')) {
-            // Visual Studio Team Services: match all pages (SPA - button always visible, but only works on PR pages)
-            matchPattern = `${url.protocol}//${url.host}/*`;
-          } else {
-            // GitLab: match merge request pages only
-            matchPattern = `${url.protocol}//${url.host}/*/merge_requests/*`;
-          }
+        // Create more inclusive match patterns for local instances
+        if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+          // For localhost, be more permissive with paths
+          matchPattern = `${url.protocol}//${url.host}/*`;
+          dbgLog(`Using permissive localhost pattern: ${matchPattern}`);
+        } else if (url.hostname.includes('dev.azure.com') || url.hostname.includes('visualstudio.com')) {
+          // Azure DevOps: match all pages (SPA - button always visible, but only works on PR pages)
+          matchPattern = `${url.protocol}//${url.host}/*`;
         } else {
-          // Simple domain provided (e.g., gitlab.com)
-          originPattern = `https://${domain}/*`;
-          matchPattern = `https://${domain}/*/merge_requests/*`;
+          // GitLab: match merge request pages only
+          matchPattern = `${url.protocol}//${url.host}/*/merge_requests/*`;
         }
+      } else {
+        // Simple domain provided (e.g., gitlab.com)
+        originPattern = `https://${domain}/*`;
+        matchPattern = `https://${domain}/*/merge_requests/*`;
+      }
         
         // Check if we have permission for this domain
         const hasPermission = await chrome.permissions.contains({
