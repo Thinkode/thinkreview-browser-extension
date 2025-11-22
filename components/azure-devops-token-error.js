@@ -10,7 +10,7 @@ function dbgWarn(...args) { if (DEBUG) console.warn('[Azure DevOps Token Error]'
  * Shows Azure DevOps token configuration error with helpful UI
  * @param {Function} stopEnhancedLoader - Function to stop the enhanced loader if running
  */
-export function showAzureDevOpsTokenError(stopEnhancedLoader = null) {
+export function showAzureDevOpsTokenError(stopEnhancedLoader = null, extraInfo = null) {
   // Stop the enhanced loader if it's running
   if (typeof stopEnhancedLoader === 'function') {
     stopEnhancedLoader();
@@ -36,6 +36,9 @@ export function showAzureDevOpsTokenError(stopEnhancedLoader = null) {
       cardBody.appendChild(tokenError);
     }
   }
+  
+  // Update any contextual details
+  updateTokenErrorDetails(tokenError, extraInfo);
   
   // Show the token error
   tokenError.classList.remove('gl-hidden');
@@ -86,13 +89,30 @@ function createMessageContainer() {
   const description = document.createElement('p');
   description.className = 'azure-devops-token-description';
   description.style.textAlign = 'center';
-  description.style.marginBottom = '24px';
+  description.style.marginBottom = '16px';
   description.style.fontSize = '14px';
   description.style.color = '#b3b3b3';
   description.style.lineHeight = '1.4';
   description.style.textShadow = '0 1px 2px rgba(0, 0, 0, 0.2)';
-  description.textContent = 'Your Azure DevOps Personal Access Token is incorrect or not set. Please configure or update your token.';
+  description.textContent = 'Your Azure DevOps Personal Access Token is incorrect, missing, or does not have access to this organization/project.';
   messageContainer.appendChild(description);
+  
+  // Optional debug details placeholder
+  const extraDetails = document.createElement('p');
+  extraDetails.className = 'azure-devops-token-extra';
+  extraDetails.style.display = 'none';
+  extraDetails.style.textAlign = 'center';
+  extraDetails.style.marginBottom = '24px';
+  extraDetails.style.fontSize = '12px';
+  extraDetails.style.color = '#ffb347';
+  extraDetails.style.lineHeight = '1.4';
+  extraDetails.style.background = 'rgba(255, 179, 71, 0.08)';
+  extraDetails.style.border = '1px solid rgba(255, 179, 71, 0.35)';
+  extraDetails.style.borderRadius = '6px';
+  extraDetails.style.padding = '10px 12px';
+  extraDetails.style.wordBreak = 'break-word';
+  extraDetails.textContent = '';
+  messageContainer.appendChild(extraDetails);
   
   return messageContainer;
 }
@@ -203,6 +223,28 @@ function createLearnLink() {
   });
   
   return learnLink;
+}
+
+/**
+ * Updates the optional extra details section with Azure DevOps error info
+ * @param {HTMLElement} container - The token error container element
+ * @param {string|null} extraInfo - Optional extra info to display
+ */
+function updateTokenErrorDetails(container, extraInfo) {
+  const extraElement = container.querySelector('.azure-devops-token-extra');
+  if (!extraElement) {
+    return;
+  }
+  
+  if (extraInfo && extraInfo.trim().length > 0) {
+    const trimmed = extraInfo.trim();
+    const displayText = trimmed.length > 320 ? `${trimmed.slice(0, 317)}…` : trimmed;
+    extraElement.textContent = `Details from Azure DevOps: ${displayText}`;
+    extraElement.style.display = 'block';
+  } else {
+    extraElement.textContent = '';
+    extraElement.style.display = 'none';
+  }
 }
 
 /**
