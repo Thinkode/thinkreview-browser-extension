@@ -766,50 +766,51 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       
     } else if (platform === 'azure-devops') {
       // Azure DevOps: fetch via API
-      dbgLog('[Code Review Extension] Starting Azure DevOps code fetch');
-      const azureToken = await getAzureDevOpsToken();
-      if (!azureToken) {
-        if (azureDevOpsTokenError) {
-          azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader);
-        } else {
-          // Fallback if module not loaded
-          throw new Error('Azure DevOps token not configured. Please set your Personal Access Token in the extension popup.');
-        }
-        return;
-      }
-
-      dbgLog('[Code Review Extension] Azure token found, getting PR info');
-      const prInfo = platformDetector.detectPlatform().pageInfo;
-      dbgLog('[Code Review Extension] PR info:', prInfo);
-      
-      try {
-        dbgLog('[Code Review Extension] Initializing Azure DevOps fetcher');
-        await azureDevOpsFetcher.init(prInfo, azureToken);
-        
-        dbgLog('[Code Review Extension] Fetching code changes');
-        const changes = await azureDevOpsFetcher.fetchCodeChanges();
-        codeContent = azureDevOpsFetcher.toPatchString(changes);
-        reviewId = prInfo.prId;
-        
-        dbgLog('[Code Review Extension] Azure DevOps changes fetched:', {
-          fileCount: changes.files.length,
-          totalLines: changes.totalLines
-        });
-      } catch (error) {
-        // Check if it's a 401 authentication error
-        if (AzureDevOpsAuthError && error instanceof AzureDevOpsAuthError) {
-          dbgLog('[Code Review Extension] Azure DevOps token authentication failed (401), showing token error UI');
+        dbgLog('[Code Review Extension] Starting Azure DevOps code fetch');
+        const azureToken = await getAzureDevOpsToken();
+        if (!azureToken) {
           if (azureDevOpsTokenError) {
             azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader);
           } else {
             // Fallback if module not loaded
-            throw new Error('Azure DevOps token is invalid or expired. Please update your Personal Access Token in the extension popup.');
+            throw new Error('Azure DevOps token not configured. Please set your Personal Access Token in the extension popup.');
           }
           return;
         }
-        // Re-throw other errors
-        throw error;
-      }
+
+        dbgLog('[Code Review Extension] Azure token found, getting PR info');
+        const prInfo = platformDetector.detectPlatform().pageInfo;
+        dbgLog('[Code Review Extension] PR info:', prInfo);
+        
+        try {
+          dbgLog('[Code Review Extension] Initializing Azure DevOps fetcher');
+          await azureDevOpsFetcher.init(prInfo, azureToken);
+          
+          dbgLog('[Code Review Extension] Fetching code changes');
+          const changes = await azureDevOpsFetcher.fetchCodeChanges();
+          codeContent = azureDevOpsFetcher.toPatchString(changes);
+          reviewId = prInfo.prId;
+          
+          dbgLog('[Code Review Extension] Azure DevOps changes fetched:', {
+            fileCount: changes.files.length,
+            totalLines: changes.totalLines
+          });
+        } catch (error) {
+          // Check if it's an authentication/access error
+          if (AzureDevOpsAuthError && error instanceof AzureDevOpsAuthError) {
+            dbgLog('[Code Review Extension] Azure DevOps token authentication/access failed, showing token error UI');
+            if (azureDevOpsTokenError) {
+              const detailMessage = error.details?.userMessage || error.details?.rawMessage || error.message;
+              azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader, detailMessage);
+            } else {
+              // Fallback if module not loaded
+              throw new Error('Azure DevOps token is invalid or expired. Please update your Personal Access Token in the extension popup.');
+            }
+            return;
+          }
+          // Re-throw other errors
+          throw error;
+        }
       
     } else {
       throw new Error('Unsupported platform');

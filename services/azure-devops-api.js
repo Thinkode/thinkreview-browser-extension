@@ -10,10 +10,11 @@ function dbgWarn(...args) { if (DEBUG) console.warn('[Azure DevOps API]', ...arg
  * Custom error class for Azure DevOps authentication failures
  */
 export class AzureDevOpsAuthError extends Error {
-  constructor(message, statusCode) {
+  constructor(message, statusCode, details = null) {
     super(message);
     this.name = 'AzureDevOpsAuthError';
     this.statusCode = statusCode;
+    this.details = details;
   }
 }
 
@@ -128,20 +129,48 @@ export class AzureDevOpsAPI {
     try {
       const response = await fetch(url, requestOptions);
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        
-        // Handle 401 Unauthorized - token is invalid or expired
-        if (response.status === 401) {
-          dbgWarn('Azure DevOps authentication failed - token is invalid or not set');
-          throw new AzureDevOpsAuthError(
-            'Azure DevOps Personal Access Token is invalid, expired, or not set. Please check your token configuration.',
-            401
-          );
+        if (!response.ok) {
+          const errorText = await response.text();
+          let parsedError = null;
+          try {
+            parsedError = JSON.parse(errorText);
+          } catch (parseErr) {
+            // Ignore JSON parse failures, default to raw text
+          }
+          const errorMessage = parsedError?.message || errorText;
+          
+          // Handle 401 Unauthorized - token is invalid or expired
+          if (response.status === 401) {
+            dbgWarn('Azure DevOps authentication failed - token is invalid or not set');
+            throw new AzureDevOpsAuthError(
+              'Azure DevOps Personal Access Token is invalid, expired, or not set. Please check your token configuration.',
+              401,
+              {
+                status: 401,
+                userMessage: null,
+                rawMessage: errorMessage
+              }
+            );
+          }
+          
+          // Handle 403 Forbidden - token lacks access or org policies block it
+          if (response.status === 403) {
+            const userMessage = parsedError?.message || 'Azure DevOps denied access to this pull request.';
+            dbgWarn('Azure DevOps access blocked (403):', userMessage);
+            throw new AzureDevOpsAuthError(
+              'Azure DevOps denied access for this token. Please ensure the PAT belongs to a member with access to this organization/project.',
+              403,
+              {
+                status: 403,
+                code: parsedError?.typeKey || parsedError?.typeName || null,
+                userMessage,
+                rawMessage: errorMessage
+              }
+            );
+          }
+          
+          throw new Error(`Azure DevOps API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
-        
-        throw new Error(`Azure DevOps API error: ${response.status} ${response.statusText} - ${errorText}`);
-      }
 
       return response;
     } catch (error) {
