@@ -7,7 +7,7 @@ function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
 const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net';
 const SYNC_USER_URL = `${CLOUD_FUNCTIONS_BASE_URL}/syncUserByEmailReviews`;
 const REVIEW_CODE_URL = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode`;
-const REVIEW_CODE_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode_1_1`;
+const REVIEW_CODE_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode_1_3`;
 const SYNC_REVIEWS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/syncCodeReviews`;
 const GET_REVIEW_COUNT_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getReviewCount`;
 const GET_USER_DATA_URL = `${CLOUD_FUNCTIONS_BASE_URL}/ThinkReviewGetUserData`;
@@ -213,9 +213,10 @@ export class CloudService {
    * @param {string} [mrId] - Optional merge request ID for tracking
    * @param {string} [mrUrl] - Optional merge request URL for tracking
    * @param {boolean} [forceRegenerate] - Optional flag to force regenerate review even if cached
+   * @param {string} [platform] - Optional platform information ('gitlab' or 'azure-devops')
    * @returns {Promise<Object>} - Code review results from Gemini API
    */
-  static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null, forceRegenerate = false) {
+  static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null, forceRegenerate = false, platform = null) {
     dbgLog('[CloudService] Sending patch for code review');
     
     if (!patchContent) {
@@ -286,6 +287,11 @@ export class CloudService {
       // Include forceRegenerate if true
       if (forceRegenerate) {
         requestBody.forceRegenerate = true;
+      }
+      
+      // Include platform information if provided
+      if (platform) {
+        requestBody.platform = platform;
       }
       
       const response = await fetch(REVIEW_CODE_URL_V1_1, {

@@ -375,7 +375,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle code review request from content script to avoid CSP issues
   if (message.type === 'REVIEW_PATCH_CODE') {
     const { patchContent, mrId, mrUrl, language, platform, forceRegenerate } = message;
-    const REVIEW_CODE_URL_V1_1 = 'https://us-central1-thinkgpt.cloudfunctions.net/reviewPatchCode_1_1';
     
     (async () => {
       // Get AI provider setting (declare outside try block so it's accessible in catch)
@@ -427,113 +426,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           throw new Error('There are no code changes yet in this merge request. If you think this is a bug, please report it here: https://thinkreview.dev/bug-report');
         }
 
-        // Get user email for the API requirement
-        let email = null;
-        try {
-          const storageData = await new Promise((resolve) => {
-            chrome.storage.local.get(['userData', 'user'], (result) => {
-              resolve(result);
-            });
-          });
-          
-          let userData = storageData.userData;
-          
-          // If userData exists, use it
-          if (userData && userData.email) {
-            email = userData.email;
-            dbgLog('[BG] Using userData email for review:', email);
-          } else if (storageData.user) {
-            // If userData doesn't exist but user does, try to parse it
-            try {
-              const parsedUser = JSON.parse(storageData.user);
-              if (parsedUser && parsedUser.email) {
-                email = parsedUser.email;
-                dbgLog('[BG] Using parsed user email for review:', email);
-              }
-            } catch (parseError) {
-              dbgWarn('[BG] Failed to parse user data for review:', parseError);
-            }
-          }
-        } catch (storageError) {
-          dbgWarn('[BG] Error getting user email for review:', storageError);
-        }
-
-        // Prepare request body
-        const requestBody = {
-          patchContent
-        };
-        
-        // Include email (required for reviewPatchCode_1_1)
-        if (email) {
-          requestBody.email = email;
-        }
-        
-        // Include mrUrl if provided
-        if (mrUrl) {
-          requestBody.mrUrl = mrUrl;
-        }
-        
-        // Include language if provided and not the default
-        if (language && language !== 'English') {
-          requestBody.language = language;
-        }
-        
-        // Include platform information if provided
-        if (platform) {
-          requestBody.platform = platform;
-        }
-        
-        // Include mrId if provided for tracking
-        if (mrId) {
-          requestBody.mrId = mrId;
-        }
-        
-        // Include forceRegenerate if true
-        if (forceRegenerate) {
-          requestBody.forceRegenerate = true;
-        }
-
-        // Send the patch for code review with authentication
-        const res = await fetch(REVIEW_CODE_URL_V1_1, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
-        });
-        if (!res.ok) {
-          const errorText = await res.text();
-          
-          // Handle daily limit exceeded specifically
-          if (res.status === 429) {
-            try {
-              const errorData = JSON.parse(errorText);
-              if (errorData.message === 'Reviews-limits-exceeded') {
-                const limitError = new Error(`You've reached your daily limit of ${errorData.dailyLimit} reviews. Upgrade to continue reviewing code.`);
-                limitError.isLimitExceeded = true;
-                limitError.dailyLimit = errorData.dailyLimit;
-                limitError.currentCount = errorData.currentCount;
-                throw limitError;
-              }
-            } catch (parseError) {
-              // If parsing fails or it's a different error, continue to regular error handling
-              if (parseError.isLimitExceeded) {
-                throw parseError;
-              }
-            }
-          }
-          
-          // Try to parse JSON error message for better error handling
-          let errorMessage = `HTTP ${res.status}: ${errorText}`;
-          try {
-            const errorData = JSON.parse(errorText);
-            if (errorData.message) {
-              errorMessage = errorData.message;
-            }
-          } catch (parseError) {
-            // If parsing fails, use the original error text
-          }
-          throw new Error(errorMessage);
-        }
-        const data = await res.json();
+        // Use CloudService to review the patch code
+        const data = await CloudService.reviewPatchCode(patchContent, language, mrId, mrUrl, forceRegenerate, platform);
         
         // Track the review if mrId is provided
         if (mrId) {
