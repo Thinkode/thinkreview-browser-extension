@@ -197,11 +197,9 @@ function fetchAndStorePatch(triggerDownload) {
   fetch(patchUrl, { credentials: 'include' })
     .then(resp => resp.ok ? resp.text() : Promise.reject('Failed to fetch patch'))
     .then(patchContent => {
-      chrome.runtime.sendMessage({ type: 'STORE_PATCH', patchUrl, patchContent }, () => {
-        if (triggerDownload) {
-          chrome.runtime.sendMessage({ type: 'DOWNLOAD_PATCH', patchContent, patchUrl });
-        }
-      });
+      if (triggerDownload) {
+        chrome.runtime.sendMessage({ type: 'DOWNLOAD_PATCH', patchContent, patchUrl });
+      }
       return patchContent;
     })
     .catch(console.error);
@@ -760,9 +758,6 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       }
       codeContent = await response.text();
       reviewId = getMergeRequestId();
-      
-      // Store the original patch in extension storage
-      chrome.runtime.sendMessage({ type: 'STORE_PATCH', patchUrl, patchContent: codeContent });
       
     } else if (platform === 'azure-devops') {
       // Azure DevOps: fetch via API

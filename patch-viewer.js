@@ -101,24 +101,16 @@ document.addEventListener('DOMContentLoaded', () => {
   meta.textContent = patchUrl;
   pre.textContent = 'Loading...';
 
-  chrome.storage.local.get({ patches: [] }, (data) => {
-    const found = data.patches.find(p => p.patchUrl === patchUrl);
-    if (found) {
-      rawContent = found.patchContent;
+  // Fetch patch live
+  fetch(patchUrl, { credentials: 'include' })
+    .then(resp => resp.ok ? resp.text() : Promise.reject('Failed to fetch patch'))
+    .then(txt => {
+      rawContent = txt;
       pre.textContent = rawContent;
-    } else {
-      // fallback: fetch live
-      fetch(patchUrl, { credentials: 'include' })
-        .then(resp => resp.ok ? resp.text() : Promise.reject('Failed to fetch patch'))
-        .then(txt => {
-          rawContent = txt;
-          pre.textContent = rawContent;
-        })
-        .catch(() => {
-          pre.textContent = 'Could not load patch.';
-        });
-    }
-  });
+    })
+    .catch(() => {
+      pre.textContent = 'Could not load patch.';
+    });
 
   document.getElementById('toggle-format').onclick = () => {
     if (!rawContent) return;
