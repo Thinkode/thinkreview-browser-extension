@@ -838,7 +838,32 @@ async function displayIntegratedReview(review, patchContent) {
     if (review.metrics) {
       try {
         const scorecardModule = await import('./quality-scorecard.js');
-        const scorecardElement = scorecardModule.renderQualityScorecard(review.metrics);
+        
+        // Define metric click handler
+        const handleMetricClick = (metricName, score) => {
+          // Map metric names to user-friendly labels
+          const metricLabels = {
+            'overall': 'Overall',
+            'codeQuality': 'Code Quality',
+            'security': 'Security',
+            'bestPractices': 'Best Practices'
+          };
+          
+          const metricLabel = metricLabels[metricName] || metricName;
+          
+          // Format the query asking about the score
+          const query = `Why was the ${metricLabel} score ${score}? Can you explain what factors contributed to this score and provide specific recommendations on how to achieve a higher score?`;
+          
+          // Send the message to conversational review
+          handleSendMessage(query);
+          
+          // Scroll to chat area after a short delay to ensure message is appended
+          setTimeout(() => {
+            scrollToChatArea();
+          }, 200);
+        };
+        
+        const scorecardElement = scorecardModule.renderQualityScorecard(review.metrics, handleMetricClick);
         if (scorecardElement) {
           reviewMetricsContainer.appendChild(scorecardElement);
           reviewMetricsContainer.classList.remove('gl-hidden');
