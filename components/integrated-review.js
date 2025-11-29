@@ -276,6 +276,21 @@ function createIntegratedReviewPanel(patchUrl) {
               <h5 class="gl-font-weight-bold thinkreview-section-title">Suggested Follow-up Questions</h5>
               <div id="suggested-questions" class="thinkreview-suggested-questions-list"></div>
             </div>
+            <div id="initial-review-feedback-container" class="thinkreview-feedback-container gl-mb-4 gl-hidden">
+              <div class="thinkreview-feedback-label">Was this review helpful?</div>
+              <div class="thinkreview-feedback-buttons">
+                <button class="thinkreview-feedback-btn thinkreview-thumbs-up-btn" data-rating="thumbs_up" title="Helpful">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" fill="currentColor"/>
+                  </svg>
+                </button>
+                <button class="thinkreview-feedback-btn thinkreview-thumbs-down-btn" data-rating="thumbs_down" title="Not helpful">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z" fill="currentColor"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
             <div id="chat-log" class="thinkreview-chat-log"></div>
           </div>
           <div id="chat-input-container" class="thinkreview-chat-input-container">
@@ -680,13 +695,19 @@ function initializeResizeHandle(container) {
  * Appends a message to the chat log.
  * @param {string} sender - 'user' or 'ai'.
  * @param {string} message - The message content (can be HTML or Markdown).
+ * @param {string} [aiResponseText] - Optional raw AI response text for feedback tracking (conversations only).
  */
-function appendToChatLog(sender, message) {
+function appendToChatLog(sender, message, aiResponseText = null) {
   const chatLog = document.getElementById('chat-log');
   if (!chatLog) return;
 
   const messageWrapper = document.createElement('div');
   messageWrapper.className = `chat-message-wrapper gl-display-flex ${sender === 'user' ? 'user-message' : 'ai-message'}`;
+  
+  // Store aiResponse text in data attribute for feedback tracking
+  if (aiResponseText && sender === 'ai') {
+    messageWrapper.setAttribute('data-ai-response', aiResponseText);
+  }
 
   const messageBubble = document.createElement('div');
   messageBubble.className = `chat-message ${sender === 'user' ? 'user-message' : 'ai-message'}`;
@@ -696,6 +717,31 @@ function appendToChatLog(sender, message) {
   messageBubble.innerHTML = formattedMessage;
 
   messageWrapper.appendChild(messageBubble);
+  
+  // Add feedback buttons for AI messages (Gemini-style, small and subtle)
+  if (sender === 'ai' && aiResponseText) {
+    const feedbackContainer = document.createElement('div');
+    feedbackContainer.className = 'thinkreview-feedback-container thinkreview-conversation-feedback';
+    feedbackContainer.innerHTML = `
+      <div class="thinkreview-feedback-buttons">
+        <button class="thinkreview-feedback-btn thinkreview-thumbs-up-btn" data-rating="thumbs_up" title="Helpful">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" fill="currentColor"/>
+          </svg>
+        </button>
+        <button class="thinkreview-feedback-btn thinkreview-thumbs-down-btn" data-rating="thumbs_down" title="Not helpful">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+    `;
+    messageWrapper.appendChild(feedbackContainer);
+    
+    // Setup feedback button handlers for this message
+    setupFeedbackButtons(feedbackContainer, aiResponseText, null);
+  }
+  
   chatLog.appendChild(messageWrapper);
 
   // Apply syntax highlighting within this message
@@ -711,6 +757,212 @@ function appendToChatLog(sender, message) {
   }
 }
 
+
+/**
+ * Creates and shows feedback popup for thumbs down
+ * @param {string} aiResponse - AI response text (null for initial review)
+ * @param {string} mrUrl - MR URL for querying code review (null for conversations)
+ * @param {Function} onSubmit - Callback when feedback is submitted
+ */
+function showFeedbackPopup(aiResponse, mrUrl, onSubmit) {
+  // Remove existing popup if any
+  const existingPopup = document.getElementById('thinkreview-feedback-popup');
+  if (existingPopup) {
+    existingPopup.remove();
+  }
+
+  // Create popup overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'thinkreview-feedback-popup-overlay';
+  overlay.className = 'thinkreview-feedback-popup-overlay';
+  
+  // Create popup container
+  const popup = document.createElement('div');
+  popup.id = 'thinkreview-feedback-popup';
+  popup.className = 'thinkreview-feedback-popup';
+  
+  popup.innerHTML = `
+    <div class="thinkreview-feedback-popup-header">
+      <h3>Help us improve</h3>
+      <button class="thinkreview-feedback-popup-close" title="Close">×</button>
+    </div>
+    <div class="thinkreview-feedback-popup-body">
+      <p>Please let us know what we can improve:</p>
+      <textarea 
+        id="thinkreview-feedback-textarea" 
+        class="thinkreview-feedback-textarea" 
+        placeholder="Your feedback helps us improve the quality of our reviews..."
+        maxlength="1000"
+      ></textarea>
+      <div class="thinkreview-feedback-char-count">0/1000</div>
+    </div>
+    <div class="thinkreview-feedback-popup-footer">
+      <button class="thinkreview-feedback-cancel-btn">Cancel</button>
+      <button class="thinkreview-feedback-submit-btn">Submit</button>
+    </div>
+  `;
+  
+  overlay.appendChild(popup);
+  document.body.appendChild(overlay);
+  
+  // Setup character counter
+  const textarea = popup.querySelector('#thinkreview-feedback-textarea');
+  const charCount = popup.querySelector('.thinkreview-feedback-char-count');
+  
+  const updateCharCount = () => {
+    const length = textarea.value.length;
+    charCount.textContent = `${length}/1000`;
+    if (length > 900) {
+      charCount.style.color = '#dc3545';
+    } else if (length > 700) {
+      charCount.style.color = '#ffc107';
+    } else {
+      charCount.style.color = '#6c757d';
+    }
+  };
+  
+  textarea.addEventListener('input', updateCharCount);
+  
+  // Close handlers
+  const closePopup = () => {
+    overlay.remove();
+  };
+  
+  popup.querySelector('.thinkreview-feedback-popup-close').addEventListener('click', closePopup);
+  popup.querySelector('.thinkreview-feedback-cancel-btn').addEventListener('click', closePopup);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closePopup();
+    }
+  });
+  
+  // Submit handler
+  popup.querySelector('.thinkreview-feedback-submit-btn').addEventListener('click', () => {
+    const feedbackText = textarea.value.trim();
+    onSubmit(feedbackText);
+    closePopup();
+  });
+  
+  // Focus textarea
+  setTimeout(() => textarea.focus(), 100);
+}
+
+/**
+ * Sets up feedback button handlers
+ * @param {HTMLElement} container - Container element with feedback buttons
+ * @param {string} aiResponse - AI response text for querying conversation (null for initial review)
+ * @param {string} mrUrl - MR URL for querying code review (null for conversations)
+ */
+function setupFeedbackButtons(container, aiResponse, mrUrl = null) {
+  const thumbsUpBtn = container.querySelector('.thinkreview-thumbs-up-btn');
+  const thumbsDownBtn = container.querySelector('.thinkreview-thumbs-down-btn');
+  
+  const setButtonSelected = (selectedBtn, otherBtn) => {
+    // Remove selected state from both buttons
+    thumbsUpBtn?.classList.remove('selected');
+    thumbsDownBtn?.classList.remove('selected');
+    
+    // Add selected state to clicked button
+    selectedBtn.classList.add('selected');
+  };
+  
+  const handleFeedback = async (rating, clickedBtn) => {
+    // Mark button as selected immediately for visual feedback
+    setButtonSelected(clickedBtn, rating === 'thumbs_up' ? thumbsDownBtn : thumbsUpBtn);
+    
+    // Get user email (fire-and-forget, don't block UI)
+    chrome.storage.local.get(['userData'], (result) => {
+      const userData = result.userData;
+      
+      if (!userData || !userData.email) {
+        console.warn('[IntegratedReview] User not logged in, cannot submit feedback');
+        // Remove selection if user not logged in
+        clickedBtn.classList.remove('selected');
+        return;
+      }
+      
+      let additionalFeedback = null;
+      
+      // Determine feedback type based on which parameter is provided
+      const feedbackType = mrUrl ? 'codereview' : 'conversation';
+      
+      // If thumbs down, show popup for additional feedback
+      if (rating === 'thumbs_down') {
+        showFeedbackPopup(aiResponse, mrUrl, (feedbackText) => {
+          additionalFeedback = feedbackText || null;
+          // Fire-and-forget: submit feedback without blocking
+          submitFeedback(userData.email, feedbackType, aiResponse, mrUrl, rating, additionalFeedback);
+        });
+      } else {
+        // Thumbs up - submit directly (fire-and-forget)
+        submitFeedback(userData.email, feedbackType, aiResponse, mrUrl, rating, additionalFeedback);
+      }
+    });
+  };
+  
+  if (thumbsUpBtn) {
+    thumbsUpBtn.addEventListener('click', () => {
+      handleFeedback('thumbs_up', thumbsUpBtn);
+    });
+  }
+  
+  if (thumbsDownBtn) {
+    thumbsDownBtn.addEventListener('click', () => {
+      handleFeedback('thumbs_down', thumbsDownBtn);
+    });
+  }
+}
+
+/**
+ * Submits feedback to cloud function (fire-and-forget)
+ * @param {string} email - User email
+ * @param {string} feedbackType - Document type: 'conversation' or 'codereview'
+ * @param {string} aiResponse - AI response text for querying conversation (required for conversation type)
+ * @param {string} mrUrl - MR URL for querying code review (required for codereview type)
+ * @param {string} rating - 'thumbs_up' or 'thumbs_down'
+ * @param {string} additionalFeedback - Additional feedback text (optional)
+ */
+function submitFeedback(email, feedbackType, aiResponse, mrUrl, rating, additionalFeedback) {
+  // Log what we're sending for debugging
+  console.log('[IntegratedReview] Submitting feedback:', {
+    hasEmail: !!email,
+    feedbackType,
+    hasAiResponse: !!aiResponse,
+    hasMrUrl: !!mrUrl,
+    rating
+  });
+  
+  // Fire-and-forget: send message without waiting for response
+  chrome.runtime.sendMessage(
+    {
+      type: 'SUBMIT_REVIEW_FEEDBACK',
+      email,
+      feedbackType: feedbackType,
+      aiResponse,
+      mrUrl,
+      rating,
+      additionalFeedback
+    },
+    (response) => {
+      // Silently handle response (fire-and-forget)
+      if (chrome.runtime.lastError) {
+        const errorMsg = chrome.runtime.lastError.message || 
+                        (typeof chrome.runtime.lastError === 'string' ? chrome.runtime.lastError : JSON.stringify(chrome.runtime.lastError));
+        console.warn('[IntegratedReview] Error submitting feedback (fire-and-forget):', errorMsg);
+        return;
+      }
+      
+      if (response && response.success) {
+        console.log('[IntegratedReview] Feedback submitted successfully (fire-and-forget)');
+      } else {
+        const errorMsg = response?.error || 
+                        (response?.message) ||
+                        (typeof response === 'string' ? response : JSON.stringify(response));
+        console.warn('[IntegratedReview] Failed to submit feedback (fire-and-forget):', errorMsg);
+      }
+    }
+  );
+}
 
 /**
  * Handles sending a user message.
@@ -757,7 +1009,10 @@ async function handleSendMessage(messageText) {
     const responseText = aiResponse.review?.response || aiResponse.response || aiResponse.content || aiResponse;
     console.log('[IntegratedReview] Response text to display:', responseText);
     
-    appendToChatLog('ai', responseText);
+    // Store raw response text for feedback querying (use original response before markdown processing)
+    const rawResponseText = responseText;
+    
+    appendToChatLog('ai', responseText, rawResponseText);
     conversationHistory.push({ role: 'model', content: responseText });
 
   } catch (error) {
@@ -995,6 +1250,23 @@ async function displayIntegratedReview(review, patchContent) {
     }
     
     document.getElementById('suggested-questions-container').classList.remove('gl-hidden');
+  }
+
+  // Show initial review feedback buttons
+  // Use mrUrl to query the review document
+  const initialFeedbackContainer = document.getElementById('initial-review-feedback-container');
+  if (initialFeedbackContainer) {
+    // Get the full MR/PR URL
+    const mrUrl = window.location.href;
+    
+    if (mrUrl) {
+      initialFeedbackContainer.classList.remove('gl-hidden');
+      // Pass mrUrl as the identifier (null for aiResponse)
+      setupFeedbackButtons(initialFeedbackContainer, null, mrUrl);
+    } else {
+      console.warn('[IntegratedReview] Cannot get mrUrl');
+      initialFeedbackContainer.classList.add('gl-hidden');
+    }
   }
 
   // Store patch content and initialize conversation history

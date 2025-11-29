@@ -18,6 +18,7 @@ const CANCEL_SUBSCRIPTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/cancelSubscriptionT
 const CONVERSATIONAL_REVIEW_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview`;
 const CONVERSATIONAL_REVIEW_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview_1_1`;
 const TRACK_CUSTOM_DOMAINS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackCustomDomainsThinkReview`;
+const SUBMIT_REVIEW_FEEDBACK_URL = `${CLOUD_FUNCTIONS_BASE_URL}/submitReviewFeedback`;
 
 /**
  * Cloud Service for GitLab MR Reviews
@@ -1184,6 +1185,90 @@ export class CloudService {
       return data;
     } catch (error) {
       dbgWarn('[CloudService] Error tracking Ollama config:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Submit feedback for a review or conversation
+   * @param {string} email - User's email (required)
+   * @param {string} type - Document type: 'conversation' or 'codereview' (required)
+   * @param {string} aiResponse - AI response text to query conversation document (required when type is 'conversation')
+   * @param {string} mrUrl - MR URL to query code review document (required when type is 'codereview')
+   * @param {string} rating - Feedback rating: 'thumbs_up' or 'thumbs_down' (required)
+   * @param {string} [additionalFeedback] - Additional feedback text (optional, only for thumbs_down)
+   * @returns {Promise<Object>} - Response from the backend
+   */
+  static async submitReviewFeedback(email, type, aiResponse, mrUrl, rating, additionalFeedback = null) {
+    dbgLog('[CloudService] Submitting review feedback:', { 
+      email, 
+      type,
+      hasAiResponse: !!aiResponse,
+      hasMrUrl: !!mrUrl,
+      rating 
+    });
+    
+    if (!email) {
+      dbgWarn('[CloudService] Cannot submit feedback: Missing email');
+      throw new Error('Email is required');
+    }
+
+    if (!type || (type !== 'conversation' && type !== 'codereview')) {
+      dbgWarn('[CloudService] Cannot submit feedback: Invalid type');
+      throw new Error('Type must be "conversation" or "codereview"');
+    }
+
+    if (type === 'codereview' && !mrUrl) {
+      dbgWarn('[CloudService] Cannot submit feedback: Missing mrUrl for codereview type');
+      throw new Error('mrUrl is required for codereview type');
+    }
+
+    if (type === 'conversation' && !aiResponse) {
+      dbgWarn('[CloudService] Cannot submit feedback: Missing aiResponse for conversation type');
+      throw new Error('aiResponse is required for conversation type');
+    }
+
+    if (!rating || (rating !== 'thumbs_up' && rating !== 'thumbs_down')) {
+      dbgWarn('[CloudService] Cannot submit feedback: Invalid rating');
+      throw new Error('Rating must be "thumbs_up" or "thumbs_down"');
+    }
+
+    try {
+      const payload = {
+        email,
+        type,
+        rating,
+        additionalFeedback: rating === 'thumbs_down' ? (additionalFeedback || null) : null
+      };
+
+      // Add aiResponse or mrUrl based on type
+      if (type === 'conversation') {
+        payload.aiResponse = aiResponse;
+      } else if (type === 'codereview') {
+        payload.mrUrl = mrUrl;
+      }
+
+      dbgLog('[CloudService] Sending feedback request:', payload);
+
+      const response = await fetch(SUBMIT_REVIEW_FEEDBACK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      dbgLog('[CloudService] Feedback submitted successfully:', data);
+
+      return data;
+    } catch (error) {
+      dbgWarn('[CloudService] Error submitting feedback:', error);
       throw error;
     }
   }

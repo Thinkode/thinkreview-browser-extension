@@ -312,7 +312,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Default: Use cloud service (Gemini)
         const data = await CloudService.getConversationalResponse(patchContent, conversationHistory, mrId, mrUrl, language || 'English');
         dbgLog('[GitLab MR Reviews][BG] Conversational response received:', data);
-        sendResponse({ success: true, data: data, provider: 'cloud' });
+        
+        sendResponse({ 
+          success: true, 
+          data: data, 
+          provider: 'cloud' 
+        });
       } catch (err) {
         // Log error details for debugging
         // if (err.isRateLimit) {
@@ -601,6 +606,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, tabId: tab.id });
       }
     });
+    
+    return true; // Keep message channel open for async response
+  }
+  
+  // Handle feedback submission request
+  if (message.type === 'SUBMIT_REVIEW_FEEDBACK') {
+    const { email, feedbackType, aiResponse, mrUrl, rating, additionalFeedback } = message;
+    
+    (async () => {
+      try {
+        dbgLog('[GitLab MR Reviews][BG] Submitting feedback:', { 
+          hasEmail: !!email,
+          feedbackType,
+          hasAiResponse: !!aiResponse,
+          hasMrUrl: !!mrUrl,
+          rating 
+        });
+        
+        const data = await CloudService.submitReviewFeedback(
+          email,
+          feedbackType,
+          aiResponse,
+          mrUrl,
+          rating,
+          additionalFeedback
+        );
+        
+        dbgLog('[GitLab MR Reviews][BG] Feedback submitted successfully:', data);
+        sendResponse({ success: true, data: data });
+      } catch (err) {
+        dbgWarn('[GitLab MR Reviews][BG] Error submitting feedback:', err);
+        sendResponse({ 
+          success: false, 
+          error: err.message || 'Failed to submit feedback' 
+        });
+      }
+    })();
     
     return true; // Keep message channel open for async response
   }
