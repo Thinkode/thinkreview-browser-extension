@@ -1767,14 +1767,14 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   }
 }
 
-/* Feedback Buttons Styling - Gemini Style */
+/* Feedback Buttons Styling - ChatGPT/Gemini Style */
 .thinkreview-feedback-container {
   margin-top: 6px;
   padding: 0;
   display: flex;
   align-items: center;
   gap: 4px;
-  opacity: 0.7;
+  opacity: 0.6;
   transition: opacity 0.2s ease;
   width: 100%;
   max-width: 80%;
@@ -1794,35 +1794,59 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
 }
 
 .thinkreview-feedback-label {
-  display: none; /* Hide label for compact Gemini-style */
+  display: none; /* Hide label for compact style */
 }
 
 .thinkreview-feedback-buttons {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
 }
 
 .thinkreview-feedback-btn {
-  background: transparent;
-  border: 1px solid #404040;
-  border-radius: 16px;
-  padding: 4px 8px;
-  font-size: 14px;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  padding: 0;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   line-height: 1;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.thinkreview-feedback-btn svg {
+  width: 16px;
+  height: 16px;
+  transition: all 0.2s ease;
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+  .thinkreview-feedback-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.6);
+  }
 }
 
 .thinkreview-feedback-btn:hover:not(:disabled) {
-  background-color: rgba(107, 79, 187, 0.15);
-  border-color: #6b4fbb;
-  transform: scale(1.05);
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.15);
+  color: rgba(0, 0, 0, 0.8);
+  transform: scale(1.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .thinkreview-feedback-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+  }
 }
 
 .thinkreview-feedback-btn:active:not(:disabled) {
@@ -1830,37 +1854,81 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
 }
 
 .thinkreview-feedback-btn.thinkreview-thumbs-up-btn:hover:not(:disabled) {
-  background-color: rgba(31, 136, 61, 0.15);
-  border-color: #1f883d;
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #22c55e;
+}
+
+@media (prefers-color-scheme: dark) {
+  .thinkreview-feedback-btn.thinkreview-thumbs-up-btn:hover:not(:disabled) {
+    background: rgba(34, 197, 94, 0.2);
+    border-color: rgba(34, 197, 94, 0.4);
+    color: #4ade80;
+  }
 }
 
 .thinkreview-feedback-btn.thinkreview-thumbs-down-btn:hover:not(:disabled) {
-  background-color: rgba(201, 25, 11, 0.15);
-  border-color: #c9190b;
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+@media (prefers-color-scheme: dark) {
+  .thinkreview-feedback-btn.thinkreview-thumbs-down-btn:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #f87171;
+  }
 }
 
 /* Selected state */
 .thinkreview-feedback-btn.selected {
-  background-color: rgba(107, 79, 187, 0.25);
-  border-color: #6b4fbb;
-  border-width: 2px;
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #22c55e;
   opacity: 1;
   cursor: default;
 }
 
+@media (prefers-color-scheme: dark) {
+  .thinkreview-feedback-btn.selected {
+    background: rgba(34, 197, 94, 0.25);
+    border-color: rgba(34, 197, 94, 0.5);
+    color: #4ade80;
+  }
+}
+
 .thinkreview-feedback-btn.thinkreview-thumbs-up-btn.selected {
-  background-color: rgba(31, 136, 61, 0.25);
-  border-color: #1f883d;
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #22c55e;
+}
+
+@media (prefers-color-scheme: dark) {
+  .thinkreview-feedback-btn.thinkreview-thumbs-up-btn.selected {
+    background: rgba(34, 197, 94, 0.25);
+    border-color: rgba(34, 197, 94, 0.5);
+    color: #4ade80;
+  }
 }
 
 .thinkreview-feedback-btn.thinkreview-thumbs-down-btn.selected {
-  background-color: rgba(201, 25, 11, 0.25);
-  border-color: #c9190b;
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+@media (prefers-color-scheme: dark) {
+  .thinkreview-feedback-btn.thinkreview-thumbs-down-btn.selected {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #f87171;
+  }
 }
 
 .thinkreview-feedback-btn:disabled {
   cursor: wait;
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 .thinkreview-feedback-btn.selected:disabled {
@@ -1892,10 +1960,13 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
 }
 
 #initial-review-feedback-container .thinkreview-feedback-btn {
-  min-width: 36px;
-  height: 32px;
-  font-size: 15px;
-  padding: 5px 10px;
+  width: 28px;
+  height: 28px;
+}
+
+#initial-review-feedback-container .thinkreview-feedback-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* Feedback Popup Styling */
