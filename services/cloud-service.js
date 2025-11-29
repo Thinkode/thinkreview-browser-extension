@@ -1192,17 +1192,19 @@ export class CloudService {
   /**
    * Submit feedback for a review or conversation
    * @param {string} email - User's email (required)
-   * @param {string} [reviewId] - Review document ID (required if aiResponse not provided)
-   * @param {string} [aiResponse] - AI response text to query conversation document (required if reviewId not provided)
+   * @param {string} [reviewId] - Review document ID (required if aiResponse and reviewSummary not provided)
+   * @param {string} [aiResponse] - AI response text to query conversation document (for conversations)
+   * @param {string} [reviewSummary] - Review summary text to query review document (for initial reviews)
    * @param {string} rating - Feedback rating: 'thumbs_up' or 'thumbs_down' (required)
    * @param {string} [additionalFeedback] - Additional feedback text (optional, only for thumbs_down)
    * @returns {Promise<Object>} - Response from the backend
    */
-  static async submitReviewFeedback(email, reviewId, aiResponse, rating, additionalFeedback = null) {
+  static async submitReviewFeedback(email, reviewId, aiResponse, reviewSummary, rating, additionalFeedback = null) {
     dbgLog('[CloudService] Submitting review feedback:', { 
       email, 
       reviewId, 
-      hasAiResponse: !!aiResponse, 
+      hasAiResponse: !!aiResponse,
+      hasReviewSummary: !!reviewSummary,
       rating 
     });
     
@@ -1211,9 +1213,9 @@ export class CloudService {
       throw new Error('Email is required');
     }
 
-    if (!reviewId && !aiResponse) {
-      dbgWarn('[CloudService] Cannot submit feedback: Missing reviewId or aiResponse');
-      throw new Error('Either reviewId or aiResponse is required');
+    if (!reviewId && !aiResponse && !reviewSummary) {
+      dbgWarn('[CloudService] Cannot submit feedback: Missing reviewId, aiResponse, or reviewSummary');
+      throw new Error('Either reviewId, aiResponse, or reviewSummary is required');
     }
 
     if (!rating || (rating !== 'thumbs_up' && rating !== 'thumbs_down')) {
@@ -1228,11 +1230,13 @@ export class CloudService {
         additionalFeedback: rating === 'thumbs_down' ? (additionalFeedback || null) : null
       };
 
-      // Add reviewId or aiResponse to payload
+      // Add reviewId, aiResponse, or reviewSummary to payload
       if (reviewId) {
         payload.reviewId = reviewId;
-      } else {
+      } else if (aiResponse) {
         payload.aiResponse = aiResponse;
+      } else if (reviewSummary) {
+        payload.reviewSummary = reviewSummary;
       }
 
       dbgLog('[CloudService] Sending feedback request:', payload);

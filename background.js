@@ -612,14 +612,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   // Handle feedback submission request
   if (message.type === 'SUBMIT_REVIEW_FEEDBACK') {
-    const { email, reviewId, aiResponse, rating, additionalFeedback } = message;
+    const { email, reviewId, aiResponse, reviewSummary, rating, additionalFeedback } = message;
     
     (async () => {
       try {
         dbgLog('[GitLab MR Reviews][BG] Submitting feedback:', { 
           hasEmail: !!email, 
           reviewId, 
-          hasAiResponse: !!aiResponse, 
+          hasAiResponse: !!aiResponse,
+          hasReviewSummary: !!reviewSummary,
           rating 
         });
         
@@ -627,6 +628,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           email,
           reviewId,
           aiResponse,
+          reviewSummary,
           rating,
           additionalFeedback
         );

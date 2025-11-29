@@ -754,10 +754,11 @@ function appendToChatLog(sender, message, aiResponseText = null) {
 /**
  * Creates and shows feedback popup for thumbs down
  * @param {string} aiResponse - AI response text (null for initial review)
- * @param {string} reviewId - Review ID (null for conversation feedback)
+ * @param {string} reviewId - Review ID (null if using text query)
+ * @param {string} reviewSummary - Review summary text (null for conversations)
  * @param {Function} onSubmit - Callback when feedback is submitted
  */
-function showFeedbackPopup(aiResponse, reviewId, onSubmit) {
+function showFeedbackPopup(aiResponse, reviewId, reviewSummary, onSubmit) {
   // Remove existing popup if any
   const existingPopup = document.getElementById('thinkreview-feedback-popup');
   if (existingPopup) {
@@ -844,9 +845,10 @@ function showFeedbackPopup(aiResponse, reviewId, onSubmit) {
  * Sets up feedback button handlers
  * @param {HTMLElement} container - Container element with feedback buttons
  * @param {string} aiResponse - AI response text for querying conversation (null for initial review)
- * @param {string} reviewId - Review ID (null for conversation feedback)
+ * @param {string} reviewId - Review ID (null if using text query)
+ * @param {string} reviewSummary - Review summary text for querying initial review (null for conversations)
  */
-function setupFeedbackButtons(container, aiResponse, reviewId) {
+function setupFeedbackButtons(container, aiResponse, reviewId, reviewSummary = null) {
   const thumbsUpBtn = container.querySelector('.thinkreview-thumbs-up-btn');
   const thumbsDownBtn = container.querySelector('.thinkreview-thumbs-down-btn');
   
@@ -878,14 +880,14 @@ function setupFeedbackButtons(container, aiResponse, reviewId) {
       
       // If thumbs down, show popup for additional feedback
       if (rating === 'thumbs_down') {
-        showFeedbackPopup(aiResponse, reviewId, (feedbackText) => {
+        showFeedbackPopup(aiResponse, reviewId, reviewSummary, (feedbackText) => {
           additionalFeedback = feedbackText || null;
           // Fire-and-forget: submit feedback without blocking
-          submitFeedback(userData.email, reviewId, aiResponse, rating, additionalFeedback);
+          submitFeedback(userData.email, reviewId, aiResponse, reviewSummary, rating, additionalFeedback);
         });
       } else {
         // Thumbs up - submit directly (fire-and-forget)
-        submitFeedback(userData.email, reviewId, aiResponse, rating, additionalFeedback);
+        submitFeedback(userData.email, reviewId, aiResponse, reviewSummary, rating, additionalFeedback);
       }
     });
   };
@@ -906,12 +908,13 @@ function setupFeedbackButtons(container, aiResponse, reviewId) {
 /**
  * Submits feedback to cloud function (fire-and-forget)
  * @param {string} email - User email
- * @param {string} reviewId - Review ID (null for conversation feedback)
+ * @param {string} reviewId - Review ID (null if using text query)
  * @param {string} aiResponse - AI response text for querying conversation (null for initial review feedback)
+ * @param {string} reviewSummary - Review summary text for querying initial review (null for conversations)
  * @param {string} rating - 'thumbs_up' or 'thumbs_down'
  * @param {string} additionalFeedback - Additional feedback text (optional)
  */
-function submitFeedback(email, reviewId, aiResponse, rating, additionalFeedback) {
+function submitFeedback(email, reviewId, aiResponse, reviewSummary, rating, additionalFeedback) {
   // Fire-and-forget: send message without waiting for response
   chrome.runtime.sendMessage(
     {
@@ -919,6 +922,7 @@ function submitFeedback(email, reviewId, aiResponse, rating, additionalFeedback)
       email,
       reviewId,
       aiResponse,
+      reviewSummary,
       rating,
       additionalFeedback
     },
@@ -1226,14 +1230,16 @@ async function displayIntegratedReview(review, patchContent) {
     document.getElementById('suggested-questions-container').classList.remove('gl-hidden');
   }
 
-  // Show initial review feedback buttons (only if reviewId is available)
+  // Show initial review feedback buttons
+  // Use review summary text to query the review document (similar to aiResponse for conversations)
   const initialFeedbackContainer = document.getElementById('initial-review-feedback-container');
   if (initialFeedbackContainer) {
-    // Only show if we have a reviewId (for now, hide if not available)
-    // TODO: Get reviewId from review tracking response when available
-    if (currentReviewId) {
+    // Use review summary as identifier (first 200 chars) to query the review document
+    const reviewSummaryText = review.summary ? review.summary.substring(0, 200) : null;
+    if (reviewSummaryText) {
       initialFeedbackContainer.classList.remove('gl-hidden');
-      setupFeedbackButtons(initialFeedbackContainer, null, currentReviewId);
+      // Pass reviewSummaryText as the identifier (null for aiResponse and reviewId)
+      setupFeedbackButtons(initialFeedbackContainer, null, null, reviewSummaryText);
     } else {
       initialFeedbackContainer.classList.add('gl-hidden');
     }
