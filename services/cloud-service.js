@@ -12,6 +12,7 @@ const SYNC_REVIEWS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/syncCodeReviews`;
 const GET_REVIEW_COUNT_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getReviewCount`;
 const GET_USER_DATA_URL = `${CLOUD_FUNCTIONS_BASE_URL}/ThinkReviewGetUserData`;
 const TRACK_REVIEW_PROMPT_INTERACTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackReviewPromptInteractionHTTP`;
+const GET_REVIEW_PROMPT_MESSAGES_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getReviewPromptMessagesThinkReview`;
 const CREATE_CHECKOUT_SESSION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/createCheckoutSessionThinkReview`;
 const CANCEL_SUBSCRIPTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/cancelSubscriptionThinkReview`;
 const CONVERSATIONAL_REVIEW_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview`;
@@ -844,6 +845,55 @@ export class CloudService {
     } catch (error) {
       dbgWarn('[CloudService] Error tracking review prompt interaction:', error);
       throw error; // Re-throw so the caller can handle it
+    }
+  }
+
+  /**
+   * Get review prompt messages from Remote Config
+   * @param {string} email - User's email for authentication
+   * @returns {Promise<Object>} - Promise that resolves with messages object { subtitle, question }
+   */
+  static async getReviewPromptMessages(email) {
+    dbgLog('[CloudService] Fetching review prompt messages:', { email });
+    
+    try {
+      if (!email) {
+        throw new Error('Email is required');
+      }
+
+      const payload = {
+        email
+      };
+
+      dbgLog('[CloudService] Sending getReviewPromptMessages request:', payload);
+
+      const response = await fetch(GET_REVIEW_PROMPT_MESSAGES_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      dbgLog('[CloudService] GetReviewPromptMessages response:', data);
+
+      if (data.status === 'success' && data.subtitle && data.question) {
+        return {
+          subtitle: data.subtitle,
+          question: data.question
+        };
+      } else {
+        throw new Error('Invalid response format from getReviewPromptMessages');
+      }
+    } catch (error) {
+      dbgWarn('[CloudService] Error fetching review prompt messages:', error);
+      throw error;
     }
   }
 
