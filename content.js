@@ -192,19 +192,6 @@ function injectButtons() {
   dbgLog('[Code Review Extension] Buttons injected successfully');
 }
 
-function fetchAndStorePatch(triggerDownload) {
-  const patchUrl = getPatchUrl();
-  fetch(patchUrl, { credentials: 'include' })
-    .then(resp => resp.ok ? resp.text() : Promise.reject('Failed to fetch patch'))
-    .then(patchContent => {
-      if (triggerDownload) {
-        chrome.runtime.sendMessage({ type: 'DOWNLOAD_PATCH', patchContent, patchUrl });
-      }
-      return patchContent;
-    })
-    .catch(console.error);
-}
-
 /**
  * Checks if the current page is a GitLab merge request page
  * Simplified: If content script loaded, Chrome already validated the domain
@@ -1108,11 +1095,6 @@ async function initializeExtension() {
   if (shouldShowButton()) {
     const platform = getCurrentPlatform();
     dbgLog('[Code Review Extension] Initializing for platform:', platform);
-    
-    // For GitLab, fetch and store patch
-    if (platform === 'gitlab' && isSupportedPage()) {
-      fetchAndStorePatch(false);
-    }
     
     injectButtons();
     

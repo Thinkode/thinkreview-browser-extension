@@ -266,18 +266,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Async response
   }
   
-  if (message.type === 'DOWNLOAD_PATCH') {
-    const { patchContent, patchUrl } = message;
-    const filename = patchUrl.split('/').pop().replace(/\?.*$/, '') + '.patch';
-    const blob = new Blob([patchContent], { type: 'text/x-patch' });
-    const url = URL.createObjectURL(blob);
-    chrome.downloads.download({ url, filename }, () => {
-      URL.revokeObjectURL(url);
-    });
-    sendResponse({ success: true });
-    return true;
-  }
-
   if (message.type === 'GET_AI_RESPONSE') {
     const { patchContent, conversationHistory, mrId, mrUrl, language } = message;
     (async () => {
