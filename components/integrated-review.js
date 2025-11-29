@@ -74,6 +74,7 @@ initReviewPromptComponent();
 // Conversation history
 let conversationHistory = [];
 let currentPatchContent = '';
+let currentReviewId = null; // Store reviewId for feedback
 
 // Enhanced loader functionality
 let loaderStageInterval = null;
@@ -275,6 +276,17 @@ function createIntegratedReviewPanel(patchUrl) {
             <div id="suggested-questions-container" class="gl-mb-4">
               <h5 class="gl-font-weight-bold thinkreview-section-title">Suggested Follow-up Questions</h5>
               <div id="suggested-questions" class="thinkreview-suggested-questions-list"></div>
+            </div>
+            <div id="initial-review-feedback-container" class="thinkreview-feedback-container gl-mb-4 gl-hidden">
+              <div class="thinkreview-feedback-label">Was this review helpful?</div>
+              <div class="thinkreview-feedback-buttons">
+                <button class="thinkreview-feedback-btn thinkreview-thumbs-up-btn" data-rating="thumbs_up" title="Helpful">
+                  👍
+                </button>
+                <button class="thinkreview-feedback-btn thinkreview-thumbs-down-btn" data-rating="thumbs_down" title="Not helpful">
+                  👎
+                </button>
+              </div>
             </div>
             <div id="chat-log" class="thinkreview-chat-log"></div>
           </div>
@@ -680,13 +692,19 @@ function initializeResizeHandle(container) {
  * Appends a message to the chat log.
  * @param {string} sender - 'user' or 'ai'.
  * @param {string} message - The message content (can be HTML or Markdown).
+ * @param {string} [aiResponseText] - Optional raw AI response text for feedback tracking (conversations only).
  */
-function appendToChatLog(sender, message) {
+function appendToChatLog(sender, message, aiResponseText = null) {
   const chatLog = document.getElementById('chat-log');
   if (!chatLog) return;
 
   const messageWrapper = document.createElement('div');
   messageWrapper.className = `chat-message-wrapper gl-display-flex ${sender === 'user' ? 'user-message' : 'ai-message'}`;
+  
+  // Store aiResponse text in data attribute for feedback tracking
+  if (aiResponseText && sender === 'ai') {
+    messageWrapper.setAttribute('data-ai-response', aiResponseText);
+  }
 
   const messageBubble = document.createElement('div');
   messageBubble.className = `chat-message ${sender === 'user' ? 'user-message' : 'ai-message'}`;
@@ -696,6 +714,27 @@ function appendToChatLog(sender, message) {
   messageBubble.innerHTML = formattedMessage;
 
   messageWrapper.appendChild(messageBubble);
+  
+  // Add feedback buttons for AI messages (Gemini-style, small and subtle)
+  if (sender === 'ai' && aiResponseText) {
+    const feedbackContainer = document.createElement('div');
+    feedbackContainer.className = 'thinkreview-feedback-container thinkreview-conversation-feedback';
+    feedbackContainer.innerHTML = `
+      <div class="thinkreview-feedback-buttons">
+        <button class="thinkreview-feedback-btn thinkreview-thumbs-up-btn" data-rating="thumbs_up" title="Helpful">
+          👍
+        </button>
+        <button class="thinkreview-feedback-btn thinkreview-thumbs-down-btn" data-rating="thumbs_down" title="Not helpful">
+          👎
+        </button>
+      </div>
+    `;
+    messageWrapper.appendChild(feedbackContainer);
+    
+    // Setup feedback button handlers for this message
+    setupFeedbackButtons(feedbackContainer, aiResponseText, null);
+  }
+  
   chatLog.appendChild(messageWrapper);
 
   // Apply syntax highlighting within this message
@@ -711,6 +750,233 @@ function appendToChatLog(sender, message) {
   }
 }
 
+
+/**
+ * Creates and shows feedback popup for thumbs down
+ * @param {string} aiResponse - AI response text (null for initial review)
+ * @param {string} reviewId - Review ID (null for conversation feedback)
+ * @param {Function} onSubmit - Callback when feedback is submitted
+ */
+function showFeedbackPopup(aiResponse, reviewId, onSubmit) {
+  // Remove existing popup if any
+  const existingPopup = document.getElementById('thinkreview-feedback-popup');
+  if (existingPopup) {
+    existingPopup.remove();
+  }
+
+  // Create popup overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'thinkreview-feedback-popup-overlay';
+  overlay.className = 'thinkreview-feedback-popup-overlay';
+  
+  // Create popup container
+  const popup = document.createElement('div');
+  popup.id = 'thinkreview-feedback-popup';
+  popup.className = 'thinkreview-feedback-popup';
+  
+  popup.innerHTML = `
+    <div class="thinkreview-feedback-popup-header">
+      <h3>Help us improve</h3>
+      <button class="thinkreview-feedback-popup-close" title="Close">×</button>
+    </div>
+    <div class="thinkreview-feedback-popup-body">
+      <p>Please let us know what we can improve:</p>
+      <textarea 
+        id="thinkreview-feedback-textarea" 
+        class="thinkreview-feedback-textarea" 
+        placeholder="Your feedback helps us improve the quality of our reviews..."
+        maxlength="1000"
+      ></textarea>
+      <div class="thinkreview-feedback-char-count">0/1000</div>
+    </div>
+    <div class="thinkreview-feedback-popup-footer">
+      <button class="thinkreview-feedback-cancel-btn">Cancel</button>
+      <button class="thinkreview-feedback-submit-btn">Submit</button>
+    </div>
+  `;
+  
+  overlay.appendChild(popup);
+  document.body.appendChild(overlay);
+  
+  // Setup character counter
+  const textarea = popup.querySelector('#thinkreview-feedback-textarea');
+  const charCount = popup.querySelector('.thinkreview-feedback-char-count');
+  
+  const updateCharCount = () => {
+    const length = textarea.value.length;
+    charCount.textContent = `${length}/1000`;
+    if (length > 900) {
+      charCount.style.color = '#dc3545';
+    } else if (length > 700) {
+      charCount.style.color = '#ffc107';
+    } else {
+      charCount.style.color = '#6c757d';
+    }
+  };
+  
+  textarea.addEventListener('input', updateCharCount);
+  
+  // Close handlers
+  const closePopup = () => {
+    overlay.remove();
+  };
+  
+  popup.querySelector('.thinkreview-feedback-popup-close').addEventListener('click', closePopup);
+  popup.querySelector('.thinkreview-feedback-cancel-btn').addEventListener('click', closePopup);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closePopup();
+    }
+  });
+  
+  // Submit handler
+  popup.querySelector('.thinkreview-feedback-submit-btn').addEventListener('click', () => {
+    const feedbackText = textarea.value.trim();
+    onSubmit(feedbackText);
+    closePopup();
+  });
+  
+  // Focus textarea
+  setTimeout(() => textarea.focus(), 100);
+}
+
+/**
+ * Sets up feedback button handlers
+ * @param {HTMLElement} container - Container element with feedback buttons
+ * @param {string} aiResponse - AI response text for querying conversation (null for initial review)
+ * @param {string} reviewId - Review ID (null for conversation feedback)
+ */
+function setupFeedbackButtons(container, aiResponse, reviewId) {
+  const thumbsUpBtn = container.querySelector('.thinkreview-thumbs-up-btn');
+  const thumbsDownBtn = container.querySelector('.thinkreview-thumbs-down-btn');
+  
+  const setButtonSelected = (selectedBtn, otherBtn) => {
+    // Remove selected state from both buttons
+    thumbsUpBtn?.classList.remove('selected');
+    thumbsDownBtn?.classList.remove('selected');
+    
+    // Add selected state to clicked button
+    selectedBtn.classList.add('selected');
+    
+    // Disable both buttons to prevent multiple submissions
+    if (thumbsUpBtn) thumbsUpBtn.disabled = true;
+    if (thumbsDownBtn) thumbsDownBtn.disabled = true;
+  };
+  
+  const handleFeedback = async (rating, clickedBtn) => {
+    // Mark button as selected immediately for visual feedback
+    setButtonSelected(clickedBtn, rating === 'thumbs_up' ? thumbsDownBtn : thumbsUpBtn);
+    
+    // Get user email
+    const userData = await new Promise((resolve) => {
+      chrome.storage.local.get(['userData'], (result) => {
+        resolve(result.userData);
+      });
+    });
+    
+    if (!userData || !userData.email) {
+      console.warn('[IntegratedReview] User not logged in, cannot submit feedback');
+      // Re-enable buttons if submission failed
+      if (thumbsUpBtn) thumbsUpBtn.disabled = false;
+      if (thumbsDownBtn) thumbsDownBtn.disabled = false;
+      clickedBtn.classList.remove('selected');
+      return;
+    }
+    
+    let additionalFeedback = null;
+    
+    // If thumbs down, show popup for additional feedback
+    if (rating === 'thumbs_down') {
+      return new Promise((resolve) => {
+        showFeedbackPopup(aiResponse, reviewId, (feedbackText) => {
+          additionalFeedback = feedbackText || null;
+          submitFeedback(userData.email, reviewId, aiResponse, rating, additionalFeedback, () => {
+            // Success callback - button already marked as selected
+            resolve();
+          }, () => {
+            // Error callback - re-enable buttons
+            if (thumbsUpBtn) thumbsUpBtn.disabled = false;
+            if (thumbsDownBtn) thumbsDownBtn.disabled = false;
+            clickedBtn.classList.remove('selected');
+            resolve();
+          });
+        });
+      });
+    } else {
+      // Thumbs up - submit directly
+      await submitFeedback(userData.email, reviewId, aiResponse, rating, additionalFeedback, () => {
+        // Success callback - button already marked as selected
+      }, () => {
+        // Error callback - re-enable buttons
+        if (thumbsUpBtn) thumbsUpBtn.disabled = false;
+        if (thumbsDownBtn) thumbsDownBtn.disabled = false;
+        clickedBtn.classList.remove('selected');
+      });
+    }
+  };
+  
+  if (thumbsUpBtn) {
+    thumbsUpBtn.addEventListener('click', () => {
+      handleFeedback('thumbs_up', thumbsUpBtn).catch(err => {
+        console.error('[IntegratedReview] Error handling feedback:', err);
+        // Re-enable buttons on error
+        if (thumbsUpBtn) thumbsUpBtn.disabled = false;
+        if (thumbsDownBtn) thumbsDownBtn.disabled = false;
+        thumbsUpBtn.classList.remove('selected');
+      });
+    });
+  }
+  
+  if (thumbsDownBtn) {
+    thumbsDownBtn.addEventListener('click', () => {
+      handleFeedback('thumbs_down', thumbsDownBtn).catch(err => {
+        console.error('[IntegratedReview] Error handling feedback:', err);
+        // Re-enable buttons on error
+        if (thumbsUpBtn) thumbsUpBtn.disabled = false;
+        if (thumbsDownBtn) thumbsDownBtn.disabled = false;
+        thumbsDownBtn.classList.remove('selected');
+      });
+    });
+  }
+}
+
+/**
+ * Submits feedback to cloud function
+ * @param {string} email - User email
+ * @param {string} reviewId - Review ID (null for conversation feedback)
+ * @param {string} aiResponse - AI response text for querying conversation (null for initial review feedback)
+ * @param {string} rating - 'thumbs_up' or 'thumbs_down'
+ * @param {string} additionalFeedback - Additional feedback text (optional)
+ * @param {Function} onSuccess - Success callback
+ * @param {Function} onError - Error callback
+ */
+function submitFeedback(email, reviewId, aiResponse, rating, additionalFeedback, onSuccess, onError) {
+  chrome.runtime.sendMessage(
+    {
+      type: 'SUBMIT_REVIEW_FEEDBACK',
+      email,
+      reviewId,
+      aiResponse,
+      rating,
+      additionalFeedback
+    },
+    (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('[IntegratedReview] Error submitting feedback:', chrome.runtime.lastError);
+        if (onError) onError();
+        return;
+      }
+      
+      if (response && response.success) {
+        console.log('[IntegratedReview] Feedback submitted successfully');
+        if (onSuccess) onSuccess();
+      } else {
+        console.error('[IntegratedReview] Failed to submit feedback:', response?.error);
+        if (onError) onError();
+      }
+    }
+  );
+}
 
 /**
  * Handles sending a user message.
@@ -757,7 +1023,10 @@ async function handleSendMessage(messageText) {
     const responseText = aiResponse.review?.response || aiResponse.response || aiResponse.content || aiResponse;
     console.log('[IntegratedReview] Response text to display:', responseText);
     
-    appendToChatLog('ai', responseText);
+    // Store raw response text for feedback querying (use original response before markdown processing)
+    const rawResponseText = responseText;
+    
+    appendToChatLog('ai', responseText, rawResponseText);
     conversationHistory.push({ role: 'model', content: responseText });
 
   } catch (error) {
@@ -995,6 +1264,19 @@ async function displayIntegratedReview(review, patchContent) {
     }
     
     document.getElementById('suggested-questions-container').classList.remove('gl-hidden');
+  }
+
+  // Show initial review feedback buttons (only if reviewId is available)
+  const initialFeedbackContainer = document.getElementById('initial-review-feedback-container');
+  if (initialFeedbackContainer) {
+    // Only show if we have a reviewId (for now, hide if not available)
+    // TODO: Get reviewId from review tracking response when available
+    if (currentReviewId) {
+      initialFeedbackContainer.classList.remove('gl-hidden');
+      setupFeedbackButtons(initialFeedbackContainer, null, currentReviewId);
+    } else {
+      initialFeedbackContainer.classList.add('gl-hidden');
+    }
   }
 
   // Store patch content and initialize conversation history

@@ -18,6 +18,7 @@ const CANCEL_SUBSCRIPTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/cancelSubscriptionT
 const CONVERSATIONAL_REVIEW_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview`;
 const CONVERSATIONAL_REVIEW_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview_1_1`;
 const TRACK_CUSTOM_DOMAINS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackCustomDomainsThinkReview`;
+const SUBMIT_REVIEW_FEEDBACK_URL = `${CLOUD_FUNCTIONS_BASE_URL}/submitReviewFeedback`;
 
 /**
  * Cloud Service for GitLab MR Reviews
@@ -1184,6 +1185,77 @@ export class CloudService {
       return data;
     } catch (error) {
       dbgWarn('[CloudService] Error tracking Ollama config:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Submit feedback for a review or conversation
+   * @param {string} email - User's email (required)
+   * @param {string} [reviewId] - Review document ID (required if aiResponse not provided)
+   * @param {string} [aiResponse] - AI response text to query conversation document (required if reviewId not provided)
+   * @param {string} rating - Feedback rating: 'thumbs_up' or 'thumbs_down' (required)
+   * @param {string} [additionalFeedback] - Additional feedback text (optional, only for thumbs_down)
+   * @returns {Promise<Object>} - Response from the backend
+   */
+  static async submitReviewFeedback(email, reviewId, aiResponse, rating, additionalFeedback = null) {
+    dbgLog('[CloudService] Submitting review feedback:', { 
+      email, 
+      reviewId, 
+      hasAiResponse: !!aiResponse, 
+      rating 
+    });
+    
+    if (!email) {
+      dbgWarn('[CloudService] Cannot submit feedback: Missing email');
+      throw new Error('Email is required');
+    }
+
+    if (!reviewId && !aiResponse) {
+      dbgWarn('[CloudService] Cannot submit feedback: Missing reviewId or aiResponse');
+      throw new Error('Either reviewId or aiResponse is required');
+    }
+
+    if (!rating || (rating !== 'thumbs_up' && rating !== 'thumbs_down')) {
+      dbgWarn('[CloudService] Cannot submit feedback: Invalid rating');
+      throw new Error('Rating must be "thumbs_up" or "thumbs_down"');
+    }
+
+    try {
+      const payload = {
+        email,
+        rating,
+        additionalFeedback: rating === 'thumbs_down' ? (additionalFeedback || null) : null
+      };
+
+      // Add reviewId or aiResponse to payload
+      if (reviewId) {
+        payload.reviewId = reviewId;
+      } else {
+        payload.aiResponse = aiResponse;
+      }
+
+      dbgLog('[CloudService] Sending feedback request:', payload);
+
+      const response = await fetch(SUBMIT_REVIEW_FEEDBACK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      dbgLog('[CloudService] Feedback submitted successfully:', data);
+
+      return data;
+    } catch (error) {
+      dbgWarn('[CloudService] Error submitting feedback:', error);
       throw error;
     }
   }

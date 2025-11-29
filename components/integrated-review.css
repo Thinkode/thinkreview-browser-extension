@@ -230,14 +230,16 @@
 /* Chat message styling for better visual differentiation */
 .chat-message-wrapper {
   margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
 }
 
 .chat-message-wrapper.user-message {
-  justify-content: flex-end;
+  align-items: flex-end;
 }
 
 .chat-message-wrapper.ai-message {
-  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .chat-message {
@@ -1763,5 +1765,300 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   #gitlab-mr-integrated-review .thinkreview-error-message {
     color: #ff8787;
   }
+}
+
+/* Feedback Buttons Styling - Gemini Style */
+.thinkreview-feedback-container {
+  margin-top: 6px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  width: 100%;
+  max-width: 80%;
+}
+
+.chat-message-wrapper.user-message .thinkreview-feedback-container {
+  align-items: flex-end;
+}
+
+.chat-message-wrapper.ai-message .thinkreview-feedback-container {
+  align-items: flex-start;
+}
+
+.chat-message-wrapper:hover .thinkreview-feedback-container,
+.thinkreview-feedback-container:hover {
+  opacity: 1;
+}
+
+.thinkreview-feedback-label {
+  display: none; /* Hide label for compact Gemini-style */
+}
+
+.thinkreview-feedback-buttons {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.thinkreview-feedback-btn {
+  background: transparent;
+  border: 1px solid #404040;
+  border-radius: 16px;
+  padding: 4px 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 28px;
+  line-height: 1;
+}
+
+.thinkreview-feedback-btn:hover:not(:disabled) {
+  background-color: rgba(107, 79, 187, 0.15);
+  border-color: #6b4fbb;
+  transform: scale(1.05);
+}
+
+.thinkreview-feedback-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.thinkreview-feedback-btn.thinkreview-thumbs-up-btn:hover:not(:disabled) {
+  background-color: rgba(31, 136, 61, 0.15);
+  border-color: #1f883d;
+}
+
+.thinkreview-feedback-btn.thinkreview-thumbs-down-btn:hover:not(:disabled) {
+  background-color: rgba(201, 25, 11, 0.15);
+  border-color: #c9190b;
+}
+
+/* Selected state */
+.thinkreview-feedback-btn.selected {
+  background-color: rgba(107, 79, 187, 0.25);
+  border-color: #6b4fbb;
+  border-width: 2px;
+  opacity: 1;
+  cursor: default;
+}
+
+.thinkreview-feedback-btn.thinkreview-thumbs-up-btn.selected {
+  background-color: rgba(31, 136, 61, 0.25);
+  border-color: #1f883d;
+}
+
+.thinkreview-feedback-btn.thinkreview-thumbs-down-btn.selected {
+  background-color: rgba(201, 25, 11, 0.25);
+  border-color: #c9190b;
+}
+
+.thinkreview-feedback-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.thinkreview-conversation-feedback {
+  margin-top: 6px;
+  padding-top: 0;
+  border-top: none;
+  justify-content: flex-start;
+}
+
+/* Initial review feedback - slightly larger but still compact */
+#initial-review-feedback-container {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #404040;
+  opacity: 1;
+}
+
+#initial-review-feedback-container .thinkreview-feedback-label {
+  display: block;
+  font-size: 11px;
+  color: #999999;
+  margin-bottom: 6px;
+  font-weight: 400;
+}
+
+#initial-review-feedback-container .thinkreview-feedback-btn {
+  min-width: 36px;
+  height: 32px;
+  font-size: 15px;
+  padding: 5px 10px;
+}
+
+/* Feedback Popup Styling */
+.thinkreview-feedback-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.thinkreview-feedback-popup {
+  background-color: #2d2d2d;
+  border: 2px solid #6b4fbb;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.thinkreview-feedback-popup-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #404040;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.thinkreview-feedback-popup-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.thinkreview-feedback-popup-close {
+  background: none;
+  border: none;
+  color: #cccccc;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.thinkreview-feedback-popup-close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.thinkreview-feedback-popup-body {
+  padding: 20px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.thinkreview-feedback-popup-body p {
+  margin: 0 0 12px 0;
+  color: #e0e0e0;
+  font-size: 14px;
+}
+
+.thinkreview-feedback-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  border: 2px solid #404040;
+  border-radius: 8px;
+  background-color: #1e1e1e;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.thinkreview-feedback-textarea:focus {
+  outline: none;
+  border-color: #6b4fbb;
+  box-shadow: 0 0 0 3px rgba(107, 79, 187, 0.2);
+}
+
+.thinkreview-feedback-char-count {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6c757d;
+  text-align: right;
+}
+
+.thinkreview-feedback-popup-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #404040;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.thinkreview-feedback-cancel-btn,
+.thinkreview-feedback-submit-btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.thinkreview-feedback-cancel-btn {
+  background-color: #404040;
+  color: #ffffff;
+}
+
+.thinkreview-feedback-cancel-btn:hover {
+  background-color: #505050;
+}
+
+.thinkreview-feedback-submit-btn {
+  background-color: #6b4fbb;
+  color: #ffffff;
+}
+
+.thinkreview-feedback-submit-btn:hover {
+  background-color: #8c6be8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(107, 79, 187, 0.3);
+}
+
+.thinkreview-feedback-submit-btn:active {
+  transform: translateY(0);
 }
 
