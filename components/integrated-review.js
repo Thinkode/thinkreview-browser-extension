@@ -858,7 +858,13 @@ async function displayIntegratedReview(review, patchContent) {
           handleSendMessage(query);
           
           // Scroll to chat area after a short delay to ensure message is appended
-          scrollToChatAreaDelayed();
+          setTimeout(() => {
+            scrollToChatArea();
+          }, 200);
+        };
+        
+        const scorecardElement = scorecardModule.renderQualityScorecard(review.metrics, handleMetricClick);
+        if (scorecardElement) {
           reviewMetricsContainer.appendChild(scorecardElement);
           reviewMetricsContainer.classList.remove('gl-hidden');
         } else {
