@@ -857,7 +857,7 @@ function setupFeedbackButtons(container, aiResponse, mrUrl = null) {
   const thumbsUpBtn = container.querySelector('.thinkreview-thumbs-up-btn');
   const thumbsDownBtn = container.querySelector('.thinkreview-thumbs-down-btn');
   
-  const setButtonSelected = (selectedBtn, otherBtn) => {
+  const setButtonSelected = (selectedBtn) => {
     // Remove selected state from both buttons
     thumbsUpBtn?.classList.remove('selected');
     thumbsDownBtn?.classList.remove('selected');
@@ -868,7 +868,7 @@ function setupFeedbackButtons(container, aiResponse, mrUrl = null) {
   
   const handleFeedback = async (rating, clickedBtn) => {
     // Mark button as selected immediately for visual feedback
-    setButtonSelected(clickedBtn, rating === 'thumbs_up' ? thumbsDownBtn : thumbsUpBtn);
+    setButtonSelected(clickedBtn);
     
     // Get user email (fire-and-forget, don't block UI)
     chrome.storage.local.get(['userData'], (result) => {
