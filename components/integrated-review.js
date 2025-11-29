@@ -881,13 +881,76 @@ async function displayIntegratedReview(review, patchContent) {
   // Highlight code in summary
   applySimpleSyntaxHighlighting(reviewSummary);
 
-  const populateList = (element, items) => {
+  /**
+   * Helper function to extract plain text from HTML content
+   * @param {string} html - HTML string to extract text from
+   * @returns {string} Plain text content
+   */
+  const extractPlainText = (html) => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    return tempDiv.textContent || tempDiv.innerText || '';
+  };
+
+  /**
+   * Scrolls to the chat log area smoothly
+   */
+  const scrollToChatArea = () => {
+    const chatLog = document.getElementById('chat-log');
+    const reviewScrollContainer = document.getElementById('review-scroll-container');
+    if (chatLog && reviewScrollContainer) {
+      // Scroll to the chat log element
+      setTimeout(() => {
+        chatLog.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        // Also ensure the scroll container scrolls to bottom
+        reviewScrollContainer.scrollTo({
+          top: reviewScrollContainer.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  };
+
+  const populateList = (element, items, category) => {
     element.innerHTML = ''; // Clear previous items
     if (items && items.length > 0) {
       items.forEach(item => {
         const li = document.createElement('li');
         // Parse markdown so code fences become <pre><code> blocks
-        li.innerHTML = markdownToHtml(preprocessAIResponse(String(item || '')));
+        const itemHtml = markdownToHtml(preprocessAIResponse(String(item || '')));
+        li.innerHTML = itemHtml;
+        
+        // Make the item clickable
+        li.classList.add('thinkreview-clickable-item');
+        li.style.cursor = 'pointer';
+        
+        // Add click handler
+        li.addEventListener('click', async () => {
+          // Extract plain text from the item
+          const itemText = extractPlainText(itemHtml).trim();
+          
+          // Format the query based on category
+          let query = '';
+          if (category === 'suggestion') {
+            query = `Can you provide more details about this suggestion? ${itemText}`;
+          } else if (category === 'security') {
+            query = `Can you provide more details about this security issue? ${itemText}`;
+          } else if (category === 'practice') {
+            query = `Can you provide more details about this best practice? ${itemText}`;
+          } else {
+            query = `Can you provide more details about this? ${itemText}`;
+          }
+          
+          // Send the message to conversational review (it already handles scrolling via appendToChatLog)
+          // But we'll also scroll to ensure visibility
+          handleSendMessage(query);
+          
+          // Scroll to chat area after a short delay to ensure message is appended
+          setTimeout(() => {
+            scrollToChatArea();
+          }, 200);
+        });
+        
         element.appendChild(li);
       });
       element.closest('.gl-mb-4').classList.remove('gl-hidden');
@@ -896,9 +959,9 @@ async function displayIntegratedReview(review, patchContent) {
     }
   };
 
-  populateList(reviewSuggestions, review.suggestions);
-  populateList(reviewSecurity, review.securityIssues);
-  populateList(reviewPractices, review.bestPractices);
+  populateList(reviewSuggestions, review.suggestions, 'suggestion');
+  populateList(reviewSecurity, review.securityIssues, 'security');
+  populateList(reviewPractices, review.bestPractices, 'practice');
   // Highlight code within lists and entire scroll container
   const scrollContainer = document.getElementById('review-scroll-container');
   applySimpleSyntaxHighlighting(scrollContainer);
