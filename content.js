@@ -192,21 +192,6 @@ function injectButtons() {
   dbgLog('[Code Review Extension] Buttons injected successfully');
 }
 
-function fetchAndStorePatch(triggerDownload) {
-  const patchUrl = getPatchUrl();
-  fetch(patchUrl, { credentials: 'include' })
-    .then(resp => resp.ok ? resp.text() : Promise.reject('Failed to fetch patch'))
-    .then(patchContent => {
-      chrome.runtime.sendMessage({ type: 'STORE_PATCH', patchUrl, patchContent }, () => {
-        if (triggerDownload) {
-          chrome.runtime.sendMessage({ type: 'DOWNLOAD_PATCH', patchContent, patchUrl });
-        }
-      });
-      return patchContent;
-    })
-    .catch(console.error);
-}
-
 /**
  * Checks if the current page is a GitLab merge request page
  * Simplified: If content script loaded, Chrome already validated the domain
@@ -761,9 +746,6 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       codeContent = await response.text();
       reviewId = getMergeRequestId();
       
-      // Store the original patch in extension storage
-      chrome.runtime.sendMessage({ type: 'STORE_PATCH', patchUrl, patchContent: codeContent });
-      
     } else if (platform === 'azure-devops') {
       // Azure DevOps: fetch via API
         dbgLog('[Code Review Extension] Starting Azure DevOps code fetch');
@@ -1113,11 +1095,6 @@ async function initializeExtension() {
   if (shouldShowButton()) {
     const platform = getCurrentPlatform();
     dbgLog('[Code Review Extension] Initializing for platform:', platform);
-    
-    // For GitLab, fetch and store patch
-    if (platform === 'gitlab' && isSupportedPage()) {
-      fetchAndStorePatch(false);
-    }
     
     injectButtons();
     

@@ -289,24 +289,9 @@ function updateCurrentStatus() {
       return;
     }
     
-    const patchUrl = tab.url.replace(/[#?].*$/, '') + '.patch';
-    chrome.storage.local.get({ patches: [] }, (data) => {
-      if (chrome.runtime.lastError) {
-        dbgWarn('[popup] Error accessing patches storage:', chrome.runtime.lastError);
-        statusDiv.textContent = 'Error checking patch status';
-        statusDiv.className = 'error';
-        return;
-      }
-      
-      const found = data.patches.find(p => p.patchUrl === patchUrl);
-      if (found) {
-        statusDiv.textContent = 'Patch fetched and stored.';
-        statusDiv.className = 'success';
-      } else {
-        statusDiv.textContent = 'Patch not yet fetched.';
-        statusDiv.className = '';
-      }
-    });
+    // Show ready status for MR pages
+    statusDiv.textContent = 'Ready to generate reviews';
+    statusDiv.className = 'success';
   });
 }
 

@@ -266,38 +266,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Async response
   }
   
-  if (message.type === 'STORE_PATCH') {
-    const { patchUrl, patchContent } = message;
-    chrome.storage.local.get({ patches: [] }, (data) => {
-      let patches = data.patches || [];
-      // Remove old if duplicate
-      patches = patches.filter(p => p.patchUrl !== patchUrl);
-      patches.unshift({ patchUrl, patchContent, timestamp: Date.now() });
-      // Limit to 20 recent patches
-      patches = patches.slice(0, 20);
-      chrome.storage.local.set({ patches });
-      sendResponse({ success: true });
-    });
-    return true;
-  }
-  if (message.type === 'GET_PATCHES') {
-    chrome.storage.local.get({ patches: [] }, (data) => {
-      sendResponse({ patches: data.patches });
-    });
-    return true;
-  }
-  if (message.type === 'DOWNLOAD_PATCH') {
-    const { patchContent, patchUrl } = message;
-    const filename = patchUrl.split('/').pop().replace(/\?.*$/, '') + '.patch';
-    const blob = new Blob([patchContent], { type: 'text/x-patch' });
-    const url = URL.createObjectURL(blob);
-    chrome.downloads.download({ url, filename }, () => {
-      URL.revokeObjectURL(url);
-    });
-    sendResponse({ success: true });
-    return true;
-  }
-
   if (message.type === 'GET_AI_RESPONSE') {
     const { patchContent, conversationHistory, mrId, mrUrl, language } = message;
     (async () => {
