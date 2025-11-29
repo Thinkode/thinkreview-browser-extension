@@ -32,9 +32,10 @@ function getScoreColor(score) {
  * @param {number} metrics.codeQuality - Code quality score (0-100)
  * @param {number} metrics.securityScore - Security score (0-100)
  * @param {number} metrics.bestPracticesScore - Best practices score (0-100)
+ * @param {Function} [onMetricClick] - Optional callback function when a metric is clicked. Receives (metricName, score)
  * @returns {HTMLElement} - The rendered scorecard element
  */
-export function renderQualityScorecard(metrics) {
+export function renderQualityScorecard(metrics, onMetricClick = null) {
   if (!metrics) {
     return null;
   }
@@ -59,13 +60,22 @@ export function renderQualityScorecard(metrics) {
     </div>
     <div class="thinkreview-scorecard-content">
       <div class="thinkreview-overall-score gl-display-flex gl-align-items-center gl-justify-content-center gl-mb-4">
-        <div class="thinkreview-score-circle ${getScoreColorClass(overallScore)}" aria-label="Overall quality score: ${overallScore}">
+        <div class="thinkreview-score-circle ${getScoreColorClass(overallScore)} thinkreview-clickable-metric" 
+             data-metric="overall" 
+             data-score="${overallScore}"
+             aria-label="Overall quality score: ${overallScore}. Click to learn more." 
+             role="button"
+             tabindex="0">
           <span class="thinkreview-score-value">${overallScore}</span>
           <span class="thinkreview-score-label">Overall</span>
         </div>
       </div>
       <div class="thinkreview-metrics-grid">
-        <div class="thinkreview-metric-item">
+        <div class="thinkreview-metric-item thinkreview-clickable-metric" 
+             data-metric="codeQuality" 
+             data-score="${codeQuality}"
+             role="button"
+             tabindex="0">
           <div class="thinkreview-metric-header gl-display-flex gl-justify-content-space-between gl-mb-1">
             <span class="thinkreview-metric-label">Code Quality</span>
             <span class="thinkreview-metric-score ${getScoreColorClass(codeQuality)}">${codeQuality}</span>
@@ -80,7 +90,11 @@ export function renderQualityScorecard(metrics) {
                  aria-label="Code quality score: ${codeQuality}%"></div>
           </div>
         </div>
-        <div class="thinkreview-metric-item">
+        <div class="thinkreview-metric-item thinkreview-clickable-metric" 
+             data-metric="security" 
+             data-score="${securityScore}"
+             role="button"
+             tabindex="0">
           <div class="thinkreview-metric-header gl-display-flex gl-justify-content-space-between gl-mb-1">
             <span class="thinkreview-metric-label">Security</span>
             <span class="thinkreview-metric-score ${getScoreColorClass(securityScore)}">${securityScore}</span>
@@ -95,7 +109,11 @@ export function renderQualityScorecard(metrics) {
                  aria-label="Security score: ${securityScore}%"></div>
           </div>
         </div>
-        <div class="thinkreview-metric-item">
+        <div class="thinkreview-metric-item thinkreview-clickable-metric" 
+             data-metric="bestPractices" 
+             data-score="${bestPracticesScore}"
+             role="button"
+             tabindex="0">
           <div class="thinkreview-metric-header gl-display-flex gl-justify-content-space-between gl-mb-1">
             <span class="thinkreview-metric-label">Best Practices</span>
             <span class="thinkreview-metric-score ${getScoreColorClass(bestPracticesScore)}">${bestPracticesScore}</span>
@@ -113,6 +131,51 @@ export function renderQualityScorecard(metrics) {
       </div>
     </div>
   `;
+
+  // Store references to event listeners and handlers for cleanup
+  const eventListeners = [];
+
+  // Add click handlers if callback is provided
+  if (onMetricClick) {
+    const clickableMetrics = container.querySelectorAll('.thinkreview-clickable-metric');
+    clickableMetrics.forEach(element => {
+      const metricName = element.getAttribute('data-metric');
+      const score = parseInt(element.getAttribute('data-score'), 10);
+      
+      const handleClick = () => {
+        onMetricClick(metricName, score);
+      };
+      
+      const handleKeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      };
+      
+      element.addEventListener('click', handleClick);
+      element.addEventListener('keydown', handleKeydown);
+      
+      // Store references for cleanup
+      eventListeners.push({
+        element,
+        handlers: [
+          { event: 'click', handler: handleClick },
+          { event: 'keydown', handler: handleKeydown }
+        ]
+      });
+    });
+  }
+
+  // Attach cleanup function to container for easy access
+  container._cleanupMetricListeners = () => {
+    eventListeners.forEach(({ element, handlers }) => {
+      handlers.forEach(({ event, handler }) => {
+        element.removeEventListener(event, handler);
+      });
+    });
+    eventListeners.length = 0; // Clear the array
+  };
 
   return container;
 }

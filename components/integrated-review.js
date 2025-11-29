@@ -834,11 +834,37 @@ async function displayIntegratedReview(review, patchContent) {
 
   // Render quality scorecard if metrics are available
   if (reviewMetricsContainer) {
+    // Clean up previous scorecard event listeners before clearing
+    const previousScorecard = reviewMetricsContainer.querySelector('.thinkreview-quality-scorecard');
+    if (previousScorecard && typeof previousScorecard._cleanupMetricListeners === 'function') {
+      previousScorecard._cleanupMetricListeners();
+    }
+    
     reviewMetricsContainer.innerHTML = ''; // Clear previous content
     if (review.metrics) {
       try {
         const scorecardModule = await import('./quality-scorecard.js');
-        const scorecardElement = scorecardModule.renderQualityScorecard(review.metrics);
+        
+        // Define metric click handler
+        const handleMetricClick = (metricName, score) => {
+          // Map metric names to user-friendly labels
+          const metricLabels = {
+            'overall': 'Overall',
+            'codeQuality': 'Code Quality',
+            'security': 'Security',
+            'bestPractices': 'Best Practices'
+          };
+          
+          const metricLabel = metricLabels[metricName] || metricName;
+          
+          // Format the query asking about the score
+          const query = `Why was the ${metricLabel} score ${score}? Can you explain what factors contributed to this score and provide specific recommendations on how to achieve a higher score?`;
+          
+          // Send the message to conversational review (scrolling is handled automatically by appendToChatLog)
+          handleSendMessage(query);
+        };
+        
+        const scorecardElement = scorecardModule.renderQualityScorecard(review.metrics, handleMetricClick);
         if (scorecardElement) {
           reviewMetricsContainer.appendChild(scorecardElement);
           reviewMetricsContainer.classList.remove('gl-hidden');
@@ -881,13 +907,51 @@ async function displayIntegratedReview(review, patchContent) {
   // Highlight code in summary
   applySimpleSyntaxHighlighting(reviewSummary);
 
-  const populateList = (element, items) => {
+  /**
+   * Helper function to extract plain text from HTML content
+   * @param {string} html - HTML string to extract text from
+   * @returns {string} Plain text content
+   */
+  const extractPlainText = (html) => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    return tempDiv.textContent || tempDiv.innerText || '';
+  };
+
+  const populateList = (element, items, category) => {
     element.innerHTML = ''; // Clear previous items
     if (items && items.length > 0) {
       items.forEach(item => {
         const li = document.createElement('li');
         // Parse markdown so code fences become <pre><code> blocks
-        li.innerHTML = markdownToHtml(preprocessAIResponse(String(item || '')));
+        const itemHtml = markdownToHtml(preprocessAIResponse(String(item || '')));
+        li.innerHTML = itemHtml;
+        
+        // Make the item clickable
+        li.classList.add('thinkreview-clickable-item');
+        li.style.cursor = 'pointer';
+        
+        // Add click handler
+        li.addEventListener('click', () => {
+          // Extract plain text from the item
+          const itemText = extractPlainText(itemHtml).trim();
+          
+          // Format the query based on category
+          let query = '';
+          if (category === 'suggestion') {
+            query = `Can you provide more details about this suggestion? ${itemText}`;
+          } else if (category === 'security') {
+            query = `Can you provide more details about this security issue? ${itemText}`;
+          } else if (category === 'practice') {
+            query = `Can you provide more details about this best practice? ${itemText}`;
+          } else {
+            query = `Can you provide more details about this? ${itemText}`;
+          }
+          
+          // Send the message to conversational review (scrolling is handled automatically by appendToChatLog)
+          handleSendMessage(query);
+        });
+        
         element.appendChild(li);
       });
       element.closest('.gl-mb-4').classList.remove('gl-hidden');
@@ -896,9 +960,9 @@ async function displayIntegratedReview(review, patchContent) {
     }
   };
 
-  populateList(reviewSuggestions, review.suggestions);
-  populateList(reviewSecurity, review.securityIssues);
-  populateList(reviewPractices, review.bestPractices);
+  populateList(reviewSuggestions, review.suggestions, 'suggestion');
+  populateList(reviewSecurity, review.securityIssues, 'security');
+  populateList(reviewPractices, review.bestPractices, 'practice');
   // Highlight code within lists and entire scroll container
   const scrollContainer = document.getElementById('review-scroll-container');
   applySimpleSyntaxHighlighting(scrollContainer);
@@ -1016,7 +1080,7 @@ async function displayIntegratedReview(review, patchContent) {
         chatInput.value = question;
         updateCharCounter();
         
-        // Automatically send the message
+        // Automatically send the message (scrolling is handled automatically by appendToChatLog)
         sendMessage();
         
         // Optional: Remove the button after clicking to avoid duplicate questions

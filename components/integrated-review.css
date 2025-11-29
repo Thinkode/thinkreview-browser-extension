@@ -944,6 +944,43 @@
   margin-bottom: 4px;
 }
 
+/* Clickable list items styling */
+#gitlab-mr-integrated-review .thinkreview-clickable-item {
+  cursor: pointer;
+  transition: background-color 0.2s ease, padding-left 0.2s ease;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: 2px 0;
+  position: relative;
+}
+
+#gitlab-mr-integrated-review .thinkreview-clickable-item:hover {
+  background-color: rgba(107, 79, 187, 0.2);
+  padding-left: 12px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-clickable-item::after {
+  content: '💬';
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  margin-left: 8px;
+  font-size: 0.9em;
+}
+
+#gitlab-mr-integrated-review .thinkreview-clickable-item:hover::after {
+  opacity: 0.6;
+}
+
+/* Azure DevOps specific clickable item styling */
+#gitlab-mr-integrated-review.azure-devops-platform .thinkreview-clickable-item:hover {
+  background-color: rgba(107, 79, 187, 0.3);
+}
+
+/* Ensure clickable items maintain list-item display */
+#gitlab-mr-integrated-review .thinkreview-clickable-item {
+  display: list-item !important;
+}
+
 #gitlab-mr-integrated-review .thinkreview-card-title {
   margin: 0;
   font-size: 16px;
@@ -1542,6 +1579,78 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login
 
 #gitlab-mr-integrated-review .thinkreview-progress-fill.score-poor {
   background-color: #c9190b;
+}
+
+/* Clickable metrics styling */
+#gitlab-mr-integrated-review .thinkreview-clickable-metric {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+/* Overall score circle clickable styling */
+#gitlab-mr-integrated-review .thinkreview-score-circle.thinkreview-clickable-metric {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle.thinkreview-clickable-metric:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(107, 79, 187, 0.3);
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle.thinkreview-clickable-metric:active {
+  transform: scale(1.02);
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle.thinkreview-clickable-metric::after {
+  content: '💬';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  font-size: 16px;
+  background-color: rgba(107, 79, 187, 0.9);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#gitlab-mr-integrated-review .thinkreview-score-circle.thinkreview-clickable-metric:hover::after {
+  opacity: 1;
+}
+
+/* Metric item clickable styling */
+#gitlab-mr-integrated-review .thinkreview-metric-item.thinkreview-clickable-metric {
+  padding: 8px;
+  border-radius: 6px;
+  margin: -8px;
+  position: relative;
+}
+
+#gitlab-mr-integrated-review .thinkreview-metric-item.thinkreview-clickable-metric:hover {
+  background-color: rgba(107, 79, 187, 0.15);
+  transform: translateX(4px);
+}
+
+#gitlab-mr-integrated-review .thinkreview-metric-item.thinkreview-clickable-metric:active {
+  transform: translateX(2px);
+}
+
+/* Add a subtle indicator on hover without interfering with layout */
+#gitlab-mr-integrated-review .thinkreview-metric-item.thinkreview-clickable-metric:hover .thinkreview-metric-label::after {
+  content: ' 💬';
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+/* Focus styles for keyboard navigation */
+#gitlab-mr-integrated-review .thinkreview-clickable-metric:focus {
+  outline: 2px solid rgba(107, 79, 187, 0.5);
+  outline-offset: 2px;
 }
 
 /* Dark theme support for scorecard */
