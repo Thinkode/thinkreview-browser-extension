@@ -268,6 +268,12 @@ class ReviewPrompt {
               </div>
             </div>
             
+            <div class="review-prompt-github-link">
+              <a href="https://github.com/Thinkode/thinkreview-browser-extension" target="_blank" rel="noopener noreferrer">
+                ⭐ Star us on GitHub
+              </a>
+            </div>
+            
             <div class="review-prompt-actions">
               <button id="review-prompt-dismiss" class="review-prompt-btn review-prompt-btn-secondary">Maybe Later</button>
               <button id="review-prompt-submit" class="review-prompt-btn review-prompt-btn-primary" disabled>Submit</button>
