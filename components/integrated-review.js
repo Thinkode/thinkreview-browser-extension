@@ -857,100 +857,62 @@ function setupFeedbackButtons(container, aiResponse, reviewId) {
     
     // Add selected state to clicked button
     selectedBtn.classList.add('selected');
-    
-    // Disable both buttons to prevent multiple submissions
-    if (thumbsUpBtn) thumbsUpBtn.disabled = true;
-    if (thumbsDownBtn) thumbsDownBtn.disabled = true;
   };
   
   const handleFeedback = async (rating, clickedBtn) => {
     // Mark button as selected immediately for visual feedback
     setButtonSelected(clickedBtn, rating === 'thumbs_up' ? thumbsDownBtn : thumbsUpBtn);
     
-    // Get user email
-    const userData = await new Promise((resolve) => {
-      chrome.storage.local.get(['userData'], (result) => {
-        resolve(result.userData);
-      });
-    });
-    
-    if (!userData || !userData.email) {
-      console.warn('[IntegratedReview] User not logged in, cannot submit feedback');
-      // Re-enable buttons if submission failed
-      if (thumbsUpBtn) thumbsUpBtn.disabled = false;
-      if (thumbsDownBtn) thumbsDownBtn.disabled = false;
-      clickedBtn.classList.remove('selected');
-      return;
-    }
-    
-    let additionalFeedback = null;
-    
-    // If thumbs down, show popup for additional feedback
-    if (rating === 'thumbs_down') {
-      return new Promise((resolve) => {
+    // Get user email (fire-and-forget, don't block UI)
+    chrome.storage.local.get(['userData'], (result) => {
+      const userData = result.userData;
+      
+      if (!userData || !userData.email) {
+        console.warn('[IntegratedReview] User not logged in, cannot submit feedback');
+        // Remove selection if user not logged in
+        clickedBtn.classList.remove('selected');
+        return;
+      }
+      
+      let additionalFeedback = null;
+      
+      // If thumbs down, show popup for additional feedback
+      if (rating === 'thumbs_down') {
         showFeedbackPopup(aiResponse, reviewId, (feedbackText) => {
           additionalFeedback = feedbackText || null;
-          submitFeedback(userData.email, reviewId, aiResponse, rating, additionalFeedback, () => {
-            // Success callback - button already marked as selected
-            resolve();
-          }, () => {
-            // Error callback - re-enable buttons
-            if (thumbsUpBtn) thumbsUpBtn.disabled = false;
-            if (thumbsDownBtn) thumbsDownBtn.disabled = false;
-            clickedBtn.classList.remove('selected');
-            resolve();
-          });
+          // Fire-and-forget: submit feedback without blocking
+          submitFeedback(userData.email, reviewId, aiResponse, rating, additionalFeedback);
         });
-      });
-    } else {
-      // Thumbs up - submit directly
-      await submitFeedback(userData.email, reviewId, aiResponse, rating, additionalFeedback, () => {
-        // Success callback - button already marked as selected
-      }, () => {
-        // Error callback - re-enable buttons
-        if (thumbsUpBtn) thumbsUpBtn.disabled = false;
-        if (thumbsDownBtn) thumbsDownBtn.disabled = false;
-        clickedBtn.classList.remove('selected');
-      });
-    }
+      } else {
+        // Thumbs up - submit directly (fire-and-forget)
+        submitFeedback(userData.email, reviewId, aiResponse, rating, additionalFeedback);
+      }
+    });
   };
   
   if (thumbsUpBtn) {
     thumbsUpBtn.addEventListener('click', () => {
-      handleFeedback('thumbs_up', thumbsUpBtn).catch(err => {
-        console.error('[IntegratedReview] Error handling feedback:', err);
-        // Re-enable buttons on error
-        if (thumbsUpBtn) thumbsUpBtn.disabled = false;
-        if (thumbsDownBtn) thumbsDownBtn.disabled = false;
-        thumbsUpBtn.classList.remove('selected');
-      });
+      handleFeedback('thumbs_up', thumbsUpBtn);
     });
   }
   
   if (thumbsDownBtn) {
     thumbsDownBtn.addEventListener('click', () => {
-      handleFeedback('thumbs_down', thumbsDownBtn).catch(err => {
-        console.error('[IntegratedReview] Error handling feedback:', err);
-        // Re-enable buttons on error
-        if (thumbsUpBtn) thumbsUpBtn.disabled = false;
-        if (thumbsDownBtn) thumbsDownBtn.disabled = false;
-        thumbsDownBtn.classList.remove('selected');
-      });
+      handleFeedback('thumbs_down', thumbsDownBtn);
     });
   }
 }
 
 /**
- * Submits feedback to cloud function
+ * Submits feedback to cloud function (fire-and-forget)
  * @param {string} email - User email
  * @param {string} reviewId - Review ID (null for conversation feedback)
  * @param {string} aiResponse - AI response text for querying conversation (null for initial review feedback)
  * @param {string} rating - 'thumbs_up' or 'thumbs_down'
  * @param {string} additionalFeedback - Additional feedback text (optional)
- * @param {Function} onSuccess - Success callback
- * @param {Function} onError - Error callback
  */
-function submitFeedback(email, reviewId, aiResponse, rating, additionalFeedback, onSuccess, onError) {
+function submitFeedback(email, reviewId, aiResponse, rating, additionalFeedback) {
+  // Fire-and-forget: send message without waiting for response
   chrome.runtime.sendMessage(
     {
       type: 'SUBMIT_REVIEW_FEEDBACK',
@@ -961,18 +923,16 @@ function submitFeedback(email, reviewId, aiResponse, rating, additionalFeedback,
       additionalFeedback
     },
     (response) => {
+      // Silently handle response (fire-and-forget)
       if (chrome.runtime.lastError) {
-        console.error('[IntegratedReview] Error submitting feedback:', chrome.runtime.lastError);
-        if (onError) onError();
+        console.warn('[IntegratedReview] Error submitting feedback (fire-and-forget):', chrome.runtime.lastError);
         return;
       }
       
       if (response && response.success) {
-        console.log('[IntegratedReview] Feedback submitted successfully');
-        if (onSuccess) onSuccess();
+        console.log('[IntegratedReview] Feedback submitted successfully (fire-and-forget)');
       } else {
-        console.error('[IntegratedReview] Failed to submit feedback:', response?.error);
-        if (onError) onError();
+        console.warn('[IntegratedReview] Failed to submit feedback (fire-and-forget):', response?.error);
       }
     }
   );
