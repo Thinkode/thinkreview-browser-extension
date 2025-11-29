@@ -70,6 +70,38 @@
   text-align: center;
 }
 
+/* GitHub Link */
+#review-prompt .review-prompt-github-link {
+  margin: 16px 0 12px 0;
+  text-align: center;
+}
+
+#review-prompt .review-prompt-github-link a {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#review-prompt .review-prompt-github-link a:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+#review-prompt .review-prompt-github-link a:active {
+  transform: translateY(0);
+}
+
 /* Star Rating Container */
 #review-prompt .star-rating-container {
   display: flex;

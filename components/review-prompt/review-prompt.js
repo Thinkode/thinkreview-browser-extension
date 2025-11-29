@@ -24,6 +24,8 @@ class ReviewPrompt {
     this.config = { ...REVIEW_PROMPT_CONFIG, ...config };
     this.isInitialized = false;
     this.eventListeners = new Map();
+    this.messages = null; // Cache for fetched messages
+    this.messagesFetchPromise = null; // Promise to prevent concurrent fetches
   }
 
   /**
@@ -123,7 +125,7 @@ class ReviewPrompt {
       
       if (this.shouldShow(reviewCount, lastFeedbackPromptInteraction)) {
         dbgLog('[ReviewPrompt] Conditions met, showing prompt');
-        this.show(reviewCount);
+        await this.show(reviewCount);
         return true;
       } else {
         dbgLog('[ReviewPrompt] Conditions not met, not showing prompt');
@@ -140,11 +142,20 @@ class ReviewPrompt {
    * Show the review prompt
    * @param {number} reviewCount - The current review count to display
    */
-  show(reviewCount = this.config.threshold) {
+  async show(reviewCount = this.config.threshold) {
     const container = document.getElementById(this.containerId);
     if (!container) {
       dbgWarn('[ReviewPrompt] Container not found:', this.containerId);
       return;
+    }
+
+    // Fetch messages asynchronously (will use cache if already fetched)
+    // This is non-blocking - if fetch fails, will use fallback messages
+    try {
+      await this.fetchMessages();
+    } catch (error) {
+      dbgWarn('[ReviewPrompt] Failed to fetch messages, using fallbacks:', error);
+      // Continue with fallback messages
     }
 
     // Create the prompt HTML if it doesn't exist
@@ -176,11 +187,34 @@ class ReviewPrompt {
   }
 
   /**
+   * Escape HTML to prevent XSS
+   * @param {string} text - Text to escape
+   * @returns {string} - Escaped HTML
+   */
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  /**
    * Create the review prompt HTML element
    * @param {number} reviewCount - The current review count to display
    * @returns {HTMLElement} - The prompt element
    */
   createPromptElement(reviewCount = this.config.threshold) {
+    // Fallback messages (hardcoded defaults)
+    const DEFAULT_SUBTITLE = "We'd love to hear your feedback about ThinkReview";
+    const DEFAULT_QUESTION = "Please spend a minute to rate our extension";
+    
+    // Use fetched messages if available, otherwise use fallbacks
+    const subtitle = (this.messages && this.messages.subtitle) ? this.messages.subtitle : DEFAULT_SUBTITLE;
+    const question = (this.messages && this.messages.question) ? this.messages.question : DEFAULT_QUESTION;
+    
+    // Escape HTML to prevent XSS
+    const escapedSubtitle = this.escapeHtml(subtitle);
+    const escapedQuestion = this.escapeHtml(question);
+    
     const promptDiv = document.createElement('div');
     promptDiv.id = 'review-prompt';
     promptDiv.className = 'gl-hidden';
@@ -190,12 +224,12 @@ class ReviewPrompt {
           <div class="review-prompt-header">
             <div class="review-prompt-icon">🎉</div>
             <div>
-              <p class="review-prompt-subtitle">We'd love to hear your feedback about ThinkReview</p>
+              <p class="review-prompt-subtitle">${escapedSubtitle}</p>
             </div>
           </div>
           
           <div class="review-prompt-content">
-            <p class="review-prompt-question">Please spend a minute to rate our extension</p>
+            <p class="review-prompt-question">${escapedQuestion}</p>
             
             <div class="star-rating-container">
               <div class="star-rating" data-rating="0">
@@ -232,6 +266,12 @@ class ReviewPrompt {
                 <span class="rating-label" data-rating="4">Very Good</span>
                 <span class="rating-label" data-rating="5">Excellent</span>
               </div>
+            </div>
+            
+            <div class="review-prompt-github-link">
+              <a href="https://github.com/Thinkode/thinkreview-browser-extension" target="_blank" rel="noopener noreferrer">
+                ⭐ Star us on GitHub
+              </a>
             </div>
             
             <div class="review-prompt-actions">
@@ -654,6 +694,70 @@ class ReviewPrompt {
       dbgWarn('[ReviewPrompt] Error tracking interaction:', error);
       // Don't throw the error to avoid disrupting the user experience
     }
+  }
+
+  /**
+   * Fetch review prompt messages from cloud function
+   * @returns {Promise<Object|null>} - Promise that resolves with messages object { subtitle, question } or null if failed
+   */
+  async fetchMessages() {
+    // Return cached messages if available
+    if (this.messages) {
+      dbgLog('[ReviewPrompt] Using cached messages');
+      return this.messages;
+    }
+
+    // If already fetching, return the existing promise
+    if (this.messagesFetchPromise) {
+      dbgLog('[ReviewPrompt] Already fetching messages, waiting...');
+      return this.messagesFetchPromise;
+    }
+
+    // Create new fetch promise
+    this.messagesFetchPromise = (async () => {
+      try {
+        dbgLog('[ReviewPrompt] Fetching messages from cloud function');
+        
+        // Get user email
+        const email = await this.getUserEmail();
+        if (!email) {
+          dbgWarn('[ReviewPrompt] Cannot fetch messages: No user email available');
+          return null;
+        }
+
+        // Ensure CloudService is available
+        if (!window.CloudService) {
+          try {
+            const module = await import(chrome.runtime.getURL('services/cloud-service.js'));
+            window.CloudService = module.CloudService;
+            dbgLog('[ReviewPrompt] CloudService loaded dynamically');
+          } catch (importError) {
+            dbgWarn('[ReviewPrompt] Failed to load CloudService:', importError);
+            return null;
+          }
+        }
+
+        // Fetch messages via CloudService
+        const messages = await window.CloudService.getReviewPromptMessages(email);
+        
+        if (messages && messages.subtitle && messages.question) {
+          this.messages = messages;
+          dbgLog('[ReviewPrompt] Messages fetched successfully:', messages);
+          return messages;
+        } else {
+          dbgWarn('[ReviewPrompt] Invalid messages format received');
+          return null;
+        }
+      } catch (error) {
+        dbgWarn('[ReviewPrompt] Error fetching messages:', error);
+        return null;
+      } finally {
+        // Clear the fetch promise
+        this.messagesFetchPromise = null;
+      }
+    })();
+
+    return this.messagesFetchPromise;
   }
 
   /**
