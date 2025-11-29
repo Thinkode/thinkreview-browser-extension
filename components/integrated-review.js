@@ -74,7 +74,6 @@ initReviewPromptComponent();
 // Conversation history
 let conversationHistory = [];
 let currentPatchContent = '';
-let currentReviewId = null; // Store reviewId for feedback
 
 // Enhanced loader functionality
 let loaderStageInterval = null;
@@ -754,11 +753,10 @@ function appendToChatLog(sender, message, aiResponseText = null) {
 /**
  * Creates and shows feedback popup for thumbs down
  * @param {string} aiResponse - AI response text (null for initial review)
- * @param {string} reviewId - Review ID (null if using text query)
- * @param {string} reviewSummary - Review summary text (null for conversations)
+ * @param {string} mrUrl - MR URL for querying code review (null for conversations)
  * @param {Function} onSubmit - Callback when feedback is submitted
  */
-function showFeedbackPopup(aiResponse, reviewId, reviewSummary, onSubmit) {
+function showFeedbackPopup(aiResponse, mrUrl, onSubmit) {
   // Remove existing popup if any
   const existingPopup = document.getElementById('thinkreview-feedback-popup');
   if (existingPopup) {
@@ -845,10 +843,9 @@ function showFeedbackPopup(aiResponse, reviewId, reviewSummary, onSubmit) {
  * Sets up feedback button handlers
  * @param {HTMLElement} container - Container element with feedback buttons
  * @param {string} aiResponse - AI response text for querying conversation (null for initial review)
- * @param {string} reviewId - Review ID (null if using text query)
- * @param {string} reviewSummary - Review summary text for querying initial review (null for conversations)
+ * @param {string} mrUrl - MR URL for querying code review (null for conversations)
  */
-function setupFeedbackButtons(container, aiResponse, reviewId, reviewSummary = null) {
+function setupFeedbackButtons(container, aiResponse, mrUrl = null) {
   const thumbsUpBtn = container.querySelector('.thinkreview-thumbs-up-btn');
   const thumbsDownBtn = container.querySelector('.thinkreview-thumbs-down-btn');
   
@@ -878,16 +875,19 @@ function setupFeedbackButtons(container, aiResponse, reviewId, reviewSummary = n
       
       let additionalFeedback = null;
       
+      // Determine feedback type based on which parameter is provided
+      const feedbackType = mrUrl ? 'codereview' : 'conversation';
+      
       // If thumbs down, show popup for additional feedback
       if (rating === 'thumbs_down') {
-        showFeedbackPopup(aiResponse, reviewId, reviewSummary, (feedbackText) => {
+        showFeedbackPopup(aiResponse, mrUrl, (feedbackText) => {
           additionalFeedback = feedbackText || null;
           // Fire-and-forget: submit feedback without blocking
-          submitFeedback(userData.email, reviewId, aiResponse, reviewSummary, rating, additionalFeedback);
+          submitFeedback(userData.email, feedbackType, aiResponse, mrUrl, rating, additionalFeedback);
         });
       } else {
         // Thumbs up - submit directly (fire-and-forget)
-        submitFeedback(userData.email, reviewId, aiResponse, reviewSummary, rating, additionalFeedback);
+        submitFeedback(userData.email, feedbackType, aiResponse, mrUrl, rating, additionalFeedback);
       }
     });
   };
@@ -908,35 +908,49 @@ function setupFeedbackButtons(container, aiResponse, reviewId, reviewSummary = n
 /**
  * Submits feedback to cloud function (fire-and-forget)
  * @param {string} email - User email
- * @param {string} reviewId - Review ID (null if using text query)
- * @param {string} aiResponse - AI response text for querying conversation (null for initial review feedback)
- * @param {string} reviewSummary - Review summary text for querying initial review (null for conversations)
+ * @param {string} feedbackType - Document type: 'conversation' or 'codereview'
+ * @param {string} aiResponse - AI response text for querying conversation (required for conversation type)
+ * @param {string} mrUrl - MR URL for querying code review (required for codereview type)
  * @param {string} rating - 'thumbs_up' or 'thumbs_down'
  * @param {string} additionalFeedback - Additional feedback text (optional)
  */
-function submitFeedback(email, reviewId, aiResponse, reviewSummary, rating, additionalFeedback) {
+function submitFeedback(email, feedbackType, aiResponse, mrUrl, rating, additionalFeedback) {
+  // Log what we're sending for debugging
+  console.log('[IntegratedReview] Submitting feedback:', {
+    hasEmail: !!email,
+    feedbackType,
+    hasAiResponse: !!aiResponse,
+    hasMrUrl: !!mrUrl,
+    rating
+  });
+  
   // Fire-and-forget: send message without waiting for response
   chrome.runtime.sendMessage(
     {
       type: 'SUBMIT_REVIEW_FEEDBACK',
       email,
-      reviewId,
+      feedbackType: feedbackType,
       aiResponse,
-      reviewSummary,
+      mrUrl,
       rating,
       additionalFeedback
     },
     (response) => {
       // Silently handle response (fire-and-forget)
       if (chrome.runtime.lastError) {
-        console.warn('[IntegratedReview] Error submitting feedback (fire-and-forget):', chrome.runtime.lastError);
+        const errorMsg = chrome.runtime.lastError.message || 
+                        (typeof chrome.runtime.lastError === 'string' ? chrome.runtime.lastError : JSON.stringify(chrome.runtime.lastError));
+        console.warn('[IntegratedReview] Error submitting feedback (fire-and-forget):', errorMsg);
         return;
       }
       
       if (response && response.success) {
         console.log('[IntegratedReview] Feedback submitted successfully (fire-and-forget)');
       } else {
-        console.warn('[IntegratedReview] Failed to submit feedback (fire-and-forget):', response?.error);
+        const errorMsg = response?.error || 
+                        (response?.message) ||
+                        (typeof response === 'string' ? response : JSON.stringify(response));
+        console.warn('[IntegratedReview] Failed to submit feedback (fire-and-forget):', errorMsg);
       }
     }
   );
@@ -1231,16 +1245,18 @@ async function displayIntegratedReview(review, patchContent) {
   }
 
   // Show initial review feedback buttons
-  // Use review summary text to query the review document (similar to aiResponse for conversations)
+  // Use mrUrl to query the review document
   const initialFeedbackContainer = document.getElementById('initial-review-feedback-container');
   if (initialFeedbackContainer) {
-    // Use review summary as identifier (first 200 chars) to query the review document
-    const reviewSummaryText = review.summary ? review.summary.substring(0, 200) : null;
-    if (reviewSummaryText) {
+    // Get the full MR/PR URL
+    const mrUrl = window.location.href;
+    
+    if (mrUrl) {
       initialFeedbackContainer.classList.remove('gl-hidden');
-      // Pass reviewSummaryText as the identifier (null for aiResponse and reviewId)
-      setupFeedbackButtons(initialFeedbackContainer, null, null, reviewSummaryText);
+      // Pass mrUrl as the identifier (null for aiResponse)
+      setupFeedbackButtons(initialFeedbackContainer, null, mrUrl);
     } else {
+      console.warn('[IntegratedReview] Cannot get mrUrl');
       initialFeedbackContainer.classList.add('gl-hidden');
     }
   }

@@ -612,23 +612,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   // Handle feedback submission request
   if (message.type === 'SUBMIT_REVIEW_FEEDBACK') {
-    const { email, reviewId, aiResponse, reviewSummary, rating, additionalFeedback } = message;
+    const { email, feedbackType, aiResponse, mrUrl, rating, additionalFeedback } = message;
     
     (async () => {
       try {
         dbgLog('[GitLab MR Reviews][BG] Submitting feedback:', { 
-          hasEmail: !!email, 
-          reviewId, 
+          hasEmail: !!email,
+          feedbackType,
           hasAiResponse: !!aiResponse,
-          hasReviewSummary: !!reviewSummary,
+          hasMrUrl: !!mrUrl,
           rating 
         });
         
         const data = await CloudService.submitReviewFeedback(
           email,
-          reviewId,
+          feedbackType,
           aiResponse,
-          reviewSummary,
+          mrUrl,
           rating,
           additionalFeedback
         );

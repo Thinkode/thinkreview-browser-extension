@@ -1192,19 +1192,19 @@ export class CloudService {
   /**
    * Submit feedback for a review or conversation
    * @param {string} email - User's email (required)
-   * @param {string} [reviewId] - Review document ID (required if aiResponse and reviewSummary not provided)
-   * @param {string} [aiResponse] - AI response text to query conversation document (for conversations)
-   * @param {string} [reviewSummary] - Review summary text to query review document (for initial reviews)
+   * @param {string} type - Document type: 'conversation' or 'codereview' (required)
+   * @param {string} [aiResponse] - AI response text to query conversation document (required for conversation type)
+   * @param {string} [mrUrl] - MR URL to query code review document (required for codereview type)
    * @param {string} rating - Feedback rating: 'thumbs_up' or 'thumbs_down' (required)
    * @param {string} [additionalFeedback] - Additional feedback text (optional, only for thumbs_down)
    * @returns {Promise<Object>} - Response from the backend
    */
-  static async submitReviewFeedback(email, reviewId, aiResponse, reviewSummary, rating, additionalFeedback = null) {
+  static async submitReviewFeedback(email, type, aiResponse, mrUrl, rating, additionalFeedback = null) {
     dbgLog('[CloudService] Submitting review feedback:', { 
       email, 
-      reviewId, 
+      type,
       hasAiResponse: !!aiResponse,
-      hasReviewSummary: !!reviewSummary,
+      hasMrUrl: !!mrUrl,
       rating 
     });
     
@@ -1213,9 +1213,19 @@ export class CloudService {
       throw new Error('Email is required');
     }
 
-    if (!reviewId && !aiResponse && !reviewSummary) {
-      dbgWarn('[CloudService] Cannot submit feedback: Missing reviewId, aiResponse, or reviewSummary');
-      throw new Error('Either reviewId, aiResponse, or reviewSummary is required');
+    if (!type || (type !== 'conversation' && type !== 'codereview')) {
+      dbgWarn('[CloudService] Cannot submit feedback: Invalid type');
+      throw new Error('Type must be "conversation" or "codereview"');
+    }
+
+    if (type === 'codereview' && !mrUrl) {
+      dbgWarn('[CloudService] Cannot submit feedback: Missing mrUrl for codereview type');
+      throw new Error('mrUrl is required for codereview type');
+    }
+
+    if (type === 'conversation' && !aiResponse) {
+      dbgWarn('[CloudService] Cannot submit feedback: Missing aiResponse for conversation type');
+      throw new Error('aiResponse is required for conversation type');
     }
 
     if (!rating || (rating !== 'thumbs_up' && rating !== 'thumbs_down')) {
@@ -1226,17 +1236,16 @@ export class CloudService {
     try {
       const payload = {
         email,
+        type,
         rating,
         additionalFeedback: rating === 'thumbs_down' ? (additionalFeedback || null) : null
       };
 
-      // Add reviewId, aiResponse, or reviewSummary to payload
-      if (reviewId) {
-        payload.reviewId = reviewId;
-      } else if (aiResponse) {
+      // Add aiResponse or mrUrl based on type
+      if (type === 'conversation') {
         payload.aiResponse = aiResponse;
-      } else if (reviewSummary) {
-        payload.reviewSummary = reviewSummary;
+      } else if (type === 'codereview') {
+        payload.mrUrl = mrUrl;
       }
 
       dbgLog('[CloudService] Sending feedback request:', payload);
