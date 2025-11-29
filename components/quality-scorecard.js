@@ -132,6 +132,9 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
     </div>
   `;
 
+  // Store references to event listeners and handlers for cleanup
+  const eventListeners = [];
+
   // Add click handlers if callback is provided
   if (onMetricClick) {
     const clickableMetrics = container.querySelectorAll('.thinkreview-clickable-metric');
@@ -143,17 +146,36 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
         onMetricClick(metricName, score);
       };
       
-      element.addEventListener('click', handleClick);
-      
-      // Support keyboard navigation
-      element.addEventListener('keydown', (e) => {
+      const handleKeydown = (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           handleClick();
         }
+      };
+      
+      element.addEventListener('click', handleClick);
+      element.addEventListener('keydown', handleKeydown);
+      
+      // Store references for cleanup
+      eventListeners.push({
+        element,
+        handlers: [
+          { event: 'click', handler: handleClick },
+          { event: 'keydown', handler: handleKeydown }
+        ]
       });
     });
   }
+
+  // Attach cleanup function to container for easy access
+  container._cleanupMetricListeners = () => {
+    eventListeners.forEach(({ element, handlers }) => {
+      handlers.forEach(({ event, handler }) => {
+        element.removeEventListener(event, handler);
+      });
+    });
+    eventListeners.length = 0; // Clear the array
+  };
 
   return container;
 }

@@ -834,6 +834,12 @@ async function displayIntegratedReview(review, patchContent) {
 
   // Render quality scorecard if metrics are available
   if (reviewMetricsContainer) {
+    // Clean up previous scorecard event listeners before clearing
+    const previousScorecard = reviewMetricsContainer.querySelector('.thinkreview-quality-scorecard');
+    if (previousScorecard && typeof previousScorecard._cleanupMetricListeners === 'function') {
+      previousScorecard._cleanupMetricListeners();
+    }
+    
     reviewMetricsContainer.innerHTML = ''; // Clear previous content
     if (review.metrics) {
       try {
