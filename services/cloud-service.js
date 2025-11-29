@@ -1193,8 +1193,8 @@ export class CloudService {
    * Submit feedback for a review or conversation
    * @param {string} email - User's email (required)
    * @param {string} type - Document type: 'conversation' or 'codereview' (required)
-   * @param {string} [aiResponse] - AI response text to query conversation document (required for conversation type)
-   * @param {string} [mrUrl] - MR URL to query code review document (required for codereview type)
+   * @param {string} aiResponse - AI response text to query conversation document (required when type is 'conversation')
+   * @param {string} mrUrl - MR URL to query code review document (required when type is 'codereview')
    * @param {string} rating - Feedback rating: 'thumbs_up' or 'thumbs_down' (required)
    * @param {string} [additionalFeedback] - Additional feedback text (optional, only for thumbs_down)
    * @returns {Promise<Object>} - Response from the backend
