@@ -1082,6 +1082,11 @@ async function displayIntegratedReview(review, patchContent) {
         // Automatically send the message
         sendMessage();
         
+        // Scroll to chat area after a short delay to ensure message is appended
+        setTimeout(() => {
+          scrollToChatArea();
+        }, 200);
+        
         // Optional: Remove the button after clicking to avoid duplicate questions
         button.style.opacity = '0.5';
         button.disabled = true;
