@@ -937,8 +937,10 @@ async function displayIntegratedReview(review, patchContent) {
   currentPatchContent = patchContent;
   const initialPrompt = `This is an AI code review. The summary is: "${review.summary}". I can answer questions about the suggestions, security issues, and best practices mentioned in the review. What would you like to know?`;
   
+  // Initialize conversation history without the patch content
+  // The patch is sent separately as patchContent, so we don't need it in the conversation history
   conversationHistory = [
-    { role: 'user', content: `Perform a code review on the following patch:\n\n${patchContent}` },
+    { role: 'user', content: 'Please perform a code review on the patch.' },
     { role: 'model', content: JSON.stringify(review) } // Store full review for context
   ];
 
