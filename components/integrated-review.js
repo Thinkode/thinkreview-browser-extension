@@ -950,7 +950,7 @@ async function displayIntegratedReview(review, patchContent) {
         li.style.cursor = 'pointer';
         
         // Add click handler
-        li.addEventListener('click', async () => {
+        li.addEventListener('click', () => {
           // Extract plain text from the item
           const itemText = extractPlainText(itemHtml).trim();
           
