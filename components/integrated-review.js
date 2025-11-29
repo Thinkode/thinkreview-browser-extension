@@ -854,13 +854,8 @@ async function displayIntegratedReview(review, patchContent) {
           // Format the query asking about the score
           const query = `Why was the ${metricLabel} score ${score}? Can you explain what factors contributed to this score and provide specific recommendations on how to achieve a higher score?`;
           
-          // Send the message to conversational review
+          // Send the message to conversational review (scrolling is handled automatically by appendToChatLog)
           handleSendMessage(query);
-          
-          // Scroll to chat area after a short delay to ensure message is appended
-          setTimeout(() => {
-            scrollToChatArea();
-          }, 200);
         };
         
         const scorecardElement = scorecardModule.renderQualityScorecard(review.metrics, handleMetricClick);
@@ -917,25 +912,6 @@ async function displayIntegratedReview(review, patchContent) {
     return tempDiv.textContent || tempDiv.innerText || '';
   };
 
-  /**
-   * Scrolls to the chat log area smoothly
-   */
-  const scrollToChatArea = () => {
-    const chatLog = document.getElementById('chat-log');
-    const reviewScrollContainer = document.getElementById('review-scroll-container');
-    if (chatLog && reviewScrollContainer) {
-      // Scroll to the chat log element
-      setTimeout(() => {
-        chatLog.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        // Also ensure the scroll container scrolls to bottom
-        reviewScrollContainer.scrollTo({
-          top: reviewScrollContainer.scrollHeight,
-          behavior: 'smooth'
-        });
-      }, 100);
-    }
-  };
-
   const populateList = (element, items, category) => {
     element.innerHTML = ''; // Clear previous items
     if (items && items.length > 0) {
@@ -966,14 +942,8 @@ async function displayIntegratedReview(review, patchContent) {
             query = `Can you provide more details about this? ${itemText}`;
           }
           
-          // Send the message to conversational review (it already handles scrolling via appendToChatLog)
-          // But we'll also scroll to ensure visibility
+          // Send the message to conversational review (scrolling is handled automatically by appendToChatLog)
           handleSendMessage(query);
-          
-          // Scroll to chat area after a short delay to ensure message is appended
-          setTimeout(() => {
-            scrollToChatArea();
-          }, 200);
         });
         
         element.appendChild(li);
@@ -1104,13 +1074,8 @@ async function displayIntegratedReview(review, patchContent) {
         chatInput.value = question;
         updateCharCounter();
         
-        // Automatically send the message
+        // Automatically send the message (scrolling is handled automatically by appendToChatLog)
         sendMessage();
-        
-        // Scroll to chat area after a short delay to ensure message is appended
-        setTimeout(() => {
-          scrollToChatArea();
-        }, 200);
         
         // Optional: Remove the button after clicking to avoid duplicate questions
         button.style.opacity = '0.5';
