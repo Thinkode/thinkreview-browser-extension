@@ -266,6 +266,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Async response
   }
   
+  // Handle webapp auth state changes (from content script)
+  if (message.type === 'webapp-auth-changed') {
+    handleWebappAuthChanged(message, sender, sendResponse);
+    return true; // Async response
+  }
+  
+  // Handle webapp logout
+  if (message.type === 'webapp-auth-logout') {
+    handleWebappLogout(message, sender, sendResponse);
+    return true; // Async response
+  }
+  
   if (message.type === 'GET_AI_RESPONSE') {
     const { patchContent, conversationHistory, mrId, mrUrl, language } = message;
     (async () => {
@@ -761,6 +773,156 @@ async function handleLogout(sendResponse) {
     sendResponse({ success: true });
   } catch (error) {
     dbgWarn('Logout failed:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Handle webapp auth state changes
+ * SECURITY: Verifies sender origin before processing
+ */
+async function handleWebappAuthChanged(message, sender, sendResponse) {
+  try {
+    // SECURITY: Verify sender is from webapp domain
+    const ALLOWED_ORIGINS = [
+      'thinkreview.dev',
+      'portal.thinkreview.dev',
+      'app.thinkreview.dev',
+      'localhost',
+      '127.0.0.1'
+    ];
+    
+    if (!sender.url) {
+      dbgWarn('Webapp auth message missing sender URL');
+      sendResponse({ success: false, error: 'Invalid sender' });
+      return;
+    }
+    
+    const senderUrl = new URL(sender.url);
+    const isAllowedOrigin = ALLOWED_ORIGINS.some(origin => 
+      senderUrl.hostname === origin ||
+      senderUrl.hostname.includes(origin) || 
+      senderUrl.hostname.endsWith('.' + origin) ||
+      (origin === 'localhost' && (senderUrl.hostname === 'localhost' || senderUrl.hostname === '127.0.0.1'))
+    );
+    
+    if (!isAllowedOrigin) {
+      dbgWarn('Webapp auth message from unauthorized origin:', senderUrl.hostname);
+      sendResponse({ success: false, error: 'Unauthorized origin' });
+      return;
+    }
+    
+    // SECURITY: Validate user data structure
+    if (!message.userData || !message.userData.email || !message.userData.uid) {
+      dbgWarn('Webapp auth message missing required user data');
+      sendResponse({ success: false, error: 'Invalid user data' });
+      return;
+    }
+    
+    // SECURITY: Check timestamp freshness (optional, but recommended)
+    const MAX_AUTH_AGE = 5 * 60 * 1000; // 5 minutes
+    if (message.timestamp && (Date.now() - message.timestamp > MAX_AUTH_AGE)) {
+      dbgWarn('Webapp auth data is stale, ignoring');
+      sendResponse({ success: false, error: 'Stale auth data' });
+      return;
+    }
+    
+    dbgLog('Processing webapp auth change for user:', message.userData.email);
+    
+    // Sync user data with CloudService to get full user profile
+    try {
+      const syncedUser = await CloudService.syncUserData(message.userData);
+      const userData = syncedUser.data && syncedUser.data.currentUser ? 
+        syncedUser.data.currentUser : syncedUser;
+      
+      // Store in extension storage
+      await chrome.storage.local.set({ 
+        [AUTH_USER_KEY]: userData,
+        user: JSON.stringify(userData),
+        userData: userData,
+        authSource: 'webapp',
+        lastSynced: Date.now()
+      });
+      
+      dbgLog('Webapp auth synced successfully');
+      sendResponse({ success: true, user: userData });
+    } catch (syncError) {
+      dbgWarn('Failed to sync with CloudService, using basic user info:', syncError);
+      
+      // Fallback: store basic user info
+      await chrome.storage.local.set({ 
+        [AUTH_USER_KEY]: message.userData,
+        user: JSON.stringify(message.userData),
+        userData: message.userData,
+        authSource: 'webapp',
+        lastSynced: Date.now()
+      });
+      
+      sendResponse({ success: true, user: message.userData });
+    }
+  } catch (error) {
+    dbgWarn('Error handling webapp auth change:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Handle webapp logout
+ * SECURITY: Verifies sender origin before processing
+ */
+async function handleWebappLogout(message, sender, sendResponse) {
+  try {
+    // SECURITY: Verify sender is from webapp domain
+    const ALLOWED_ORIGINS = [
+      'thinkreview.dev',
+      'portal.thinkreview.dev',
+      'app.thinkreview.dev',
+      'web.app',
+      'firebaseapp.com',
+      'localhost',
+      '127.0.0.1'
+    ];
+    
+    if (!sender.url) {
+      dbgWarn('Webapp logout message missing sender URL');
+      sendResponse({ success: false, error: 'Invalid sender' });
+      return;
+    }
+    
+    const senderUrl = new URL(sender.url);
+    const isAllowedOrigin = ALLOWED_ORIGINS.some(origin => 
+      senderUrl.hostname === origin ||
+      senderUrl.hostname.includes(origin) || 
+      senderUrl.hostname.endsWith('.' + origin) ||
+      (origin === 'localhost' && (senderUrl.hostname === 'localhost' || senderUrl.hostname === '127.0.0.1'))
+    );
+    
+    if (!isAllowedOrigin) {
+      dbgWarn('Webapp logout message from unauthorized origin:', senderUrl.hostname);
+      sendResponse({ success: false, error: 'Unauthorized origin' });
+      return;
+    }
+    
+    dbgLog('Processing webapp logout');
+    
+    // Clear extension storage (but keep OAuth token if it exists from extension login)
+    // Only clear if auth source was webapp
+    const stored = await chrome.storage.local.get(['authSource', AUTH_TOKEN_KEY]);
+    
+    if (stored.authSource === 'webapp') {
+      // Clear all auth data if it came from webapp
+      await chrome.storage.local.remove([AUTH_USER_KEY, 'user', 'userData', 'authSource', 'lastSynced']);
+      dbgLog('Webapp auth data cleared');
+    } else {
+      // If user logged in via extension, keep that auth
+      // Just remove webapp-specific markers
+      await chrome.storage.local.remove(['authSource', 'lastSynced']);
+      dbgLog('Webapp logout processed, extension auth preserved');
+    }
+    
+    sendResponse({ success: true });
+  } catch (error) {
+    dbgWarn('Error handling webapp logout:', error);
     sendResponse({ success: false, error: error.message });
   }
 }

@@ -19,7 +19,12 @@
     "https://patch-diff.githubusercontent.com/*",
     "https://us-central1-thinkgpt.cloudfunctions.net/*",
     "https://dev.azure.com/*",
-    "https://*.visualstudio.com/*"
+    "https://*.visualstudio.com/*",
+    "https://thinkreview.dev/*",
+    "https://portal.thinkreview.dev/*",
+    "https://app.thinkreview.dev/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "optional_host_permissions": [
     "http://*:*/*",
@@ -37,6 +42,18 @@
     }
   },
   "content_scripts": [
+    {
+      "matches": [
+        "https://thinkreview.dev/*",
+        "https://portal.thinkreview.dev/*",
+        "https://app.thinkreview.dev/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": ["content-webapp-auth.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
   ],
   "icons": {
     "16": "images/icon16.png",
