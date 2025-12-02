@@ -79,40 +79,18 @@
     }
   }
   
-  /**
-   * Handles logout notification
-   */
-  function handleLogout() {
-    try {
-      chrome.runtime.sendMessage({
-        type: 'webapp-auth-logout',
-        origin: window.location.origin
-      }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.warn('[ThinkReview Extension] Failed to send logout message:', chrome.runtime.lastError);
-        } else if (response && response.success) {
-          console.log('[ThinkReview Extension] Logout synced to extension');
-        }
-      });
-    } catch (error) {
-      console.error('[ThinkReview Extension] Error sending logout message:', error);
-    }
-  }
-  
-  // Listen for custom events from webapp
+  // Listen for custom events from webapp (login only)
   window.addEventListener('thinkreview-auth-changed', (event) => {
     console.log('[ThinkReview Extension] Received auth-changed event:', event.detail);
     
-    if (event.detail === null) {
-      // Logout event
-      handleLogout();
-    } else {
+    // Only handle login events, ignore logout (event.detail === null)
+    if (event.detail !== null) {
       // Login/auth state change
       sendAuthToExtension(event.detail, Date.now());
     }
   });
   
-  // Listen for postMessage from webapp (backup method)
+  // Listen for postMessage from webapp (backup method, login only)
   window.addEventListener('message', (event) => {
     // SECURITY: Verify origin before processing
     if (!isAllowedOrigin || !event.origin.includes(currentOrigin.split('.').slice(-2).join('.'))) {
@@ -122,20 +100,12 @@
     if (event.data && event.data.type === 'thinkreview-auth-state') {
       console.log('[ThinkReview Extension] Received auth state via postMessage:', event.data);
       
-      if (event.data.userData === null) {
-        // Logout event
-        handleLogout();
-      } else {
+      // Only handle login events, ignore logout (event.data.userData === null)
+      if (event.data.userData !== null) {
         // Login/auth state change
         sendAuthToExtension(event.data.userData, event.data.timestamp);
       }
     }
-  });
-  
-  // Also listen for logout events
-  window.addEventListener('thinkreview-auth-logout', () => {
-    console.log('[ThinkReview Extension] Received auth-logout event');
-    handleLogout();
   });
   
   console.log('[ThinkReview Extension] Webapp auth listener initialized');
