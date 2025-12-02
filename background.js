@@ -272,12 +272,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Async response
   }
   
-  // Handle webapp logout
-  if (message.type === 'webapp-auth-logout') {
-    handleWebappLogout(message, sender, sendResponse);
-    return true; // Async response
-  }
-  
   if (message.type === 'GET_AI_RESPONSE') {
     const { patchContent, conversationHistory, mrId, mrUrl, language } = message;
     (async () => {
@@ -862,67 +856,6 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
     }
   } catch (error) {
     dbgWarn('Error handling webapp auth change:', error);
-    sendResponse({ success: false, error: error.message });
-  }
-}
-
-/**
- * Handle webapp logout
- * SECURITY: Verifies sender origin before processing
- */
-async function handleWebappLogout(message, sender, sendResponse) {
-  try {
-    // SECURITY: Verify sender is from webapp domain
-    const ALLOWED_ORIGINS = [
-      'thinkreview.dev',
-      'portal.thinkreview.dev',
-      'app.thinkreview.dev',
-      'web.app',
-      'firebaseapp.com',
-      'localhost',
-      '127.0.0.1'
-    ];
-    
-    if (!sender.url) {
-      dbgWarn('Webapp logout message missing sender URL');
-      sendResponse({ success: false, error: 'Invalid sender' });
-      return;
-    }
-    
-    const senderUrl = new URL(sender.url);
-    const isAllowedOrigin = ALLOWED_ORIGINS.some(origin => 
-      senderUrl.hostname === origin ||
-      senderUrl.hostname.includes(origin) || 
-      senderUrl.hostname.endsWith('.' + origin) ||
-      (origin === 'localhost' && (senderUrl.hostname === 'localhost' || senderUrl.hostname === '127.0.0.1'))
-    );
-    
-    if (!isAllowedOrigin) {
-      dbgWarn('Webapp logout message from unauthorized origin:', senderUrl.hostname);
-      sendResponse({ success: false, error: 'Unauthorized origin' });
-      return;
-    }
-    
-    dbgLog('Processing webapp logout');
-    
-    // Clear extension storage (but keep OAuth token if it exists from extension login)
-    // Only clear if auth source was webapp
-    const stored = await chrome.storage.local.get(['authSource', AUTH_TOKEN_KEY]);
-    
-    if (stored.authSource === 'webapp') {
-      // Clear all auth data if it came from webapp
-      await chrome.storage.local.remove([AUTH_USER_KEY, 'user', 'userData', 'authSource', 'lastSynced']);
-      dbgLog('Webapp auth data cleared');
-    } else {
-      // If user logged in via extension, keep that auth
-      // Just remove webapp-specific markers
-      await chrome.storage.local.remove(['authSource', 'lastSynced']);
-      dbgLog('Webapp logout processed, extension auth preserved');
-    }
-    
-    sendResponse({ success: true });
-  } catch (error) {
-    dbgWarn('Error handling webapp logout:', error);
     sendResponse({ success: false, error: error.message });
   }
 }
