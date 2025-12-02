@@ -22,6 +22,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     dbgLog('[popup] Received review count update:', message.count);
     updateReviewCount(message.count);
   }
+  
+  // Handle webapp auth sync - refresh popup when webapp login is detected
+  if (message.type === 'WEBAPP_AUTH_SYNCED') {
+    dbgLog('[popup] Received webapp auth sync notification, refreshing popup');
+    // Refresh the UI to reflect the new login state
+    (async () => {
+      await updateUIForLoginStatus();
+      // Force refresh user data to get latest info
+      await forceRefreshUserData();
+
+      window.location.reload();
+    })();
+    sendResponse({ success: true });
+  }
 });
 
 // Function to show loading state
