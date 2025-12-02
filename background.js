@@ -839,6 +839,20 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
       });
       
       dbgLog('Webapp auth synced successfully');
+      
+      // Notify popup to refresh if it's open
+      try {
+        chrome.runtime.sendMessage({
+          type: 'WEBAPP_AUTH_SYNCED',
+          user: userData
+        }).catch(() => {
+          // Popup might not be open, ignore error
+        });
+      } catch (error) {
+        // Popup might not be open, ignore error
+        dbgLog('Could not notify popup (may not be open):', error);
+      }
+      
       sendResponse({ success: true, user: userData });
     } catch (syncError) {
       dbgWarn('Failed to sync with CloudService, using basic user info:', syncError);
@@ -851,6 +865,19 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
         authSource: 'webapp',
         lastSynced: Date.now()
       });
+      
+      // Notify popup to refresh if it's open
+      try {
+        chrome.runtime.sendMessage({
+          type: 'WEBAPP_AUTH_SYNCED',
+          user: message.userData
+        }).catch(() => {
+          // Popup might not be open, ignore error
+        });
+      } catch (error) {
+        // Popup might not be open, ignore error
+        dbgLog('Could not notify popup (may not be open):', error);
+      }
       
       sendResponse({ success: true, user: message.userData });
     }
