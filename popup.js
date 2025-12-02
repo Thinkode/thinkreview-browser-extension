@@ -149,8 +149,9 @@ function isUserLoggedIn() {
       dbgLog('[popup] User data from storage:', result);
       
       // Check both user and userData fields for backward compatibility
+      // Supports both extension OAuth and webapp Firebase auth
       if (result.userData && result.userData.email) {
-        dbgLog('[popup] Using userData object:', result.userData);
+        dbgLog('[popup] Using userData object, auth source:', result.authSource || 'extension');
         resolve(true);
       } else if (result.user) {
         try {

@@ -38,9 +38,9 @@ class GoogleSignIn extends HTMLElement {
   async checkSignInStatus() {
     dbgLog('Starting checkSignInStatus...');
     try {
-      // Check for stored OAuth user data
+      // Check for stored OAuth user data (supports both extension OAuth and webapp Firebase auth)
       const userData = await new Promise(resolve => {
-        chrome.storage.local.get(['user', 'userData', 'oauth_user', 'oauth_token'], result => resolve(result));
+        chrome.storage.local.get(['user', 'userData', 'oauth_user', 'oauth_token', 'authSource'], result => resolve(result));
       });
 
       // Check new OAuth flow
@@ -50,9 +50,9 @@ class GoogleSignIn extends HTMLElement {
         return;
       }
       
-      // Check old storage format for backward compatibility
+      // Check old storage format for backward compatibility (includes webapp auth)
       if (userData.userData) {
-        dbgLog('Found stored user data (userData format)');
+        dbgLog('Found stored user data (userData format), auth source:', userData.authSource || 'extension');
         this.user = userData.userData;
         
         // Check if we need to refresh user data from the cloud
