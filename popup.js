@@ -1038,7 +1038,7 @@ function handleProviderChange(event) {
     dbgLog('[popup] AI Provider changed to:', provider);
     showOllamaStatus(
       provider === 'cloud' 
-        ? '☁️ Using Cloud AI (Gemini)' 
+        ? '☁️ Using Cloud AI (Advanced Models)' 
         : '🖥️ Local Ollama selected - configure and test below',
       provider === 'cloud' ? 'success' : 'info'
     );
