@@ -1095,6 +1095,137 @@ footer {
   text-decoration: underline;
 }
 
+/* Claude API Configuration */
+.claude-config {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #faf8ff;
+  border: 1px solid #e8e0f0;
+  border-radius: 6px;
+  animation: slideDown 0.3s ease;
+}
+
+.claude-config-row {
+  margin-bottom: 12px;
+}
+
+.api-key-input-wrapper {
+  display: flex;
+  gap: 8px;
+}
+
+.api-key-input-wrapper .config-input {
+  flex: 1;
+}
+
+.toggle-api-key-btn {
+  padding: 8px 12px;
+  background-color: #fff;
+  color: #6b4fbb;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 44px;
+}
+
+.toggle-api-key-btn:hover {
+  background-color: #f0f0f0;
+  border-color: #6b4fbb;
+}
+
+.claude-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.test-claude-btn,
+.save-claude-btn {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.test-claude-btn {
+  background-color: #d97706;
+  color: white;
+}
+
+.test-claude-btn:hover {
+  background-color: #b45309;
+}
+
+.save-claude-btn {
+  background-color: #6b4fbb;
+  color: white;
+}
+
+.save-claude-btn:hover {
+  background-color: #5a3da8;
+}
+
+.claude-status {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  display: none;
+}
+
+.claude-status.show {
+  display: block;
+}
+
+.claude-status.success {
+  background-color: #e8f5e8;
+  border: 1px solid #c3e6c3;
+  color: #2e7d32;
+}
+
+.claude-status.error {
+  background-color: #ffebee;
+  border: 1px solid #ffcdd2;
+  color: #c62828;
+}
+
+.claude-status.info {
+  background-color: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #c2410c;
+}
+
+.claude-help {
+  margin-top: 12px;
+  padding: 12px;
+  background-color: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+}
+
+.claude-help .help-text {
+  font-size: 11px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.claude-help a {
+  color: #d97706;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.claude-help a:hover {
+  text-decoration: underline;
+}
+
 /* Domain Settings Styles */
 .domain-settings-section {
   margin-top: 20px;

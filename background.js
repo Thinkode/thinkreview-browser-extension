@@ -4,6 +4,7 @@
 // Import services statically since dynamic imports aren't allowed in service workers
 import { CloudService } from './services/cloud-service.js';
 import { OllamaService } from './services/ollama-service.js';
+import { ClaudeService } from './services/claude-service.js';
 
 // Debug toggle: set to false to disable console logs in production
 const DEBUG = false;
@@ -271,36 +272,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       try {
         // Get AI provider setting
-        const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+        const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'claudeConfig']);
         const provider = settings.aiProvider || 'cloud';
-        
+
         dbgLog('[BG] Using AI provider for conversation:', provider);
-        
+
         // Route to appropriate service based on provider
         if (provider === 'ollama') {
           // Use Ollama for conversational response
           try {
             const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'qwen3-coder:30b' };
-            
+
             dbgLog('[BG] Getting conversational response from Ollama:', config);
-            
+
             const data = await OllamaService.getConversationalResponse(
-              patchContent, 
-              conversationHistory, 
+              patchContent,
+              conversationHistory,
               language || 'English',
-              mrId, 
+              mrId,
               mrUrl
             );
-            
+
             dbgLog('[BG] Ollama conversational response completed successfully');
             sendResponse({ success: true, data: data, provider: 'ollama' });
             return;
           } catch (ollamaError) {
             console.warn('[BG] Ollama conversational response failed:', ollamaError.message);
-            
+
             // Provide a helpful error message
-            sendResponse({ 
-              success: false, 
+            sendResponse({
+              success: false,
               error: ollamaError.message,
               provider: 'ollama',
               suggestion: 'Check if Ollama is running and configured correctly in extension settings.'
@@ -308,7 +309,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return;
           }
         }
-        
+
+        if (provider === 'claude') {
+          // Use Claude API for conversational response
+          try {
+            dbgLog('[BG] Getting conversational response from Claude');
+
+            const data = await ClaudeService.getConversationalResponse(
+              patchContent,
+              conversationHistory,
+              language || 'English',
+              mrId,
+              mrUrl
+            );
+
+            dbgLog('[BG] Claude conversational response completed successfully');
+            sendResponse({ success: true, data: data, provider: 'claude' });
+            return;
+          } catch (claudeError) {
+            console.warn('[BG] Claude conversational response failed:', claudeError.message);
+
+            // Provide a helpful error message
+            sendResponse({
+              success: false,
+              error: claudeError.message,
+              provider: 'claude',
+              suggestion: 'Check your Claude API key in extension settings.'
+            });
+            return;
+          }
+        }
+
         // Default: Use cloud service (Gemini)
         const data = await CloudService.getConversationalResponse(patchContent, conversationHistory, mrId, mrUrl, language || 'English');
         dbgLog('[GitLab MR Reviews][BG] Conversational response received:', data);
@@ -348,43 +379,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle code review request from content script to avoid CSP issues
   if (message.type === 'REVIEW_PATCH_CODE') {
     const { patchContent, mrId, mrUrl, language, platform, forceRegenerate } = message;
-    
+
     (async () => {
       // Get AI provider setting (declare outside try block so it's accessible in catch)
-      let settings = { aiProvider: 'cloud', ollamaConfig: null };
+      let settings = { aiProvider: 'cloud', ollamaConfig: null, claudeConfig: null };
       let provider = 'cloud';
-      
+
       try {
-        settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+        settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'claudeConfig']);
         provider = settings.aiProvider || 'cloud';
-        
+
         dbgLog('[BG] Using AI provider:', provider);
-        
+
         // Route to appropriate service based on provider
         if (provider === 'ollama') {
           // Use Ollama for local code review
           try {
             const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'qwen3-coder:30b' };
-            
+
             dbgLog('[BG] Reviewing with Ollama:', config);
-            
+
             const data = await OllamaService.reviewPatchCode(patchContent, language, mrId, mrUrl);
-            
+
             dbgLog('[BG] Ollama review completed successfully');
-            
+
             // Track the review in Firebase (fire-and-forget)
             trackOllamaReview(patchContent, mrId, mrUrl, data, config.model).catch(err => {
               console.warn('[BG] Failed to track Ollama review in Firebase:', err.message);
             });
-            
+
             sendResponse({ success: true, data, provider: 'ollama' });
             return;
           } catch (ollamaError) {
             console.warn('[BG] Ollama review failed:', ollamaError.message);
-            
+
             // Provide a helpful error message
-            sendResponse({ 
-              success: false, 
+            sendResponse({
+              success: false,
               error: ollamaError.message,
               provider: 'ollama',
               suggestion: 'Check if Ollama is running and configured correctly in extension settings.'
@@ -392,7 +423,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return;
           }
         }
-        
+
+        if (provider === 'claude') {
+          // Use Claude API for code review
+          try {
+            const config = settings.claudeConfig || { model: 'claude-sonnet-4-5-20250929' };
+
+            dbgLog('[BG] Reviewing with Claude:', config.model);
+
+            const data = await ClaudeService.reviewPatchCode(patchContent, language, mrId, mrUrl);
+
+            dbgLog('[BG] Claude review completed successfully');
+
+            sendResponse({ success: true, data, provider: 'claude' });
+            return;
+          } catch (claudeError) {
+            console.warn('[BG] Claude review failed:', claudeError.message);
+
+            // Provide a helpful error message
+            sendResponse({
+              success: false,
+              error: claudeError.message,
+              provider: 'claude',
+              suggestion: 'Check your Claude API key in extension settings.'
+            });
+            return;
+          }
+        }
+
         // Default: Use cloud service (Gemini)
         // Validate patchContent before sending
         if (!patchContent || patchContent.trim().length === 0) {
