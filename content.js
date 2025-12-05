@@ -261,7 +261,7 @@ function getMergeRequestSubject() {
 /**
  * Injects the integrated review panel into the GitLab MR page
  */
-function injectIntegratedReviewPanel() {
+async function injectIntegratedReviewPanel() {
   // Check if the panel already exists
   if (document.getElementById('gitlab-mr-integrated-review')) {
     dbgLog('[Code Review Extension] Integrated review panel already exists');
@@ -277,7 +277,7 @@ function injectIntegratedReviewPanel() {
   dbgLog('[Code Review Extension] Creating integrated review panel');
   // Create the review panel with the patch URL
   const patchUrl = getPatchUrl();
-  createIntegratedReviewPanel(patchUrl);
+  await createIntegratedReviewPanel(patchUrl);
   
   dbgLog('[Code Review Extension] Integrated review panel created');
   // Automatically trigger the code review after panel is created

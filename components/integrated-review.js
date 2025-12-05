@@ -166,9 +166,12 @@ function stopEnhancedLoader() {
 /**
  * Creates and injects the integrated review panel into the GitLab MR page
  * @param {string} patchUrl - URL to the patch file
- * @returns {HTMLElement} - The injected review panel element
+ * @returns {Promise<HTMLElement>} - The injected review panel element
  */
-function createIntegratedReviewPanel(patchUrl) {
+async function createIntegratedReviewPanel(patchUrl) {
+  // Load refresh icon from centralized icons.js
+  const iconsModule = await import('../assets/icons.js');
+  const refreshIconSvg = iconsModule.REFRESH_ICON_SVG;
   // Create the container for the review panel
   const container = document.createElement('div');
   container.id = 'gitlab-mr-integrated-review';
@@ -184,9 +187,7 @@ function createIntegratedReviewPanel(patchUrl) {
         </div>
         <div class="thinkreview-header-actions">
           <button id="regenerate-review-btn" class="thinkreview-regenerate-btn" title="Regenerate review">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M13.65 2.35C12.2 0.9 10.21 0 8 0C3.58 0 0.01 3.58 0.01 8C0.01 12.42 3.58 16 8 16C11.73 16 14.84 13.45 15.73 10H13.65C12.83 12.33 10.61 14 8 14C4.69 14 2 11.31 2 8C2 4.69 4.69 2 8 2C9.66 2 11.14 2.69 12.22 3.78L9 7H16V0L13.65 2.35Z" fill="currentColor"/>
-            </svg>
+            ${refreshIconSvg}
           </button>
           <select id="language-selector" class="thinkreview-language-dropdown" title="Select review language">
             <option value="English">English</option>
