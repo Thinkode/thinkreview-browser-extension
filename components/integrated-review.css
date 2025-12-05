@@ -355,6 +355,103 @@
   display: block;
 }
 
+/* Table styles - match normal text and background */
+#gitlab-mr-integrated-review .thinkreview-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 14px;
+  background-color: transparent;
+  color: #e0e0e0;
+}
+
+#gitlab-mr-integrated-review .thinkreview-table th,
+#gitlab-mr-integrated-review .thinkreview-table td {
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
+  background-color: transparent;
+  color: #e0e0e0;
+}
+
+#gitlab-mr-integrated-review .thinkreview-table thead {
+  background-color: transparent;
+}
+
+#gitlab-mr-integrated-review .thinkreview-table thead th {
+  font-weight: 600;
+  color: #e0e0e0;
+  background-color: transparent;
+}
+
+#gitlab-mr-integrated-review .thinkreview-table tbody tr {
+  background-color: transparent;
+}
+
+#gitlab-mr-integrated-review .thinkreview-table tbody tr:hover {
+  background-color: transparent;
+}
+
+/* Light theme table styles */
+body[data-theme="light"] #gitlab-mr-integrated-review .thinkreview-table,
+body[data-theme=""] #gitlab-mr-integrated-review .thinkreview-table,
+body:not([data-theme]) #gitlab-mr-integrated-review .thinkreview-table {
+  color: #e0e0e0;
+}
+
+body[data-theme="light"] #gitlab-mr-integrated-review .thinkreview-table th,
+body[data-theme="light"] #gitlab-mr-integrated-review .thinkreview-table td,
+body[data-theme=""] #gitlab-mr-integrated-review .thinkreview-table th,
+body[data-theme=""] #gitlab-mr-integrated-review .thinkreview-table td,
+body:not([data-theme]) #gitlab-mr-integrated-review .thinkreview-table th,
+body:not([data-theme]) #gitlab-mr-integrated-review .thinkreview-table td {
+  color: #e0e0e0;
+  background-color: transparent;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Dark theme table styles */
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-table th,
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-table td {
+  border-color: rgba(255, 255, 255, 0.1);
+  background-color: transparent;
+  color: #e0e0e0;
+}
+
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-table thead {
+  background-color: transparent;
+}
+
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-table thead th {
+  color: #e0e0e0;
+  background-color: transparent;
+}
+
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-table tbody tr {
+  background-color: transparent;
+}
+
+body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-table tbody tr:hover {
+  background-color: transparent;
+}
+
+/* High contrast theme table styles */
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table th,
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table td {
+  border-color: rgba(255, 255, 255, 0.2);
+  background-color: transparent;
+  color: #e0e0e0;
+}
+
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table thead {
+  background-color: transparent;
+}
+
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table thead th {
+  color: #e0e0e0;
+  background-color: transparent;
+}
+
 /* Lightweight syntax highlighting tokens */
 #gitlab-mr-integrated-review .chat-message .token.comment { color: #6a9955; }
 #gitlab-mr-integrated-review .chat-message .token.string { color: #ce9178; }
