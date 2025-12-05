@@ -876,6 +876,16 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       throw new Error('Invalid response from code review service');
     }
     
+    // Check if there was a JSON parsing error from the AI response
+    if (data.review.parsingError === true) {
+      dbgWarn('[Code Review Extension] JSON parsing error detected in review response');
+      const errorMessage = data.review.errorMessage 
+        ? `Unable to parse AI response: ${data.review.errorMessage}. Please try regenerating the review.`
+        : 'The AI generated a response that could not be parsed. Please try regenerating the review or report this issue at https://thinkreview.dev/bug-report';
+      showIntegratedReviewError(errorMessage);
+      return;
+    }
+    
     // Append filter summary to the review summary if files were filtered
     if (filterSummaryText) {
       data.review.summary = (data.review.summary || '') + '\n\n' + filterSummaryText;

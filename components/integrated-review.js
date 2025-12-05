@@ -1055,6 +1055,16 @@ async function handleSendMessage(messageText) {
 }
 
 async function displayIntegratedReview(review, patchContent) {
+  // Check if there was a JSON parsing error (safety check)
+  if (review.parsingError === true) {
+    console.warn('[IntegratedReview] JSON parsing error detected in review object');
+    const errorMessage = review.errorMessage 
+      ? `Unable to parse AI response: ${review.errorMessage}. Please try regenerating the review.`
+      : 'The AI generated a response that could not be parsed. Please try regenerating the review or report this issue at https://thinkreview.dev/bug-report';
+    showIntegratedReviewError(errorMessage);
+    return;
+  }
+  
   // Stop the enhanced loader
   stopEnhancedLoader();
   
