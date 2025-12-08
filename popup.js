@@ -954,6 +954,7 @@ function updateTokenStatus(message, type) {
 function initializeAIProviderSettings() {
   loadAIProviderSettings();
   setupAIProviderEventListeners();
+  setupClaudeEventListeners();
 }
 
 function setupAIProviderEventListeners() {
@@ -985,41 +986,57 @@ function setupAIProviderEventListeners() {
 
 async function loadAIProviderSettings() {
   try {
-    const result = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+    const result = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'claudeConfig']);
     const provider = result.aiProvider || 'cloud';
-    const config = result.ollamaConfig || {
+    const ollamaConfig = result.ollamaConfig || {
       url: 'http://localhost:11434',
       model: 'qwen3-coder:30b'
     };
-    
+    const claudeConfig = result.claudeConfig || {
+      apiKey: '',
+      model: 'claude-sonnet-4-5-20250929'
+    };
+
     // Set the selected provider
     const providerRadio = document.getElementById(`provider-${provider}`);
     if (providerRadio) {
       providerRadio.checked = true;
     }
-    
-    // Show/hide Ollama config based on provider
-    const ollamaConfig = document.getElementById('ollama-config');
-    if (ollamaConfig) {
-      ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
+
+    // Show/hide config panels based on provider
+    const ollamaConfigEl = document.getElementById('ollama-config');
+    const claudeConfigEl = document.getElementById('claude-config');
+
+    if (ollamaConfigEl) {
+      ollamaConfigEl.style.display = provider === 'ollama' ? 'block' : 'none';
     }
-    
+    if (claudeConfigEl) {
+      claudeConfigEl.style.display = provider === 'claude' ? 'block' : 'none';
+    }
+
     // Load Ollama config values
     const urlInput = document.getElementById('ollama-url');
-    const modelSelect = document.getElementById('ollama-model');
-    
-    if (urlInput) urlInput.value = config.url;
-    
+    const ollamaModelSelect = document.getElementById('ollama-model');
+
+    if (urlInput) urlInput.value = ollamaConfig.url;
+
+    // Load Claude config values
+    const claudeApiKeyInput = document.getElementById('claude-api-key');
+    const claudeModelSelect = document.getElementById('claude-model');
+
+    if (claudeApiKeyInput) claudeApiKeyInput.value = claudeConfig.apiKey || '';
+    if (claudeModelSelect) claudeModelSelect.value = claudeConfig.model || 'claude-sonnet-4-5-20250929';
+
     // If Ollama is the selected provider, fetch available models
     if (provider === 'ollama') {
       dbgLog('[popup] Ollama is selected provider, fetching available models...');
-      await fetchAndPopulateModels(config.url, config.model);
-    } else if (modelSelect) {
+      await fetchAndPopulateModels(ollamaConfig.url, ollamaConfig.model);
+    } else if (ollamaModelSelect) {
       // If not Ollama, just set the saved model value
-      modelSelect.value = config.model;
+      ollamaModelSelect.value = ollamaConfig.model;
     }
-    
-    dbgLog('[popup] AI Provider settings loaded:', { provider, config });
+
+    dbgLog('[popup] AI Provider settings loaded:', { provider, ollamaConfig, claudeConfig: { ...claudeConfig, apiKey: claudeConfig.apiKey ? '***' : '' } });
   } catch (error) {
     dbgWarn('[popup] Error loading AI Provider settings:', error);
   }
@@ -1027,33 +1044,56 @@ async function loadAIProviderSettings() {
 
 function handleProviderChange(event) {
   const provider = event.target.value;
-  const ollamaConfig = document.getElementById('ollama-config');
-  
-  if (ollamaConfig) {
-    ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
+  const ollamaConfigEl = document.getElementById('ollama-config');
+  const claudeConfigEl = document.getElementById('claude-config');
+
+  // Show/hide config panels based on provider
+  if (ollamaConfigEl) {
+    ollamaConfigEl.style.display = provider === 'ollama' ? 'block' : 'none';
   }
-  
+  if (claudeConfigEl) {
+    claudeConfigEl.style.display = provider === 'claude' ? 'block' : 'none';
+  }
+
   // Auto-save provider selection
   chrome.storage.local.set({ aiProvider: provider }, () => {
     dbgLog('[popup] AI Provider changed to:', provider);
-    showOllamaStatus(
-      provider === 'cloud' 
-        ? '☁️ Using Cloud AI (Advanced Models)' 
-        : '🖥️ Local Ollama selected - configure and test below',
-      provider === 'cloud' ? 'success' : 'info'
-    );
-    
+
+    // Show appropriate status message
+    let statusMessage = '';
+    let statusType = 'info';
+
+    switch (provider) {
+      case 'cloud':
+        statusMessage = '☁️ Using Cloud AI (Advanced Models)';
+        statusType = 'success';
+        break;
+      case 'claude':
+        statusMessage = '🤖 Claude selected - configure your API key below';
+        statusType = 'info';
+        showClaudeStatus(statusMessage, statusType);
+        break;
+      case 'ollama':
+        statusMessage = '🖥️ Local Ollama selected - configure and test below';
+        statusType = 'info';
+        break;
+    }
+
+    if (provider !== 'claude') {
+      showOllamaStatus(statusMessage, statusType);
+    }
+
     // Automatically fetch models when Ollama is selected
     if (provider === 'ollama') {
       const urlInput = document.getElementById('ollama-url');
       const url = urlInput ? urlInput.value.trim() : 'http://localhost:11434';
-      
+
       dbgLog('[popup] Ollama selected, fetching available models...');
       fetchAndPopulateModels(url).catch(err => {
         dbgWarn('[popup] Error auto-fetching models (non-critical):', err);
       });
     }
-    
+
     // Track provider change in cloud asynchronously (fire-and-forget)
     isUserLoggedIn().then(isLoggedIn => {
       if (isLoggedIn && window.CloudService) {
@@ -1411,6 +1451,119 @@ function showCorsInstructions() {
       });
     });
   });
+}
+
+// ============================================
+// Claude API Configuration Functions
+// ============================================
+
+function setupClaudeEventListeners() {
+  const testButton = document.getElementById('test-claude-btn');
+  const saveButton = document.getElementById('save-claude-btn');
+  const toggleApiKeyButton = document.getElementById('toggle-api-key-btn');
+
+  if (testButton) {
+    testButton.addEventListener('click', testClaudeConnection);
+  }
+
+  if (saveButton) {
+    saveButton.addEventListener('click', saveClaudeSettings);
+  }
+
+  if (toggleApiKeyButton) {
+    toggleApiKeyButton.addEventListener('click', toggleApiKeyVisibility);
+  }
+}
+
+function toggleApiKeyVisibility() {
+  const apiKeyInput = document.getElementById('claude-api-key');
+  const toggleButton = document.getElementById('toggle-api-key-btn');
+
+  if (apiKeyInput && toggleButton) {
+    if (apiKeyInput.type === 'password') {
+      apiKeyInput.type = 'text';
+      toggleButton.textContent = '🙈';
+      toggleButton.title = 'Hide API key';
+    } else {
+      apiKeyInput.type = 'password';
+      toggleButton.textContent = '👁️';
+      toggleButton.title = 'Show API key';
+    }
+  }
+}
+
+async function testClaudeConnection() {
+  const apiKeyInput = document.getElementById('claude-api-key');
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+
+  if (!apiKey) {
+    showClaudeStatus('❌ Please enter your API key', 'error');
+    return;
+  }
+
+  showClaudeStatus('🔄 Testing connection...', 'info');
+
+  try {
+    // Dynamically import ClaudeService
+    const { ClaudeService } = await import(chrome.runtime.getURL('services/claude-service.js'));
+
+    const result = await ClaudeService.checkConnection(apiKey);
+
+    if (result.valid) {
+      showClaudeStatus('✅ Connection successful! API key is valid.', 'success');
+    } else {
+      showClaudeStatus(`❌ ${result.error || 'Connection failed'}`, 'error');
+    }
+  } catch (error) {
+    dbgWarn('[popup] Error testing Claude connection:', error);
+    showClaudeStatus(`❌ Connection failed: ${error.message}`, 'error');
+  }
+}
+
+async function saveClaudeSettings() {
+  const apiKeyInput = document.getElementById('claude-api-key');
+  const modelSelect = document.getElementById('claude-model');
+
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+  const model = modelSelect ? modelSelect.value : 'claude-sonnet-4-5-20250929';
+
+  if (!apiKey) {
+    showClaudeStatus('❌ Please enter your API key', 'error');
+    return;
+  }
+
+  // Basic format validation
+  if (!apiKey.startsWith('sk-ant-')) {
+    showClaudeStatus('❌ Invalid API key format. Anthropic API keys start with "sk-ant-"', 'error');
+    return;
+  }
+
+  try {
+    const config = { apiKey, model };
+
+    await chrome.storage.local.set({ claudeConfig: config });
+
+    dbgLog('[popup] Claude settings saved:', { model, apiKey: '***' });
+    showClaudeStatus('✅ Settings saved successfully!', 'success');
+  } catch (error) {
+    dbgWarn('[popup] Error saving Claude settings:', error);
+    showClaudeStatus('❌ Failed to save settings', 'error');
+  }
+}
+
+function showClaudeStatus(message, type = 'info') {
+  const statusDiv = document.getElementById('claude-status');
+  if (!statusDiv) return;
+
+  statusDiv.textContent = message;
+  statusDiv.className = `claude-status show ${type}`;
+
+  // Auto-hide after 5 seconds for success messages
+  if (type === 'success') {
+    setTimeout(() => {
+      statusDiv.classList.remove('show');
+    }, 5000);
+  }
 }
 
 // Add CSS animation for spinner
