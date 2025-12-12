@@ -135,15 +135,30 @@ function isGitLabMRPage() {
 }
 
 /**
- * Get patch URL for GitLab (legacy function)
+ * Get patch URL for GitLab or GitHub (legacy function)
  * @returns {string} Patch URL
  */
 function getPatchUrl() {
   let url = window.location.href;
-  if (!url.endsWith('.patch')) {
-    url = url.replace(/[#?].*$/, '') + '.patch';
+  const platform = getCurrentPlatform();
+  
+  // GitHub uses .diff, GitLab uses .patch
+  const extension = platform === 'github' ? '.diff' : '.patch';
+  
+  if (!url.endsWith(extension)) {
+    url = url.replace(/[#?].*$/, '') + extension;
   }
   return url;
+}
+
+/**
+ * Extract GitHub pull request ID from URL
+ * @returns {string|null} Pull request ID
+ */
+function getGitHubPRId() {
+  const pathname = window.location.pathname;
+  const match = pathname.match(/\/pull\/(\d+)/);
+  return match ? match[1] : null;
 }
 
 function injectButtons() {
@@ -746,6 +761,25 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       codeContent = await response.text();
       reviewId = getMergeRequestId();
       
+    } else if (platform === 'github') {
+      // GitHub: fetch diff file through background script (to avoid CORS)
+      const patchUrl = getPatchUrl();
+      dbgLog('[Code Review Extension] Fetching GitHub diff through background script:', patchUrl);
+      
+      const bgResponse = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ 
+          type: 'FETCH_GITHUB_DIFF', 
+          url: patchUrl 
+        }, resolve);
+      });
+      
+      if (!bgResponse || !bgResponse.success) {
+        throw new Error(bgResponse?.error || `Not a Pull request page or there are no code changes yet in this PR- if you think this is a bug, please report it here: https://thinkreview.dev/bug-report`);
+      }
+      
+      codeContent = bgResponse.content;
+      reviewId = getGitHubPRId();
+      
     } else if (platform === 'azure-devops') {
       // Azure DevOps: fetch via API
         dbgLog('[Code Review Extension] Starting Azure DevOps code fetch');
@@ -815,12 +849,12 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       startEnhancedLoader();
     }
     
-    // Apply filtering for GitLab patches (Azure DevOps changes are already filtered)
+    // Apply filtering for GitLab and GitHub patches (Azure DevOps changes are already filtered)
     let filteredCodeContent = codeContent;
     let filterSummaryText = null;
     
-    if (platform === 'gitlab') {
-      // Dynamically import patch filtering utilities for GitLab
+    if (platform === 'gitlab' || platform === 'github') {
+      // Dynamically import patch filtering utilities for GitLab and GitHub
       const patchFilterModule = await import(chrome.runtime.getURL('utils/patch-filter.js'));
       const { filterPatch, getFilterSummary } = patchFilterModule;
       
@@ -1060,8 +1094,17 @@ async function toggleReviewPanel() {
  */
 window.getAIResponse = (patchContent, conversationHistory, language = 'English') => {
   return new Promise((resolve, reject) => {
-    // Get the merge request ID for tracking
-    const mrId = getMergeRequestId();
+    // Get the merge request/pull request ID for tracking
+    const platform = getCurrentPlatform();
+    let mrId = null;
+    if (platform === 'gitlab') {
+      mrId = getMergeRequestId();
+    } else if (platform === 'github') {
+      mrId = getGitHubPRId();
+    } else if (platform === 'azure-devops' && platformDetector) {
+      const prInfo = platformDetector.detectPlatform().pageInfo;
+      mrId = prInfo?.prId || null;
+    }
     
     // Get the full MR/PR URL
     const mrUrl = window.location.href;
