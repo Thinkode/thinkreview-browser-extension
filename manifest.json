@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ThinkReview: AI Code Review for GitLab & Azure DevOps",
+  "name": "ThinkReview: AI Code Review for GitLab, GitHub & Azure DevOps",
   "version": "1.4.4.1",
-  "description": "AI Copilot & AI Code Reviews for GitLab MRs and Azure DevOps PRs - Ollama support",
+  "description": "AI Copilot & AI Code Reviews for GitLab MRs, GitHub PRs and Azure DevOps PRs - Ollama support",
   "permissions": [
     "storage", 
     "identity",  
@@ -13,6 +13,8 @@
 
   "host_permissions": [
     "https://gitlab.com/*",
+    "https://github.com/*",
+    "https://patch-diff.githubusercontent.com/*",
     "https://us-central1-thinkgpt.cloudfunctions.net/*",
     "https://dev.azure.com/*",
     "https://*.visualstudio.com/*"
