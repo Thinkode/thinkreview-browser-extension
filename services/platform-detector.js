@@ -1,5 +1,5 @@
 // platform-detector.js
-// Unified platform detector for GitLab and Azure DevOps
+// Unified platform detector for GitLab, GitHub, and Azure DevOps
 
 // Debug toggle: set to false to disable console logs in production
 const DEBUG = false;
@@ -7,10 +7,11 @@ function dbgLog(...args) { if (DEBUG) console.log('[Platform Detector]', ...args
 function dbgWarn(...args) { if (DEBUG) console.warn('[Platform Detector]', ...args); }
 
 import { azureDevOpsDetector } from './azure-devops-detector.js';
+import { githubDetector } from './github-detector.js';
 
 /**
  * Platform Detector Service
- * Detects whether the current page is GitLab MR or Azure DevOps PR
+ * Detects whether the current page is GitLab MR, GitHub PR, or Azure DevOps PR
  */
 export class PlatformDetector {
   constructor() {
@@ -26,6 +27,9 @@ export class PlatformDetector {
     if (this.isInitialized) return;
     
     dbgLog('Initializing platform detector');
+    // Initialize all platform detectors
+    azureDevOpsDetector.init();
+    githubDetector.init();
     this.isInitialized = true;
   }
 
@@ -49,6 +53,17 @@ export class PlatformDetector {
       result.pageInfo = azureDevOpsDetector.extractPRInfo();
       
       dbgLog('Detected Azure DevOps pull request page:', result.pageInfo);
+      return result;
+    }
+
+    // Check for GitHub
+    if (this.isGitHubPRPage()) {
+      result.platform = 'github';
+      result.pageType = 'pull-request';
+      result.isSupported = true;
+      result.pageInfo = this.extractGitHubPRInfo();
+      
+      dbgLog('Detected GitHub pull request page:', result.pageInfo);
       return result;
     }
 
@@ -244,8 +259,24 @@ export class PlatformDetector {
   }
 
   /**
+   * Check if the current page is a GitHub pull request page
+   * @returns {boolean} True if the current page is a GitHub PR page
+   */
+  isGitHubPRPage() {
+    return githubDetector.isGitHubPRPage();
+  }
+
+  /**
+   * Extract GitHub pull request information
+   * @returns {Object|null} Pull request information
+   */
+  extractGitHubPRInfo() {
+    return githubDetector.extractPRInfo();
+  }
+
+  /**
    * Get current platform
-   * @returns {string|null} Current platform ('gitlab' or 'azure-devops')
+   * @returns {string|null} Current platform ('gitlab', 'github', or 'azure-devops')
    */
   getCurrentPlatform() {
     const detection = this.detectPlatform();
