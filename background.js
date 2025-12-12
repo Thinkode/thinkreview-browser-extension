@@ -424,6 +424,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep channel open
   }
 
+  // Handle request to fetch GitHub diff (to avoid CORS)
+  if (message.type === 'FETCH_GITHUB_DIFF') {
+    const { url } = message;
+    (async () => {
+      try {
+        dbgLog('[BG] Fetching GitHub diff from:', url);
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch GitHub diff: ${response.status} ${response.statusText}`);
+        }
+        const diffContent = await response.text();
+        dbgLog('[BG] Successfully fetched GitHub diff, length:', diffContent.length);
+        sendResponse({ success: true, content: diffContent });
+      } catch (error) {
+        dbgWarn('[BG] Error fetching GitHub diff:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true; // Keep channel open
+  }
+
   // Handle request to open extension page in a new tab
   if (message.type === 'OPEN_EXTENSION_PAGE') {
     console.log('[GitLab MR Reviews][BG] Opening extension page in new tab with auto sign-in');
@@ -787,7 +808,12 @@ async function updateContentScripts() {
       'https://*.visualstudio.com'
     ];
     
-    const allDomains = [...gitlabDomains, ...azureDevOpsDomains];
+    // Add GitHub domains
+    const githubDomains = [
+      'https://github.com'
+    ];
+    
+    const allDomains = [...gitlabDomains, ...azureDevOpsDomains, ...githubDomains];
     
     dbgLog('Updating content scripts for domains:', allDomains);
     
@@ -809,7 +835,8 @@ async function updateContentScripts() {
   for (const domain of allDomains) {
     try {
       // Generate a safe script ID from the domain
-      const scriptId = `gitlab-mr-reviews-${domain.replace(/[^a-zA-Z0-9]/g, '-')}`;
+      // Use a generic prefix since we now support multiple platforms
+      const scriptId = `code-review-${domain.replace(/[^a-zA-Z0-9]/g, '-')}`;
       targetScriptIds.push(scriptId);
       
       // Check if this script ID already exists
@@ -841,14 +868,23 @@ async function updateContentScripts() {
         } else if (url.hostname.includes('dev.azure.com') || url.hostname.includes('visualstudio.com')) {
           // Azure DevOps: match all pages (SPA - button always visible, but only works on PR pages)
           matchPattern = `${url.protocol}//${url.host}/*`;
+        } else if (url.hostname === 'github.com' || url.hostname.endsWith('.github.com')) {
+          // GitHub: match pull request pages only
+          matchPattern = `${url.protocol}//${url.host}/*/pull/*`;
         } else {
           // GitLab: match merge request pages only
           matchPattern = `${url.protocol}//${url.host}/*/merge_requests/*`;
         }
       } else {
-        // Simple domain provided (e.g., gitlab.com)
+        // Simple domain provided (e.g., gitlab.com, github.com)
         originPattern = `https://${domain}/*`;
-        matchPattern = `https://${domain}/*/merge_requests/*`;
+        if (domain === 'github.com' || domain.endsWith('.github.com')) {
+          // GitHub: match pull request pages only
+          matchPattern = `https://${domain}/*/pull/*`;
+        } else {
+          // GitLab: match merge request pages only
+          matchPattern = `https://${domain}/*/merge_requests/*`;
+        }
       }
         
         // Check if we have permission for this domain
@@ -885,8 +921,12 @@ async function updateContentScripts() {
     }
     
     // Remove any scripts that are no longer needed
+    // Check for both old and new script ID prefixes for backward compatibility
     const scriptsToRemove = registeredScripts
-      .filter(script => script.id.startsWith('gitlab-mr-reviews-') && !targetScriptIds.includes(script.id))
+      .filter(script => 
+        (script.id.startsWith('gitlab-mr-reviews-') || script.id.startsWith('code-review-')) && 
+        !targetScriptIds.includes(script.id)
+      )
       .map(script => script.id);
       
     if (scriptsToRemove.length > 0) {
