@@ -82,7 +82,7 @@ const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.ne
 const REVIEW_CODE_URL = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode`;
 
 /**
- * Check if the current page is a supported platform (GitLab MR or Azure DevOps PR)
+ * Check if the current page is a supported platform (GitLab MR, GitHub PR, or Azure DevOps PR)
  * @returns {boolean} True if the current page is supported
  */
 function isSupportedPage() {
@@ -96,7 +96,7 @@ function isSupportedPage() {
 
 /**
  * Check if we should show the AI Review button
- * For Azure DevOps, always show the button (since it's an SPA)
+ * For Azure DevOps and GitHub, always show the button (since they're SPAs)
  * For GitLab, only show on MR pages
  * @returns {boolean} True if button should be shown
  */
@@ -107,6 +107,11 @@ function shouldShowButton() {
   
   // Always show button on Azure DevOps sites (SPA)
   if (platformDetector.isAzureDevOpsSite()) {
+    return true;
+  }
+  
+  // Always show button on GitHub sites (SPA)
+  if (platformDetector.isGitHubSite()) {
     return true;
   }
   
@@ -280,6 +285,8 @@ async function injectIntegratedReviewPanel() {
   // Check if the panel already exists
   if (document.getElementById('gitlab-mr-integrated-review')) {
     dbgLog('[Code Review Extension] Integrated review panel already exists');
+    // Panel exists, but check if we need to refresh for new PR
+    handleSPANavigation();
     return;
   }
   
@@ -295,6 +302,12 @@ async function injectIntegratedReviewPanel() {
   await createIntegratedReviewPanel(patchUrl);
   
   dbgLog('[Code Review Extension] Integrated review panel created');
+  
+  // Track current PR info
+  const prInfo = getCurrentPRInfo();
+  currentPRUrl = prInfo.url;
+  currentPRId = prInfo.id;
+  
   // Automatically trigger the code review after panel is created
   // DOM elements are available after appendChild
   fetchAndDisplayCodeReview();
@@ -979,7 +992,7 @@ async function toggleReviewPanel() {
   dbgLog('[Code Review Extension] toggleReviewPanel called');
   
   // Check if we're on a supported page first (before creating/opening panel)
-  // For Azure DevOps, this ensures we're on a PR page
+  // For Azure DevOps and GitHub (SPAs), this ensures we're on a PR page
   if (!isSupportedPage()) {
     dbgLog('[Code Review Extension] Not on a supported page, showing alert');
     alert('Please navigate to a Pull Request page to generate an AI code review.');
@@ -1144,12 +1157,17 @@ async function initializeExtension() {
   // Initialize platform detection first
   await initializePlatformDetection();
   
-  // Check if we should show the button (always true for Azure DevOps, only on MR pages for GitLab)
+  // Check if we should show the button (always true for Azure DevOps and GitHub, only on MR pages for GitLab)
   if (shouldShowButton()) {
     const platform = getCurrentPlatform();
     dbgLog('[Code Review Extension] Initializing for platform:', platform);
     
     injectButtons();
+    
+    // Start SPA navigation monitoring for GitHub and Azure DevOps
+    if (platform === 'github' || platform === 'azure-devops') {
+      startSPANavigationMonitoring();
+    }
     
     // Wait for the page to fully load before injecting the integrated review panel
     setTimeout(() => {

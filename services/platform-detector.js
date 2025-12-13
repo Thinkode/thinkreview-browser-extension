@@ -302,6 +302,15 @@ export class PlatformDetector {
   }
 
   /**
+   * Check if we're on a GitHub site (regardless of being on a PR page)
+   * @returns {boolean} True if on GitHub domain
+   */
+  isGitHubSite() {
+    const hostname = window.location.hostname;
+    return hostname === 'github.com' || hostname.endsWith('.github.com');
+  }
+
+  /**
    * Get page information for debugging
    * @returns {Object} Page information
    */
