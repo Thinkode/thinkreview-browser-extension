@@ -14,6 +14,9 @@ dbgLog('[Code Review Extension] Content script loaded on:', window.location.href
 // Track if a review request is in progress to prevent duplicates
 let isReviewInProgress = false;
 
+// Track current PR ID for detecting navigation to new PRs
+let currentPRId = null;
+
 // Import platform detection services
 let platformDetector = null;
 let azureDevOpsFetcher = null;
@@ -279,14 +282,87 @@ function getMergeRequestSubject() {
 }
 
 /**
+ * Get the current PR/MR ID
+ * @returns {string|null} Current PR/MR ID
+ */
+function getCurrentPRId() {
+  const platform = getCurrentPlatform();
+  
+  if (platform === 'gitlab') {
+    return getMergeRequestId();
+  } else if (platform === 'github') {
+    return getGitHubPRId();
+  } else if (platform === 'azure-devops' && platformDetector) {
+    const prInfo = platformDetector.detectPlatform().pageInfo;
+    return prInfo?.prId || null;
+  }
+  
+  return null;
+}
+
+/**
+ * Check if we've navigated to a new PR and trigger review if needed
+ */
+function checkAndTriggerReviewForNewPR() {
+  // Only check if we're on a supported page (PR page)
+  if (!isSupportedPage()) {
+    // Not on a PR page - reset tracking
+    if (currentPRId !== null) {
+      currentPRId = null;
+    }
+    return;
+  }
+  
+  const newPRId = getCurrentPRId();
+  
+  // Check if we've navigated to a different PR
+  if (newPRId && newPRId !== currentPRId) {
+    dbgLog('[Code Review Extension] Detected new PR page:', {
+      oldId: currentPRId,
+      newId: newPRId
+    });
+    
+    // Update tracked PR ID
+    currentPRId = newPRId;
+    
+    // Ensure panel is minimized
+    const panel = document.getElementById('gitlab-mr-integrated-review');
+    if (panel && !panel.classList.contains('thinkreview-panel-minimized-to-button')) {
+      panel.classList.add('thinkreview-panel-minimized-to-button');
+      const reviewBtn = document.getElementById('code-review-btn');
+      if (reviewBtn) {
+        const arrowSpan = reviewBtn.querySelector('span:last-child');
+        if (arrowSpan) {
+          arrowSpan.textContent = '▲';
+        }
+      }
+    }
+    
+    isReviewInProgress = false;
+    
+    // Trigger new review
+    setTimeout(() => {
+      if (isSupportedPage()) {
+        fetchAndDisplayCodeReview();
+      }
+    }, 500);
+  } else if (currentPRId === null && newPRId) {
+    // First time detecting a PR - just track it
+    currentPRId = newPRId;
+  }
+}
+
+/**
  * Injects the integrated review panel into the GitLab MR page
  */
 async function injectIntegratedReviewPanel() {
+  const panel = document.getElementById('gitlab-mr-integrated-review');
+  
   // Check if the panel already exists
-  if (document.getElementById('gitlab-mr-integrated-review')) {
+  if (panel) {
     dbgLog('[Code Review Extension] Integrated review panel already exists');
-    // Panel exists, but check if we need to refresh for new PR
-    handleSPANavigation();
+    // Check if we've navigated to a new PR
+    checkAndTriggerReviewForNewPR();
     return;
   }
   
@@ -303,10 +379,8 @@ async function injectIntegratedReviewPanel() {
   
   dbgLog('[Code Review Extension] Integrated review panel created');
   
-  // Track current PR info
-  const prInfo = getCurrentPRInfo();
-  currentPRUrl = prInfo.url;
-  currentPRId = prInfo.id;
+  // Track current PR ID
+  currentPRId = getCurrentPRId();
   
   // Automatically trigger the code review after panel is created
   // DOM elements are available after appendChild
@@ -1151,6 +1225,24 @@ window.getAIResponse = (patchContent, conversationHistory, language = 'English')
     );
   });
 };
+
+/**
+ * Start monitoring URL changes for SPA navigation
+ */
+function startSPANavigationMonitoring() {
+  let lastUrl = window.location.href;
+  
+  // Simple approach: check if URL changed periodically
+  setInterval(() => {
+    const currentUrl = window.location.href;
+    if (currentUrl !== lastUrl) {
+      lastUrl = currentUrl;
+      checkAndTriggerReviewForNewPR();
+    }
+  }, 1000);
+  
+  dbgLog('[Code Review Extension] Started SPA navigation monitoring');
+}
 
 // Initialize when the page is loaded
 async function initializeExtension() {
