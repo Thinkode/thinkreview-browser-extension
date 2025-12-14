@@ -35,7 +35,8 @@ export function markdownToHtml(markdown) {
     if (escaped.trim() === '') return '';
     const placeholderId = codeBlockPlaceholders.length;
     codeBlockPlaceholders.push(`<pre><code class="${className}">${escaped}</code></pre>`);
-    return `@@CODE_BLOCK_${placeholderId}@@`;
+    // Use ThinkReview-specific prefix to prevent collision with user content
+    return `__THINKREVIEW_CODE_BLOCK_${placeholderId}__`;
   });
 
   // Remove stray standalone fences
@@ -92,7 +93,8 @@ export function markdownToHtml(markdown) {
     
     const placeholderId = tablePlaceholders.length;
     tablePlaceholders.push(tableData);
-    return `@@TABLE_${placeholderId}@@`;
+    // Use ThinkReview-specific prefix to prevent collision with user content
+    return `__THINKREVIEW_TABLE_${placeholderId}__`;
   });
 
   // Process markdown (excluding code blocks)
@@ -119,7 +121,7 @@ export function markdownToHtml(markdown) {
   html = html.replace(/(^|<br>)(<li>[\s\S]*?<\/li>)(?=$|<br>)/g, (m, pre, item) => `${pre}<ul>${item}</ul>`);
 
   // Restore code blocks and wrap with header/copy button
-  html = html.replace(/@@CODE_BLOCK_(\d+)@@/g, (match, id) => {
+  html = html.replace(/__THINKREVIEW_CODE_BLOCK_(\d+)__/g, (match, id) => {
     const codeBlock = codeBlockPlaceholders[Number(id)];
     if (!codeBlock) return '';
     const matchResult = codeBlock.match(/<pre><code class="(language-[^"]+)">([\s\S]*?)<\/code><\/pre>/);
@@ -130,7 +132,7 @@ export function markdownToHtml(markdown) {
   });
 
   // Restore tables - process markdown in cells first
-  html = html.replace(/@@TABLE_(\d+)@@/g, (match, id) => {
+  html = html.replace(/__THINKREVIEW_TABLE_(\d+)__/g, (match, id) => {
     const tableData = tablePlaceholders[Number(id)];
     if (!tableData || !tableData.headerCells) return '';
     
@@ -151,7 +153,8 @@ export function markdownToHtml(markdown) {
       processed = processed.replace(/(<(code|strong|em)[^>]*>[\s\S]*?<\/\2>)/g, (match) => {
         const id = tagPlaceholders.length;
         tagPlaceholders.push(match);
-        return `@@TAG_${id}@@`;
+        // Use ThinkReview-specific prefix to prevent collision with user content
+        return `__THINKREVIEW_TAG_${id}__`;
       });
       
       // Escape remaining HTML
@@ -159,7 +162,7 @@ export function markdownToHtml(markdown) {
       
       // Restore our markdown-generated tags
       tagPlaceholders.forEach((tag, id) => {
-        processed = processed.replace(`@@TAG_${id}@@`, tag);
+        processed = processed.replace(`__THINKREVIEW_TAG_${id}__`, tag);
       });
       
       return processed;
