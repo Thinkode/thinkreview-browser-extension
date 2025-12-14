@@ -271,28 +271,15 @@ async function updateUIForLoginStatus() {
   }
 }
 
-// Function to update current status based on tab
+// Function to update current status - shows generic ready message
+// Actual page detection is handled by the content script
 function updateCurrentStatus() {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const tab = tabs[0];
-    const statusDiv = document.getElementById('current-status');
-    if (!statusDiv) return;
-    
-    if (!tab || !tab.url || !tab.url.includes('gitlab.com')) {
-      statusDiv.textContent = 'Navigate to a Gitlab MR to start generating Reviews';
-      statusDiv.className = '';
-      return;
-    }
-    if (!/\/merge_requests\//.test(tab.url)) {
-      statusDiv.textContent = 'Navigate to a Gitlab MR to start generating Reviews';
-      statusDiv.className = '';
-      return;
-    }
-    
-    // Show ready status for MR pages
-    statusDiv.textContent = 'Ready to generate reviews';
-    statusDiv.className = 'success';
-  });
+  const statusDiv = document.getElementById('current-status');
+  if (!statusDiv) return;
+  
+  // Just show a generic ready message - content script handles actual detection
+  statusDiv.textContent = 'Ready to generate reviews';
+  statusDiv.className = 'success';
 }
 
 // Initialize popup

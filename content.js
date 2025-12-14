@@ -14,6 +14,9 @@ dbgLog('[Code Review Extension] Content script loaded on:', window.location.href
 // Track if a review request is in progress to prevent duplicates
 let isReviewInProgress = false;
 
+// Track current PR ID for detecting navigation to new PRs
+let currentPRId = null;
+
 // Import platform detection services
 let platformDetector = null;
 let azureDevOpsFetcher = null;
@@ -82,7 +85,7 @@ const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.ne
 const REVIEW_CODE_URL = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode`;
 
 /**
- * Check if the current page is a supported platform (GitLab MR or Azure DevOps PR)
+ * Check if the current page is a supported platform (GitLab MR, GitHub PR, or Azure DevOps PR)
  * @returns {boolean} True if the current page is supported
  */
 function isSupportedPage() {
@@ -96,7 +99,7 @@ function isSupportedPage() {
 
 /**
  * Check if we should show the AI Review button
- * For Azure DevOps, always show the button (since it's an SPA)
+ * For Azure DevOps and GitHub, always show the button (since they're SPAs)
  * For GitLab, only show on MR pages
  * @returns {boolean} True if button should be shown
  */
@@ -107,6 +110,11 @@ function shouldShowButton() {
   
   // Always show button on Azure DevOps sites (SPA)
   if (platformDetector.isAzureDevOpsSite()) {
+    return true;
+  }
+  
+  // Always show button on GitHub sites (SPA)
+  if (platformDetector.isGitHubSite()) {
     return true;
   }
   
@@ -135,15 +143,29 @@ function isGitLabMRPage() {
 }
 
 /**
- * Get patch URL for GitLab (legacy function)
+ * Get patch URL for GitLab or GitHub (legacy function)
  * @returns {string} Patch URL
  */
 function getPatchUrl() {
   let url = window.location.href;
-  if (!url.endsWith('.patch')) {
-    url = url.replace(/[#?].*$/, '') + '.patch';
+  
+  // GitHub uses .diff, GitLab uses .patch
+  const extension = platformDetector && platformDetector.isOnGitHubPRPage() ? '.diff' : '.patch';
+  
+  if (!url.endsWith(extension)) {
+    url = url.replace(/[#?].*$/, '') + extension;
   }
   return url;
+}
+
+/**
+ * Extract GitHub pull request ID from URL
+ * @returns {string|null} Pull request ID
+ */
+function getGitHubPRId() {
+  const pathname = window.location.pathname;
+  const match = pathname.match(/\/pull\/(\d+)/);
+  return match ? match[1] : null;
 }
 
 function injectButtons() {
@@ -259,12 +281,106 @@ function getMergeRequestSubject() {
 }
 
 /**
+ * Get the current PR/MR ID
+ * @returns {string|null} Current PR/MR ID
+ */
+function getCurrentPRId() {
+  if (!platformDetector) {
+    return null;
+  }
+  
+  if (platformDetector.isOnGitLabMRPage()) {
+    return getMergeRequestId();
+  } else if (platformDetector.isOnGitHubPRPage()) {
+    return getGitHubPRId();
+  } else if (platformDetector.isOnAzureDevOpsPRPage()) {
+    const prInfo = platformDetector.detectPlatform().pageInfo;
+    return prInfo?.prId || null;
+  }
+  
+  return null;
+}
+
+/**
+ * Check if we've navigated to a new PR and trigger review if needed
+ */
+async function checkAndTriggerReviewForNewPR() {
+  // Only check if we're on a supported page (PR page)
+  if (!isSupportedPage()) {
+    // Not on a PR page - reset tracking and hide score popup
+    if (currentPRId !== null) {
+      currentPRId = null;
+    }
+    
+    // Hide score popup when navigating to a non-PR page
+    try {
+      const scorePopupModule = await import(chrome.runtime.getURL('components/popup-modules/score-popup.js'));
+      scorePopupModule.hideScorePopup();
+    } catch (error) {
+      // Silently fail if module not available
+    }
+    
+    return;
+  }
+  
+  const panel = document.getElementById('gitlab-mr-integrated-review');
+  
+  // If panel doesn't exist yet, create it (this handles SPA navigation to PR pages)
+  if (!panel) {
+    // Await the panel creation to ensure it completes before returning
+    await injectIntegratedReviewPanel();
+    return;
+  }
+  
+  const newPRId = getCurrentPRId();
+  
+  // Check if we've navigated to a different PR
+  if (newPRId && newPRId !== currentPRId) {
+    dbgLog('[Code Review Extension] Detected new PR page:', {
+      oldId: currentPRId,
+      newId: newPRId
+    });
+    
+    // Update tracked PR ID
+    currentPRId = newPRId;
+    
+    // Ensure panel is minimized
+    if (!panel.classList.contains('thinkreview-panel-minimized-to-button')) {
+      panel.classList.add('thinkreview-panel-minimized-to-button');
+      const reviewBtn = document.getElementById('code-review-btn');
+      if (reviewBtn) {
+        const arrowSpan = reviewBtn.querySelector('span:last-child');
+        if (arrowSpan) {
+          arrowSpan.textContent = '▲';
+        }
+      }
+    }
+    
+    isReviewInProgress = false;
+    
+    // Trigger new review
+    setTimeout(() => {
+      if (isSupportedPage()) {
+        fetchAndDisplayCodeReview();
+      }
+    }, 500);
+  } else if (currentPRId === null && newPRId) {
+    // First time detecting a PR - just track it
+    currentPRId = newPRId;
+  }
+}
+
+/**
  * Injects the integrated review panel into the GitLab MR page
  */
 async function injectIntegratedReviewPanel() {
+  const panel = document.getElementById('gitlab-mr-integrated-review');
+  
   // Check if the panel already exists
-  if (document.getElementById('gitlab-mr-integrated-review')) {
+  if (panel) {
     dbgLog('[Code Review Extension] Integrated review panel already exists');
+    // Check if we've navigated to a new PR
+    checkAndTriggerReviewForNewPR();
     return;
   }
   
@@ -280,6 +396,10 @@ async function injectIntegratedReviewPanel() {
   await createIntegratedReviewPanel(patchUrl);
   
   dbgLog('[Code Review Extension] Integrated review panel created');
+  
+  // Track current PR ID
+  currentPRId = getCurrentPRId();
+  
   // Automatically trigger the code review after panel is created
   // DOM elements are available after appendChild
   fetchAndDisplayCodeReview();
@@ -732,11 +852,10 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     }
 
     // Determine platform and get code changes
-    const platform = getCurrentPlatform();
     let codeContent = '';
     let reviewId = null;
 
-    if (platform === 'gitlab') {
+    if (platformDetector && platformDetector.isOnGitLabMRPage()) {
       // GitLab: fetch patch file
       const patchUrl = getPatchUrl();
       const response = await fetch(patchUrl, { credentials: 'include' });
@@ -746,7 +865,26 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       codeContent = await response.text();
       reviewId = getMergeRequestId();
       
-    } else if (platform === 'azure-devops') {
+    } else if (platformDetector && platformDetector.isOnGitHubPRPage()) {
+      // GitHub: fetch diff file through background script (to avoid CORS)
+      const patchUrl = getPatchUrl();
+      dbgLog('[Code Review Extension] Fetching GitHub diff through background script:', patchUrl);
+      
+      const bgResponse = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ 
+          type: 'FETCH_GITHUB_DIFF', 
+          url: patchUrl 
+        }, resolve);
+      });
+      
+      if (!bgResponse || !bgResponse.success) {
+        throw new Error(bgResponse?.error || `Not a Pull request page or there are no code changes yet in this PR- if you think this is a bug, please report it here: https://thinkreview.dev/bug-report`);
+      }
+      
+      codeContent = bgResponse.content;
+      reviewId = getGitHubPRId();
+      
+    } else if (platformDetector && platformDetector.isOnAzureDevOpsPRPage()) {
       // Azure DevOps: fetch via API
         dbgLog('[Code Review Extension] Starting Azure DevOps code fetch');
         const azureToken = await getAzureDevOpsToken();
@@ -815,12 +953,12 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       startEnhancedLoader();
     }
     
-    // Apply filtering for GitLab patches (Azure DevOps changes are already filtered)
+    // Apply filtering for GitLab and GitHub patches (Azure DevOps changes are already filtered)
     let filteredCodeContent = codeContent;
     let filterSummaryText = null;
     
-    if (platform === 'gitlab') {
-      // Dynamically import patch filtering utilities for GitLab
+    if (platformDetector && (platformDetector.isOnGitLabMRPage() || platformDetector.isOnGitHubPRPage())) {
+      // Dynamically import patch filtering utilities for GitLab and GitHub
       const patchFilterModule = await import(chrome.runtime.getURL('utils/patch-filter.js'));
       const { filterPatch, getFilterSummary } = patchFilterModule;
       
@@ -842,6 +980,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     
     // Get the full MR/PR URL
     const mrUrl = window.location.href;
+    
+    // Get platform for sending to background script
+    const platform = getCurrentPlatform();
     
     // Send the code content for review via background script (avoids CSP fetch issues)
     const bgResponse = await new Promise((resolve) => {
@@ -945,7 +1086,7 @@ async function toggleReviewPanel() {
   dbgLog('[Code Review Extension] toggleReviewPanel called');
   
   // Check if we're on a supported page first (before creating/opening panel)
-  // For Azure DevOps, this ensures we're on a PR page
+  // For Azure DevOps and GitHub (SPAs), this ensures we're on a PR page
   if (!isSupportedPage()) {
     dbgLog('[Code Review Extension] Not on a supported page, showing alert');
     alert('Please navigate to a Pull Request page to generate an AI code review.');
@@ -1060,8 +1201,18 @@ async function toggleReviewPanel() {
  */
 window.getAIResponse = (patchContent, conversationHistory, language = 'English') => {
   return new Promise((resolve, reject) => {
-    // Get the merge request ID for tracking
-    const mrId = getMergeRequestId();
+    // Get the merge request/pull request ID for tracking
+    let mrId = null;
+    if (platformDetector) {
+      if (platformDetector.isOnGitLabMRPage()) {
+        mrId = getMergeRequestId();
+      } else if (platformDetector.isOnGitHubPRPage()) {
+        mrId = getGitHubPRId();
+      } else if (platformDetector.isOnAzureDevOpsPRPage()) {
+        const prInfo = platformDetector.detectPlatform().pageInfo;
+        mrId = prInfo?.prId || null;
+      }
+    }
     
     // Get the full MR/PR URL
     const mrUrl = window.location.href;
@@ -1096,17 +1247,41 @@ window.getAIResponse = (patchContent, conversationHistory, language = 'English')
   });
 };
 
+/**
+ * Start monitoring URL changes for SPA navigation
+ */
+function startSPANavigationMonitoring() {
+  let lastUrl = window.location.href;
+  
+  // Simple approach: check if URL changed periodically
+  setInterval(() => {
+    const currentUrl = window.location.href;
+    if (currentUrl !== lastUrl) {
+      lastUrl = currentUrl;
+      checkAndTriggerReviewForNewPR();
+    }
+  }, 1000);
+  
+  dbgLog('[Code Review Extension] Started SPA navigation monitoring');
+}
+
 // Initialize when the page is loaded
 async function initializeExtension() {
   // Initialize platform detection first
   await initializePlatformDetection();
   
-  // Check if we should show the button (always true for Azure DevOps, only on MR pages for GitLab)
+  // Check if we should show the button (always true for Azure DevOps and GitHub, only on MR pages for GitLab)
   if (shouldShowButton()) {
     const platform = getCurrentPlatform();
     dbgLog('[Code Review Extension] Initializing for platform:', platform);
     
     injectButtons();
+    
+    // Start SPA navigation monitoring for GitHub and Azure DevOps sites
+    // Check by site (domain) rather than platform, because platform is null on non-PR pages
+    if (platformDetector && (platformDetector.isGitHubSite() || platformDetector.isAzureDevOpsSite())) {
+      startSPANavigationMonitoring();
+    }
     
     // Wait for the page to fully load before injecting the integrated review panel
     setTimeout(() => {
