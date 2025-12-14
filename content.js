@@ -307,10 +307,19 @@ function getCurrentPRId() {
 async function checkAndTriggerReviewForNewPR() {
   // Only check if we're on a supported page (PR page)
   if (!isSupportedPage()) {
-    // Not on a PR page - reset tracking
+    // Not on a PR page - reset tracking and hide score popup
     if (currentPRId !== null) {
       currentPRId = null;
     }
+    
+    // Hide score popup when navigating to a non-PR page
+    try {
+      const scorePopupModule = await import(chrome.runtime.getURL('components/popup-modules/score-popup.js'));
+      scorePopupModule.hideScorePopup();
+    } catch (error) {
+      // Silently fail if module not available
+    }
+    
     return;
   }
   
