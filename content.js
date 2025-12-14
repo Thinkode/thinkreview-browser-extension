@@ -148,10 +148,9 @@ function isGitLabMRPage() {
  */
 function getPatchUrl() {
   let url = window.location.href;
-  const platform = getCurrentPlatform();
   
   // GitHub uses .diff, GitLab uses .patch
-  const extension = platform === 'github' ? '.diff' : '.patch';
+  const extension = platformDetector && platformDetector.isOnGitHubPRPage() ? '.diff' : '.patch';
   
   if (!url.endsWith(extension)) {
     url = url.replace(/[#?].*$/, '') + extension;
@@ -286,13 +285,15 @@ function getMergeRequestSubject() {
  * @returns {string|null} Current PR/MR ID
  */
 function getCurrentPRId() {
-  const platform = getCurrentPlatform();
+  if (!platformDetector) {
+    return null;
+  }
   
-  if (platform === 'gitlab') {
+  if (platformDetector.isOnGitLabMRPage()) {
     return getMergeRequestId();
-  } else if (platform === 'github') {
+  } else if (platformDetector.isOnGitHubPRPage()) {
     return getGitHubPRId();
-  } else if (platform === 'azure-devops' && platformDetector) {
+  } else if (platformDetector.isOnAzureDevOpsPRPage()) {
     const prInfo = platformDetector.detectPlatform().pageInfo;
     return prInfo?.prId || null;
   }
@@ -842,11 +843,10 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     }
 
     // Determine platform and get code changes
-    const platform = getCurrentPlatform();
     let codeContent = '';
     let reviewId = null;
 
-    if (platform === 'gitlab') {
+    if (platformDetector && platformDetector.isOnGitLabMRPage()) {
       // GitLab: fetch patch file
       const patchUrl = getPatchUrl();
       const response = await fetch(patchUrl, { credentials: 'include' });
@@ -856,7 +856,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       codeContent = await response.text();
       reviewId = getMergeRequestId();
       
-    } else if (platform === 'github') {
+    } else if (platformDetector && platformDetector.isOnGitHubPRPage()) {
       // GitHub: fetch diff file through background script (to avoid CORS)
       const patchUrl = getPatchUrl();
       dbgLog('[Code Review Extension] Fetching GitHub diff through background script:', patchUrl);
@@ -875,7 +875,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       codeContent = bgResponse.content;
       reviewId = getGitHubPRId();
       
-    } else if (platform === 'azure-devops') {
+    } else if (platformDetector && platformDetector.isOnAzureDevOpsPRPage()) {
       // Azure DevOps: fetch via API
         dbgLog('[Code Review Extension] Starting Azure DevOps code fetch');
         const azureToken = await getAzureDevOpsToken();
@@ -948,7 +948,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     let filteredCodeContent = codeContent;
     let filterSummaryText = null;
     
-    if (platform === 'gitlab' || platform === 'github') {
+    if (platformDetector && (platformDetector.isOnGitLabMRPage() || platformDetector.isOnGitHubPRPage())) {
       // Dynamically import patch filtering utilities for GitLab and GitHub
       const patchFilterModule = await import(chrome.runtime.getURL('utils/patch-filter.js'));
       const { filterPatch, getFilterSummary } = patchFilterModule;
@@ -971,6 +971,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     
     // Get the full MR/PR URL
     const mrUrl = window.location.href;
+    
+    // Get platform for sending to background script
+    const platform = getCurrentPlatform();
     
     // Send the code content for review via background script (avoids CSP fetch issues)
     const bgResponse = await new Promise((resolve) => {
@@ -1190,15 +1193,16 @@ async function toggleReviewPanel() {
 window.getAIResponse = (patchContent, conversationHistory, language = 'English') => {
   return new Promise((resolve, reject) => {
     // Get the merge request/pull request ID for tracking
-    const platform = getCurrentPlatform();
     let mrId = null;
-    if (platform === 'gitlab') {
-      mrId = getMergeRequestId();
-    } else if (platform === 'github') {
-      mrId = getGitHubPRId();
-    } else if (platform === 'azure-devops' && platformDetector) {
-      const prInfo = platformDetector.detectPlatform().pageInfo;
-      mrId = prInfo?.prId || null;
+    if (platformDetector) {
+      if (platformDetector.isOnGitLabMRPage()) {
+        mrId = getMergeRequestId();
+      } else if (platformDetector.isOnGitHubPRPage()) {
+        mrId = getGitHubPRId();
+      } else if (platformDetector.isOnAzureDevOpsPRPage()) {
+        const prInfo = platformDetector.detectPlatform().pageInfo;
+        mrId = prInfo?.prId || null;
+      }
     }
     
     // Get the full MR/PR URL

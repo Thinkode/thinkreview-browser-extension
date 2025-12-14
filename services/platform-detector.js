@@ -311,6 +311,42 @@ export class PlatformDetector {
   }
 
   /**
+   * Check if we're currently on a PR/MR page (any supported platform)
+   * @returns {boolean} True if on a PR/MR page
+   */
+  isOnPRPage() {
+    const detection = this.detectPlatform();
+    return detection.isSupported && detection.platform !== null;
+  }
+
+  /**
+   * Check if we're currently on a GitHub PR page
+   * @returns {boolean} True if on a GitHub PR page
+   */
+  isOnGitHubPRPage() {
+    const detection = this.detectPlatform();
+    return detection.platform === 'github';
+  }
+
+  /**
+   * Check if we're currently on an Azure DevOps PR page
+   * @returns {boolean} True if on an Azure DevOps PR page
+   */
+  isOnAzureDevOpsPRPage() {
+    const detection = this.detectPlatform();
+    return detection.platform === 'azure-devops';
+  }
+
+  /**
+   * Check if we're currently on a GitLab MR page
+   * @returns {boolean} True if on a GitLab MR page
+   */
+  isOnGitLabMRPage() {
+    const detection = this.detectPlatform();
+    return detection.platform === 'gitlab';
+  }
+
+  /**
    * Get page information for debugging
    * @returns {Object} Page information
    */
