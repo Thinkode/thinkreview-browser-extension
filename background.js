@@ -869,8 +869,8 @@ async function updateContentScripts() {
           // Azure DevOps: match all pages (SPA - button always visible, but only works on PR pages)
           matchPattern = `${url.protocol}//${url.host}/*`;
         } else if (url.hostname === 'github.com' || url.hostname.endsWith('.github.com')) {
-          // GitHub: match pull request pages only
-          matchPattern = `${url.protocol}//${url.host}/*/pull/*`;
+          // GitHub: match all pages (SPA - button always visible, but only works on PR pages)
+          matchPattern = `${url.protocol}//${url.host}/*`;
         } else {
           // GitLab: match merge request pages only
           matchPattern = `${url.protocol}//${url.host}/*/merge_requests/*`;
@@ -879,8 +879,8 @@ async function updateContentScripts() {
         // Simple domain provided (e.g., gitlab.com, github.com)
         originPattern = `https://${domain}/*`;
         if (domain === 'github.com' || domain.endsWith('.github.com')) {
-          // GitHub: match pull request pages only
-          matchPattern = `https://${domain}/*/pull/*`;
+          // GitHub: match all pages (SPA - button always visible, but only works on PR pages)
+          matchPattern = `https://${domain}/*`;
         } else {
           // GitLab: match merge request pages only
           matchPattern = `https://${domain}/*/merge_requests/*`;
