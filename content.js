@@ -303,13 +303,22 @@ function getCurrentPRId() {
 /**
  * Check if we've navigated to a new PR and trigger review if needed
  */
-function checkAndTriggerReviewForNewPR() {
+async function checkAndTriggerReviewForNewPR() {
   // Only check if we're on a supported page (PR page)
   if (!isSupportedPage()) {
     // Not on a PR page - reset tracking
     if (currentPRId !== null) {
       currentPRId = null;
     }
+    return;
+  }
+  
+  const panel = document.getElementById('gitlab-mr-integrated-review');
+  
+  // If panel doesn't exist yet, create it (this handles SPA navigation to PR pages)
+  if (!panel) {
+    // Await the panel creation to ensure it completes before returning
+    await injectIntegratedReviewPanel();
     return;
   }
   
@@ -326,8 +335,7 @@ function checkAndTriggerReviewForNewPR() {
     currentPRId = newPRId;
     
     // Ensure panel is minimized
-    const panel = document.getElementById('gitlab-mr-integrated-review');
-    if (panel && !panel.classList.contains('thinkreview-panel-minimized-to-button')) {
+    if (!panel.classList.contains('thinkreview-panel-minimized-to-button')) {
       panel.classList.add('thinkreview-panel-minimized-to-button');
       const reviewBtn = document.getElementById('code-review-btn');
       if (reviewBtn) {
