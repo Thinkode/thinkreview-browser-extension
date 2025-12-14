@@ -402,49 +402,6 @@
   background-color: var(--thinkreview-bg-transparent);
 }
 
-/* Light theme table styles */
-body[data-theme="light"] #gitlab-mr-integrated-review .thinkreview-table,
-body[data-theme=""] #gitlab-mr-integrated-review .thinkreview-table,
-body:not([data-theme]) #gitlab-mr-integrated-review .thinkreview-table {
-  color: var(--thinkreview-text-secondary);
-}
-
-body[data-theme="light"] #gitlab-mr-integrated-review .thinkreview-table th,
-body[data-theme="light"] #gitlab-mr-integrated-review .thinkreview-table td,
-body[data-theme=""] #gitlab-mr-integrated-review .thinkreview-table th,
-body[data-theme=""] #gitlab-mr-integrated-review .thinkreview-table td,
-body:not([data-theme]) #gitlab-mr-integrated-review .thinkreview-table th,
-body:not([data-theme]) #gitlab-mr-integrated-review .thinkreview-table td {
-  color: var(--thinkreview-text-secondary);
-  background-color: var(--thinkreview-bg-transparent);
-  border-color: var(--thinkreview-border-light);
-}
-
-/* Dark theme table styles */
-body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-table th,
-body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-table td {
-  border-color: var(--thinkreview-border-light);
-  background-color: var(--thinkreview-bg-transparent);
-  color: var(--thinkreview-text-secondary);
-}
-
-body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-table thead {
-  background-color: var(--thinkreview-bg-transparent);
-}
-
-body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-table thead th {
-  color: var(--thinkreview-text-secondary);
-  background-color: var(--thinkreview-bg-transparent);
-}
-
-body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-table tbody tr {
-  background-color: var(--thinkreview-bg-transparent);
-}
-
-body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-table tbody tr:hover {
-  background-color: var(--thinkreview-bg-transparent);
-}
-
 /* High contrast theme table styles */
 body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table th,
 body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table td {
