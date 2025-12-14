@@ -168,13 +168,18 @@ export function markdownToHtml(markdown) {
       return processed;
     };
     
-    // Build table HTML
-    let tableHtml = '<table class="thinkreview-table">\n<thead>\n<tr>\n';
-    tableData.headerCells.forEach((cell, index) => {
+    // Helper function to generate cell HTML with alignment
+    const createCellHtml = (cell, index, tag = 'td') => {
       const align = tableData.alignments[index] || 'left';
       const style = align !== 'left' ? ` style="text-align: ${align}"` : '';
       const processedCell = processCellContent(cell);
-      tableHtml += `<th${style}>${processedCell}</th>\n`;
+      return `<${tag}${style}>${processedCell}</${tag}>\n`;
+    };
+    
+    // Build table HTML
+    let tableHtml = '<table class="thinkreview-table">\n<thead>\n<tr>\n';
+    tableData.headerCells.forEach((cell, index) => {
+      tableHtml += createCellHtml(cell, index, 'th');
     });
     tableHtml += '</tr>\n</thead>\n<tbody>\n';
     
@@ -182,10 +187,7 @@ export function markdownToHtml(markdown) {
     tableData.dataRows.forEach(row => {
       tableHtml += '<tr>\n';
       row.forEach((cell, index) => {
-        const align = tableData.alignments[index] || 'left';
-        const style = align !== 'left' ? ` style="text-align: ${align}"` : '';
-        const processedCell = processCellContent(cell);
-        tableHtml += `<td${style}>${processedCell}</td>\n`;
+        tableHtml += createCellHtml(cell, index, 'td');
       });
       tableHtml += '</tr>\n';
     });
