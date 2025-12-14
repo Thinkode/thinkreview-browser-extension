@@ -35,11 +35,67 @@ export function markdownToHtml(markdown) {
     if (escaped.trim() === '') return '';
     const placeholderId = codeBlockPlaceholders.length;
     codeBlockPlaceholders.push(`<pre><code class="${className}">${escaped}</code></pre>`);
-    return `@@CODE_BLOCK_${placeholderId}@@`;
+    // Use ThinkReview-specific prefix to prevent collision with user content
+    return `__THINKREVIEW_CODE_BLOCK_${placeholderId}__`;
   });
 
   // Remove stray standalone fences
   processedMarkdown = processedMarkdown.replace(/^```(?:\w+)?\s*$/gm, '').replace(/^```\s*$/gm, '');
+
+  // Extract markdown tables before other processing
+  const tablePlaceholders = [];
+  processedMarkdown = processedMarkdown.replace(/(?:^|\n)(\|[^\n]+\|\r?\n(?:\|[\s\-\:]+\|\r?\n)?(?:\|[^\n]+\|\r?\n?)+)/gm, (match) => {
+    // Parse the table
+    const lines = match.trim().split(/\r?\n/).filter(line => line.trim());
+    if (lines.length < 2) return match; // Need at least header and separator
+    
+    // Parse header row - handle empty cells at start/end
+    const headerRow = lines[0];
+    const headerCells = headerRow.split('|').map(cell => cell.trim());
+    // Remove empty cells at start and end (markdown tables often have them)
+    if (headerCells[0] === '') headerCells.shift();
+    if (headerCells[headerCells.length - 1] === '') headerCells.pop();
+    
+    // Parse separator row to determine alignment
+    const separatorRow = lines[1];
+    const separatorCells = separatorRow.split('|').map(cell => cell.trim());
+    // Remove empty cells at start and end
+    const cleanSeparatorCells = [...separatorCells];
+    if (cleanSeparatorCells[0] === '') cleanSeparatorCells.shift();
+    if (cleanSeparatorCells[cleanSeparatorCells.length - 1] === '') cleanSeparatorCells.pop();
+    
+    const alignments = cleanSeparatorCells.map(sep => {
+      const trimmed = sep.trim();
+      if (/^:[\-\s]+:$/.test(trimmed)) return 'center';
+      if (/^[\-\s]+:$/.test(trimmed)) return 'right';
+      return 'left'; // default
+    });
+    
+    // Store table data for later processing (after markdown formatting)
+    const tableData = {
+      headerCells: headerCells,
+      alignments: alignments,
+      dataRows: []
+    };
+    
+    // Parse data rows
+    for (let i = 2; i < lines.length; i++) {
+      const row = lines[i];
+      const cells = row.split('|').map(cell => cell.trim());
+      // Remove empty cells at start and end
+      const cleanCells = [...cells];
+      if (cleanCells[0] === '') cleanCells.shift();
+      if (cleanCells[cleanCells.length - 1] === '') cleanCells.pop();
+      if (cleanCells.length > 0) {
+        tableData.dataRows.push(cleanCells);
+      }
+    }
+    
+    const placeholderId = tablePlaceholders.length;
+    tablePlaceholders.push(tableData);
+    // Use ThinkReview-specific prefix to prevent collision with user content
+    return `__THINKREVIEW_TABLE_${placeholderId}__`;
+  });
 
   // Process markdown (excluding code blocks)
   let html = processedMarkdown
@@ -65,7 +121,7 @@ export function markdownToHtml(markdown) {
   html = html.replace(/(^|<br>)(<li>[\s\S]*?<\/li>)(?=$|<br>)/g, (m, pre, item) => `${pre}<ul>${item}</ul>`);
 
   // Restore code blocks and wrap with header/copy button
-  html = html.replace(/@@CODE_BLOCK_(\d+)@@/g, (match, id) => {
+  html = html.replace(/__THINKREVIEW_CODE_BLOCK_(\d+)__/g, (match, id) => {
     const codeBlock = codeBlockPlaceholders[Number(id)];
     if (!codeBlock) return '';
     const matchResult = codeBlock.match(/<pre><code class="(language-[^"]+)">([\s\S]*?)<\/code><\/pre>/);
@@ -73,6 +129,71 @@ export function markdownToHtml(markdown) {
     const [, cls, inner] = matchResult;
     const lang = (cls.replace('language-', '') || 'text').toLowerCase();
     return `\n<div class="thinkreview-code-block">\n  <div class="thinkreview-code-header">\n    <span class="thinkreview-code-lang">${lang}</span>\n    <button class="thinkreview-copy-btn" title="Copy code">Copy code<\/button>\n  <\/div>\n  <pre><code class="${cls}">${inner}<\/code><\/pre>\n<\/div>`;
+  });
+
+  // Restore tables - process markdown in cells first
+  html = html.replace(/__THINKREVIEW_TABLE_(\d+)__/g, (match, id) => {
+    const tableData = tablePlaceholders[Number(id)];
+    if (!tableData || !tableData.headerCells) return '';
+    
+    // Helper to process markdown in cell content
+    const processCellContent = (cellContent) => {
+      if (!cellContent) return '';
+      let processed = cellContent;
+      
+      // Process markdown patterns first, escaping content inside
+      processed = processed
+        .replace(/`([^`]+)`/g, (match, code) => `<code>${escapeHtml(code)}</code>`)
+        .replace(/\*\*(.*?)\*\*/g, (match, text) => `<strong>${escapeHtml(text)}</strong>`)
+        .replace(/\*(.*?)\*/g, (match, text) => `<em>${escapeHtml(text)}</em>`);
+      
+      // Escape any remaining HTML tags that weren't part of markdown
+      // But preserve the tags we just created
+      const tagPlaceholders = [];
+      processed = processed.replace(/(<(code|strong|em)[^>]*>[\s\S]*?<\/\2>)/g, (match) => {
+        const id = tagPlaceholders.length;
+        tagPlaceholders.push(match);
+        // Use ThinkReview-specific prefix to prevent collision with user content
+        return `__THINKREVIEW_TAG_${id}__`;
+      });
+      
+      // Escape remaining HTML
+      processed = escapeHtml(processed);
+      
+      // Restore our markdown-generated tags
+      tagPlaceholders.forEach((tag, id) => {
+        processed = processed.replace(`__THINKREVIEW_TAG_${id}__`, tag);
+      });
+      
+      return processed;
+    };
+    
+    // Helper function to generate cell HTML with alignment
+    const createCellHtml = (cell, index, tag = 'td') => {
+      const align = tableData.alignments[index] || 'left';
+      const style = align !== 'left' ? ` style="text-align: ${align}"` : '';
+      const processedCell = processCellContent(cell);
+      return `<${tag}${style}>${processedCell}</${tag}>\n`;
+    };
+    
+    // Build table HTML
+    let tableHtml = '<table class="thinkreview-table">\n<thead>\n<tr>\n';
+    tableData.headerCells.forEach((cell, index) => {
+      tableHtml += createCellHtml(cell, index, 'th');
+    });
+    tableHtml += '</tr>\n</thead>\n<tbody>\n';
+    
+    // Process data rows
+    tableData.dataRows.forEach(row => {
+      tableHtml += '<tr>\n';
+      row.forEach((cell, index) => {
+        tableHtml += createCellHtml(cell, index, 'td');
+      });
+      tableHtml += '</tr>\n';
+    });
+    
+    tableHtml += '</tbody>\n</table>';
+    return tableHtml;
   });
 
   return html;

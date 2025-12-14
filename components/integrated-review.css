@@ -1,6 +1,16 @@
 /* integrated-review.css */
 /* Styles for the integrated review panel in GitLab MR pages */
 
+:root {
+  /* Colors */
+  --thinkreview-text-secondary: #e0e0e0;
+  --thinkreview-bg-transparent: transparent;
+  --thinkreview-border-light: rgba(255, 255, 255, 0.1);
+  
+  /* Spacing */
+  --thinkreview-padding-sm: 8px 12px;
+}
+
 .thinkreview-panel-container {
   position: fixed;
   right: 20px;
@@ -289,13 +299,13 @@
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 13px;
   line-height: 1.45;
-  color: #e0e0e0;
+  color: var(--thinkreview-text-secondary);
 }
 
 #gitlab-mr-integrated-review .chat-message pre code {
-  background-color: transparent;
+  background-color: var(--thinkreview-bg-transparent);
   border: none;
-  color: #e0e0e0;
+  color: var(--thinkreview-text-secondary);
   padding: 0;
   font-size: 13px;
   white-space: pre;
@@ -353,6 +363,60 @@
 #gitlab-mr-integrated-review .thinkreview-code-block pre code {
   white-space: pre;
   display: block;
+}
+
+/* Table styles - match normal text and background */
+#gitlab-mr-integrated-review .thinkreview-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 14px;
+  background-color: var(--thinkreview-bg-transparent);
+  color: var(--thinkreview-text-secondary);
+}
+
+#gitlab-mr-integrated-review .thinkreview-table th,
+#gitlab-mr-integrated-review .thinkreview-table td {
+  padding: var(--thinkreview-padding-sm);
+  border: 1px solid var(--thinkreview-border-light);
+  text-align: left;
+  background-color: var(--thinkreview-bg-transparent);
+  color: var(--thinkreview-text-secondary);
+}
+
+#gitlab-mr-integrated-review .thinkreview-table thead {
+  background-color: var(--thinkreview-bg-transparent);
+}
+
+#gitlab-mr-integrated-review .thinkreview-table thead th {
+  font-weight: 600;
+  color: var(--thinkreview-text-secondary);
+  background-color: var(--thinkreview-bg-transparent);
+}
+
+#gitlab-mr-integrated-review .thinkreview-table tbody tr {
+  background-color: var(--thinkreview-bg-transparent);
+}
+
+#gitlab-mr-integrated-review .thinkreview-table tbody tr:hover {
+  background-color: var(--thinkreview-bg-transparent);
+}
+
+/* High contrast theme table styles */
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table th,
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table td {
+  border-color: rgba(255, 255, 255, 0.2);
+  background-color: var(--thinkreview-bg-transparent);
+  color: var(--thinkreview-text-secondary);
+}
+
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table thead {
+  background-color: var(--thinkreview-bg-transparent);
+}
+
+body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table thead th {
+  color: var(--thinkreview-text-secondary);
+  background-color: var(--thinkreview-bg-transparent);
 }
 
 /* Lightweight syntax highlighting tokens */
@@ -878,19 +942,19 @@
 }
 
 #gitlab-mr-integrated-review .thinkreview-section-content {
-  color: #e0e0e0;
+  color: var(--thinkreview-text-secondary);
   line-height: 1.5;
 }
 
 #gitlab-mr-integrated-review .thinkreview-section-list {
-  color: #e0e0e0;
+  color: var(--thinkreview-text-secondary);
   /* Ensure bullets render even if host page resets list styles (e.g., Azure DevOps) */
   list-style: disc outside !important;
   padding-left: 20px !important;
 }
 
 #gitlab-mr-integrated-review .thinkreview-section-list li {
-  color: #e0e0e0;
+  color: var(--thinkreview-text-secondary);
   margin-bottom: 4px;
   /* Critical: if LI is not a list-item, bullets will not show */
   display: list-item !important;
@@ -1237,12 +1301,12 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-
 
 body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-card-body .thinkreview-section-content,
 body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-body .thinkreview-section-content {
-  color: #e0e0e0;
+  color: var(--thinkreview-text-secondary);
 }
 
 body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-card-body .thinkreview-section-list li,
 body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-body .thinkreview-section-list li {
-  color: #e0e0e0;
+  color: var(--thinkreview-text-secondary);
 }
 
 /* Platform-specific classes for additional styling control */
@@ -1257,11 +1321,11 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-
 }
 
 #gitlab-mr-integrated-review.azure-devops-platform .thinkreview-card-body .thinkreview-section-content {
-  color: #e0e0e0 !important;
+  color: var(--thinkreview-text-secondary) !important;
 }
 
 #gitlab-mr-integrated-review.azure-devops-platform .thinkreview-card-body .thinkreview-section-list li {
-  color: #e0e0e0 !important;
+  color: var(--thinkreview-text-secondary) !important;
 }
 
 /* Dark theme overrides for Azure DevOps */
@@ -1278,12 +1342,12 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-
 
 #gitlab-mr-integrated-review.azure-devops-platform[data-theme="dark"] .thinkreview-card-body .thinkreview-section-content,
 #gitlab-mr-integrated-review.azure-devops-platform.dark-theme .thinkreview-card-body .thinkreview-section-content {
-  color: #e0e0e0 !important;
+  color: var(--thinkreview-text-secondary) !important;
 }
 
 #gitlab-mr-integrated-review.azure-devops-platform[data-theme="dark"] .thinkreview-card-body .thinkreview-section-list li,
 #gitlab-mr-integrated-review.azure-devops-platform.dark-theme .thinkreview-card-body .thinkreview-section-list li {
-  color: #e0e0e0 !important;
+  color: var(--thinkreview-text-secondary) !important;
 }
 
 /* High contrast theme overrides for Azure DevOps */
@@ -1319,7 +1383,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-
 
 #gitlab-mr-integrated-review .thinkreview-login-description {
   margin-bottom: 20px !important;
-  color: #e0e0e0 !important;
+  color: var(--thinkreview-text-secondary) !important;
   font-size: 14px !important;
   text-align: center !important;
   line-height: 1.4 !important;
@@ -1333,7 +1397,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login
 
 body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-login-description,
 body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login-description {
-  color: #e0e0e0 !important;
+  color: var(--thinkreview-text-secondary) !important;
 }
 
 /* Login prompt icon and button centering - distinctive classes to avoid Azure DevOps conflicts */
@@ -1420,7 +1484,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login
 /* Quality Scorecard Styles */
 #gitlab-mr-integrated-review .thinkreview-quality-scorecard {
   padding: 16px;
-  background-color: transparent;
+  background-color: var(--thinkreview-bg-transparent);
   border-radius: 4px;
   border: none;
 }
@@ -2050,7 +2114,7 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
 }
 
 .thinkreview-feedback-popup-close:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--thinkreview-border-light);
   color: #ffffff;
 }
 
@@ -2062,7 +2126,7 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
 
 .thinkreview-feedback-popup-body p {
   margin: 0 0 12px 0;
-  color: #e0e0e0;
+  color: var(--thinkreview-text-secondary);
   font-size: 14px;
 }
 

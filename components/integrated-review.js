@@ -554,9 +554,11 @@ function applyPlatformSpecificStyling(container) {
       
       // Apply text color to child elements for better contrast
       const textElements = cardBody.querySelectorAll('h5, p, li');
+      // Use CSS variable for consistency with stylesheet
+      const textColor = getComputedStyle(document.documentElement).getPropertyValue('--thinkreview-text-secondary').trim() || '#e0e0e0';
       textElements.forEach(element => {
         // Default to dark theme colors for better readability
-        element.style.color = '#e0e0e0';
+        element.style.color = textColor;
       });
     }
     
