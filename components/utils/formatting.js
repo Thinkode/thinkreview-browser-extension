@@ -50,10 +50,7 @@ export function markdownToHtml(markdown) {
     
     // Parse header row - handle empty cells at start/end
     const headerRow = lines[0];
-    const headerCells = headerRow.split('|').map(cell => cell.trim()).filter((cell, idx, arr) => {
-      // Keep all cells, but mark empty ones
-      return true;
-    });
+    const headerCells = headerRow.split('|').map(cell => cell.trim());
     // Remove empty cells at start and end (markdown tables often have them)
     if (headerCells[0] === '') headerCells.shift();
     if (headerCells[headerCells.length - 1] === '') headerCells.pop();
