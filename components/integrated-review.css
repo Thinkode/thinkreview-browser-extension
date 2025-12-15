@@ -258,6 +258,8 @@
   border-radius: 18px;
   word-wrap: break-word;
   line-height: 1.4;
+  overflow-x: auto;
+  box-sizing: border-box;
 }
 
 .chat-message.user-message {
