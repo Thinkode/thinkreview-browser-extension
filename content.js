@@ -310,6 +310,11 @@ async function checkAndTriggerReviewForNewPR() {
     // Not on a PR page - reset tracking and hide score popup
     if (currentPRId !== null) {
       currentPRId = null;
+      
+      // Clear patch content and conversation history when leaving PR page
+      if (typeof window.clearPatchContentAndHistory === 'function') {
+        window.clearPatchContentAndHistory();
+      }
     }
     
     // Hide score popup when navigating to a non-PR page
@@ -340,6 +345,11 @@ async function checkAndTriggerReviewForNewPR() {
       oldId: currentPRId,
       newId: newPRId
     });
+    
+    // Clear patch content and conversation history from previous PR to free up memory
+    if (typeof window.clearPatchContentAndHistory === 'function') {
+      window.clearPatchContentAndHistory();
+    }
     
     // Update tracked PR ID
     currentPRId = newPRId;

@@ -75,6 +75,19 @@ initReviewPromptComponent();
 let conversationHistory = [];
 let currentPatchContent = '';
 
+/**
+ * Clears the stored patch content and conversation history
+ * This should be called when navigating to a new PR to free up memory
+ */
+function clearPatchContentAndHistory() {
+  currentPatchContent = '';
+  conversationHistory = [];
+  console.log('[IntegratedReview] Cleared patch content and conversation history');
+}
+
+// Expose function for content.js to call when navigating to new PR
+window.clearPatchContentAndHistory = clearPatchContentAndHistory;
+
 // Enhanced loader functionality
 let loaderStageInterval = null;
 let currentLoaderStage = 0;
