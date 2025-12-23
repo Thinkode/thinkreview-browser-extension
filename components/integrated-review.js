@@ -1362,8 +1362,20 @@ async function displayIntegratedReview(review, patchContent) {
     }
   };
 
-  // Update counter on input
-  chatInput.addEventListener('input', updateCharCounter);
+  // Debounce function to limit how often updateCharCounter runs
+  // This prevents performance issues when typing quickly
+  let charCounterTimeout = null;
+  const debouncedUpdateCharCounter = () => {
+    // Clear existing timeout
+    if (charCounterTimeout) {
+      clearTimeout(charCounterTimeout);
+    }
+    // Set new timeout - update after 150ms of no typing
+    charCounterTimeout = setTimeout(updateCharCounter, 150);
+  };
+
+  // Update counter on input with debouncing for better performance
+  chatInput.addEventListener('input', debouncedUpdateCharCounter);
   
   // Initial counter update
   updateCharCounter();
