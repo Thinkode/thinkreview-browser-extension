@@ -269,6 +269,7 @@ async function createIntegratedReviewPanel(patchUrl) {
         <div id="review-content" class="gl-hidden">
           <div id="review-scroll-container">
             <div id="review-prompt-container"></div>
+            <div id="review-patch-size-banner" class="gl-mb-4 gl-hidden"></div>
             <div id="review-metrics-container" class="gl-mb-4"></div>
             <div id="review-summary-container" class="gl-mb-4">
               <h5 class="gl-font-weight-bold thinkreview-section-title">Summary</h5>
@@ -1070,7 +1071,7 @@ async function handleSendMessage(messageText) {
   }
 }
 
-async function displayIntegratedReview(review, patchContent) {
+async function displayIntegratedReview(review, patchContent, patchSize = null) {
   // Check if there was a JSON parsing error (safety check)
   if (review.parsingError === true) {
     console.warn('[IntegratedReview] JSON parsing error detected in review object');
@@ -1105,6 +1106,7 @@ async function displayIntegratedReview(review, patchContent) {
   const reviewSecurity = document.getElementById('review-security');
   const reviewPractices = document.getElementById('review-practices');
   const reviewMetricsContainer = document.getElementById('review-metrics-container');
+  const patchSizeBanner = document.getElementById('review-patch-size-banner');
 
   // Hide loading indicator and other states, show the main content area
   reviewLoading.classList.add('gl-hidden');
@@ -1112,6 +1114,42 @@ async function displayIntegratedReview(review, patchContent) {
   if (tokenError) tokenError.classList.add('gl-hidden');
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
   reviewContent.classList.remove('gl-hidden');
+
+  // Render patch size banner if patchSize data is available
+  if (patchSizeBanner) {
+    patchSizeBanner.innerHTML = ''; // Clear previous content
+    if (patchSize && patchSize.original) {
+      // Format file size for display
+      const formatSize = (bytes) => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      };
+      
+      const originalSize = formatSize(patchSize.original);
+      const truncatedSize = patchSize.truncated ? formatSize(patchSize.truncated) : null;
+      const filesExcluded = patchSize.filesExcluded || 0;
+      
+      // Create banner content
+      let bannerText = `Original patch: ${originalSize}`;
+      if (filesExcluded > 0) {
+        bannerText += ` • Files excluded: ${filesExcluded}`;
+      }
+      if (patchSize.wasTruncated && truncatedSize) {
+        bannerText += ` • Truncated patch: ${truncatedSize}`;
+      }
+      
+      patchSizeBanner.innerHTML = `
+        <div class="thinkreview-patch-size-banner">
+          <div class="thinkreview-patch-size-icon">📊</div>
+          <div class="thinkreview-patch-size-content">${bannerText}</div>
+        </div>
+      `;
+      patchSizeBanner.classList.remove('gl-hidden');
+    } else {
+      patchSizeBanner.classList.add('gl-hidden');
+    }
+  }
 
   // Render quality scorecard if metrics are available
   if (reviewMetricsContainer) {
