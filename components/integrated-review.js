@@ -75,6 +75,19 @@ initReviewPromptComponent();
 let conversationHistory = [];
 let currentPatchContent = '';
 
+/**
+ * Clears the stored patch content and conversation history
+ * This should be called when navigating to a new PR to free up memory
+ */
+function clearPatchContentAndHistory() {
+  currentPatchContent = '';
+  conversationHistory = [];
+  console.log('[IntegratedReview] Cleared patch content and conversation history');
+}
+
+// Expose function for content.js to call when navigating to new PR
+window.clearPatchContentAndHistory = clearPatchContentAndHistory;
+
 // Enhanced loader functionality
 let loaderStageInterval = null;
 let currentLoaderStage = 0;
@@ -1349,8 +1362,20 @@ async function displayIntegratedReview(review, patchContent) {
     }
   };
 
-  // Update counter on input
-  chatInput.addEventListener('input', updateCharCounter);
+  // Debounce function to limit how often updateCharCounter runs
+  // This prevents performance issues when typing quickly
+  let charCounterTimeout = null;
+  const debouncedUpdateCharCounter = () => {
+    // Clear existing timeout
+    if (charCounterTimeout) {
+      clearTimeout(charCounterTimeout);
+    }
+    // Set new timeout - update after 150ms of no typing
+    charCounterTimeout = setTimeout(updateCharCounter, 150);
+  };
+
+  // Update counter on input with debouncing for better performance
+  chatInput.addEventListener('input', debouncedUpdateCharCounter);
   
   // Initial counter update
   updateCharCounter();
