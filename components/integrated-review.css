@@ -930,11 +930,10 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   margin-bottom: 4px;
 }
 
-/* Patch size banner styles */
+/* Patch size / metadata banner styles */
 #gitlab-mr-integrated-review .thinkreview-patch-size-banner {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
   padding: 10px 14px;
   background-color: rgba(107, 79, 187, 0.15);
   border: 1px solid rgba(107, 79, 187, 0.3);
@@ -942,6 +941,51 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   font-size: 13px;
   color: var(--thinkreview-text-secondary);
   margin-bottom: 16px;
+  transition: background-color 0.2s ease;
+}
+
+#gitlab-mr-integrated-review .thinkreview-patch-size-banner:hover {
+  background-color: rgba(107, 79, 187, 0.2);
+}
+
+/* Top row that stays fixed */
+#gitlab-mr-integrated-review .thinkreview-patch-size-top-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Expand arrow on the left */
+#gitlab-mr-integrated-review .thinkreview-patch-size-expand-arrow {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  margin: 0;
+  cursor: pointer;
+  color: var(--thinkreview-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, color 0.2s ease;
+  width: 20px;
+  height: 20px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-patch-size-expand-arrow:hover {
+  color: #c5b3ff;
+}
+
+#gitlab-mr-integrated-review .thinkreview-patch-size-expand-arrow svg {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.2s ease;
+}
+
+/* Rotate arrow when expanded */
+#gitlab-mr-integrated-review .thinkreview-patch-size-banner-expanded .thinkreview-patch-size-expand-arrow svg {
+  transform: rotate(90deg);
 }
 
 #gitlab-mr-integrated-review .thinkreview-patch-size-icon {
@@ -952,6 +996,46 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
 #gitlab-mr-integrated-review .thinkreview-patch-size-content {
   flex: 1;
   line-height: 1.4;
+}
+
+/* Excluded files details section */
+#gitlab-mr-integrated-review .thinkreview-patch-size-details {
+  width: 100%;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(107, 79, 187, 0.4);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#gitlab-mr-integrated-review .thinkreview-patch-size-details-title {
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #ffffff;
+  font-size: 12px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-patch-size-details-list {
+  list-style: disc outside !important;
+  padding-left: 20px !important;
+  margin: 0;
+}
+
+#gitlab-mr-integrated-review .thinkreview-patch-size-details-list li {
+  color: var(--thinkreview-text-secondary);
+  margin-bottom: 4px;
+  font-size: 12px;
+  word-break: break-all;
 }
 
 #gitlab-mr-integrated-review #review-summary {
