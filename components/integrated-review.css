@@ -930,6 +930,30 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   margin-bottom: 4px;
 }
 
+/* Patch size banner styles */
+#gitlab-mr-integrated-review .thinkreview-patch-size-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background-color: rgba(107, 79, 187, 0.15);
+  border: 1px solid rgba(107, 79, 187, 0.3);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--thinkreview-text-secondary);
+  margin-bottom: 16px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-patch-size-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+#gitlab-mr-integrated-review .thinkreview-patch-size-content {
+  flex: 1;
+  line-height: 1.4;
+}
+
 #gitlab-mr-integrated-review #review-summary {
   padding: 8px 0;
   margin-bottom: 16px;
