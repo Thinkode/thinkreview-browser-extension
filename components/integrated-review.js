@@ -1117,36 +1117,12 @@ async function displayIntegratedReview(review, patchContent, patchSize = null) {
 
   // Render patch size banner if patchSize data is available
   if (patchSizeBanner) {
-    patchSizeBanner.innerHTML = ''; // Clear previous content
-    if (patchSize && patchSize.original) {
-      // Format file size for display
-      const formatSize = (bytes) => {
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-      };
-      
-      const originalSize = formatSize(patchSize.original);
-      const truncatedSize = patchSize.truncated ? formatSize(patchSize.truncated) : null;
-      const filesExcluded = patchSize.filesExcluded || 0;
-      
-      // Create banner content
-      let bannerText = `Original patch: ${originalSize}`;
-      if (filesExcluded > 0) {
-        bannerText += ` • Files excluded: ${filesExcluded}`;
-      }
-      if (patchSize.wasTruncated && truncatedSize) {
-        bannerText += ` • Truncated patch: ${truncatedSize}`;
-      }
-      
-      patchSizeBanner.innerHTML = `
-        <div class="thinkreview-patch-size-banner">
-          <div class="thinkreview-patch-size-icon">📊</div>
-          <div class="thinkreview-patch-size-content">${bannerText}</div>
-        </div>
-      `;
-      patchSizeBanner.classList.remove('gl-hidden');
-    } else {
+    try {
+      const metadataModule = await import('./review-metadata-bar.js');
+      metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize);
+    } catch (error) {
+      console.warn('[IntegratedReview] Failed to load review metadata bar:', error);
+      // Best-effort: hide banner container on failure
       patchSizeBanner.classList.add('gl-hidden');
     }
   }
