@@ -52,26 +52,27 @@ async function initializePlatformDetection() {
 }
 
 // Debug information about the page
-const pageInfo = {
-  url: window.location.href,
-  pathname: window.location.pathname,
-  host: window.location.host,
-  protocol: window.location.protocol,
-  hasMergeRequestsInPath: window.location.pathname.includes('/merge_requests/'),
-  hasPullRequestsInPath: window.location.pathname.includes('/pullrequest/'),
-  documentTitle: document.title,
-  relevantElements: {
-    mergeRequest: !!document.querySelector('.merge-request'),
-    mergeRequestDetails: !!document.querySelector('.merge-request-details'),
-    diffFilesHolder: !!document.querySelector('.diff-files-holder'),
-    diffs: !!document.querySelector('.diffs'),
-    mrStateWidget: !!document.querySelector('.mr-state-widget'),
-    prHeader: !!document.querySelector('[data-testid="pull-request-header"]'),
-    prTitle: !!document.querySelector('[data-testid="pull-request-title"]')
-  }
-};
-console.log('[Code Review Extension] Page information:', pageInfo);
-
+if (DEBUG) {
+  const pageInfo = {
+    url: window.location.href,
+    pathname: window.location.pathname,
+    host: window.location.host,
+    protocol: window.location.protocol,
+    hasMergeRequestsInPath: window.location.pathname.includes('/merge_requests/'),
+    hasPullRequestsInPath: window.location.pathname.includes('/pullrequest/'),
+    documentTitle: document.title,
+    relevantElements: {
+      mergeRequest: !!document.querySelector('.merge-request'),
+      mergeRequestDetails: !!document.querySelector('.merge-request-details'),
+      diffFilesHolder: !!document.querySelector('.diff-files-holder'),
+      diffs: !!document.querySelector('.diffs'),
+      mrStateWidget: !!document.querySelector('.mr-state-widget'),
+      prHeader: !!document.querySelector('[data-testid="pull-request-header"]'),
+      prTitle: !!document.querySelector('[data-testid="pull-request-title"]')
+    }
+  };
+  console.log('[Code Review Extension] Page information:', pageInfo);
+}
 // The integrated review component functions (createIntegratedReviewPanel, displayIntegratedReview, showIntegratedReviewError)
 // are loaded from integrated-review.js which is included in the manifest.json
 
