@@ -2,7 +2,7 @@
   "manifest_version": 3,
 
   "name": "ThinkReview: AI Code Review for GitLab, GitHub & Azure DevOps",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "description": "AI Copilot & AI Code Reviews for GitLab,GitHub and Azure DevOps PRs - Ollama support",
 
   "permissions": [
