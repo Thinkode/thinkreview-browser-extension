@@ -7,7 +7,7 @@ function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
 const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net';
 const SYNC_USER_URL = `${CLOUD_FUNCTIONS_BASE_URL}/syncUserByEmailReviews`;
 const REVIEW_CODE_URL = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode`;
-const REVIEW_CODE_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode_Dev`;
+const REVIEW_CODE_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode_1_1`;
 const SYNC_REVIEWS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/syncCodeReviews`;
 const GET_REVIEW_COUNT_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getReviewCount`;
 const GET_USER_DATA_URL = `${CLOUD_FUNCTIONS_BASE_URL}/ThinkReviewGetUserData`;
