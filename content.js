@@ -1045,8 +1045,8 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       data.review.summary = (data.review.summary || '') + '\n\n' + filterSummaryText;
     }
     
-    // Display the review results with patchSize if available
-    displayIntegratedReview(data.review, codeContent, data.patchSize);
+    // Display the review results with patchSize and subscriptionTier if available
+    displayIntegratedReview(data.review, codeContent, data.patchSize, data.subscriptionTier);
   } catch (error) {
     dbgWarn('[Code Review Extension] Error during code review:', error);
     
