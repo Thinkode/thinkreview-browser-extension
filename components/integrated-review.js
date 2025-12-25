@@ -1071,7 +1071,7 @@ async function handleSendMessage(messageText) {
   }
 }
 
-async function displayIntegratedReview(review, patchContent, patchSize = null) {
+async function displayIntegratedReview(review, patchContent, patchSize = null, subscriptionTier = null) {
   // Check if there was a JSON parsing error (safety check)
   if (review.parsingError === true) {
     console.warn('[IntegratedReview] JSON parsing error detected in review object');
@@ -1119,7 +1119,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null) {
   if (patchSizeBanner) {
     try {
       const metadataModule = await import('./review-metadata-bar.js');
-      metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize);
+      metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionTier);
     } catch (error) {
       console.warn('[IntegratedReview] Failed to load review metadata bar:', error);
       // Best-effort: hide banner container on failure

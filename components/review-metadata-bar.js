@@ -5,8 +5,9 @@
  * Render the review metadata bar (patch size banner)
  * @param {HTMLElement} container - The container element for the banner
  * @param {Object|null} patchSize - Patch size information from backend
+ * @param {string|null} subscriptionTier - User's subscription tier ('premium' or 'free')
  */
-export function renderReviewMetadataBar(container, patchSize) {
+export function renderReviewMetadataBar(container, patchSize, subscriptionTier = null) {
   if (!container) return;
 
   // Clear previous content
@@ -32,6 +33,8 @@ export function renderReviewMetadataBar(container, patchSize) {
   const excludedFileNames = Array.isArray(patchSize.excludedFileNames)
     ? patchSize.excludedFileNames.filter(Boolean)
     : [];
+  const wasForcedTruncated = patchSize.wasForcedTruncated || false;
+  const showUpgradeMessage = wasForcedTruncated && subscriptionTier === 'free';
 
   // Build main banner text
   let bannerText = `Original patch: ${originalSize}`;
@@ -130,6 +133,21 @@ export function renderReviewMetadataBar(container, patchSize) {
     }
 
     banner.appendChild(details);
+  }
+
+  // Add upgrade message if forced truncation occurred and user is on free tier
+  if (showUpgradeMessage) {
+    const upgradeMessage = document.createElement('div');
+    upgradeMessage.className = 'thinkreview-upgrade-message';
+    upgradeMessage.innerHTML = `
+      <div class="thinkreview-upgrade-message-content">
+        <span class="thinkreview-upgrade-icon">⚡</span>
+        <span class="thinkreview-upgrade-text">
+          Your patch was truncated due to size limits. <a href="https://thinkreview.dev/pricing" target="_blank" class="thinkreview-upgrade-link">Upgrade to Premium</a> to review larger patches (up to 2MB).
+        </span>
+      </div>
+    `;
+    banner.appendChild(upgradeMessage);
   }
 
   container.appendChild(banner);
