@@ -137,13 +137,22 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionTier =
 
   // Add upgrade message if forced truncation occurred and user is on free tier
   if (showUpgradeMessage) {
+    // Randomly select one of the upgrade messages
+    const upgradeMessages = [
+      'Your patch was too large for the free tier. <a href="https://thinkreview.dev/pricing" target="_blank" class="thinkreview-upgrade-link">Upgrade to Premium</a> to review patches up to 4MB.',
+      'Your patch was too large for the free tier. <a href="https://thinkreview.dev/pricing" target="_blank" class="thinkreview-upgrade-link">Upgrade to Premium</a> to get a complete review for this PR',
+      '<a href="https://thinkreview.dev/pricing" target="_blank" class="thinkreview-upgrade-link">Upgrade to Premium</a> to review your entire patch (up to 4MB). Get the complete analysis you need.'
+    ];
+    
+    const randomMessage = upgradeMessages[Math.floor(Math.random() * upgradeMessages.length)];
+    
     const upgradeMessage = document.createElement('div');
     upgradeMessage.className = 'thinkreview-upgrade-message';
     upgradeMessage.innerHTML = `
       <div class="thinkreview-upgrade-message-content">
         <span class="thinkreview-upgrade-icon">⚡</span>
         <span class="thinkreview-upgrade-text">
-          Your patch was truncated due to size limits. <a href="https://thinkreview.dev/pricing" target="_blank" class="thinkreview-upgrade-link">Upgrade to Premium</a> to review larger patches (up to 2MB).
+          ${randomMessage}
         </span>
       </div>
     `;
