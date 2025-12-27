@@ -15,21 +15,37 @@
   function dbgError(...args) { if (DEBUG) console.error(...args); }
   
   // SECURITY: Verify we're on the correct domain
+  // Localhost is only allowed in DEBUG mode for security
   const ALLOWED_ORIGINS = [
     'thinkreview.dev',
     'portal.thinkreview.dev',
     'app.thinkreview.dev',
-    'localhost',
-    '127.0.0.1'
+    ...(DEBUG ? ['localhost', '127.0.0.1'] : [])
   ];
   
+  /**
+   * Validates if a hostname is in the allowed origins list
+   * Uses strict matching to prevent spoofing
+   */
+  function isValidOrigin(hostname) {
+    // Localhost is only allowed in DEBUG mode
+    if ((hostname === 'localhost' || hostname === '127.0.0.1') && !DEBUG) {
+      return false;
+    }
+    
+    return ALLOWED_ORIGINS.some(origin => {
+      // Exact match
+      if (hostname === origin) return true;
+      // For subdomains, check if hostname ends with '.' + origin
+      if (hostname.endsWith('.' + origin)) return true;
+      // Localhost special case (only if DEBUG is true, already checked above)
+      if (origin === 'localhost' && (hostname === 'localhost' || hostname === '127.0.0.1')) return true;
+      return false;
+    });
+  }
+  
   const currentOrigin = window.location.hostname;
-  const isAllowedOrigin = ALLOWED_ORIGINS.some(origin => 
-    currentOrigin === origin || 
-    currentOrigin.includes(origin) || 
-    currentOrigin.endsWith('.' + origin) ||
-    (origin === 'localhost' && (currentOrigin === 'localhost' || currentOrigin === '127.0.0.1'))
-  );
+  const isAllowedOrigin = isValidOrigin(currentOrigin);
   
   if (!isAllowedOrigin) {
     console.warn('[ThinkReview Extension] Content script loaded on unauthorized domain:', currentOrigin);
@@ -98,9 +114,33 @@
   
   // Listen for postMessage from webapp (backup method, login only)
   window.addEventListener('message', (event) => {
-    // SECURITY: Verify origin before processing
-    if (!isAllowedOrigin || !event.origin.includes(currentOrigin.split('.').slice(-2).join('.'))) {
-      return; // Ignore messages from other origins
+    // SECURITY: Parse and validate event.origin using the same strict logic as initial domain check
+    try {
+      const eventOriginUrl = new URL(event.origin);
+      const eventHostname = eventOriginUrl.hostname;
+      
+      // Validate the origin hostname against ALLOWED_ORIGINS using exact same logic
+      if (!isValidOrigin(eventHostname)) {
+        dbgLog('[ThinkReview Extension] Rejected postMessage from unauthorized origin:', event.origin);
+        return; // Ignore messages from unauthorized origins
+      }
+      
+      // Additional check: for same-origin messages, event.origin should match window.location.origin
+      // This prevents cross-origin spoofing even if hostname matches
+      if (event.origin !== window.location.origin) {
+        // Allow localhost/127.0.0.1 cross-origin only in DEBUG mode
+        const isLocalhost = DEBUG && 
+                           (currentOrigin === 'localhost' || currentOrigin === '127.0.0.1') &&
+                           (eventHostname === 'localhost' || eventHostname === '127.0.0.1');
+        if (!isLocalhost) {
+          dbgLog('[ThinkReview Extension] Rejected postMessage from different origin:', event.origin, 'expected:', window.location.origin);
+          return;
+        }
+      }
+    } catch (error) {
+      // Invalid origin URL, reject
+      dbgWarn('[ThinkReview Extension] Invalid postMessage origin:', event.origin, error);
+      return;
     }
     
     if (event.data && event.data.type === 'thinkreview-auth-state') {
