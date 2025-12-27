@@ -778,12 +778,12 @@ async function handleLogout(sendResponse) {
 async function handleWebappAuthChanged(message, sender, sendResponse) {
   try {
     // SECURITY: Verify sender is from webapp domain
+    // Localhost is only allowed in DEBUG mode for security
     const ALLOWED_ORIGINS = [
       'thinkreview.dev',
       'portal.thinkreview.dev',
       'app.thinkreview.dev',
-      'localhost',
-      '127.0.0.1'
+      ...(DEBUG ? ['localhost', '127.0.0.1'] : [])
     ];
     
     if (!sender.url) {
@@ -793,12 +793,28 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
     }
     
     const senderUrl = new URL(sender.url);
-    const isAllowedOrigin = ALLOWED_ORIGINS.some(origin => 
-      senderUrl.hostname === origin ||
-      senderUrl.hostname.includes(origin) || 
-      senderUrl.hostname.endsWith('.' + origin) ||
-      (origin === 'localhost' && (senderUrl.hostname === 'localhost' || senderUrl.hostname === '127.0.0.1'))
-    );
+    
+    // Localhost is only allowed in DEBUG mode
+    if ((senderUrl.hostname === 'localhost' || senderUrl.hostname === '127.0.0.1') && !DEBUG) {
+      dbgWarn('Webapp auth message from localhost (disabled in production):', senderUrl.hostname);
+      sendResponse({ success: false, error: 'Unauthorized origin' });
+      return;
+    }
+    
+    // Use strict validation to prevent spoofing (e.g., 'evilthinkreview.dev' won't match 'thinkreview.dev')
+    const isAllowedOrigin = ALLOWED_ORIGINS.some(origin => {
+      // Exact match
+      if (senderUrl.hostname === origin) return true;
+      
+      // Proper subdomain check (e.g., subdomain.thinkreview.dev)
+      if (origin !== 'localhost' && origin !== '127.0.0.1') {
+        return senderUrl.hostname.endsWith('.' + origin);
+      }
+      
+      // Localhost special cases
+      return (origin === 'localhost' && 
+              (senderUrl.hostname === 'localhost' || senderUrl.hostname === '127.0.0.1'));
+    });
     
     if (!isAllowedOrigin) {
       dbgWarn('Webapp auth message from unauthorized origin:', senderUrl.hostname);

@@ -36,11 +36,15 @@
     return ALLOWED_ORIGINS.some(origin => {
       // Exact match
       if (hostname === origin) return true;
-      // For subdomains, check if hostname ends with '.' + origin
-      if (hostname.endsWith('.' + origin)) return true;
-      // Localhost special case (only if DEBUG is true, already checked above)
-      if (origin === 'localhost' && (hostname === 'localhost' || hostname === '127.0.0.1')) return true;
-      return false;
+      
+      // Proper subdomain check (e.g., subdomain.thinkreview.dev)
+      if (origin !== 'localhost' && origin !== '127.0.0.1') {
+        return hostname.endsWith('.' + origin);
+      }
+      
+      // Localhost special cases
+      return (origin === 'localhost' && 
+              (hostname === 'localhost' || hostname === '127.0.0.1'));
     });
   }
   
