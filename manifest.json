@@ -20,9 +20,7 @@
     "https://us-central1-thinkgpt.cloudfunctions.net/*",
     "https://dev.azure.com/*",
     "https://*.visualstudio.com/*",
-    "https://thinkreview.dev/*",
-    "https://portal.thinkreview.dev/*",
-    "https://app.thinkreview.dev/*"
+    "https://*.visualstudio.com/*"
   ],
   "optional_host_permissions": [
     "http://*:*/*",
