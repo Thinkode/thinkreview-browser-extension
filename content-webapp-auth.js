@@ -27,29 +27,9 @@
       originValidatorLoaded = true;
       initializeContentScript();
     } catch (error) {
-      console.error('[ThinkReview Extension] Failed to load origin validator:', error);
-      // Fallback: use inline validation (matches utils/origin-validator.js)
-      isValidOrigin = function(hostname, debugMode = DEBUG) {
-        if ((hostname === 'localhost' || hostname === '127.0.0.1') && !debugMode) {
-          return false;
-        }
-        const allowedOrigins = [
-          'thinkreview.dev',
-          'portal.thinkreview.dev',
-          'app.thinkreview.dev',
-          ...(debugMode ? ['localhost', '127.0.0.1'] : [])
-        ];
-        return allowedOrigins.some(origin => {
-          if (hostname === origin) return true;
-          if (origin !== 'localhost' && origin !== '127.0.0.1') {
-            return hostname.endsWith('.' + origin);
-          }
-          return (origin === 'localhost' && 
-                  (hostname === 'localhost' || hostname === '127.0.0.1'));
-        });
-      };
-      originValidatorLoaded = true;
-      initializeContentScript();
+      cdbgError('[ThinkReview Extension] Failed to load origin validator utility:', error);
+      // Don't initialize if we can't load the shared utility - ensures we always use the single source of truth
+      dbgError('[ThinkReview Extension] Content script initialization aborted due to missing origin validator');
     }
   })();
   
