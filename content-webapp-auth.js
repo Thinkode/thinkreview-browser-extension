@@ -8,6 +8,12 @@
 (function() {
   'use strict';
   
+  // Debug toggle: set to false to disable console logs in production
+  const DEBUG = false;
+  function dbgLog(...args) { if (DEBUG) console.log(...args); }
+  function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
+  function dbgError(...args) { if (DEBUG) console.error(...args); }
+  
   // SECURITY: Verify we're on the correct domain
   const ALLOWED_ORIGINS = [
     'thinkreview.dev',
