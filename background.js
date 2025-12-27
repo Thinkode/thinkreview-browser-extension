@@ -4,6 +4,7 @@
 // Import services statically since dynamic imports aren't allowed in service workers
 import { CloudService } from './services/cloud-service.js';
 import { OllamaService } from './services/ollama-service.js';
+import { isValidOrigin } from './utils/origin-validator.js';
 
 // Debug toggle: set to false to disable console logs in production
 const DEBUG = false;
@@ -778,14 +779,6 @@ async function handleLogout(sendResponse) {
 async function handleWebappAuthChanged(message, sender, sendResponse) {
   try {
     // SECURITY: Verify sender is from webapp domain
-    // Localhost is only allowed in DEBUG mode for security
-    const ALLOWED_ORIGINS = [
-      'thinkreview.dev',
-      'portal.thinkreview.dev',
-      'app.thinkreview.dev',
-      ...(DEBUG ? ['localhost', '127.0.0.1'] : [])
-    ];
-    
     if (!sender.url) {
       dbgWarn('Webapp auth message missing sender URL');
       sendResponse({ success: false, error: 'Invalid sender' });
@@ -794,29 +787,8 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
     
     const senderUrl = new URL(sender.url);
     
-    // Localhost is only allowed in DEBUG mode
-    if ((senderUrl.hostname === 'localhost' || senderUrl.hostname === '127.0.0.1') && !DEBUG) {
-      dbgWarn('Webapp auth message from localhost (disabled in production):', senderUrl.hostname);
-      sendResponse({ success: false, error: 'Unauthorized origin' });
-      return;
-    }
-    
-    // Use strict validation to prevent spoofing (e.g., 'evilthinkreview.dev' won't match 'thinkreview.dev')
-    const isAllowedOrigin = ALLOWED_ORIGINS.some(origin => {
-      // Exact match
-      if (senderUrl.hostname === origin) return true;
-      
-      // Proper subdomain check (e.g., subdomain.thinkreview.dev)
-      if (origin !== 'localhost' && origin !== '127.0.0.1') {
-        return senderUrl.hostname.endsWith('.' + origin);
-      }
-      
-      // Localhost special cases
-      return (origin === 'localhost' && 
-              (senderUrl.hostname === 'localhost' || senderUrl.hostname === '127.0.0.1'));
-    });
-    
-    if (!isAllowedOrigin) {
+    // Use shared origin validation utility to prevent spoofing
+    if (!isValidOrigin(senderUrl.hostname, DEBUG)) {
       dbgWarn('Webapp auth message from unauthorized origin:', senderUrl.hostname);
       sendResponse({ success: false, error: 'Unauthorized origin' });
       return;
