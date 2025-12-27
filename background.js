@@ -4,6 +4,7 @@
 // Import services statically since dynamic imports aren't allowed in service workers
 import { CloudService } from './services/cloud-service.js';
 import { OllamaService } from './services/ollama-service.js';
+import { isValidOrigin } from './utils/origin-validator.js';
 
 // Debug toggle: set to false to disable console logs in production
 const DEBUG = false;
@@ -263,6 +264,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle logout
   if (message.type === 'logout') {
     handleLogout(sendResponse);
+    return true; // Async response
+  }
+  
+  // Handle webapp auth state changes (from content script)
+  if (message.type === 'webapp-auth-changed') {
+    handleWebappAuthChanged(message, sender, sendResponse);
     return true; // Async response
   }
   
@@ -761,6 +768,109 @@ async function handleLogout(sendResponse) {
     sendResponse({ success: true });
   } catch (error) {
     dbgWarn('Logout failed:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Handle webapp auth state changes
+ * SECURITY: Verifies sender origin before processing
+ */
+async function handleWebappAuthChanged(message, sender, sendResponse) {
+  try {
+    // SECURITY: Verify sender is from webapp domain
+    if (!sender.url) {
+      dbgWarn('Webapp auth message missing sender URL');
+      sendResponse({ success: false, error: 'Invalid sender' });
+      return;
+    }
+    
+    const senderUrl = new URL(sender.url);
+    
+    // Use shared origin validation utility to prevent spoofing
+    if (!isValidOrigin(senderUrl.hostname, DEBUG)) {
+      dbgWarn('Webapp auth message from unauthorized origin:', senderUrl.hostname);
+      sendResponse({ success: false, error: 'Unauthorized origin' });
+      return;
+    }
+    
+    // SECURITY: Validate user data structure
+    if (!message.userData || !message.userData.email || !message.userData.uid) {
+      dbgWarn('Webapp auth message missing required user data');
+      sendResponse({ success: false, error: 'Invalid user data' });
+      return;
+    }
+    
+    // SECURITY: Check timestamp freshness (optional, but recommended)
+    const MAX_AUTH_AGE = 5 * 60 * 1000; // 5 minutes
+    if (message.timestamp && (Date.now() - message.timestamp > MAX_AUTH_AGE)) {
+      dbgWarn('Webapp auth data is stale, ignoring');
+      sendResponse({ success: false, error: 'Stale auth data' });
+      return;
+    }
+    
+    dbgLog('Processing webapp auth change for user:', message.userData.email);
+    
+    // Sync user data with CloudService to get full user profile
+    try {
+      const syncedUser = await CloudService.syncUserData(message.userData);
+      const userData = syncedUser.data && syncedUser.data.currentUser ? 
+        syncedUser.data.currentUser : syncedUser;
+      
+      // Store in extension storage
+      await chrome.storage.local.set({ 
+        [AUTH_USER_KEY]: userData,
+        user: JSON.stringify(userData),
+        userData: userData,
+        authSource: 'webapp',
+        lastSynced: Date.now()
+      });
+      
+      dbgLog('Webapp auth synced successfully');
+      
+      // Notify popup to refresh if it's open
+      try {
+        chrome.runtime.sendMessage({
+          type: 'WEBAPP_AUTH_SYNCED',
+          user: userData
+        }).catch(() => {
+          // Popup might not be open, ignore error
+        });
+      } catch (error) {
+        // Popup might not be open, ignore error
+        dbgLog('Could not notify popup (may not be open):', error);
+      }
+      
+      sendResponse({ success: true, user: userData });
+    } catch (syncError) {
+      dbgWarn('Failed to sync with CloudService, using basic user info:', syncError);
+      
+      // Fallback: store basic user info
+      await chrome.storage.local.set({ 
+        [AUTH_USER_KEY]: message.userData,
+        user: JSON.stringify(message.userData),
+        userData: message.userData,
+        authSource: 'webapp',
+        lastSynced: Date.now()
+      });
+      
+      // Notify popup to refresh if it's open
+      try {
+        chrome.runtime.sendMessage({
+          type: 'WEBAPP_AUTH_SYNCED',
+          user: message.userData
+        }).catch(() => {
+          // Popup might not be open, ignore error
+        });
+      } catch (error) {
+        // Popup might not be open, ignore error
+        dbgLog('Could not notify popup (may not be open):', error);
+      }
+      
+      sendResponse({ success: true, user: message.userData });
+    }
+  } catch (error) {
+    dbgWarn('Error handling webapp auth change:', error);
     sendResponse({ success: false, error: error.message });
   }
 }
