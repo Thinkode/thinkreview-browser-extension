@@ -19,7 +19,6 @@
     "https://patch-diff.githubusercontent.com/*",
     "https://us-central1-thinkgpt.cloudfunctions.net/*",
     "https://dev.azure.com/*",
-    "https://*.visualstudio.com/*",
     "https://*.visualstudio.com/*"
   ],
   "optional_host_permissions": [
