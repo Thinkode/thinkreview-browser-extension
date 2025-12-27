@@ -73,6 +73,26 @@ header {
   font-style: italic;
 }
 
+.privacy-policy-text {
+  font-size: 11px;
+  color: #666;
+  text-align: center;
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+.privacy-policy-link {
+  color: #6b4fbb;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.privacy-policy-link:hover {
+  color: #5a3da8;
+  text-decoration: underline;
+}
+
 .signin-message {
   font-size: 13px;
   color: #666;

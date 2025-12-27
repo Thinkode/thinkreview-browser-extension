@@ -228,17 +228,25 @@ async function updateUIForLoginStatus() {
     const isLoggedIn = await isUserLoggedIn();
     const authenticatedContent = document.getElementById('authenticated-content');
     const welcomeContent = document.getElementById('welcome-content');
+    const loginPrompt = document.getElementById('login-prompt');
+    const privacyPolicyText = document.getElementById('privacy-policy-text');
     
     dbgLog('[popup] updateUIForLoginStatus - isLoggedIn:', isLoggedIn, 'cloudServiceReady:', cloudServiceReady, 'CloudService available:', !!window.CloudService);
     
     if (isLoggedIn) {
-      // User is logged in - show authenticated content, hide welcome
+      // User is logged in - show authenticated content, hide welcome, login prompt and privacy policy
       if (authenticatedContent) {
         authenticatedContent.style.display = 'block';
         authenticatedContent.classList.remove('loading');
       }
       if (welcomeContent) {
         welcomeContent.style.display = 'none';
+      }
+      if (loginPrompt) {
+        loginPrompt.style.display = 'none';
+      }
+      if (privacyPolicyText) {
+        privacyPolicyText.style.display = 'none';
       }
       
       // Fetch review count if CloudService is ready
@@ -254,13 +262,19 @@ async function updateUIForLoginStatus() {
         showLoadingState();
       }
     } else {
-      // User is not logged in - show welcome content, hide authenticated content
+      // User is not logged in - show welcome content, login prompt and privacy policy, hide authenticated content
       if (authenticatedContent) {
         authenticatedContent.style.display = 'none';
         authenticatedContent.classList.remove('loading');
       }
       if (welcomeContent) {
         welcomeContent.style.display = 'block';
+      }
+      if (loginPrompt) {
+        loginPrompt.style.display = 'block';
+      }
+      if (privacyPolicyText) {
+        privacyPolicyText.style.display = 'block';
       }
       clearStatusState();
       pendingUserDataFetch = false; // Clear pending fetch
@@ -426,15 +440,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         dbgLog('[popup] CloudService not ready, marking review count fetch as pending after sign-in');
       }
     } else {
-      // User signed out - hide authenticated content, show welcome content
+      // User signed out - hide authenticated content, show welcome content, login prompt and privacy policy
       const authenticatedContent = document.getElementById('authenticated-content');
       const welcomeContent = document.getElementById('welcome-content');
+      const loginPrompt = document.getElementById('login-prompt');
+      const privacyPolicyText = document.getElementById('privacy-policy-text');
       if (authenticatedContent) {
         authenticatedContent.style.display = 'none';
         authenticatedContent.classList.remove('loading');
       }
       if (welcomeContent) {
         welcomeContent.style.display = 'block';
+      }
+      if (loginPrompt) {
+        loginPrompt.style.display = 'block';
+      }
+      if (privacyPolicyText) {
+        privacyPolicyText.style.display = 'block';
       }
       clearStatusState();
       pendingUserDataFetch = false; // Clear pending fetch
