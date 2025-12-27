@@ -422,10 +422,12 @@ async function injectIntegratedReviewPanel() {
  */
 function isUserLoggedIn() {
   return new Promise((resolve) => {
-    chrome.storage.local.get(['user', 'userData'], (result) => {
+    chrome.storage.local.get(['user', 'userData', 'authSource'], (result) => {
       // Check both user and userData fields for backward compatibility
       // userData is the new field used by the updated authentication flow
+      // Supports both extension OAuth and webapp Firebase auth
       if (result.userData) {
+        dbgLog('[content] User logged in via:', result.authSource || 'extension');
         resolve(true);
       } else if (result.user) {
         try {
