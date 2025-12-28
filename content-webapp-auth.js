@@ -27,7 +27,7 @@
       originValidatorLoaded = true;
       initializeContentScript();
     } catch (error) {
-      cdbgError('[ThinkReview Extension] Failed to load origin validator utility:', error);
+      dbgError('[ThinkReview Extension] Failed to load origin validator utility:', error);
       // Don't initialize if we can't load the shared utility - ensures we always use the single source of truth
       dbgError('[ThinkReview Extension] Content script initialization aborted due to missing origin validator');
     }
