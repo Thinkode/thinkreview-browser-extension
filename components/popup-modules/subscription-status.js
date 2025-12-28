@@ -28,8 +28,8 @@ export class SubscriptionStatusModule {
 
   /**
    * Update subscription status display
-   * @param {string} subscriptionType - The subscription type (e.g., 'free', 'premium', 'annual')
-   * @param {string|number|Date} currentPlanValidTo - The date when the current plan is valid until
+   * @param {string} subscriptionType - The subscription type: 'Professional', 'Teams', or 'Free' (case-insensitive)
+   * @param {string|number|Date} currentPlanValidTo - The date when the current plan is valid until (single source of truth)
    * @param {boolean} cancellationRequested - Whether cancellation has been requested
    * @param {string} stripeCanceledDate - The date when subscription was cancelled
    */
@@ -43,7 +43,9 @@ export class SubscriptionStatusModule {
       return;
     }
 
-    if (!subscriptionType || subscriptionType.includes('free') || subscriptionType === null) {
+    // Check if subscription is Free (case-insensitive)
+    const normalizedType = (subscriptionType || '').toLowerCase();
+    if (!subscriptionType || normalizedType === 'free' || normalizedType.includes('free')) {
       this._displayFreeStatus(subscriptionStatusElement, nextPaymentInfoElement);
     } else {
       // Always check currentPlanValidTo first to determine if plan is active or expired

@@ -641,9 +641,11 @@ export class CloudService {
         return {
           userExists: false,
           reviewCount: 0,
+          subscriptionType: 'Free',
           stripeSubscriptionType: null,
           currentPlanValidTo: null,
-          nextPaymentDate: null
+          cancellationRequested: false,
+          planInterval: null
         };
       }
       
@@ -672,10 +674,11 @@ export class CloudService {
           userExists: data.userExists || false,
           reviewCount: data.reviewCount || 0,
           todayReviewCount: data.todayReviewCount || 0,
-          stripeSubscriptionType: data.stripeSubscriptionType || 'Free plan',
-          currentPlanValidTo: data.currentPlanValidTo || null,
-          nextPaymentDate: data.nextPaymentDate || null,
-          cancellationRequested: data.cancellationRequested || false,
+          subscriptionType: data.subscriptionType || 'Free', // Consolidated field: Professional, Teams, or Free
+          stripeSubscriptionType: data.stripeSubscriptionType || null, // Legacy support
+          currentPlanValidTo: data.currentPlanValidTo || null, // Single source of truth for period end
+          cancellationRequested: data.cancellationRequested || false, // Cancellation status
+          planInterval: data.planInterval || null, // 'month' or 'year'
           stripeCanceledDate: data.stripeCanceledDate || null,
           lastFeedbackPromptInteraction: data.lastFeedbackPromptInteraction || null,
           lastReviewDate: data.lastReviewDate || null
@@ -686,10 +689,11 @@ export class CloudService {
           userExists: false,
           reviewCount: 0,
           todayReviewCount: data.todayReviewCount || 0,
-          stripeSubscriptionType: 'Free plan',
+          subscriptionType: 'Free',
+          stripeSubscriptionType: null,
           currentPlanValidTo: null,
-          nextPaymentDate: null,
           cancellationRequested: false,
+          planInterval: null,
           stripeCanceledDate: null,
           lastFeedbackPromptInteraction: null
         };
@@ -700,10 +704,11 @@ export class CloudService {
         userExists: false,
         reviewCount: 0,
         todayReviewCount: 0,
-        stripeSubscriptionType: 'Free plan',
+        subscriptionType: 'Free',
+        stripeSubscriptionType: null,
         currentPlanValidTo: null,
-        nextPaymentDate: null,
         cancellationRequested: false,
+        planInterval: null,
         stripeCanceledDate: null
       };
     }

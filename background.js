@@ -505,8 +505,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then(userData => {
         dbgLog('[GitLab MR Reviews][BG] User data retrieved:', userData);
         dbgLog('[GitLab MR Reviews][BG] Today review count:', userData.todayReviewCount);
-        dbgLog('[GitLab MR Reviews][BG] Subscription type:', userData.stripeSubscriptionType);
-        dbgLog('[GitLab MR Reviews][BG] Is free plan:', userData.stripeSubscriptionType === 'Free plan' || !userData.stripeSubscriptionType);
+        // Use consolidated subscriptionType field (fallback to stripeSubscriptionType for legacy support)
+        const subscriptionType = userData.subscriptionType || userData.stripeSubscriptionType || 'Free';
+        dbgLog('[GitLab MR Reviews][BG] Subscription type:', subscriptionType);
+        dbgLog('[GitLab MR Reviews][BG] Is free plan:', subscriptionType === 'Free' || subscriptionType === 'Free plan' || !subscriptionType);
         dbgLog('[GitLab MR Reviews][BG] Is over limit:', userData.todayReviewCount > 10);
         
         // Store todayReviewCount and lastFeedbackPromptInteraction in chrome.storage for review prompt to use
@@ -523,9 +525,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           userExists: userData.userExists,
           reviewCount: userData.reviewCount,
           todayReviewCount: userData.todayReviewCount || 0,
-          stripeSubscriptionType: userData.stripeSubscriptionType || 'Free plan',
-          currentPlanValidTo: userData.currentPlanValidTo,
-          nextPaymentDate: userData.nextPaymentDate,
+          subscriptionType: subscriptionType, // Use consolidated field
+          stripeSubscriptionType: userData.stripeSubscriptionType || null, // Keep for legacy support
+          currentPlanValidTo: userData.currentPlanValidTo, // Single source of truth for period end
+          cancellationRequested: userData.cancellationRequested || false,
+          planInterval: userData.planInterval || null,
           lastFeedbackPromptInteraction: userData.lastFeedbackPromptInteraction || null,
           lastReviewDate: userData.lastReviewDate || null
         }});

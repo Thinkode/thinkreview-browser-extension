@@ -118,7 +118,8 @@ async function forceRefreshUserData() {
 }
 
 // Function to update subscription status display
-async function updateSubscriptionStatus(subscriptionType, nextPaymentDate, currentPlanValidTo, cancellationRequested, stripeCanceledDate) {
+// Uses consolidated fields: subscriptionType (Professional, Teams, or Free) and currentPlanValidTo
+async function updateSubscriptionStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate) {
   await subscriptionStatus.updateStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate);
   
   // Show or hide cancel button based on subscription type, plan validity, and cancellation status
@@ -126,7 +127,9 @@ async function updateSubscriptionStatus(subscriptionType, nextPaymentDate, curre
   const cancelContainer = document.getElementById('cancel-subscription-container');
   if (cancelContainer) {
     // Check if plan is free, expired, or already cancelled
-    const isFreePlan = subscriptionType && subscriptionType.toLowerCase().includes('free');
+    // subscriptionType is case-insensitive: 'Professional', 'Teams', or 'Free'
+    const normalizedType = (subscriptionType || '').toLowerCase();
+    const isFreePlan = normalizedType === 'free' || normalizedType.includes('free');
     // Use date utility to check if expired
     let isExpired = false;
     if (currentPlanValidTo) {
@@ -201,7 +204,7 @@ async function fetchAndDisplayUserData(retryCount = 0) {
         dbgWarn('[popup] CloudService not available after retries');
               showErrorState('Unable to load user data');
       updateReviewCount('error');
-      await updateSubscriptionStatus('Free Plan', null, null, false, null);
+      await updateSubscriptionStatus('Free', null, false, null);
         return;
       }
     }
@@ -213,7 +216,10 @@ async function fetchAndDisplayUserData(retryCount = 0) {
     }
     const userData = await window.CloudService.getUserDataWithSubscription();
     updateReviewCount(userData.reviewCount);
-    await updateSubscriptionStatus(userData.stripeSubscriptionType, userData.nextPaymentDate, userData.currentPlanValidTo, userData.cancellationRequested, userData.stripeCanceledDate);
+    // Use consolidated fields: subscriptionType and cancellationRequested
+    const subscriptionType = userData.subscriptionType || userData.stripeSubscriptionType || 'Free';
+    const cancellationRequested = userData.cancellationRequested || false;
+    await updateSubscriptionStatus(subscriptionType, userData.currentPlanValidTo, cancellationRequested, userData.stripeCanceledDate);
     dbgLog('[popup] User data updated:', userData);
     
     // Show success state if we got valid data
@@ -230,7 +236,7 @@ async function fetchAndDisplayUserData(retryCount = 0) {
     } else {
       showErrorState('Failed to load user data');
       updateReviewCount('error');
-      await updateSubscriptionStatus('Free Plan', null, null, false, null);
+      await updateSubscriptionStatus('Free', null, false, null);
     }
   }
 }
