@@ -5,9 +5,9 @@
  * Render the review metadata bar (patch size banner)
  * @param {HTMLElement} container - The container element for the banner
  * @param {Object|null} patchSize - Patch size information from backend
- * @param {string|null} subscriptionTier - User's subscription tier ('premium' or 'free')
+ * @param {string|null} subscriptionType - User's subscription type ('premium' or 'free')
  */
-export function renderReviewMetadataBar(container, patchSize, subscriptionTier = null) {
+export function renderReviewMetadataBar(container, patchSize, subscriptionType = null) {
   if (!container) return;
 
   // Clear previous content
