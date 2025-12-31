@@ -34,7 +34,9 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
     ? patchSize.excludedFileNames.filter(Boolean)
     : [];
   const wasForcedTruncated = patchSize.wasForcedTruncated || false;
-  const showUpgradeMessage = wasForcedTruncated && subscriptionTier === 'free';
+  // Check if subscriptionType is 'free' (case-insensitive comparison, handle null/undefined)
+  const isFreeSubscription = subscriptionType && subscriptionType.toLowerCase() === 'free';
+  const showUpgradeMessage = wasForcedTruncated && isFreeSubscription;
 
   // Build main banner text
   let bannerText = `Original patch: ${originalSize}`;
