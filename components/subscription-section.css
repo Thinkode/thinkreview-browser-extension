@@ -27,54 +27,22 @@
 }
 
 .upgrade-btn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 10px;
+  width: 100%;
+  padding: 12px 24px;
   border-radius: 6px;
   border: 1px solid #6b4fbb;
-  background-color: #4a5568;
+  background-color: #6b4fbb;
+  color: #e2e8f0;
+  font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
+  text-align: center;
 }
 
 .upgrade-btn:hover {
-  background-color: #2d3748;
+  background-color: #5a3fa8;
+  border-color: #5a3fa8;
   transform: translateY(-2px);
   box-shadow: 0 2px 5px rgba(107, 79, 187, 0.3);
-}
-
-.monthly-btn {
-  border-color: #6b4fbb;
-  color: #e2e8f0;
-}
-
-.annual-btn {
-  border-color: #6b4fbb;
-  color: #e2e8f0;
-  position: relative;
-}
-
-.plan-name {
-  font-weight: 500;
-  font-size: 14px;
-  margin-bottom: 4px;
-}
-
-.plan-price {
-  font-weight: 600;
-  font-size: 16px;
-}
-
-.plan-savings {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background-color: #4caf50;
-  color: white;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-weight: 500;
 }

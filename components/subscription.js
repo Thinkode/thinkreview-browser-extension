@@ -41,89 +41,60 @@ class SubscriptionComponent {
   }
 
   /**
-   * Set up subscription upgrade buttons
+   * Set up subscription upgrade button
    */
   setupSubscriptionButtons() {
-    dbgLog('[SubscriptionComponent] Setting up subscription buttons');
+    dbgLog('[SubscriptionComponent] Setting up subscription button');
     
-    // Get the buttons
-    const monthlyBtn = document.getElementById('monthly-upgrade-btn');
-    const annualBtn = document.getElementById('annual-upgrade-btn');
+    // Get the button
+    const upgradeBtn = document.getElementById('upgrade-btn');
     
-    if (!monthlyBtn || !annualBtn) {
-      dbgWarn('[SubscriptionComponent] Subscription buttons not found in the DOM');
+    if (!upgradeBtn) {
+      dbgWarn('[SubscriptionComponent] Subscription button not found in the DOM');
       return;
     }
     
     // Check if event listeners are already attached
     if (this.eventListenersAttached) {
-      dbgLog('[SubscriptionComponent] Event listeners already attached, skipping');
+      dbgLog('[SubscriptionComponent] Event listener already attached, skipping');
       return;
     }
     
-    // Store reference to handlers so they can be removed if needed
-    this.monthlyClickHandler = () => this.handleUpgradeClick('monthly');
-    this.annualClickHandler = () => this.handleUpgradeClick('annual');
+    // Store reference to handler so it can be removed if needed
+    this.upgradeClickHandler = () => this.handleUpgradeClick();
     
-    // First, remove any existing event listeners that might be attached
-    monthlyBtn.removeEventListener('click', this.monthlyClickHandler);
-    annualBtn.removeEventListener('click', this.annualClickHandler);
+    // First, remove any existing event listener that might be attached
+    upgradeBtn.removeEventListener('click', this.upgradeClickHandler);
     
-    // Add event listeners
-    monthlyBtn.addEventListener('click', this.monthlyClickHandler);
-    annualBtn.addEventListener('click', this.annualClickHandler);
+    // Add event listener
+    upgradeBtn.addEventListener('click', this.upgradeClickHandler);
     
     this.eventListenersAttached = true;
-    dbgLog('[SubscriptionComponent] Event listeners attached');
+    dbgLog('[SubscriptionComponent] Event listener attached');
   }
 
   /**
-   * Handle upgrade button clicks
-   * @param {string} plan - The subscription plan ('monthly' or 'annual')
+   * Handle upgrade button click
    */
-  async handleUpgradeClick(plan) {
-    dbgLog(`[SubscriptionComponent] Handling ${plan} upgrade click`);
+  async handleUpgradeClick() {
+    dbgLog('[SubscriptionComponent] Handling upgrade click');
     
     try {
-      // Check if user is logged in
-      const isLoggedIn = await this.isUserLoggedIn();
-      if (!isLoggedIn) {
-        this.showMessage('Please sign in to upgrade your subscription', 'error');
-        return;
-      }
+      // Redirect to the subscription portal
+      const subscriptionPortalUrl = 'https://portal.thinkreview.dev/subscription';
+      dbgLog('[SubscriptionComponent] Redirecting to subscription portal:', subscriptionPortalUrl);
       
-      // Check if CloudService is available
-      if (!window.CloudService) {
-        this.showMessage('Service not available. Please try again later.', 'error');
-        return;
-      }
+      // Open the subscription portal in a new tab
+      window.open(subscriptionPortalUrl, '_blank');
       
-      // Show loading state
-      this.showLoadingState();
-      this.showMessage(`Creating ${plan} subscription checkout...`, 'info');
-      
-      // Create checkout session
-      const checkoutData = await window.CloudService.createCheckoutSession(plan);
-      
-      // Check for the complete checkout URL provided directly by the Stripe API
-      if (checkoutData && checkoutData.url) {
-        // The cloud function returns the complete checkout URL from Stripe
-        dbgLog('[SubscriptionComponent] Redirecting to Stripe checkout URL:', checkoutData.url);
-        
-        // Open the checkout URL in a new tab
-        window.open(checkoutData.url, '_blank');
-        
-        this.showMessage('Checkout opened in a new tab', 'info');
-        // Restore button state after redirecting
-        this.showErrorState(); // This just resets the UI state
-      } else {
-        throw new Error('Invalid checkout session data - missing checkout URL');
-      }
+      this.showMessage('Redirecting to subscription portal...', 'info');
+      // Restore button state after redirecting
+      this.showErrorState(); // This just resets the UI state
       
     } catch (error) {
-      dbgWarn('[SubscriptionComponent] Error creating checkout session:', error);
-      this.showMessage('Failed to create checkout session', 'error');
-      this.showErrorState('Failed to create checkout session');
+      dbgWarn('[SubscriptionComponent] Error redirecting to subscription portal:', error);
+      this.showMessage('Failed to open subscription portal', 'error');
+      this.showErrorState('Failed to open subscription portal');
     }
   }
 }

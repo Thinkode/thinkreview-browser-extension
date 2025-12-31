@@ -649,10 +649,6 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
           ${html}
         `;
         
-        // Add event listeners to the upgrade buttons
-        const monthlyBtn = document.getElementById('monthly-upgrade-btn');
-        const annualBtn = document.getElementById('annual-upgrade-btn');
-        
         // Track if we've already initialized the subscription component in this content script instance
         // This helps prevent multiple initializations when script runs in different contexts
         window._subscriptionInitialized = window._subscriptionInitialized || false;
@@ -711,10 +707,9 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
         // Configure the subscription component with content-specific handlers
         const configureSubscriptionComponent = () => {
           const subscriptionSection = document.querySelector('.subscription-section');
-          const monthlyBtn = document.getElementById('monthly-upgrade-btn');
-          const annualBtn = document.getElementById('annual-upgrade-btn');
+          const upgradeBtn = document.getElementById('upgrade-btn');
           
-          if (!window.subscriptionComponent || !subscriptionSection || !monthlyBtn || !annualBtn) {
+          if (!window.subscriptionComponent || !subscriptionSection || !upgradeBtn) {
             dbgWarn('[Content] Missing required elements for subscription component');
             return;
           }
@@ -740,26 +735,20 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
               });
             },
             showLoadingState: () => {
-              // Disable both buttons and show spinner
-              if (monthlyBtn) {
-                monthlyBtn.disabled = true;
-                monthlyBtn.innerHTML = `
+              // Disable button and show spinner
+              if (upgradeBtn) {
+                upgradeBtn.disabled = true;
+                upgradeBtn.innerHTML = `
                   <span class="gl-spinner gl-spinner-sm gl-mr-2"></span>
-                  Processing payment...
+                  Processing...
                 `;
-              }
-              if (annualBtn) {
-                annualBtn.disabled = true;
               }
             },
             showErrorState: (errorMessage) => {
-              // Re-enable buttons
-              if (monthlyBtn) {
-                monthlyBtn.disabled = false;
-                monthlyBtn.innerHTML = 'Monthly Plan';
-              }
-              if (annualBtn) {
-                annualBtn.disabled = false;
+              // Re-enable button
+              if (upgradeBtn) {
+                upgradeBtn.disabled = false;
+                upgradeBtn.innerHTML = 'Upgrade to Premium';
               }
             },
             showMessage: (message, type) => {
