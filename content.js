@@ -76,8 +76,7 @@ if (DEBUG) {
 // The integrated review component functions (createIntegratedReviewPanel, displayIntegratedReview, showIntegratedReviewError)
 // are loaded from integrated-review.js which is included in the manifest.json
 
-// Note: CloudService and Subscription components are imported dynamically when needed
-// in the initSubscriptionComponent function
+// Note: CloudService is imported dynamically when needed
 
 
 
@@ -649,132 +648,15 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
           ${html}
         `;
         
-        // Track if we've already initialized the subscription component in this content script instance
-        // This helps prevent multiple initializations when script runs in different contexts
-        window._subscriptionInitialized = window._subscriptionInitialized || false;
-        
-        // Initialize the SubscriptionComponent for content script
-        const initSubscriptionComponent = () => {
-          // Skip initialization if already done in this context
-          if (window._subscriptionInitialized) {
-            dbgLog('[Content] Subscription component already initialized in this context, skipping');
-            return;
-          }
-          
-          // Wait for CloudService to be available
-          if (!window.CloudService) {
-            // Import CloudService directly if not available
-            import(chrome.runtime.getURL('services/cloud-service.js'))
-              .then(module => {
-                window.CloudService = module.CloudService;
-                setupSubscriptionComponent();
-              })
-              .catch(error => {
-                dbgWarn('[Content] Error importing CloudService:', error);
-              });
-          } else {
-            setupSubscriptionComponent();
-          }
-          
-          // Mark as initialized in this context to prevent duplicate initialization
-          window._subscriptionInitialized = true;
-        };
-        
-        // Setup the subscription component with required dependencies
-        const setupSubscriptionComponent = () => {
-          // Check if we already have an instance from another context
-          if (window.subscriptionComponent && window.subscriptionComponent.initialized) {
-            dbgLog('[Content] Using existing subscription component instance');
-            configureSubscriptionComponent();
-            return;
-          }
-          
-          // Import the subscription component if not already available
-          if (!window.subscriptionComponent) {
-            import(chrome.runtime.getURL('components/subscription.js'))
-              .then(module => {
-                window.subscriptionComponent = module.default;
-                configureSubscriptionComponent();
-              })
-              .catch(error => {
-                dbgWarn('[Content] Error importing subscription component:', error);
-              });
-          } else {
-            configureSubscriptionComponent();
-          }
-        };
-        
-        // Configure the subscription component with content-specific handlers
-        const configureSubscriptionComponent = () => {
-          const subscriptionSection = document.querySelector('.subscription-section');
-          const upgradeBtn = document.getElementById('upgrade-btn');
-          
-          if (!window.subscriptionComponent || !subscriptionSection || !upgradeBtn) {
-            dbgWarn('[Content] Missing required elements for subscription component');
-            return;
-          }
-          
-          // Define content-specific handlers for the subscription component
-          window.subscriptionComponent.init({
-            isUserLoggedIn: async () => {
-              return new Promise((resolve) => {
-                chrome.storage.local.get(['user', 'userData'], (result) => {
-                  if (result.userData) {
-                    resolve(true);
-                  } else if (result.user) {
-                    try {
-                      const userData = JSON.parse(result.user);
-                      resolve(!!userData && !!userData.email);
-                    } catch (e) {
-                      resolve(false);
-                    }
-                  } else {
-                    resolve(false);
-                  }
-                });
-              });
-            },
-            showLoadingState: () => {
-              // Disable button and show spinner
-              if (upgradeBtn) {
-                upgradeBtn.disabled = true;
-                upgradeBtn.innerHTML = `
-                  <span class="gl-spinner gl-spinner-sm gl-mr-2"></span>
-                  Processing...
-                `;
-              }
-            },
-            showErrorState: (errorMessage) => {
-              // Re-enable button
-              if (upgradeBtn) {
-                upgradeBtn.disabled = false;
-                upgradeBtn.innerHTML = 'Upgrade to Premium';
-              }
-            },
-            showMessage: (message, type) => {
-              // Show message in the subscription section
-              const messageElement = document.createElement('div');
-              messageElement.className = `gl-alert gl-alert-${type === 'error' ? 'danger' : 'info'} gl-mb-3`;
-              messageElement.innerHTML = `
-                <div class="gl-alert-content">
-                  <div class="gl-alert-title">${type === 'error' ? 'Error' : 'Information'}</div>
-                  <div>${message}</div>
-                </div>
-              `;
-              subscriptionSection.insertBefore(messageElement, subscriptionSection.firstChild);
-              
-              // Auto-remove message after 5 seconds
-              setTimeout(() => {
-                messageElement.remove();
-              }, 5000);
-            }
+        // Add direct event listener to the upgrade button (simple redirect)
+        const upgradeBtn = document.getElementById('upgrade-btn');
+        if (upgradeBtn) {
+          upgradeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const subscriptionPortalUrl = 'https://portal.thinkreview.dev/subscription';
+            window.open(subscriptionPortalUrl, '_blank');
           });
-          
-          // NOTE: Don't call setupSubscriptionButtons here - it's already called in the SubscriptionComponent's init method
-        };
-        
-        // Initialize the subscription component
-        initSubscriptionComponent();
+        }
       })
       .catch(error => {
         dbgWarn('[Content] Error loading subscription section:', error);
