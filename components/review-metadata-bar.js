@@ -6,8 +6,9 @@
  * @param {HTMLElement} container - The container element for the banner
  * @param {Object|null} patchSize - Patch size information from backend
  * @param {string|null} subscriptionType - User's subscription type ('premium' or 'free')
+ * @param {string|null} modelUsed - Model used for the review
  */
-export function renderReviewMetadataBar(container, patchSize, subscriptionType = null) {
+export function renderReviewMetadataBar(container, patchSize, subscriptionType = null, modelUsed = null) {
   if (!container) return;
 
   // Clear previous content
@@ -46,6 +47,9 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
   if (patchSize.wasTruncated && truncatedSize) {
     bannerText += ` • Truncated patch: ${truncatedSize}`;
   }
+  if (modelUsed) {
+    bannerText += ` • Model: ${modelUsed}`;
+  }
 
   // Create main banner container
   const banner = document.createElement('div');
@@ -79,6 +83,22 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
 
   topRow.appendChild(icon);
   topRow.appendChild(content);
+  
+  // Add customize button to link to model selection page
+  const customizeButton = document.createElement('a');
+  customizeButton.href = 'https://portal.thinkreview.dev/model-selection';
+  customizeButton.target = '_blank';
+  customizeButton.rel = 'noopener noreferrer';
+  customizeButton.className = 'thinkreview-patch-size-customize-button';
+  customizeButton.textContent = 'Customize';
+  customizeButton.setAttribute('aria-label', 'Customize model selection');
+  
+  // Prevent click event from bubbling to topRow (which might be clickable for expanding)
+  customizeButton.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+  
+  topRow.appendChild(customizeButton);
   banner.appendChild(topRow);
 
   // Optional expandable list of excluded files (separate section below top row)
@@ -126,8 +146,9 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
       // Also allow clicking the top row to expand
       topRow.style.cursor = 'pointer';
       topRow.addEventListener('click', (e) => {
-        // Don't toggle if clicking on the arrow (already handled)
-        if (e.target.closest('.thinkreview-patch-size-expand-arrow')) {
+        // Don't toggle if clicking on the arrow (already handled) or customize button
+        if (e.target.closest('.thinkreview-patch-size-expand-arrow') || 
+            e.target.closest('.thinkreview-patch-size-customize-button')) {
           return;
         }
         toggleExpanded();

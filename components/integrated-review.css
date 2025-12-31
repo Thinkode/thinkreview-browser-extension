@@ -998,6 +998,29 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   line-height: 1.4;
 }
 
+/* Customize button */
+#gitlab-mr-integrated-review .thinkreview-patch-size-customize-button {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  background-color: rgba(107, 79, 187, 0.3);
+  border: 1px solid rgba(107, 79, 187, 0.5);
+  border-radius: 4px;
+  color: #c5b3ff;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+
+#gitlab-mr-integrated-review .thinkreview-patch-size-customize-button:hover {
+  background-color: rgba(107, 79, 187, 0.4);
+  border-color: rgba(107, 79, 187, 0.7);
+  color: #d4c5ff;
+  text-decoration: none;
+}
+
 /* Excluded files details section */
 #gitlab-mr-integrated-review .thinkreview-patch-size-details {
   width: 100%;
