@@ -143,7 +143,7 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
     const upgradeMessages = [
       'Your patch was too large for the free tier. <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">Upgrade to one of our premium plans</a> to review patches up to 4MB.',
       'Your patch was too large for the free tier. <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">Upgrade to one of our premium plans</a> to get a complete review for this PR',
-      '<a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">Upgrade to one of our premium plans</a> to review your entire patch (up to 4MB). Get the complete analysis you need.'
+      '<a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">Upgrade to one of our premium plans</a> to review your entire patch (up to 5MB)'
     ];
     
     const randomMessage = upgradeMessages[Math.floor(Math.random() * upgradeMessages.length)];
