@@ -90,7 +90,9 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
   customizeButton.target = '_blank';
   customizeButton.rel = 'noopener noreferrer';
   customizeButton.className = 'thinkreview-patch-size-customize-button';
-  customizeButton.textContent = 'Customize';
+  // Randomly display either "Customize" or "Try a different model"
+  const buttonTexts = ['Customize', 'Try a different model'];
+  customizeButton.textContent = buttonTexts[Math.floor(Math.random() * buttonTexts.length)];
   customizeButton.setAttribute('aria-label', 'Customize model selection');
   
   // Prevent click event from bubbling to topRow (which might be clickable for expanding)
