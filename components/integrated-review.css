@@ -996,6 +996,31 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
 #gitlab-mr-integrated-review .thinkreview-patch-size-content {
   flex: 1;
   line-height: 1.4;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Cached badge styling */
+#gitlab-mr-integrated-review .thinkreview-cached-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background-color: rgba(107, 79, 187, 0.2);
+  border: 1px solid rgba(107, 79, 187, 0.3);
+  border-radius: 12px;
+  color: var(--thinkreview-text-secondary);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+#gitlab-mr-integrated-review .thinkreview-cached-badge:hover {
+  background-color: rgba(107, 79, 187, 0.3);
+  border-color: rgba(107, 79, 187, 0.5);
+  color: #c5b3ff;
+  transform: scale(1.05);
 }
 
 /* Customize button */

@@ -5,10 +5,11 @@
  * Render the review metadata bar (patch size banner)
  * @param {HTMLElement} container - The container element for the banner
  * @param {Object|null} patchSize - Patch size information from backend
- * @param {string|null} subscriptionType - User's subscription type ('premium' or 'free')
+ * @param {string|null} subscriptionType - User's subscription type ('Professional', 'Teams', or 'Free')
  * @param {string|null} modelUsed - Model used for the review
+ * @param {boolean} isCached - Whether the review was retrieved from cache
  */
-export function renderReviewMetadataBar(container, patchSize, subscriptionType = null, modelUsed = null) {
+export function renderReviewMetadataBar(container, patchSize, subscriptionType = null, modelUsed = null, isCached = false) {
   if (!container) return;
 
   // Clear previous content
@@ -39,18 +40,6 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
   const isFreeSubscription = subscriptionType && subscriptionType.toLowerCase() === 'free';
   const showUpgradeMessage = wasForcedTruncated && isFreeSubscription;
 
-  // Build main banner text
-  let bannerText = `Original patch: ${originalSize}`;
-  if (filesExcluded > 0) {
-    bannerText += ` • Files excluded: ${filesExcluded}`;
-  }
-  if (patchSize.wasTruncated && truncatedSize) {
-    bannerText += ` • Truncated patch: ${truncatedSize}`;
-  }
-  if (modelUsed) {
-    bannerText += ` • Model: ${modelUsed}`;
-  }
-
   // Create main banner container
   const banner = document.createElement('div');
   banner.className = 'thinkreview-patch-size-banner';
@@ -79,7 +68,51 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
 
   const content = document.createElement('div');
   content.className = 'thinkreview-patch-size-content';
-  content.textContent = bannerText;
+  
+  // Build banner text with HTML elements to support the cached info icon
+  const textParts = [];
+  textParts.push(`Original patch: ${originalSize}`);
+  
+  if (filesExcluded > 0) {
+    textParts.push(`Files excluded: ${filesExcluded}`);
+  }
+  if (patchSize.wasTruncated && truncatedSize) {
+    textParts.push(`Truncated patch: ${truncatedSize}`);
+  }
+  if (modelUsed) {
+    textParts.push(`Model: ${modelUsed}`);
+  }
+  
+  // Build content with separators and special handling for cached status
+  const fragment = document.createDocumentFragment();
+  textParts.forEach((part, index) => {
+    if (index > 0) {
+      const separator = document.createTextNode(' • ');
+      fragment.appendChild(separator);
+    }
+    const textNode = document.createTextNode(part);
+    fragment.appendChild(textNode);
+  });
+  
+  // Add cached status with badge if applicable
+  if (isCached) {
+    if (textParts.length > 0) {
+      const separator = document.createTextNode(' • ');
+      fragment.appendChild(separator);
+    }
+    
+    // Add cached badge with hyperlink
+    const cachedBadge = document.createElement('a');
+    cachedBadge.href = 'https://thinkreview.dev/docs/cached-reviews';
+    cachedBadge.target = '_blank';
+    cachedBadge.rel = 'noopener noreferrer';
+    cachedBadge.className = 'thinkreview-cached-badge';
+    cachedBadge.textContent = 'Cached';
+    cachedBadge.setAttribute('aria-label', 'Learn more about cached reviews');
+    fragment.appendChild(cachedBadge);
+  }
+  
+  content.appendChild(fragment);
 
   topRow.appendChild(icon);
   topRow.appendChild(content);
