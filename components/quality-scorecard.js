@@ -81,7 +81,7 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
           <div class="thinkreview-metric-header gl-display-flex gl-justify-content-space-between gl-mb-1">
             <span class="thinkreview-metric-label">Code Quality</span>
             <span class="thinkreview-metric-score-container gl-display-flex gl-align-items-center">
-              <a href="https://thinkreview.dev/scoring-metrics" target="_blank" rel="noopener noreferrer" class="thinkreview-metric-settings-icon" title="configure">
+              <a href="https://thinkreview.dev/scoring-metrics" target="_blank" rel="noopener noreferrer" class="thinkreview-metric-settings-icon" title="Configure">
                 ${CONFIGURE_ICON_SVG}
               </a>
               <span class="thinkreview-metric-score ${getScoreColorClass(codeQuality)}">${codeQuality}</span>
