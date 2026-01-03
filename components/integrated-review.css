@@ -1083,7 +1083,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   color: var(--thinkreview-text-secondary);
   margin-bottom: 4px;
   font-size: 12px;
-  word-break: break-all;
+  overflow-wrap: break-word;
 }
 
 /* Upgrade message for forced truncation on free tier */
