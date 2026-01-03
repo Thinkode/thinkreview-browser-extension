@@ -316,7 +316,7 @@ h1 {
 
 .cancel-subscription-btn {
   padding: 6px 12px;
-  background-color: #dc3545;
+  background-color: #2563eb;
   color: white;
   border: none;
   border-radius: 4px;
@@ -327,7 +327,7 @@ h1 {
 }
 
 .cancel-subscription-btn:hover {
-  background-color: #c82333;
+  background-color: #1d4ed8;
 }
 
 /* Subscription Section Styles */
