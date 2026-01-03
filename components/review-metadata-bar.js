@@ -29,11 +29,38 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  // Helper to validate and sanitize file names
+  const MAX_FILE_NAME_LENGTH = 200;
+  const sanitizeFileName = (name) => {
+    // Ensure it's a string and not empty
+    if (typeof name !== 'string' || !name.trim()) {
+      return null;
+    }
+    
+    // Trim whitespace
+    const trimmed = name.trim();
+    
+    // Limit length to prevent UI layout issues
+    if (trimmed.length > MAX_FILE_NAME_LENGTH) {
+      return {
+        original: trimmed,
+        sanitized: trimmed.substring(0, MAX_FILE_NAME_LENGTH),
+        wasTruncated: true
+      };
+    }
+    
+    return {
+      original: trimmed,
+      sanitized: trimmed,
+      wasTruncated: false
+    };
+  };
+
   const originalSize = formatSize(patchSize.original);
   const truncatedSize = patchSize.truncated ? formatSize(patchSize.truncated) : null;
   const filesExcluded = patchSize.filesExcluded || 0;
   const excludedFileNames = Array.isArray(patchSize.excludedFileNames)
-    ? patchSize.excludedFileNames.filter(Boolean)
+    ? patchSize.excludedFileNames.map(sanitizeFileName).filter(Boolean)
     : [];
   const wasForcedTruncated = patchSize.wasForcedTruncated || false;
   // Check if subscriptionType is 'free' (case-insensitive comparison, handle null/undefined)
@@ -148,9 +175,19 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
     const list = document.createElement('ul');
     list.className = 'thinkreview-patch-size-details-list';
 
-    excludedFileNames.forEach((name) => {
+    excludedFileNames.forEach((fileInfo) => {
       const li = document.createElement('li');
-      li.textContent = name;
+      const displayName = fileInfo.wasTruncated 
+        ? fileInfo.sanitized + '...'
+        : fileInfo.sanitized;
+      
+      li.textContent = displayName;
+      
+      // Add title attribute with full name if it was truncated
+      if (fileInfo.wasTruncated) {
+        li.setAttribute('title', fileInfo.original);
+      }
+      
       list.appendChild(li);
     });
 
