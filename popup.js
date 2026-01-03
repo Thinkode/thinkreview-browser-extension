@@ -553,30 +553,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
   
-  // Set up the Cancel Subscription button
+  // Set up the Manage Subscription button
   const cancelSubscriptionBtn = document.getElementById('cancel-subscription-btn');
   if (cancelSubscriptionBtn) {
-    cancelSubscriptionBtn.addEventListener('click', async () => {
-      if (confirm('Are you sure you want to cancel your subscription? You will still have access until the end of your current billing period.')) {
-        try {
-          showLoadingState();
-          
-          if (!window.CloudService) {
-            throw new Error('Cloud service not available');
-          }
-          
-          await window.CloudService.cancelSubscription();
-          
-          // Update UI to reflect cancellation
-          showSuccessState('Subscription cancelled successfully');
-          
-          // Refresh user data to update subscription status
-          await fetchAndDisplayUserData();
-        } catch (error) {
-          dbgWarn('[popup] Error cancelling subscription:', error);
-          showErrorState('Failed to cancel subscription. Please try again.');
-        }
-      }
+    cancelSubscriptionBtn.addEventListener('click', () => {
+      // Open the subscription management portal in a new tab
+      chrome.tabs.create({ url: 'https://portal.thinkreview.dev/subscription' });
     });
   }
   

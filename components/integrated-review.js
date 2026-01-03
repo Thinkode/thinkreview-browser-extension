@@ -269,6 +269,7 @@ async function createIntegratedReviewPanel(patchUrl) {
         <div id="review-content" class="gl-hidden">
           <div id="review-scroll-container">
             <div id="review-prompt-container"></div>
+            <div id="review-patch-size-banner" class="gl-mb-4 gl-hidden"></div>
             <div id="review-metrics-container" class="gl-mb-4"></div>
             <div id="review-summary-container" class="gl-mb-4">
               <h5 class="gl-font-weight-bold thinkreview-section-title">Summary</h5>
@@ -1070,7 +1071,7 @@ async function handleSendMessage(messageText) {
   }
 }
 
-async function displayIntegratedReview(review, patchContent) {
+async function displayIntegratedReview(review, patchContent, patchSize = null, subscriptionType = null, modelUsed = null, isCached = false) {
   // Check if there was a JSON parsing error (safety check)
   if (review.parsingError === true) {
     console.warn('[IntegratedReview] JSON parsing error detected in review object');
@@ -1105,6 +1106,7 @@ async function displayIntegratedReview(review, patchContent) {
   const reviewSecurity = document.getElementById('review-security');
   const reviewPractices = document.getElementById('review-practices');
   const reviewMetricsContainer = document.getElementById('review-metrics-container');
+  const patchSizeBanner = document.getElementById('review-patch-size-banner');
 
   // Hide loading indicator and other states, show the main content area
   reviewLoading.classList.add('gl-hidden');
@@ -1112,6 +1114,18 @@ async function displayIntegratedReview(review, patchContent) {
   if (tokenError) tokenError.classList.add('gl-hidden');
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
   reviewContent.classList.remove('gl-hidden');
+
+  // Render patch size banner if patchSize data is available
+  if (patchSizeBanner) {
+    try {
+      const metadataModule = await import('./review-metadata-bar.js');
+      metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionType, modelUsed, isCached);
+    } catch (error) {
+      console.warn('[IntegratedReview] Failed to load review metadata bar:', error);
+      // Best-effort: hide banner container on failure
+      patchSizeBanner.classList.add('gl-hidden');
+    }
+  }
 
   // Render quality scorecard if metrics are available
   if (reviewMetricsContainer) {

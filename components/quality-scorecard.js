@@ -3,6 +3,8 @@
  * Displays quality metrics for MR reviews in a visual scorecard format
  */
 
+import { CONFIGURE_ICON_SVG } from '../assets/icons.js';
+
 /**
  * Gets the color class based on score value
  * @param {number} score - Score value (0-100)
@@ -78,7 +80,12 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
              tabindex="0">
           <div class="thinkreview-metric-header gl-display-flex gl-justify-content-space-between gl-mb-1">
             <span class="thinkreview-metric-label">Code Quality</span>
-            <span class="thinkreview-metric-score ${getScoreColorClass(codeQuality)}">${codeQuality}</span>
+            <span class="thinkreview-metric-score-container gl-display-flex gl-align-items-center">
+              <a href="https://thinkreview.dev/scoring-metrics" target="_blank" rel="noopener noreferrer" class="thinkreview-metric-settings-icon" title="Configure">
+                ${CONFIGURE_ICON_SVG}
+              </a>
+              <span class="thinkreview-metric-score ${getScoreColorClass(codeQuality)}">${codeQuality}</span>
+            </span>
           </div>
           <div class="thinkreview-progress-bar">
             <div class="thinkreview-progress-fill ${getScoreColorClass(codeQuality)}" 
@@ -97,7 +104,12 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
              tabindex="0">
           <div class="thinkreview-metric-header gl-display-flex gl-justify-content-space-between gl-mb-1">
             <span class="thinkreview-metric-label">Security</span>
-            <span class="thinkreview-metric-score ${getScoreColorClass(securityScore)}">${securityScore}</span>
+            <span class="thinkreview-metric-score-container gl-display-flex gl-align-items-center">
+              <a href="https://thinkreview.dev/scoring-metrics" target="_blank" rel="noopener noreferrer" class="thinkreview-metric-settings-icon" title="configure">
+                ${CONFIGURE_ICON_SVG}
+              </a>
+              <span class="thinkreview-metric-score ${getScoreColorClass(securityScore)}">${securityScore}</span>
+            </span>
           </div>
           <div class="thinkreview-progress-bar">
             <div class="thinkreview-progress-fill ${getScoreColorClass(securityScore)}" 
@@ -116,7 +128,12 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
              tabindex="0">
           <div class="thinkreview-metric-header gl-display-flex gl-justify-content-space-between gl-mb-1">
             <span class="thinkreview-metric-label">Best Practices</span>
-            <span class="thinkreview-metric-score ${getScoreColorClass(bestPracticesScore)}">${bestPracticesScore}</span>
+            <span class="thinkreview-metric-score-container gl-display-flex gl-align-items-center">
+              <a href="https://thinkreview.dev/scoring-metrics" target="_blank" rel="noopener noreferrer" class="thinkreview-metric-settings-icon" title="configure">
+                ${CONFIGURE_ICON_SVG}
+              </a>
+              <span class="thinkreview-metric-score ${getScoreColorClass(bestPracticesScore)}">${bestPracticesScore}</span>
+            </span>
           </div>
           <div class="thinkreview-progress-bar">
             <div class="thinkreview-progress-fill ${getScoreColorClass(bestPracticesScore)}" 
@@ -134,6 +151,24 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
 
   // Store references to event listeners and handlers for cleanup
   const eventListeners = [];
+
+  // Add event handlers to prevent metric click when clicking settings icon
+  const settingsIcons = container.querySelectorAll('.thinkreview-metric-settings-icon');
+  settingsIcons.forEach(iconLink => {
+    const handleSettingsClick = (e) => {
+      e.stopPropagation(); // Prevent the metric click handler from triggering
+    };
+    
+    iconLink.addEventListener('click', handleSettingsClick);
+    
+    // Store references for cleanup
+    eventListeners.push({
+      element: iconLink,
+      handlers: [
+        { event: 'click', handler: handleSettingsClick }
+      ]
+    });
+  });
 
   // Add click handlers if callback is provided
   if (onMetricClick) {

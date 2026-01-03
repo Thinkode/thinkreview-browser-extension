@@ -266,7 +266,7 @@ export class CloudService {
         patchContent
       };
       
-      // Include email (required for reviewPatchCode_1_1)
+      // Include email (required for reviewPatchCode_Dev)
       if (email) {
         requestBody.email = email;
       }
