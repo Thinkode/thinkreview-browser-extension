@@ -1197,11 +1197,6 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     }
   }
 
-  // Populate static review content
-  reviewSummary.innerHTML = markdownToHtml(preprocessAIResponse(review.summary || 'No summary provided.'));
-  // Highlight code in summary
-  applySimpleSyntaxHighlighting(reviewSummary);
-
   /**
    * Helper function to extract plain text from HTML content
    * @param {string} html - HTML string to extract text from
@@ -1212,6 +1207,36 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     tempDiv.innerHTML = html;
     return tempDiv.textContent || tempDiv.innerText || '';
   };
+
+  // Populate static review content
+  const summaryHtml = markdownToHtml(preprocessAIResponse(review.summary || 'No summary provided.'));
+  reviewSummary.innerHTML = summaryHtml;
+  // Highlight code in summary
+  applySimpleSyntaxHighlighting(reviewSummary);
+
+  // Make the summary clickable
+  reviewSummary.classList.add('thinkreview-clickable-item');
+  reviewSummary.style.cursor = 'pointer';
+  
+  // Prevent clicks on nested links from triggering the summary click handler
+  const summaryLinks = reviewSummary.querySelectorAll('a');
+  summaryLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.stopPropagation(); // Prevent the summary click handler from triggering
+    });
+  });
+  
+  // Add click handler for the summary
+  reviewSummary.addEventListener('click', () => {
+    // Extract plain text from the summary
+    const summaryText = extractPlainText(summaryHtml).trim();
+    
+    // Format the query to ask for more details about the PR
+    const query = `Can you provide more details about this PR Summary? ${summaryText}`;
+    
+    // Send the message to conversational review (scrolling is handled automatically by appendToChatLog)
+    handleSendMessage(query);
+  });
 
   const populateList = (element, items, category) => {
     element.innerHTML = ''; // Clear previous items
