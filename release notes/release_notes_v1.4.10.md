@@ -1,6 +1,6 @@
 # ThinkReview - Version 1.4.10 Release Notes
 
-**Release Date:** [Release Date]
+**Release Date:** 4 January 2026
 
 ---
 
