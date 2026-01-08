@@ -20,6 +20,12 @@ async function loadCloudService() {
 }
 
 class GoogleSignIn extends HTMLElement {
+  // Portal sign-in URL
+  static PORTAL_URL = 'https://portal.thinkreview.dev/signin-extension';
+  
+  // Bug report URL for error reporting
+  static BUG_REPORT_URL = 'https://thinkreview.dev/bug-report';
+
   constructor() {
     super();
     this.user = null;
@@ -383,9 +389,8 @@ class GoogleSignIn extends HTMLElement {
       dbgLog('Opening portal sign-in page');
       
       // Open the portal sign-in page in a new tab
-      const portalUrl = 'https://portal.thinkreview.dev/signin-extension';
       await new Promise((resolve, reject) => {
-        chrome.tabs.create({ url: portalUrl }, (tab) => {
+        chrome.tabs.create({ url: GoogleSignIn.PORTAL_URL }, (tab) => {
           if (chrome.runtime.lastError) {
             reject(new Error(chrome.runtime.lastError.message));
           } else {
@@ -410,7 +415,6 @@ class GoogleSignIn extends HTMLElement {
         this.render();
         
         // Show user-friendly error asking to report bug
-        const bugReportUrl = 'https://thinkreview.dev/bug-report';
         const userConfirmed = confirm(
           'Sign-in failed: Both portal sign-in and fallback authentication failed.\n\n' +
           'Please help us fix this by reporting the issue.\n\n' +
@@ -418,7 +422,7 @@ class GoogleSignIn extends HTMLElement {
         );
         
         if (userConfirmed) {
-          chrome.tabs.create({ url: bugReportUrl });
+          chrome.tabs.create({ url: GoogleSignIn.BUG_REPORT_URL });
         }
         
         // Dispatch error event
