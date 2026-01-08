@@ -384,9 +384,16 @@ class GoogleSignIn extends HTMLElement {
       
       // Open the portal sign-in page in a new tab
       const portalUrl = 'https://portal.thinkreview.dev/signin-extension';
-      chrome.tabs.create({ url: portalUrl });
-      
-      dbgLog('Portal sign-in page opened');
+      await new Promise((resolve, reject) => {
+        chrome.tabs.create({ url: portalUrl }, (tab) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            dbgLog('Portal sign-in page opened in tab:', tab.id);
+            resolve(tab);
+          }
+        });
+      });
       
     } catch (error) {
       dbgWarn('Error opening sign-in page:', error);
