@@ -220,7 +220,11 @@ class GoogleSignIn extends HTMLElement {
     }
   }
 
-  async signIn() {
+  /**
+   * Old OAuth sign-in implementation used as a fallback
+   * when the portal-based authentication fails
+   */
+  async signInOldOAuthFlow() {
     if (this.isSigningIn) {
       dbgLog('Sign-in already in progress');
       return;
@@ -360,6 +364,36 @@ class GoogleSignIn extends HTMLElement {
         bubbles: true,
         composed: true
       }));
+    } finally {
+      this.isSigningIn = false;
+      this.render();
+    }
+  }
+
+  async signIn() {
+    if (this.isSigningIn) {
+      dbgLog('Sign-in already in progress');
+      return;
+    }
+
+    try {
+      this.isSigningIn = true;
+      this.render(); // Update UI to show loading state
+      
+      dbgLog('Opening portal sign-in page');
+      
+      // Open the portal sign-in page in a new tab
+      const portalUrl = 'https://portal.thinkreview.dev/signin-extension';
+      chrome.tabs.create({ url: portalUrl });
+      
+      dbgLog('Portal sign-in page opened');
+      
+    } catch (error) {
+      dbgWarn('Error opening sign-in page:', error);
+      
+      // Fall back to old OAuth flow if portal sign-in fails
+      dbgLog('Falling back to old OAuth flow due to error:', error.message);
+      await this.signInOldOAuthFlow();
     } finally {
       this.isSigningIn = false;
       this.render();
