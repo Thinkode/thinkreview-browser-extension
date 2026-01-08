@@ -400,7 +400,38 @@ class GoogleSignIn extends HTMLElement {
       
       // Fall back to old OAuth flow if portal sign-in fails
       dbgLog('Falling back to old OAuth flow due to error:', error.message);
-      await this.signInOldOAuthFlow();
+      try {
+        await this.signInOldOAuthFlow();
+      } catch (fallbackError) {
+        dbgWarn('Fallback OAuth flow also failed:', fallbackError);
+        
+        // Reset user state on error
+        this.user = null;
+        this.render();
+        
+        // Show user-friendly error asking to report bug
+        const bugReportUrl = 'https://thinkreview.dev/bug-report';
+        const userConfirmed = confirm(
+          'Sign-in failed: Both portal sign-in and fallback authentication failed.\n\n' +
+          'Please help us fix this by reporting the issue.\n\n' +
+          'Click OK to open the bug report page, or Cancel to dismiss.'
+        );
+        
+        if (userConfirmed) {
+          chrome.tabs.create({ url: bugReportUrl });
+        }
+        
+        // Dispatch error event
+        this.dispatchEvent(new CustomEvent('signin-error', {
+          detail: { 
+            error: fallbackError.message,
+            portalError: error.message,
+            fallbackError: fallbackError.message
+          },
+          bubbles: true,
+          composed: true
+        }));
+      }
     } finally {
       this.isSigningIn = false;
       this.render();
