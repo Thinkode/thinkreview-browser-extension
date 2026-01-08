@@ -20,6 +20,12 @@ async function loadCloudService() {
 }
 
 class GoogleSignIn extends HTMLElement {
+  // Portal sign-in URL
+  static PORTAL_URL = 'https://portal.thinkreview.dev/signin-extension';
+  
+  // Bug report URL for error reporting
+  static BUG_REPORT_URL = 'https://thinkreview.dev/bug-report';
+
   constructor() {
     super();
     this.user = null;
@@ -220,7 +226,11 @@ class GoogleSignIn extends HTMLElement {
     }
   }
 
-  async signIn() {
+  /**
+   * Old OAuth sign-in implementation used as a fallback
+   * when the portal-based authentication fails
+   */
+  async signInOldOAuthFlow() {
     if (this.isSigningIn) {
       dbgLog('Sign-in already in progress');
       return;
@@ -360,6 +370,72 @@ class GoogleSignIn extends HTMLElement {
         bubbles: true,
         composed: true
       }));
+    } finally {
+      this.isSigningIn = false;
+      this.render();
+    }
+  }
+
+  async signIn() {
+    if (this.isSigningIn) {
+      dbgLog('Sign-in already in progress');
+      return;
+    }
+
+    try {
+      this.isSigningIn = true;
+      this.render(); // Update UI to show loading state
+      
+      dbgLog('Opening portal sign-in page');
+      
+      // Open the portal sign-in page in a new tab
+      await new Promise((resolve, reject) => {
+        chrome.tabs.create({ url: GoogleSignIn.PORTAL_URL }, (tab) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            dbgLog('Portal sign-in page opened in tab:', tab.id);
+            resolve(tab);
+          }
+        });
+      });
+      
+    } catch (error) {
+      dbgWarn('Error opening sign-in page:', error);
+      
+      // Fall back to old OAuth flow if portal sign-in fails
+      dbgLog('Falling back to old OAuth flow due to error:', error.message);
+      try {
+        await this.signInOldOAuthFlow();
+      } catch (fallbackError) {
+        dbgWarn('Fallback OAuth flow also failed:', fallbackError);
+        
+        // Reset user state on error
+        this.user = null;
+        this.render();
+        
+        // Show user-friendly error asking to report bug
+        const userConfirmed = confirm(
+          'Sign-in failed: Both portal sign-in and fallback authentication failed.\n\n' +
+          'Please help us fix this by reporting the issue.\n\n' +
+          'Click OK to open the bug report page, or Cancel to dismiss.'
+        );
+        
+        if (userConfirmed) {
+          chrome.tabs.create({ url: GoogleSignIn.BUG_REPORT_URL });
+        }
+        
+        // Dispatch error event
+        this.dispatchEvent(new CustomEvent('signin-error', {
+          detail: { 
+            error: error.message, // Primary portal error
+            portalError: error.message,
+            fallbackError: fallbackError.message
+          },
+          bubbles: true,
+          composed: true
+        }));
+      }
     } finally {
       this.isSigningIn = false;
       this.render();

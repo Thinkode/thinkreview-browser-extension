@@ -546,12 +546,6 @@ function showLoginPrompt() {
           `;
           signInButton.disabled = true;
           
-          // Add help text below the button
-          const helpText = document.createElement('p');
-          helpText.className = 'signin-help-text';
-          helpText.innerHTML = '🚀 The Google sign-in popup will open automatically in the new tab';
-          signInContainer.appendChild(helpText);
-          
           // Add instructions container with steps
           const instructionsContainer = document.createElement('div');
           instructionsContainer.className = 'signin-instructions-container';
