@@ -229,9 +229,10 @@ class GoogleSignIn extends HTMLElement {
   /**
    * Old OAuth sign-in implementation used as a fallback
    * when the portal-based authentication fails
+   * @param {boolean} skipGuard - If true, bypass the isSigningIn guard check (for fallback calls)
    */
-  async signInOldOAuthFlow() {
-    if (this.isSigningIn) {
+  async signInOldOAuthFlow(skipGuard = false) {
+    if (!skipGuard && this.isSigningIn) {
       dbgLog('Sign-in already in progress');
       return;
     }
@@ -406,7 +407,10 @@ class GoogleSignIn extends HTMLElement {
       // Fall back to old OAuth flow if portal sign-in fails
       dbgLog('Falling back to old OAuth flow due to error:', error.message);
       try {
-        await this.signInOldOAuthFlow();
+        // Temporarily reset isSigningIn to allow fallback to execute
+        // The fallback will set it back to true when it starts
+        this.isSigningIn = false;
+        await this.signInOldOAuthFlow(true); // Pass true to skip the guard check
       } catch (fallbackError) {
         dbgWarn('Fallback OAuth flow also failed:', fallbackError);
         
