@@ -215,7 +215,11 @@ async function createIntegratedReviewPanel(patchUrl) {
             <option value="Hindi">हिन्दी</option>
             <option value="Polish">Polski</option>
             <option value="Czech">Čeština</option>
-            <option value="Hungarian">Magyar</option>
+            <option value="Dutch">Nederlands</option>
+            <option value="Vietnamese">Tiếng Việt</option>
+            <option value="Indonesian">Bahasa Indonesia</option>
+            <option value="Romanian">Română</option>
+            <option value="Italian">Italiano</option>
           </select>
           <button id="bug-report-btn" class="thinkreview-bug-report-btn" title="Report a Bug">
             Report a 🐞
