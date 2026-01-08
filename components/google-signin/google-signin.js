@@ -428,7 +428,7 @@ class GoogleSignIn extends HTMLElement {
         // Dispatch error event
         this.dispatchEvent(new CustomEvent('signin-error', {
           detail: { 
-            error: fallbackError.message,
+            error: error.message, // Primary portal error
             portalError: error.message,
             fallbackError: fallbackError.message
           },
