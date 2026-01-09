@@ -6,6 +6,56 @@ function dbgWarn(...args) { if (DEBUG) console.warn('[GoogleSignIn]', ...args); 
 // We'll use the CloudService dynamically
 let CloudService = null;
 
+// Allowed portal URL for sign-in (whitelist approach)
+const ALLOWED_PORTAL_URL = 'https://portal.thinkreview.dev/signin-extension';
+
+/**
+ * Validates portal URL to prevent SSRF and open redirect vulnerabilities
+ * @param {string} url - URL to validate
+ * @returns {Object} - { valid: boolean, error?: string }
+ */
+function validatePortalUrl(url) {
+  if (!url || typeof url !== 'string') {
+    return { valid: false, error: 'URL must be a non-empty string' };
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url);
+  } catch (error) {
+    return { valid: false, error: 'Invalid URL format' };
+  }
+
+  // Security: Only allow HTTPS protocol
+  if (parsedUrl.protocol !== 'https:') {
+    return { valid: false, error: 'Only HTTPS protocol is allowed' };
+  }
+
+  // Security: Validate hostname matches allowed portal domain
+  const allowedHostname = 'portal.thinkreview.dev';
+  if (parsedUrl.hostname !== allowedHostname) {
+    return { valid: false, error: `Hostname must be ${allowedHostname}` };
+  }
+
+  // Security: Validate path to prevent open redirects
+  const allowedPath = '/signin-extension';
+  if (parsedUrl.pathname !== allowedPath) {
+    return { valid: false, error: `Path must be ${allowedPath}` };
+  }
+
+  // Security: Reject javascript: or data: schemes (though URL() should catch these)
+  if (url.toLowerCase().startsWith('javascript:') || url.toLowerCase().startsWith('data:')) {
+    return { valid: false, error: 'Dangerous URL scheme detected' };
+  }
+
+  // Security: Validate against exact whitelist URL
+  if (url !== ALLOWED_PORTAL_URL) {
+    return { valid: false, error: 'URL does not match allowed portal URL' };
+  }
+
+  return { valid: true };
+}
+
 // Dynamically import the CloudService
 async function loadCloudService() {
   try {
@@ -317,7 +367,34 @@ class GoogleSignIn extends HTMLElement {
     this._authListenerCleanup = { listener: authListener, timeout: cleanupTimeout };
     
     // Open portal signin page in a new tab
-    const portalUrl = 'https://portal.thinkreview.dev/signin-extension';
+    // SECURITY: Validate URL before using to prevent SSRF/open redirect vulnerabilities
+    const portalUrl = ALLOWED_PORTAL_URL;
+    const urlValidation = validatePortalUrl(portalUrl);
+    
+    if (!urlValidation.valid) {
+      dbgWarn('Portal URL validation failed:', urlValidation.error);
+      
+      // Clean up listener since we're not proceeding
+      chrome.runtime.onMessage.removeListener(authListener);
+      clearTimeout(cleanupTimeout);
+      this._authListenerCleanup = null;
+      
+      // Reset state and show error
+      this.isSigningIn = false;
+      this.render();
+      
+      // Show user-friendly error
+      alert('Security validation failed. Please report this issue if it persists.');
+      
+      // Dispatch error event
+      this.dispatchEvent(new CustomEvent('signin-error', {
+        detail: { error: urlValidation.error || 'URL validation failed' },
+        bubbles: true,
+        composed: true
+      }));
+      return;
+    }
+    
     chrome.tabs.create({ url: portalUrl }, (tab) => {
       // Check for explicit error
       if (chrome.runtime.lastError) {
