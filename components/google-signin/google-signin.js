@@ -319,6 +319,7 @@ class GoogleSignIn extends HTMLElement {
     // Open portal signin page in a new tab
     const portalUrl = 'https://portal.thinkreview.dev/signin-extension';
     chrome.tabs.create({ url: portalUrl }, (tab) => {
+      // Check for explicit error
       if (chrome.runtime.lastError) {
         dbgWarn('Error opening portal page:', chrome.runtime.lastError);
         
@@ -340,7 +341,47 @@ class GoogleSignIn extends HTMLElement {
           bubbles: true,
           composed: true
         }));
+        return;
       }
+      
+      // Check for silent failures: tab object should exist and have valid id
+      if (!tab || typeof tab.id !== 'number' || tab.id <= 0) {
+        dbgWarn('Tab creation failed silently - invalid tab object:', tab);
+        
+        // Clean up listener since we're not proceeding
+        chrome.runtime.onMessage.removeListener(authListener);
+        clearTimeout(cleanupTimeout);
+        this._authListenerCleanup = null;
+        
+        // Reset state and show error
+        this.isSigningIn = false;
+        this.render();
+        
+        // Show user-friendly error
+        alert('Failed to open sign-in page. Please check your browser settings and try again.');
+        
+        // Dispatch error event
+        this.dispatchEvent(new CustomEvent('signin-error', {
+          detail: { error: 'Tab creation failed - invalid tab object returned' },
+          bubbles: true,
+          composed: true
+        }));
+        return;
+      }
+      
+      // Verify tab was created successfully with a timeout check
+      setTimeout(() => {
+        chrome.tabs.get(tab.id, (createdTab) => {
+          // Check if tab still exists and has valid URL
+          if (chrome.runtime.lastError || !createdTab || createdTab.url === 'chrome://newtab/' || createdTab.url === 'about:newtab') {
+            dbgWarn('Tab creation verification failed:', chrome.runtime.lastError || 'Tab may not have loaded correctly');
+            // Don't reset state here as the tab might still be loading
+            // This is just a warning for edge cases
+          } else {
+            dbgLog('Portal signin page opened successfully in tab:', tab.id);
+          }
+        });
+      }, 1000); // Check after 1 second to allow tab to start loading
     });
   }
 
