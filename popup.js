@@ -26,13 +26,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle webapp auth sync - refresh popup when webapp login is detected
   if (message.type === 'WEBAPP_AUTH_SYNCED') {
     dbgLog('[popup] Received webapp auth sync notification, refreshing popup');
-    // Refresh the UI to reflect the new login state
+    // Refresh the UI reactively without full page reload
     (async () => {
       await updateUIForLoginStatus();
       // Force refresh user data to get latest info
       await forceRefreshUserData();
 
-      window.location.reload();
+      // Dispatch custom event for reactive updates instead of reload
+      window.dispatchEvent(new CustomEvent('thinkreview-auth-synced', {
+        detail: { user: message.user }
+      }));
     })();
     sendResponse({ success: true });
   }

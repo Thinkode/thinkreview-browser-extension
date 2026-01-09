@@ -271,18 +271,32 @@ class GoogleSignIn extends HTMLElement {
         clearTimeout(cleanupTimeout);
         this._authListenerCleanup = null;
         
-        // Check sign-in status and refresh UI
+        // Check sign-in status and refresh UI reactively
         this.checkSignInStatus().then(() => {
           this.isSigningIn = false;
           this.render();
-          // Reload the popup to ensure all modules load properly
-          if (window.location.pathname.includes('popup.html')) {
-            window.location.reload();
-          }
+          
+          // Dispatch custom event to notify other components of auth state change
+          this.dispatchEvent(new CustomEvent('signInStateChanged', {
+            detail: { 
+              signed_in: true,
+              user: this.user,
+              source: 'portal'
+            },
+            bubbles: true,
+            composed: true
+          }));
         }).catch((error) => {
           dbgWarn('Error checking sign-in status after auth:', error);
           this.isSigningIn = false;
           this.render();
+          
+          // Dispatch error event for reactive error handling
+          this.dispatchEvent(new CustomEvent('signin-error', {
+            detail: { error: error.message },
+            bubbles: true,
+            composed: true
+          }));
         });
       }
     };
