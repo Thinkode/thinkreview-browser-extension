@@ -226,62 +226,93 @@ class GoogleSignIn extends HTMLElement {
       return;
     }
 
-    try {
-      this.isSigningIn = true;
-      this.render(); // Update UI to show loading state
+    this.isSigningIn = true;
+    this.render(); // Update UI to show loading state
+    
+    dbgLog('Opening portal signin page');
+    
+    // Clean up any existing listener from previous sign-in attempts
+    if (this._authListenerCleanup) {
+      chrome.runtime.onMessage.removeListener(this._authListenerCleanup.listener);
+      clearTimeout(this._authListenerCleanup.timeout);
+      this._authListenerCleanup = null;
+    }
+    
+    // Declare variables for listener and timeout
+    let cleanupTimeout;
+    let authListener;
+    
+    // Set up listener BEFORE opening portal page to prevent race condition
+    authListener = (message, sender, sendResponse) => {
+      // SECURITY: Validate message origin - must be from extension's background script
+      if (!sender || sender.id !== chrome.runtime.id) {
+        dbgWarn('Rejected message from unauthorized sender:', sender?.id);
+        return; // Ignore messages from external sources
+      }
       
-      dbgLog('Opening portal signin page');
-      
-      // Set up listener BEFORE opening portal page to prevent race condition
-      const authListener = (message) => {
-        if (message.type === 'WEBAPP_AUTH_SYNCED') {
-          dbgLog('Portal auth success received, refreshing user state');
-          chrome.runtime.onMessage.removeListener(authListener);
-          
-          // Check sign-in status and refresh UI
-          this.checkSignInStatus().then(() => {
-            this.isSigningIn = false;
-            this.render();
-            // Reload the popup to ensure all modules load properly
-            if (window.location.pathname.includes('popup.html')) {
-              window.location.reload();
-            }
-          });
-        }
-      };
-      
-      chrome.runtime.onMessage.addListener(authListener);
-      
-      // Clean up listener after 5 minutes if no response
-      setTimeout(() => {
+      if (message.type === 'WEBAPP_AUTH_SYNCED') {
+        dbgLog('Portal auth success received, refreshing user state');
         chrome.runtime.onMessage.removeListener(authListener);
+        clearTimeout(cleanupTimeout);
+        this._authListenerCleanup = null;
+        
+        // Check sign-in status and refresh UI
+        this.checkSignInStatus().then(() => {
+          this.isSigningIn = false;
+          this.render();
+          // Reload the popup to ensure all modules load properly
+          if (window.location.pathname.includes('popup.html')) {
+            window.location.reload();
+          }
+        }).catch((error) => {
+          dbgWarn('Error checking sign-in status after auth:', error);
+          this.isSigningIn = false;
+          this.render();
+        });
+      }
+    };
+    
+    // Clean up listener after 5 minutes if no response
+    cleanupTimeout = setTimeout(() => {
+      if (this._authListenerCleanup && this._authListenerCleanup.listener === authListener) {
+        chrome.runtime.onMessage.removeListener(authListener);
+        this._authListenerCleanup = null;
         if (this.isSigningIn) {
           this.isSigningIn = false;
           this.render();
         }
-      }, 5 * 60 * 1000);
-      
-      // Open portal signin page in a new tab
-      const portalUrl = 'https://portal.thinkreview.dev/signin-extension';
-      chrome.tabs.create({ url: portalUrl });
-      
-    } catch (error) {
-      dbgWarn('Error opening portal signin page:', error);
-      
-      // Reset user state on error
-      this.isSigningIn = false;
-      this.render();
-      
-      // Show user-friendly error
-      alert('Failed to open sign-in page: ' + (error.message || 'Unknown error'));
-      
-      // Dispatch error event
-      this.dispatchEvent(new CustomEvent('signin-error', {
-        detail: { error: error.message },
-        bubbles: true,
-        composed: true
-      }));
-    }
+      }
+    }, 5 * 60 * 1000);
+    
+    chrome.runtime.onMessage.addListener(authListener);
+    this._authListenerCleanup = { listener: authListener, timeout: cleanupTimeout };
+    
+    // Open portal signin page in a new tab
+    const portalUrl = 'https://portal.thinkreview.dev/signin-extension';
+    chrome.tabs.create({ url: portalUrl }, (tab) => {
+      if (chrome.runtime.lastError) {
+        dbgWarn('Error opening portal page:', chrome.runtime.lastError);
+        
+        // Clean up listener since we're not proceeding
+        chrome.runtime.onMessage.removeListener(authListener);
+        clearTimeout(cleanupTimeout);
+        this._authListenerCleanup = null;
+        
+        // Reset state and show error
+        this.isSigningIn = false;
+        this.render();
+        
+        // Show user-friendly error
+        alert('Failed to open sign-in page. Please allow popups for this extension.');
+        
+        // Dispatch error event
+        this.dispatchEvent(new CustomEvent('signin-error', {
+          detail: { error: chrome.runtime.lastError.message || 'Failed to open portal page' },
+          bubbles: true,
+          composed: true
+        }));
+      }
+    });
   }
 
   async signOut() {
