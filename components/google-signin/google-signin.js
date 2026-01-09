@@ -35,6 +35,21 @@ class GoogleSignIn extends HTMLElement {
     await this.render();
   }
 
+  disconnectedCallback() {
+    // Clean up auth listener and timeout when component is removed from DOM
+    if (this._authListenerCleanup) {
+      dbgLog('Cleaning up auth listener on component disconnect');
+      chrome.runtime.onMessage.removeListener(this._authListenerCleanup.listener);
+      clearTimeout(this._authListenerCleanup.timeout);
+      this._authListenerCleanup = null;
+    }
+    
+    // Reset signing in state if component is removed during sign-in
+    if (this.isSigningIn) {
+      this.isSigningIn = false;
+    }
+  }
+
   async checkSignInStatus() {
     dbgLog('Starting checkSignInStatus...');
     try {
