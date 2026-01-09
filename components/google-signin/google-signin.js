@@ -11,12 +11,19 @@ const ALLOWED_PORTAL_URL = 'https://portal.thinkreview.dev/signin-extension';
 
 /**
  * Validates portal URL to prevent SSRF and open redirect vulnerabilities
+ * Uses component-based validation to allow query parameters while maintaining security
  * @param {string} url - URL to validate
  * @returns {Object} - { valid: boolean, error?: string }
  */
 function validatePortalUrl(url) {
   if (!url || typeof url !== 'string') {
     return { valid: false, error: 'URL must be a non-empty string' };
+  }
+
+  // Security: Reject dangerous schemes before parsing
+  const lowerUrl = url.toLowerCase().trim();
+  if (lowerUrl.startsWith('javascript:') || lowerUrl.startsWith('data:') || lowerUrl.startsWith('vbscript:')) {
+    return { valid: false, error: 'Dangerous URL scheme detected' };
   }
 
   let parsedUrl;
@@ -31,26 +38,17 @@ function validatePortalUrl(url) {
     return { valid: false, error: 'Only HTTPS protocol is allowed' };
   }
 
-  // Security: Validate hostname matches allowed portal domain
+  // Security: Validate hostname matches allowed portal domain (exact match to prevent subdomain spoofing)
   const allowedHostname = 'portal.thinkreview.dev';
   if (parsedUrl.hostname !== allowedHostname) {
     return { valid: false, error: `Hostname must be ${allowedHostname}` };
   }
 
   // Security: Validate path to prevent open redirects
+  // Query parameters are allowed for future extensibility (e.g., ?redirect=...)
   const allowedPath = '/signin-extension';
   if (parsedUrl.pathname !== allowedPath) {
     return { valid: false, error: `Path must be ${allowedPath}` };
-  }
-
-  // Security: Reject javascript: or data: schemes (though URL() should catch these)
-  if (url.toLowerCase().startsWith('javascript:') || url.toLowerCase().startsWith('data:')) {
-    return { valid: false, error: 'Dangerous URL scheme detected' };
-  }
-
-  // Security: Validate against exact whitelist URL
-  if (url !== ALLOWED_PORTAL_URL) {
-    return { valid: false, error: 'URL does not match allowed portal URL' };
   }
 
   return { valid: true };
