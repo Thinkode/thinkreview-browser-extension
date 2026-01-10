@@ -35,6 +35,9 @@ let createCopyButton = null;
 let copyItemContent = null;
 let attachCopyButtonToItem = null;
 
+// Badge utils
+let createNewBadge = null;
+
 async function initFormattingUtils() {
   try {
     const module = await import('./utils/formatting.js');
@@ -61,8 +64,19 @@ async function initCopyButtonUtils() {
   }
 }
 
+async function initBadgeUtils() {
+  try {
+    const module = await import('./utils/new-badge.js');
+    createNewBadge = module.createNewBadge;
+    console.log('[IntegratedReview] Badge utils loaded');
+  } catch (e) {
+    console.warn('[IntegratedReview] Failed to load badge utils', e);
+  }
+}
+
 initFormattingUtils();
 initCopyButtonUtils();
+initBadgeUtils();
 
 // Review prompt instance
 let reviewPrompt = null;
@@ -1361,9 +1375,34 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     
     const staticQuestionButton = document.createElement('button');
     staticQuestionButton.className = 'thinkreview-suggested-question-btn static-question';
-    staticQuestionButton.textContent = shortDisplayText;
     staticQuestionButton.setAttribute('data-question', fullMRCommentPrompt);
     staticQuestionButton.setAttribute('title', 'Click to generate a comment ready to post on this Merge Request');
+    
+    // Create button content wrapper
+    const buttonContent = document.createElement('span');
+    buttonContent.className = 'thinkreview-button-content';
+    buttonContent.textContent = shortDisplayText;
+    
+    staticQuestionButton.appendChild(buttonContent);
+    
+    // Create "New Prompt" badge using the reusable module
+    if (createNewBadge) {
+      const newBadge = createNewBadge('New Prompt');
+      staticQuestionButton.appendChild(newBadge);
+    } else {
+      // Fallback: create badge directly if module hasn't loaded yet
+      // This ensures the badge still appears even if module loading is delayed
+      const checkAndAddBadge = () => {
+        if (createNewBadge && !staticQuestionButton.querySelector('.thinkreview-new-badge')) {
+          const newBadge = createNewBadge('New Prompt');
+          staticQuestionButton.appendChild(newBadge);
+        } else if (!createNewBadge) {
+          setTimeout(checkAndAddBadge, 50);
+        }
+      };
+      checkAndAddBadge();
+    }
+    
     suggestedQuestionsContainer.appendChild(staticQuestionButton);
     
     // Add AI-generated questions (limit to maximum of 3)

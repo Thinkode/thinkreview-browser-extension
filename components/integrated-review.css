@@ -178,6 +178,10 @@
   box-shadow: 0 2px 4px rgba(107, 79, 187, 0.2);
   position: relative;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .thinkreview-suggested-question-btn::before {
@@ -235,6 +239,13 @@
   content: '✓';
   left: 12px;
   color: #48bb78;
+}
+
+/* Button content wrapper for proper badge positioning */
+.thinkreview-button-content {
+  flex: 1;
+  text-align: left;
+  min-width: 0; /* Prevent flex shrinking issues */
 }
 
 /* Chat message styling for better visual differentiation */
