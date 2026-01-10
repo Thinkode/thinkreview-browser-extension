@@ -1369,7 +1369,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     
     // Add static question for generating MR comment
     // Full detailed prompt that will be sent when clicked
-    const fullMRCommentPrompt = "Generate a brief, professional comment ready to post to the author on this Merge Request. Mention any critical issues or actionable suggestions if present. Respond with ONLY the comment text - no emojis, no explanations, just the comment ready to copy and paste.";
+    const fullMRCommentPrompt = "Generate a brief, professional, non cluttered comment ready to post to the author on this Merge Request. Mention any critical issues or actionable suggestions if present. Do not include any explanations - respond with ONLY the comment text. No emojis, no explanations, just the comment ready to copy and paste.";
     // Shorter display text for the UI button
     const shortDisplayText = "Generate a comment I could post on this MR";
     
