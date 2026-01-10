@@ -6,6 +6,54 @@ function dbgWarn(...args) { if (DEBUG) console.warn('[GoogleSignIn]', ...args); 
 // We'll use the CloudService dynamically
 let CloudService = null;
 
+// Allowed portal URL for sign-in (whitelist approach)
+const ALLOWED_PORTAL_URL = 'https://portal.thinkreview.dev/signin-extension';
+
+/**
+ * Validates portal URL to prevent SSRF and open redirect vulnerabilities
+ * Uses component-based validation to allow query parameters while maintaining security
+ * @param {string} url - URL to validate
+ * @returns {Object} - { valid: boolean, error?: string }
+ */
+function validatePortalUrl(url) {
+  if (!url || typeof url !== 'string') {
+    return { valid: false, error: 'URL must be a non-empty string' };
+  }
+
+  // Security: Reject dangerous schemes before parsing
+  const lowerUrl = url.toLowerCase().trim();
+  if (lowerUrl.startsWith('javascript:') || lowerUrl.startsWith('data:') || lowerUrl.startsWith('vbscript:')) {
+    return { valid: false, error: 'Dangerous URL scheme detected' };
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url);
+  } catch (error) {
+    return { valid: false, error: 'Invalid URL format' };
+  }
+
+  // Security: Only allow HTTPS protocol
+  if (parsedUrl.protocol !== 'https:') {
+    return { valid: false, error: 'Only HTTPS protocol is allowed' };
+  }
+
+  // Security: Validate hostname matches allowed portal domain (exact match to prevent subdomain spoofing)
+  const allowedHostname = 'portal.thinkreview.dev';
+  if (parsedUrl.hostname !== allowedHostname) {
+    return { valid: false, error: `Hostname must be ${allowedHostname}` };
+  }
+
+  // Security: Validate path to prevent open redirects
+  // Query parameters are allowed for future extensibility (e.g., ?redirect=...)
+  const allowedPath = '/signin-extension';
+  if (parsedUrl.pathname !== allowedPath) {
+    return { valid: false, error: `Path must be ${allowedPath}` };
+  }
+
+  return { valid: true };
+}
+
 // Dynamically import the CloudService
 async function loadCloudService() {
   try {
@@ -39,6 +87,21 @@ class GoogleSignIn extends HTMLElement {
     this.cloudServiceLoaded = true;
     await this.checkSignInStatus();
     await this.render();
+  }
+
+  disconnectedCallback() {
+    // Clean up auth listener and timeout when component is removed from DOM
+    if (this._authListenerCleanup) {
+      dbgLog('Cleaning up auth listener on component disconnect');
+      chrome.runtime.onMessage.removeListener(this._authListenerCleanup.listener);
+      clearTimeout(this._authListenerCleanup.timeout);
+      this._authListenerCleanup = null;
+    }
+    
+    // Reset signing in state if component is removed during sign-in
+    if (this.isSigningIn) {
+      this.isSigningIn = false;
+    }
   }
 
   async checkSignInStatus() {
@@ -236,144 +299,175 @@ class GoogleSignIn extends HTMLElement {
       return;
     }
 
-    try {
-      this.isSigningIn = true;
-      this.render(); // Update UI to show loading state
-      
-      dbgLog('Starting universal web OAuth login');
-      
-      // OAuth configuration
-      const WEB_CLIENT_ID = '201038166512-5mvrq96lgdqvtb7dr6clrpd8ckc856un.apps.googleusercontent.com';
-      const redirectUri = 'https://thinkgpt.web.app/auth/callback';
-      const scope = 'openid email profile';
-      
-      // Build OAuth URL
-      const oauthUrl =
-        'https://accounts.google.com/o/oauth2/v2/auth?'
-        + 'client_id=' + encodeURIComponent(WEB_CLIENT_ID)
-        + '&redirect_uri=' + encodeURIComponent(redirectUri)
-        + '&response_type=code'
-        + '&scope=' + encodeURIComponent(scope)
-        + '&access_type=offline'
-        + '&prompt=consent';
-      
-      // Open popup
-      const width = 500, height = 600;
-      const left = (screen.width - width) / 2;
-      const top = (screen.height - height) / 2;
-      dbgLog('Opening OAuth popup:', oauthUrl);
-      
-      const popup = window.open(
-        oauthUrl,
-        'Google OAuth',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
-      
-      if (!popup) {
-        throw new Error('Failed to open OAuth popup. Please allow popups for this extension.');
+    this.isSigningIn = true;
+    this.render(); // Update UI to show loading state
+    
+    dbgLog('Opening portal signin page');
+    
+    // Clean up any existing listener from previous sign-in attempts
+    if (this._authListenerCleanup) {
+      chrome.runtime.onMessage.removeListener(this._authListenerCleanup.listener);
+      clearTimeout(this._authListenerCleanup.timeout);
+      this._authListenerCleanup = null;
+    }
+    
+    // Declare variables for listener and timeout
+    let cleanupTimeout;
+    let authListener;
+    
+    // Set up listener BEFORE opening portal page to prevent race condition
+    authListener = (message, sender, sendResponse) => {
+      // SECURITY: Validate message origin - must be from extension's background script
+      if (!sender || sender.id !== chrome.runtime.id) {
+        dbgWarn('Rejected message from unauthorized sender:', sender?.id);
+        return; // Ignore messages from external sources
       }
       
-      dbgLog('OAuth popup opened successfully');
-      
-      // Listen for code from callback
-      const code = await new Promise((resolve, reject) => {
-        let localStorageCheckInterval;
+      if (message.type === 'WEBAPP_AUTH_SYNCED') {
+        dbgLog('Portal auth success received, refreshing user state');
+        chrome.runtime.onMessage.removeListener(authListener);
+        clearTimeout(cleanupTimeout);
+        this._authListenerCleanup = null;
         
-        function checkLocalStorage() {
-          try {
-            const storedCode = localStorage.getItem('oauth_code');
-            const timestamp = localStorage.getItem('oauth_timestamp');
-            
-            if (storedCode && timestamp) {
-              const age = Date.now() - parseInt(timestamp, 10);
-              if (age < 5 * 60 * 1000) {
-                dbgLog('Found code in localStorage');
-                clearInterval(localStorageCheckInterval);
-                localStorage.removeItem('oauth_code');
-                localStorage.removeItem('oauth_timestamp');
-                resolve(storedCode);
-                return true;
-              }
-            }
-            return false;
-          } catch (e) {
-            dbgWarn('Error checking localStorage:', e);
-            return false;
-          }
-        }
-        
-        localStorageCheckInterval = setInterval(checkLocalStorage, 1000);
-        
-        function onMessage(event) {
-          dbgLog('Received message from popup:', event.origin, event.data);
+        // Check sign-in status and refresh UI reactively
+        this.checkSignInStatus().then(() => {
+          this.isSigningIn = false;
+          this.render();
           
-          if (event.data && event.data.code) {
-            dbgLog('Received OAuth code via postMessage');
-            window.removeEventListener('message', onMessage);
-            clearInterval(localStorageCheckInterval);
-            resolve(event.data.code);
-          } else if (event.data && event.data.error) {
-            dbgWarn('Received OAuth error via postMessage:', event.data.error);
-            window.removeEventListener('message', onMessage);
-            clearInterval(localStorageCheckInterval);
-            reject(new Error(event.data.error));
-          }
-        }
-        window.addEventListener('message', onMessage);
-        
-        setTimeout(() => {
-          window.removeEventListener('message', onMessage);
-          clearInterval(localStorageCheckInterval);
+          // Dispatch custom event to notify other components of auth state change
+          this.dispatchEvent(new CustomEvent('signInStateChanged', {
+            detail: { 
+              signed_in: true,
+              user: this.user,
+              source: 'portal'
+            },
+            bubbles: true,
+            composed: true
+          }));
+        }).catch((error) => {
+          dbgWarn('Error checking sign-in status after auth:', error);
+          this.isSigningIn = false;
+          this.render();
           
-          if (!checkLocalStorage()) {
-            reject(new Error('OAuth popup timed out'));
-            try { popup.close(); } catch {}
-          }
-        }, 120000);
-      });
-      
-      dbgLog('OAuth code received:', code);
-      
-      // Exchange code for token via background script
-      const response = await chrome.runtime.sendMessage({
-        type: 'exchangeCode',
-        code
-      });
-      
-      dbgLog('Exchange response:', response);
-      
-      if (response.success) {
-        this.user = response.user;
-        
-        dbgLog('Signed in with Google via web OAuth');
-        
-        // Reload the popup to ensure CloudService and all modules load properly with authenticated state
-        // This is simpler and more reliable than waiting for async module loading
-        window.location.reload();
-      } else {
-        throw new Error(response.error || 'Login failed');
+          // Dispatch error event for reactive error handling
+          this.dispatchEvent(new CustomEvent('signin-error', {
+            detail: { error: error.message },
+            bubbles: true,
+            composed: true
+          }));
+        });
       }
+    };
+    
+    // Clean up listener after 5 minutes if no response
+    cleanupTimeout = setTimeout(() => {
+      if (this._authListenerCleanup && this._authListenerCleanup.listener === authListener) {
+        chrome.runtime.onMessage.removeListener(authListener);
+        this._authListenerCleanup = null;
+        if (this.isSigningIn) {
+          this.isSigningIn = false;
+          this.render();
+        }
+      }
+    }, 5 * 60 * 1000);
+    
+    chrome.runtime.onMessage.addListener(authListener);
+    this._authListenerCleanup = { listener: authListener, timeout: cleanupTimeout };
+    
+    // Open portal signin page in a new tab
+    // SECURITY: Validate URL before using to prevent SSRF/open redirect vulnerabilities
+    const portalUrl = ALLOWED_PORTAL_URL;
+    const urlValidation = validatePortalUrl(portalUrl);
+    
+    if (!urlValidation.valid) {
+      dbgWarn('Portal URL validation failed:', urlValidation.error);
       
-    } catch (error) {
-      dbgWarn('Error signing in with Google:', error);
+      // Clean up listener since we're not proceeding
+      chrome.runtime.onMessage.removeListener(authListener);
+      clearTimeout(cleanupTimeout);
+      this._authListenerCleanup = null;
       
-      // Reset user state on error
-      this.user = null;
+      // Reset state and show error
+      this.isSigningIn = false;
       this.render();
       
       // Show user-friendly error
-      alert('Login failed: ' + (error.message || 'Unknown error'));
+      alert('Security validation failed. Please report this issue if it persists.');
       
       // Dispatch error event
       this.dispatchEvent(new CustomEvent('signin-error', {
-        detail: { error: error.message },
+        detail: { error: urlValidation.error || 'URL validation failed' },
         bubbles: true,
         composed: true
       }));
-    } finally {
-      this.isSigningIn = false;
-      this.render();
+      return;
     }
+    
+    chrome.tabs.create({ url: portalUrl }, (tab) => {
+      // Check for explicit error
+      if (chrome.runtime.lastError) {
+        dbgWarn('Error opening portal page:', chrome.runtime.lastError);
+        
+        // Clean up listener since we're not proceeding
+        chrome.runtime.onMessage.removeListener(authListener);
+        clearTimeout(cleanupTimeout);
+        this._authListenerCleanup = null;
+        
+        // Reset state and show error
+        this.isSigningIn = false;
+        this.render();
+        
+        // Show user-friendly error
+        alert('Failed to open sign-in page. Please allow popups for this extension.');
+        
+        // Dispatch error event
+        this.dispatchEvent(new CustomEvent('signin-error', {
+          detail: { error: chrome.runtime.lastError.message || 'Failed to open portal page' },
+          bubbles: true,
+          composed: true
+        }));
+        return;
+      }
+      
+      // Check for silent failures: tab object should exist and have valid id
+      if (!tab || typeof tab.id !== 'number' || tab.id <= 0) {
+        dbgWarn('Tab creation failed silently - invalid tab object:', tab);
+        
+        // Clean up listener since we're not proceeding
+        chrome.runtime.onMessage.removeListener(authListener);
+        clearTimeout(cleanupTimeout);
+        this._authListenerCleanup = null;
+        
+        // Reset state and show error
+        this.isSigningIn = false;
+        this.render();
+        
+        // Show user-friendly error
+        alert('Failed to open sign-in page. Please check your browser settings and try again.');
+        
+        // Dispatch error event
+        this.dispatchEvent(new CustomEvent('signin-error', {
+          detail: { error: 'Tab creation failed - invalid tab object returned' },
+          bubbles: true,
+          composed: true
+        }));
+        return;
+      }
+      
+      // Verify tab was created successfully with a timeout check
+      setTimeout(() => {
+        chrome.tabs.get(tab.id, (createdTab) => {
+          // Check if tab still exists and has valid URL
+          if (chrome.runtime.lastError || !createdTab || createdTab.url === 'chrome://newtab/' || createdTab.url === 'about:newtab') {
+            dbgWarn('Tab creation verification failed:', chrome.runtime.lastError || 'Tab may not have loaded correctly');
+            // Don't reset state here as the tab might still be loading
+            // This is just a warning for edge cases
+          } else {
+            dbgLog('Portal signin page opened successfully in tab:', tab.id);
+          }
+        });
+      }, 1000); // Check after 1 second to allow tab to start loading
+    });
   }
 
   async signIn() {
