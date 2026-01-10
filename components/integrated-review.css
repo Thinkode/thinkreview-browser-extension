@@ -1147,6 +1147,18 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   line-height: 1.5;
 }
 
+/* Inline code styling for initial review sections (matches chat message styling) */
+#gitlab-mr-integrated-review .thinkreview-section-content code,
+#gitlab-mr-integrated-review .thinkreview-section-list code {
+  background-color: rgba(107, 79, 187, 0.2) !important;
+  border: 2px solid rgba(107, 79, 187, 0.4) !important;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+  color: #8c6be8 !important;
+}
+
 #gitlab-mr-integrated-review .thinkreview-section-list {
   color: var(--thinkreview-text-secondary);
   /* Ensure bullets render even if host page resets list styles (e.g., Azure DevOps) */
