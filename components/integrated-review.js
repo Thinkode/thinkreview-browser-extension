@@ -1412,7 +1412,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     // Full detailed prompt that will be sent when clicked
     const fullMRCommentPrompt = "Act as a senior software engineer reviewing this Pull Request. Provide a professional response ready to post. Address the author by name if it is available in the patch. Mention critical issues or actionable suggestions only if they are present; otherwise, provide a standard approval. Provide the comment text only, without preamble, emojis, or explanations.";
     // Shorter display text for the UI button
-    const shortDisplayText = "Generate a comment I could post on this MR";
+    const shortDisplayText = "Generate a comment I can post on this MR";
     
     const staticQuestionButton = document.createElement('button');
     staticQuestionButton.className = 'thinkreview-suggested-question-btn static-question';
