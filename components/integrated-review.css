@@ -2129,7 +2129,7 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   width: 24px;
   height: 24px;
   line-height: 1;
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .thinkreview-feedback-btn svg {
@@ -2143,7 +2143,7 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   .thinkreview-feedback-btn {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.15);
-    color: rgba(255, 255, 255, 0.6);
+    color: rgba(255, 255, 255, 0.8);
   }
 }
 
