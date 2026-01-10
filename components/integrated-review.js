@@ -776,6 +776,20 @@ function appendToChatLog(sender, message, aiResponseText = null) {
     messageWrapper.setAttribute('data-ai-response', aiResponseText);
   }
 
+  // Check if this is a typing indicator (spinner message) - skip copy button for those
+  // Typing indicators contain HTML with gl-spinner class or specific thinking messages
+  const isTypingIndicator = message.includes('gl-spinner') || 
+                            message.includes('Thinking about') || 
+                            message.includes('Analyzing') || 
+                            message.includes('Crafting') || 
+                            message.includes('Reviewing') || 
+                            message.includes('Processing') || 
+                            message.includes('Working on');
+
+  // Create wrapper for message bubble to support copy button
+  const messageBubbleWrapper = document.createElement('div');
+  messageBubbleWrapper.className = 'thinkreview-item-wrapper chat-message-bubble-wrapper';
+
   const messageBubble = document.createElement('div');
   messageBubble.className = `chat-message ${sender === 'user' ? 'user-message' : 'ai-message'}`;
 
@@ -783,7 +797,14 @@ function appendToChatLog(sender, message, aiResponseText = null) {
   const formattedMessage = sender === 'ai' ? markdownToHtml(preprocessAIResponse(message)) : message;
   messageBubble.innerHTML = formattedMessage;
 
-  messageWrapper.appendChild(messageBubble);
+  messageBubbleWrapper.appendChild(messageBubble);
+  
+  // Add copy button to message (skip for typing indicators)
+  if (!isTypingIndicator && attachCopyButtonToItem) {
+    attachCopyButtonToItem(messageBubble, messageBubbleWrapper);
+  }
+
+  messageWrapper.appendChild(messageBubbleWrapper);
   
   // Add feedback buttons for AI messages (Gemini-style, small and subtle)
   if (sender === 'ai' && aiResponseText) {
@@ -1066,9 +1087,16 @@ async function handleSendMessage(messageText) {
 
     // Remove typing indicator
     const chatLog = document.getElementById('chat-log');
-    const typingIndicator = chatLog.querySelector('.gl-spinner')?.parentNode.parentNode;
-    if (typingIndicator) {
-      chatLog.removeChild(typingIndicator);
+    const spinner = chatLog.querySelector('.gl-spinner');
+    if (spinner) {
+      // Find the chat-message-wrapper by traversing up the DOM tree
+      let messageWrapper = spinner.closest('.chat-message-wrapper');
+      if (messageWrapper && messageWrapper.parentNode === chatLog) {
+        chatLog.removeChild(messageWrapper);
+      } else if (messageWrapper) {
+        // Fallback: if found but not direct child, try remove() which is safer
+        messageWrapper.remove();
+      }
     }
 
     // Extract the response text with fallback handling
@@ -1094,10 +1122,18 @@ async function handleSendMessage(messageText) {
     //   console.error('Error getting AI response:', error.message);
     // }
     
+    // Remove typing indicator
     const chatLog = document.getElementById('chat-log');
-    const typingIndicator = chatLog.querySelector('.gl-spinner')?.parentNode.parentNode;
-    if (typingIndicator) {
-      chatLog.removeChild(typingIndicator);
+    const spinner = chatLog.querySelector('.gl-spinner');
+    if (spinner) {
+      // Find the chat-message-wrapper by traversing up the DOM tree
+      let messageWrapper = spinner.closest('.chat-message-wrapper');
+      if (messageWrapper && messageWrapper.parentNode === chatLog) {
+        chatLog.removeChild(messageWrapper);
+      } else if (messageWrapper) {
+        // Fallback: if found but not direct child, try remove() which is safer
+        messageWrapper.remove();
+      }
     }
     
     // Check if this is a rate limit error

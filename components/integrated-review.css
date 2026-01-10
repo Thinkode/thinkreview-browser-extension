@@ -299,6 +299,20 @@
   border: 1px solid #404040;
 }
 
+/* Increase width for loading messages (messages with spinner) to fit text on one line */
+.chat-message:has(.gl-spinner) {
+  max-width: 95% !important;
+  white-space: nowrap;
+}
+
+/* Increase spinner size in loading messages */
+#gitlab-mr-integrated-review .chat-message .gl-spinner {
+  width: 20px !important;
+  height: 20px !important;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
 /* Formatted content styling - with higher specificity to override general panel styles */
 #gitlab-mr-integrated-review .chat-message pre {
   background-color: #1a1a1a;
