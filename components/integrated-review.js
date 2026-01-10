@@ -37,6 +37,18 @@ let attachCopyButtonToItem = null;
 
 // Badge utils
 let createNewBadge = null;
+// Cache the badge module loading promise to avoid repeated imports
+const badgeModulePromise = (async () => {
+  try {
+    const module = await import('./utils/new-badge.js');
+    createNewBadge = module.createNewBadge;
+    console.log('[IntegratedReview] Badge utils loaded');
+    return module;
+  } catch (e) {
+    console.warn('[IntegratedReview] Failed to load badge utils', e);
+    return null;
+  }
+})();
 
 async function initFormattingUtils() {
   try {
@@ -64,19 +76,12 @@ async function initCopyButtonUtils() {
   }
 }
 
-async function initBadgeUtils() {
-  try {
-    const module = await import('./utils/new-badge.js');
-    createNewBadge = module.createNewBadge;
-    console.log('[IntegratedReview] Badge utils loaded');
-  } catch (e) {
-    console.warn('[IntegratedReview] Failed to load badge utils', e);
-  }
-}
+// Badge utils are initialized via cached promise above
+// The promise is already being resolved, we just need to wait for it when needed
 
 initFormattingUtils();
 initCopyButtonUtils();
-initBadgeUtils();
+// Badge utils loading is handled by the cached promise, no separate init needed
 
 // Review prompt instance
 let reviewPrompt = null;
@@ -1386,22 +1391,25 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     staticQuestionButton.appendChild(buttonContent);
     
     // Create "New Prompt" badge using the reusable module
-    if (createNewBadge) {
-      const newBadge = createNewBadge('New Prompt');
-      staticQuestionButton.appendChild(newBadge);
-    } else {
-      // Fallback: create badge directly if module hasn't loaded yet
-      // This ensures the badge still appears even if module loading is delayed
-      const checkAndAddBadge = () => {
-        if (createNewBadge && !staticQuestionButton.querySelector('.thinkreview-new-badge')) {
-          const newBadge = createNewBadge('New Prompt');
-          staticQuestionButton.appendChild(newBadge);
-        } else if (!createNewBadge) {
-          setTimeout(checkAndAddBadge, 50);
+    // Use the cached promise to avoid repeated imports and setTimeout polling
+    (async () => {
+      try {
+        // Get the badge creator function (either from cache or await the promise)
+        let badgeCreator = createNewBadge;
+        if (!badgeCreator) {
+          const module = await badgeModulePromise;
+          badgeCreator = module?.createNewBadge;
         }
-      };
-      checkAndAddBadge();
-    }
+        
+        // Create and append badge if module loaded successfully
+        if (badgeCreator && !staticQuestionButton.querySelector('.thinkreview-new-badge')) {
+          const newBadge = badgeCreator('New Prompt');
+          staticQuestionButton.appendChild(newBadge);
+        }
+      } catch (error) {
+        console.warn('[IntegratedReview] Failed to load badge module for button:', error);
+      }
+    })();
     
     suggestedQuestionsContainer.appendChild(staticQuestionButton);
     
