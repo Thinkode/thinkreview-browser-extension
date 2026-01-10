@@ -1160,6 +1160,11 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   border-bottom: 1px solid #6b4fbb;
 }
 
+/* Add padding to summary wrapper to align with list items (similar to gl-pl-5 on lists) */
+#gitlab-mr-integrated-review #review-summary-container .thinkreview-item-wrapper {
+  padding-left: 20px;
+}
+
 /* Dark theme text styling for better readability */
 #gitlab-mr-integrated-review .thinkreview-section-title {
   color: #ffffff;
