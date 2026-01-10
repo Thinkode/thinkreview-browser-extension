@@ -1354,12 +1354,16 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     suggestedQuestionsContainer.innerHTML = ''; // Clear previous questions
     
     // Add static question for generating MR comment
-    const staticQuestion = "Generate a detailed comment I can post on this Merge Request";
+    // Full detailed prompt that will be sent when clicked
+    const fullMRCommentPrompt = "Generate a brief, professional comment ready to post to the author on this Merge Request. Mention any critical issues or actionable suggestions if present. Respond with ONLY the comment text - no emojis, no explanations, just the comment ready to copy and paste.";
+    // Shorter display text for the UI button
+    const shortDisplayText = "Generate a comment I could post on this MR";
+    
     const staticQuestionButton = document.createElement('button');
     staticQuestionButton.className = 'thinkreview-suggested-question-btn static-question';
-    staticQuestionButton.textContent = staticQuestion;
-    staticQuestionButton.setAttribute('data-question', staticQuestion);
-    staticQuestionButton.setAttribute('title', 'Click to get a suggested MR comment');
+    staticQuestionButton.textContent = shortDisplayText;
+    staticQuestionButton.setAttribute('data-question', fullMRCommentPrompt);
+    staticQuestionButton.setAttribute('title', 'Click to generate a comment ready to post on this Merge Request');
     suggestedQuestionsContainer.appendChild(staticQuestionButton);
     
     // Add AI-generated questions (limit to maximum of 3)
