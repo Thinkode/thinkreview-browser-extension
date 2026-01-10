@@ -1,0 +1,57 @@
+/* item-copy-button.css */
+/* Styles for copy buttons on review items */
+
+/* Item wrapper for content and copy button */
+#gitlab-mr-integrated-review .thinkreview-item-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  position: relative;
+}
+
+#gitlab-mr-integrated-review .thinkreview-item-content {
+  flex: 1;
+}
+
+/* Ensure summary paragraph works within wrapper */
+#gitlab-mr-integrated-review .thinkreview-item-wrapper > .thinkreview-section-content {
+  flex: 1;
+  margin: 0;
+}
+
+/* Item copy button styles - no background */
+#gitlab-mr-integrated-review .thinkreview-item-copy-btn {
+  background: transparent;
+  color: var(--thinkreview-text-secondary);
+  border: none;
+  border-radius: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-item-copy-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+#gitlab-mr-integrated-review .thinkreview-item-copy-btn:active {
+  transform: scale(0.95);
+}
+
+#gitlab-mr-integrated-review .thinkreview-item-copy-btn svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+/* List item styling */
+#gitlab-mr-integrated-review .thinkreview-list-item {
+  margin-bottom: 8px;
+}
