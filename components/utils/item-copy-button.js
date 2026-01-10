@@ -108,6 +108,13 @@ export function attachCopyButtonToItem(contentElement, wrapperElement) {
     return null;
   }
   
+  // Check if a copy button already exists in the wrapper
+  const existingCopyBtn = wrapperElement.querySelector('.thinkreview-item-copy-btn');
+  if (existingCopyBtn) {
+    // Return the existing button to avoid duplicates
+    return existingCopyBtn;
+  }
+  
   const copyBtn = createCopyButton();
   copyBtn.addEventListener('click', (e) => {
     e.stopPropagation();
