@@ -17,11 +17,23 @@ reviewPromptLinkElement.rel = 'stylesheet';
 reviewPromptLinkElement.href = reviewPromptCssURL;
 document.head.appendChild(reviewPromptLinkElement);
 
+// Import item copy button CSS
+const itemCopyButtonCssURL = chrome.runtime.getURL('components/utils/item-copy-button.css');
+const itemCopyButtonLinkElement = document.createElement('link');
+itemCopyButtonLinkElement.rel = 'stylesheet';
+itemCopyButtonLinkElement.href = itemCopyButtonCssURL;
+document.head.appendChild(itemCopyButtonLinkElement);
+
 // Formatting utils
 let markdownToHtml = null;
 let preprocessAIResponse = null;
 let applySimpleSyntaxHighlighting = null;
 let setupCopyHandler = null;
+
+// Copy button utils
+let createCopyButton = null;
+let copyItemContent = null;
+let attachCopyButtonToItem = null;
 
 async function initFormattingUtils() {
   try {
@@ -37,7 +49,20 @@ async function initFormattingUtils() {
   }
 }
 
+async function initCopyButtonUtils() {
+  try {
+    const module = await import('./utils/item-copy-button.js');
+    createCopyButton = module.createCopyButton;
+    copyItemContent = module.copyItemContent;
+    attachCopyButtonToItem = module.attachCopyButtonToItem;
+    console.log('[IntegratedReview] Copy button utils loaded');
+  } catch (e) {
+    console.warn('[IntegratedReview] Failed to load copy button utils', e);
+  }
+}
+
 initFormattingUtils();
+initCopyButtonUtils();
 
 // Review prompt instance
 let reviewPrompt = null;
@@ -277,7 +302,9 @@ async function createIntegratedReviewPanel(patchUrl) {
             <div id="review-metrics-container" class="gl-mb-4"></div>
             <div id="review-summary-container" class="gl-mb-4">
               <h5 class="gl-font-weight-bold thinkreview-section-title">Summary</h5>
-              <p id="review-summary" class="thinkreview-section-content"></p>
+              <div class="thinkreview-item-wrapper">
+                <p id="review-summary" class="thinkreview-section-content"></p>
+              </div>
             </div>
             <div id="review-suggestions-container" class="gl-mb-4">
               <h5 class="gl-font-weight-bold thinkreview-section-title">Suggestions</h5>
@@ -1076,6 +1103,11 @@ async function handleSendMessage(messageText) {
 }
 
 async function displayIntegratedReview(review, patchContent, patchSize = null, subscriptionType = null, modelUsed = null, isCached = false) {
+  // Ensure copy button utils are loaded
+  if (!attachCopyButtonToItem) {
+    await initCopyButtonUtils();
+  }
+  
   // Check if there was a JSON parsing error (safety check)
   if (review.parsingError === true) {
     console.warn('[IntegratedReview] JSON parsing error detected in review object');
@@ -1242,21 +1274,36 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     handleSendMessage(query);
   });
 
+  // Add copy button to summary
+  const summaryWrapper = reviewSummary.parentElement;
+  if (summaryWrapper && summaryWrapper.classList.contains('thinkreview-item-wrapper') && attachCopyButtonToItem) {
+    attachCopyButtonToItem(reviewSummary, summaryWrapper);
+  }
+
   const populateList = (element, items, category) => {
     element.innerHTML = ''; // Clear previous items
     if (items && items.length > 0) {
       items.forEach(item => {
         const li = document.createElement('li');
+        li.className = 'thinkreview-list-item';
+        
+        // Create wrapper for content and copy button
+        const itemWrapper = document.createElement('div');
+        itemWrapper.className = 'thinkreview-item-wrapper';
+        
+        // Create content div
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'thinkreview-item-content';
         // Parse markdown so code fences become <pre><code> blocks
         const itemHtml = markdownToHtml(preprocessAIResponse(String(item || '')));
-        li.innerHTML = itemHtml;
+        contentDiv.innerHTML = itemHtml;
         
-        // Make the item clickable
-        li.classList.add('thinkreview-clickable-item');
-        li.style.cursor = 'pointer';
+        // Make the content clickable
+        contentDiv.classList.add('thinkreview-clickable-item');
+        contentDiv.style.cursor = 'pointer';
         
-        // Add click handler
-        li.addEventListener('click', () => {
+        // Add click handler for content
+        contentDiv.addEventListener('click', () => {
           // Extract plain text from the item
           const itemText = extractPlainText(itemHtml).trim();
           
@@ -1276,6 +1323,16 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
           handleSendMessage(query);
         });
         
+        // Append content to wrapper
+        itemWrapper.appendChild(contentDiv);
+        
+        // Attach copy button to the wrapper
+        if (attachCopyButtonToItem) {
+          attachCopyButtonToItem(contentDiv, itemWrapper);
+        }
+        
+        // Append wrapper to list item
+        li.appendChild(itemWrapper);
         element.appendChild(li);
       });
       element.closest('.gl-mb-4').classList.remove('gl-hidden');
