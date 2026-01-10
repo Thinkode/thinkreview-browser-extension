@@ -1391,15 +1391,12 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     staticQuestionButton.appendChild(buttonContent);
     
     // Create "New Prompt" badge using the reusable module
-    // Use the cached promise to avoid repeated imports and setTimeout polling
+    // Always await the cached promise to ensure deterministic badge creation
     (async () => {
       try {
-        // Get the badge creator function (either from cache or await the promise)
-        let badgeCreator = createNewBadge;
-        if (!badgeCreator) {
-          const module = await badgeModulePromise;
-          badgeCreator = module?.createNewBadge;
-        }
+        // Always await the promise to ensure the module is loaded before accessing createNewBadge
+        const module = await badgeModulePromise;
+        const badgeCreator = module?.createNewBadge || createNewBadge;
         
         // Create and append badge if module loaded successfully
         if (badgeCreator && !staticQuestionButton.querySelector('.thinkreview-new-badge')) {
