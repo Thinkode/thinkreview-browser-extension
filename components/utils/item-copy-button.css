@@ -21,19 +21,20 @@
 
 /* Item copy button styles - no background */
 #gitlab-mr-integrated-review .thinkreview-item-copy-btn {
-  background: transparent;
-  color: var(--thinkreview-text-secondary);
-  border: none;
+  background: transparent !important;
+  color: var(--thinkreview-text-secondary) !important;
+  border: none !important;
   border-radius: 4px;
   padding: 2px 4px;
-  cursor: pointer;
-  display: flex;
+  cursor: pointer !important;
+  display: flex !important;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
   opacity: 0.6;
   flex-shrink: 0;
   margin-top: 2px;
+  visibility: visible !important;
 }
 
 #gitlab-mr-integrated-review .thinkreview-item-copy-btn:hover {
@@ -46,12 +47,46 @@
 }
 
 #gitlab-mr-integrated-review .thinkreview-item-copy-btn svg {
-  display: block;
+  display: block !important;
   width: 14px;
   height: 14px;
+  visibility: visible !important;
 }
 
 /* List item styling */
 #gitlab-mr-integrated-review .thinkreview-list-item {
   margin-bottom: 8px;
+}
+
+/* Chat message wrapper styling */
+#gitlab-mr-integrated-review .thinkreview-item-wrapper.chat-message-bubble-wrapper {
+  max-width: 100%;
+}
+
+/* Allow loading message wrappers to expand for single-line text */
+#gitlab-mr-integrated-review .thinkreview-item-wrapper.chat-message-bubble-wrapper:has(.chat-message:has(.gl-spinner)) {
+  max-width: 100%;
+  width: auto;
+}
+
+/* Ensure chat-message bubble gets flex: 1 within wrapper */
+#gitlab-mr-integrated-review .thinkreview-item-wrapper > .chat-message {
+  flex: 1;
+}
+
+/* For loading messages, don't constrain width - let it fit content */
+#gitlab-mr-integrated-review .thinkreview-item-wrapper > .chat-message:has(.gl-spinner) {
+  flex: 0 1 auto;
+  min-width: fit-content;
+}
+
+/* Adjust copy button visibility for chat messages */
+#gitlab-mr-integrated-review .chat-message-bubble-wrapper .thinkreview-item-copy-btn {
+  opacity: 0.5 !important;
+  display: flex !important;
+  visibility: visible !important;
+}
+
+#gitlab-mr-integrated-review .chat-message-bubble-wrapper:hover .thinkreview-item-copy-btn {
+  opacity: 1 !important;
 }

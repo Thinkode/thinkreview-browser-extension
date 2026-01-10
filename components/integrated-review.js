@@ -35,6 +35,21 @@ let createCopyButton = null;
 let copyItemContent = null;
 let attachCopyButtonToItem = null;
 
+// Badge utils
+let createNewBadge = null;
+// Cache the badge module loading promise to avoid repeated imports
+const badgeModulePromise = (async () => {
+  try {
+    const module = await import('./utils/new-badge.js');
+    createNewBadge = module.createNewBadge;
+    console.log('[IntegratedReview] Badge utils loaded');
+    return module;
+  } catch (e) {
+    console.warn('[IntegratedReview] Failed to load badge utils', e);
+    return null;
+  }
+})();
+
 async function initFormattingUtils() {
   try {
     const module = await import('./utils/formatting.js');
@@ -61,8 +76,12 @@ async function initCopyButtonUtils() {
   }
 }
 
+// Badge utils are initialized via cached promise above
+// The promise is already being resolved, we just need to wait for it when needed
+
 initFormattingUtils();
 initCopyButtonUtils();
+// Badge utils loading is handled by the cached promise, no separate init needed
 
 // Review prompt instance
 let reviewPrompt = null;
@@ -757,6 +776,20 @@ function appendToChatLog(sender, message, aiResponseText = null) {
     messageWrapper.setAttribute('data-ai-response', aiResponseText);
   }
 
+  // Check if this is a typing indicator (spinner message) - skip copy button for those
+  // Typing indicators contain HTML with gl-spinner class or specific thinking messages
+  const isTypingIndicator = message.includes('gl-spinner') || 
+                            message.includes('Thinking about') || 
+                            message.includes('Analyzing') || 
+                            message.includes('Crafting') || 
+                            message.includes('Reviewing') || 
+                            message.includes('Processing') || 
+                            message.includes('Working on');
+
+  // Create wrapper for message bubble to support copy button
+  const messageBubbleWrapper = document.createElement('div');
+  messageBubbleWrapper.className = 'thinkreview-item-wrapper chat-message-bubble-wrapper';
+
   const messageBubble = document.createElement('div');
   messageBubble.className = `chat-message ${sender === 'user' ? 'user-message' : 'ai-message'}`;
 
@@ -764,7 +797,14 @@ function appendToChatLog(sender, message, aiResponseText = null) {
   const formattedMessage = sender === 'ai' ? markdownToHtml(preprocessAIResponse(message)) : message;
   messageBubble.innerHTML = formattedMessage;
 
-  messageWrapper.appendChild(messageBubble);
+  messageBubbleWrapper.appendChild(messageBubble);
+  
+  // Add copy button to message (skip for typing indicators)
+  if (!isTypingIndicator && attachCopyButtonToItem) {
+    attachCopyButtonToItem(messageBubble, messageBubbleWrapper);
+  }
+
+  messageWrapper.appendChild(messageBubbleWrapper);
   
   // Add feedback buttons for AI messages (Gemini-style, small and subtle)
   if (sender === 'ai' && aiResponseText) {
@@ -1047,9 +1087,16 @@ async function handleSendMessage(messageText) {
 
     // Remove typing indicator
     const chatLog = document.getElementById('chat-log');
-    const typingIndicator = chatLog.querySelector('.gl-spinner')?.parentNode.parentNode;
-    if (typingIndicator) {
-      chatLog.removeChild(typingIndicator);
+    const spinner = chatLog.querySelector('.gl-spinner');
+    if (spinner) {
+      // Find the chat-message-wrapper by traversing up the DOM tree
+      let messageWrapper = spinner.closest('.chat-message-wrapper');
+      if (messageWrapper && messageWrapper.parentNode === chatLog) {
+        chatLog.removeChild(messageWrapper);
+      } else if (messageWrapper) {
+        // Fallback: if found but not direct child, try remove() which is safer
+        messageWrapper.remove();
+      }
     }
 
     // Extract the response text with fallback handling
@@ -1075,10 +1122,18 @@ async function handleSendMessage(messageText) {
     //   console.error('Error getting AI response:', error.message);
     // }
     
+    // Remove typing indicator
     const chatLog = document.getElementById('chat-log');
-    const typingIndicator = chatLog.querySelector('.gl-spinner')?.parentNode.parentNode;
-    if (typingIndicator) {
-      chatLog.removeChild(typingIndicator);
+    const spinner = chatLog.querySelector('.gl-spinner');
+    if (spinner) {
+      // Find the chat-message-wrapper by traversing up the DOM tree
+      let messageWrapper = spinner.closest('.chat-message-wrapper');
+      if (messageWrapper && messageWrapper.parentNode === chatLog) {
+        chatLog.removeChild(messageWrapper);
+      } else if (messageWrapper) {
+        // Fallback: if found but not direct child, try remove() which is safer
+        messageWrapper.remove();
+      }
     }
     
     // Check if this is a rate limit error
@@ -1354,12 +1409,41 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     suggestedQuestionsContainer.innerHTML = ''; // Clear previous questions
     
     // Add static question for generating MR comment
-    const staticQuestion = "Generate a detailed comment I can post on this Merge Request";
+    // Full detailed prompt that will be sent when clicked
+    const fullMRCommentPrompt = "Act as a senior software engineer reviewing this Pull Request. Provide a professional response ready to post. Address the author by name if it is available in the patch. Mention critical issues or actionable suggestions only if they are present; otherwise, provide a standard approval. Provide the comment text only, without preamble, emojis, or explanations.";
+    // Shorter display text for the UI button
+    const shortDisplayText = "Generate a comment I can post on this MR";
+    
     const staticQuestionButton = document.createElement('button');
     staticQuestionButton.className = 'thinkreview-suggested-question-btn static-question';
-    staticQuestionButton.textContent = staticQuestion;
-    staticQuestionButton.setAttribute('data-question', staticQuestion);
-    staticQuestionButton.setAttribute('title', 'Click to get a suggested MR comment');
+    staticQuestionButton.setAttribute('data-question', fullMRCommentPrompt);
+    staticQuestionButton.setAttribute('title', 'Click to generate a comment ready to post on this Merge Request');
+    
+    // Create button content wrapper
+    const buttonContent = document.createElement('span');
+    buttonContent.className = 'thinkreview-button-content';
+    buttonContent.textContent = shortDisplayText;
+    
+    staticQuestionButton.appendChild(buttonContent);
+    
+    // Create "New Prompt" badge using the reusable module
+    // Always await the cached promise to ensure deterministic badge creation
+    (async () => {
+      try {
+        // Always await the promise to ensure the module is loaded before accessing createNewBadge
+        const module = await badgeModulePromise;
+        const badgeCreator = module?.createNewBadge || createNewBadge;
+        
+        // Create and append badge if module loaded successfully
+        if (badgeCreator && !staticQuestionButton.querySelector('.thinkreview-new-badge')) {
+          const newBadge = badgeCreator('New Prompt');
+          staticQuestionButton.appendChild(newBadge);
+        }
+      } catch (error) {
+        console.warn('[IntegratedReview] Failed to load badge module for button:', error);
+      }
+    })();
+    
     suggestedQuestionsContainer.appendChild(staticQuestionButton);
     
     // Add AI-generated questions (limit to maximum of 3)

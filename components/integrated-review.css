@@ -178,6 +178,10 @@
   box-shadow: 0 2px 4px rgba(107, 79, 187, 0.2);
   position: relative;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .thinkreview-suggested-question-btn::before {
@@ -237,6 +241,13 @@
   color: #48bb78;
 }
 
+/* Button content wrapper for proper badge positioning */
+.thinkreview-button-content {
+  flex: 1;
+  text-align: left;
+  min-width: 0; /* Prevent flex shrinking issues */
+}
+
 /* Chat message styling for better visual differentiation */
 .chat-message-wrapper {
   margin-bottom: 12px;
@@ -286,6 +297,20 @@
   color: #cccccc;
   font-style: italic;
   border: 1px solid #404040;
+}
+
+/* Increase width for loading messages (messages with spinner) to fit text on one line */
+.chat-message:has(.gl-spinner) {
+  max-width: 95% !important;
+  white-space: nowrap;
+}
+
+/* Increase spinner size in loading messages */
+#gitlab-mr-integrated-review .chat-message .gl-spinner {
+  width: 20px !important;
+  height: 20px !important;
+  margin-right: 8px;
+  vertical-align: middle;
 }
 
 /* Formatted content styling - with higher specificity to override general panel styles */
@@ -1133,6 +1158,11 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   padding: 8px 0;
   margin-bottom: 16px;
   border-bottom: 1px solid #6b4fbb;
+}
+
+/* Add padding to summary wrapper to align with list items (similar to gl-pl-5 on lists) */
+#gitlab-mr-integrated-review #review-summary-container .thinkreview-item-wrapper {
+  padding-left: 20px;
 }
 
 /* Dark theme text styling for better readability */
