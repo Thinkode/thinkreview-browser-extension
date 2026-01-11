@@ -1,0 +1,30 @@
+/* New Badge styling - reusable component */
+.thinkreview-new-badge {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% {
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);
+  }
+}
+
+/* Badge in disabled state */
+.thinkreview-suggested-question-btn:disabled .thinkreview-new-badge,
+button:disabled .thinkreview-new-badge {
+  opacity: 0.6;
+  animation: none;
+}
