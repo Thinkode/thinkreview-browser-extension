@@ -277,12 +277,14 @@
 
 .chat-message {
   max-width: 80%;
+  width: fit-content;
   padding: 12px 16px;
   border-radius: 18px;
   word-wrap: break-word;
   line-height: 1.4;
   overflow-x: auto;
   box-sizing: border-box;
+  text-align: left;
 }
 
 .chat-message.user-message {
