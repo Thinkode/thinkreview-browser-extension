@@ -251,6 +251,7 @@ async function updateUIForLoginStatus() {
     const welcomeContent = document.getElementById('welcome-content');
     const loginPrompt = document.getElementById('login-prompt');
     const privacyPolicyText = document.getElementById('privacy-policy-text');
+    const privacyPolicyNotice = document.getElementById('privacy-policy-notice');
     
     dbgLog('[popup] updateUIForLoginStatus - isLoggedIn:', isLoggedIn, 'cloudServiceReady:', cloudServiceReady, 'CloudService available:', !!window.CloudService);
     
@@ -268,6 +269,9 @@ async function updateUIForLoginStatus() {
       }
       if (privacyPolicyText) {
         privacyPolicyText.style.display = 'none';
+      }
+      if (privacyPolicyNotice) {
+        privacyPolicyNotice.style.display = 'none';
       }
       
       // Fetch review count if CloudService is ready
@@ -295,7 +299,10 @@ async function updateUIForLoginStatus() {
         loginPrompt.style.display = 'block';
       }
       if (privacyPolicyText) {
-        privacyPolicyText.style.display = 'block';
+        privacyPolicyText.style.display = 'flex';
+      }
+      if (privacyPolicyNotice) {
+        privacyPolicyNotice.style.display = 'flex';
       }
       clearStatusState();
       pendingUserDataFetch = false; // Clear pending fetch
@@ -466,6 +473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const welcomeContent = document.getElementById('welcome-content');
       const loginPrompt = document.getElementById('login-prompt');
       const privacyPolicyText = document.getElementById('privacy-policy-text');
+      const privacyPolicyNotice = document.getElementById('privacy-policy-notice');
       if (authenticatedContent) {
         authenticatedContent.style.display = 'none';
         authenticatedContent.classList.remove('loading');
@@ -477,7 +485,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         loginPrompt.style.display = 'block';
       }
       if (privacyPolicyText) {
-        privacyPolicyText.style.display = 'block';
+        privacyPolicyText.style.display = 'flex';
+      }
+      if (privacyPolicyNotice) {
+        privacyPolicyNotice.style.display = 'flex';
       }
       clearStatusState();
       pendingUserDataFetch = false; // Clear pending fetch
