@@ -4,8 +4,21 @@
 export function preprocessAIResponse(response) {
   if (!response) return '';
   let cleaned = response;
+  
+  // Remove outer markdown code blocks if present
   cleaned = cleaned.replace(/```markdown\n([\s\S]*?)\n```/g, '$1');
   cleaned = cleaned.replace(/```markdown\n([\s\S]*?)$/g, '$1');
+  
+  // Strip any accidental HTML tags or malformed syntax highlighting from AI response
+  // This prevents broken HTML like 'class="token comment"' without proper <span> tags
+  // Remove malformed token attributes that aren't inside proper HTML tags
+  cleaned = cleaned.replace(/class=["']token\s+\w+["']\s*>/g, '');
+  cleaned = cleaned.replace(/class=class=["']token\s+\w+["']\s*>/g, '');
+  
+  // Remove any orphaned HTML-like fragments within code blocks (but preserve markdown code fences)
+  // This regex looks for suspicious patterns like standalone 'class="...">' without opening tags
+  cleaned = cleaned.replace(/(?<!<[a-z]\w*\s)class=["'][^"']*["']\s*>/gi, '');
+  
   return cleaned.trim();
 }
 
@@ -17,7 +30,7 @@ export function markdownToHtml(markdown) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-  const allowedLanguages = new Set(['js','javascript','ts','typescript','json','bash','sh','shell','diff','html','css','md','markdown','yaml','yml','python','py','go','rust','java','kotlin','swift','c','cpp','php','sql']);
+  const allowedLanguages = new Set(['js','javascript','ts','typescript','json','bash','sh','shell','diff','html','htm','css','scss','sass','md','markdown','yaml','yml','python','py','go','golang','rust','rs','java','kotlin','kt','swift','c','cpp','c++','cxx','csharp','cs','c#','dotnet','php','sql','ruby','rb']);
 
   // Balance fences strictly by line so we don't append extra accidentally
   const opens = (markdown.match(/^```(?:\w+)?\s*$/gm) || []).length;
@@ -209,12 +222,29 @@ export function applySimpleSyntaxHighlighting(rootElement) {
 
     const jsTs = () => {
       let s = esc(code);
-      s = s.replace(/(^|\s)(\/\/.*?$)/gm, '$1<span class="token comment">$2<\/span>');
-      s = s.replace(/\/\*[\s\S]*?\*\//g, (m) => `<span class="token comment">${m}<\/span>`);
-      s = s.replace(/(['"`])(?:\\.|(?!\1).)*\1/gm, (m) => `<span class="token string">${m}<\/span>`);
-      s = s.replace(/\b(0x[\da-fA-F]+|\d+\.?\d*|\.\d+)\b/g, '<span class="token number">$1<\/span>');
-      s = s.replace(/\b(async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|false|finally|for|from|function|if|implements|import|in|instanceof|interface|let|new|null|of|return|super|switch|this|throw|true|try|typeof|undefined|var|void|while|with|yield)\b/g, '<span class="token keyword">$1<\/span>');
-      s = s.replace(/\b([a-zA-Z_$][\w$]*)\s*(?=\()/g, '<span class="token function">$1<\/span>');
+      const PLACEHOLDER_PREFIX = '\x00THINKR';
+      const PLACEHOLDER_SUFFIX = 'THINKR\x00';
+      const placeholders = [];
+      const createPlaceholder = (html) => {
+        const id = placeholders.length;
+        placeholders.push(html);
+        return `${PLACEHOLDER_PREFIX}${id}${PLACEHOLDER_SUFFIX}`;
+      };
+      
+      s = s.replace(/(\/\/[^\n]*)/gm, (match) => 
+        createPlaceholder(`<span class="token comment">${match}<\/span>`)
+      );
+      s = s.replace(/\/\*[\s\S]*?\*\//g, (m) => createPlaceholder(`<span class="token comment">${m}<\/span>`));
+      s = s.replace(/(['"`])(?:\\.|(?!\1).)*\1/gm, (m) => createPlaceholder(`<span class="token string">${m}<\/span>`));
+      s = s.replace(/\b(0x[\da-fA-F]+|\d+\.?\d*|\.\d+)\b/g, (m) => createPlaceholder(`<span class="token number">${m}<\/span>`));
+      s = s.replace(/\b(async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|false|finally|for|from|function|if|implements|import|in|instanceof|interface|let|new|null|of|return|super|switch|this|throw|true|try|typeof|undefined|var|void|while|with|yield)\b/g, (m) => createPlaceholder(`<span class="token keyword">${m}<\/span>`));
+      s = s.replace(/\b([a-zA-Z_$][\w$]*)\s*(?=\()/g, (match, funcName) => 
+        createPlaceholder(`<span class="token function">${funcName}<\/span>`) + match.substring(funcName.length)
+      );
+      
+      placeholders.forEach((html, id) => {
+        s = s.replace(new RegExp(`${PLACEHOLDER_PREFIX}${id}${PLACEHOLDER_SUFFIX}`, 'g'), html);
+      });
       return s;
     };
 
@@ -229,7 +259,7 @@ export function applySimpleSyntaxHighlighting(rootElement) {
 
     const bash = () => {
       let s = esc(code);
-      s = s.replace(/(^|\n)#[^\n]*/g, (m) => `<span class="token comment">${m}<\/span>`);
+      s = s.replace(/(#[^\n]*)/g, (m) => `<span class="token comment">${m}<\/span>`);
       s = s.replace(/\b(echo|cd|ls|cat|grep|awk|sed|export|source|sudo|rm|cp|mv|chmod|chown|tar|curl|wget|npm|yarn|pnpm|git)\b/g, '<span class="token builtin">$1<\/span>');
       s = s.replace(/\$[A-Za-z_][\w_]*/g, '<span class="token variable">$&<\/span>');
       s = s.replace(/(['"])((?:\\.|(?!\1).)*)\1/g, '<span class="token string">$1$2$1<\/span>');
@@ -246,7 +276,7 @@ export function applySimpleSyntaxHighlighting(rootElement) {
 
     const yaml = () => {
       let s = esc(code);
-      s = s.replace(/(^|\n)#[^\n]*/g, (m) => `<span class="token comment">${m}<\/span>`);
+      s = s.replace(/(#[^\n]*)/g, (m) => `<span class="token comment">${m}<\/span>`);
       s = s.replace(/(^|\n)(\s*)([\w\-]+):/g, '$1$2<span class="token property">$3<\/span>:');
       s = s.replace(/:\s*(true|false|null)\b/g, ': <span class="token keyword">$1<\/span>');
       s = s.replace(/:\s*(\d+\.?\d*)\b/g, ': <span class="token number">$1<\/span>');
@@ -255,11 +285,26 @@ export function applySimpleSyntaxHighlighting(rootElement) {
 
     const python = () => {
       let s = esc(code);
-      s = s.replace(/(^|\s)#.*$/gm, '$1<span class="token comment">$&<\/span>');
-      s = s.replace(/(['"])\1\1[\s\S]*?\1\1\1/gm, (m) => `<span class="token string">${m}<\/span>`);
-      s = s.replace(/(['"]).*?\1/gm, (m) => `<span class="token string">${m}<\/span>`);
-      s = s.replace(/\b(def|class|import|from|as|if|elif|else|for|while|try|except|finally|return|with|yield|lambda|True|False|None|and|or|not|in|is)\b/g, '<span class="token keyword">$1<\/span>');
-      s = s.replace(/\b(\d+\.?\d*)\b/g, '<span class="token number">$1<\/span>');
+      const PLACEHOLDER_PREFIX = '\x00THINKR';
+      const PLACEHOLDER_SUFFIX = 'THINKR\x00';
+      const placeholders = [];
+      const createPlaceholder = (html) => {
+        const id = placeholders.length;
+        placeholders.push(html);
+        return `${PLACEHOLDER_PREFIX}${id}${PLACEHOLDER_SUFFIX}`;
+      };
+      
+      s = s.replace(/(#[^\n]*)/gm, (match) => 
+        createPlaceholder(`<span class="token comment">${match}<\/span>`)
+      );
+      s = s.replace(/(['"])\1\1[\s\S]*?\1\1\1/gm, (m) => createPlaceholder(`<span class="token string">${m}<\/span>`));
+      s = s.replace(/(['"])[^\1]*?\1/gm, (m) => createPlaceholder(`<span class="token string">${m}<\/span>`));
+      s = s.replace(/\b(def|class|import|from|as|if|elif|else|for|while|try|except|finally|return|with|yield|lambda|True|False|None|and|or|not|in|is)\b/g, (m) => createPlaceholder(`<span class="token keyword">${m}<\/span>`));
+      s = s.replace(/\b(\d+\.?\d*)\b/g, (m) => createPlaceholder(`<span class="token number">${m}<\/span>`));
+      
+      placeholders.forEach((html, id) => {
+        s = s.replace(new RegExp(`${PLACEHOLDER_PREFIX}${id}${PLACEHOLDER_SUFFIX}`, 'g'), html);
+      });
       return s;
     };
 
@@ -274,28 +319,270 @@ export function applySimpleSyntaxHighlighting(rootElement) {
 
     const php = () => {
       let s = esc(code);
+      
+      // CRITICAL: To prevent double-highlighting corruption, we use placeholders
+      // that cannot be matched by subsequent regex patterns
+      const PLACEHOLDER_PREFIX = '\x00THINKR';
+      const PLACEHOLDER_SUFFIX = 'THINKR\x00';
+      const placeholders = [];
+      
+      const createPlaceholder = (html) => {
+        const id = placeholders.length;
+        placeholders.push(html);
+        return `${PLACEHOLDER_PREFIX}${id}${PLACEHOLDER_SUFFIX}`;
+      };
+      
       // PHP opening/closing tags first (before other processing)
-      s = s.replace(/(&lt;\?php|\?&gt;)/gi, '<span class="token keyword">$1<\/span>');
-      // Comments: // and # style
-      s = s.replace(/(^|\s)(\/\/.*?$)/gm, '$1<span class="token comment">$2<\/span>');
-      s = s.replace(/(^|\s)(#.*?$)/gm, '$1<span class="token comment">$2<\/span>');
-      s = s.replace(/\/\*[\s\S]*?\*\//g, (m) => `<span class="token comment">${m}<\/span>`);
-      // Strings: single and double quoted (but not inside comments)
-      s = s.replace(/(['"])((?:\\.|(?!\1)[^\\])*?)\1/g, '<span class="token string">$1$2$1<\/span>');
-      // Variables (must be after string matching to avoid matching inside strings)
-      s = s.replace(/\$[a-zA-Z_][a-zA-Z0-9_]*/g, '<span class="token variable">$&<\/span>');
+      s = s.replace(/(&lt;\?php|\?&gt;)/gi, (m) => createPlaceholder(`<span class="token keyword">${m}<\/span>`));
+      
+      // Comments: // and # style (match more comprehensively)
+      s = s.replace(/(\/\/[^\n]*)/gm, (match) => 
+        createPlaceholder(`<span class="token comment">${match}<\/span>`)
+      );
+      s = s.replace(/(#[^\n]*)/gm, (match) => 
+        createPlaceholder(`<span class="token comment">${match}<\/span>`)
+      );
+      s = s.replace(/\/\*[\s\S]*?\*\//g, (m) => createPlaceholder(`<span class="token comment">${m}<\/span>`));
+      
+      // Strings: single and double quoted
+      s = s.replace(/(['"])((?:\\.|(?!\1)[^\\])*?)\1/g, (match) => 
+        createPlaceholder(`<span class="token string">${match}<\/span>`)
+      );
+      
+      // Variables
+      s = s.replace(/\$[a-zA-Z_][a-zA-Z0-9_]*/g, (m) => 
+        createPlaceholder(`<span class="token variable">${m}<\/span>`)
+      );
+      
       // Numbers
-      s = s.replace(/\b(0x[\da-fA-F]+|\d+\.?\d*|\.\d+)\b/g, '<span class="token number">$1<\/span>');
-      // Keywords (be careful with ordering - do after strings and variables)
-      s = s.replace(/\b(function|class|namespace|use|extends|implements|public|private|protected|static|const|var|if|else|elseif|foreach|for|while|do|switch|case|default|break|continue|return|try|catch|finally|throw|new|instanceof|as|and|or|xor|array|echo|print|require|include|require_once|include_once|true|false|null)\b/gi, '<span class="token keyword">$1<\/span>');
-      // Functions (simple heuristic: word followed by opening paren, skip if already tokenized or a keyword)
+      s = s.replace(/\b(0x[\da-fA-F]+|\d+\.?\d*|\.\d+)\b/g, (m) => 
+        createPlaceholder(`<span class="token number">${m}<\/span>`)
+      );
+      
+      // Keywords
+      s = s.replace(/\b(function|class|namespace|use|extends|implements|public|private|protected|static|const|var|if|else|elseif|foreach|for|while|do|switch|case|default|break|continue|return|try|catch|finally|throw|new|instanceof|as|and|or|xor|array|echo|print|require|include|require_once|include_once|true|false|null)\b/gi, (m) => 
+        createPlaceholder(`<span class="token keyword">${m}<\/span>`)
+      );
+      
+      // Functions (carefully check it's not already in a placeholder)
       s = s.replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(?=\()/g, (match, funcName) => {
-        // Check if this word is already inside a token span or is a keyword
         const keywords = ['function', 'class', 'namespace', 'use', 'extends', 'implements', 'public', 'private', 'protected', 'static', 'const', 'var', 'if', 'else', 'elseif', 'foreach', 'for', 'while', 'do', 'switch', 'case', 'default', 'break', 'continue', 'return', 'try', 'catch', 'finally', 'throw', 'new', 'instanceof', 'as', 'and', 'or', 'xor', 'array', 'echo', 'print', 'require', 'include', 'require_once', 'include_once', 'true', 'false', 'null'];
         if (keywords.includes(funcName.toLowerCase())) return match;
-        // Use a lookbehind to check if already tokenized (simplified check)
-        return `<span class="token function">${funcName}<\/span>` + match.substring(funcName.length);
+        return createPlaceholder(`<span class="token function">${funcName}<\/span>`) + match.substring(funcName.length);
       });
+      
+      // Restore all placeholders
+      placeholders.forEach((html, id) => {
+        s = s.replace(new RegExp(`${PLACEHOLDER_PREFIX}${id}${PLACEHOLDER_SUFFIX}`, 'g'), html);
+      });
+      
+      return s;
+    };
+
+    const go = () => {
+      let s = esc(code);
+      // Comments
+      s = s.replace(/(\/\/[^\n]*)/gm, (m) => `<span class="token comment">${m}<\/span>`);
+      s = s.replace(/\/\*[\s\S]*?\*\//g, (m) => `<span class="token comment">${m}<\/span>`);
+      // Strings (raw strings, double quotes, backticks)
+      s = s.replace(/`[^`]*`/g, (m) => `<span class="token string">${m}<\/span>`);
+      s = s.replace(/"(?:\\.|[^"\\])*"/g, (m) => `<span class="token string">${m}<\/span>`);
+      // Numbers
+      s = s.replace(/\b(0x[\da-fA-F]+|\d+\.?\d*|\.\d+)\b/g, '<span class="token number">$1<\/span>');
+      // Keywords
+      s = s.replace(/\b(break|case|chan|const|continue|default|defer|else|fallthrough|for|func|go|goto|if|import|interface|map|package|range|return|select|struct|switch|type|var|true|false|nil|iota)\b/g, '<span class="token keyword">$1<\/span>');
+      // Built-in functions
+      s = s.replace(/\b(append|cap|close|complex|copy|delete|imag|len|make|new|panic|print|println|real|recover)\b/g, '<span class="token builtin">$1<\/span>');
+      // Functions
+      s = s.replace(/\b([a-zA-Z_][\w]*)\s*(?=\()/g, '<span class="token function">$1<\/span>');
+      return s;
+    };
+
+    const rust = () => {
+      let s = esc(code);
+      // Comments
+      s = s.replace(/(\/\/[^\n]*)/gm, (m) => `<span class="token comment">${m}<\/span>`);
+      s = s.replace(/\/\*[\s\S]*?\*\//g, (m) => `<span class="token comment">${m}<\/span>`);
+      // Strings (raw strings and regular strings)
+      s = s.replace(/r#+"[^"]*"#*"/g, (m) => `<span class="token string">${m}<\/span>`);
+      s = s.replace(/"(?:\\.|[^"\\])*"/g, (m) => `<span class="token string">${m}<\/span>`);
+      s = s.replace(/'(?:\\.|[^'\\])'/g, (m) => `<span class="token string">${m}<\/span>`);
+      // Numbers
+      s = s.replace(/\b(0x[\da-fA-F]+|\d+\.?\d*|\.\d+)\b/g, '<span class="token number">$1<\/span>');
+      // Keywords
+      s = s.replace(/\b(as|async|await|break|const|continue|crate|dyn|else|enum|extern|false|fn|for|if|impl|in|let|loop|match|mod|move|mut|pub|ref|return|self|Self|static|struct|super|trait|true|type|unsafe|use|where|while)\b/g, '<span class="token keyword">$1<\/span>');
+      // Built-in macros
+      s = s.replace(/\b(println|print|panic|assert|assert_eq|vec|format|include_str|include_bytes)!\b/g, '<span class="token builtin">$1!<\/span>');
+      // Functions
+      s = s.replace(/\b([a-zA-Z_][\w]*)\s*(?=\()/g, '<span class="token function">$1<\/span>');
+      return s;
+    };
+
+    const java = () => {
+      let s = esc(code);
+      // Comments
+      s = s.replace(/(\/\/[^\n]*)/gm, (m) => `<span class="token comment">${m}<\/span>`);
+      s = s.replace(/\/\*[\s\S]*?\*\//g, (m) => `<span class="token comment">${m}<\/span>`);
+      // Strings
+      s = s.replace(/"(?:\\.|[^"\\])*"/g, (m) => `<span class="token string">${m}<\/span>`);
+      s = s.replace(/'(?:\\.|[^'\\])'/g, (m) => `<span class="token string">${m}<\/span>`);
+      // Numbers
+      s = s.replace(/\b(0x[\da-fA-F]+|\d+\.?\d*[fFdDlL]?|\.\d+)\b/g, '<span class="token number">$1<\/span>');
+      // Keywords
+      s = s.replace(/\b(abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|null|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false)\b/g, '<span class="token keyword">$1<\/span>');
+      // Functions
+      s = s.replace(/\b([a-zA-Z_][\w]*)\s*(?=\()/g, '<span class="token function">$1<\/span>');
+      return s;
+    };
+
+    const kotlin = () => {
+      let s = esc(code);
+      // Comments
+      s = s.replace(/(\/\/[^\n]*)/gm, (m) => `<span class="token comment">${m}<\/span>`);
+      s = s.replace(/\/\*[\s\S]*?\*\//g, (m) => `<span class="token comment">${m}<\/span>`);
+      // Strings (including raw strings)
+      s = s.replace(/"""[\s\S]*?"""/g, (m) => `<span class="token string">${m}<\/span>`);
+      s = s.replace(/"(?:\\.|[^"\\])*"/g, (m) => `<span class="token string">${m}<\/span>`);
+      s = s.replace(/'(?:\\.|[^'\\])'/g, (m) => `<span class="token string">${m}<\/span>`);
+      // Numbers
+      s = s.replace(/\b(0x[\da-fA-F]+|\d+\.?\d*[fFdDlL]?|\.\d+)\b/g, '<span class="token number">$1<\/span>');
+      // Keywords
+      s = s.replace(/\b(abstract|actual|annotation|as|break|by|catch|class|companion|const|constructor|continue|crossinline|data|do|dynamic|else|enum|expect|external|false|final|finally|for|fun|get|if|import|in|infix|init|inline|inner|interface|internal|is|lateinit|null|object|open|operator|out|override|package|private|protected|public|reified|return|sealed|set|super|suspend|tailrec|this|throw|true|try|typealias|typeof|val|var|vararg|when|where|while)\b/g, '<span class="token keyword">$1<\/span>');
+      // Functions
+      s = s.replace(/\b([a-zA-Z_][\w]*)\s*(?=\()/g, '<span class="token function">$1<\/span>');
+      return s;
+    };
+
+    const cpp = () => {
+      let s = esc(code);
+      // Comments
+      s = s.replace(/(\/\/[^\n]*)/gm, (m) => `<span class="token comment">${m}<\/span>`);
+      s = s.replace(/\/\*[\s\S]*?\*\//g, (m) => `<span class="token comment">${m}<\/span>`);
+      // Preprocessor directives
+      s = s.replace(/^#\s*(include|define|ifdef|ifndef|endif|pragma|error).*$/gm, (m) => `<span class="token builtin">${m}<\/span>`);
+      // Strings
+      s = s.replace(/"(?:\\.|[^"\\])*"/g, (m) => `<span class="token string">${m}<\/span>`);
+      s = s.replace(/'(?:\\.|[^'\\])'/g, (m) => `<span class="token string">${m}<\/span>`);
+      // Numbers
+      s = s.replace(/\b(0x[\da-fA-F]+|\d+\.?\d*[fFlL]?|\.\d+)\b/g, '<span class="token number">$1<\/span>');
+      // Keywords
+      s = s.replace(/\b(alignas|alignof|and|and_eq|asm|auto|bitand|bitor|bool|break|case|catch|char|char8_t|char16_t|char32_t|class|compl|concept|const|consteval|constexpr|constinit|const_cast|continue|co_await|co_return|co_yield|decltype|default|delete|do|double|dynamic_cast|else|enum|explicit|export|extern|false|float|for|friend|goto|if|inline|int|long|mutable|namespace|new|noexcept|not|not_eq|nullptr|operator|or|or_eq|private|protected|public|register|reinterpret_cast|requires|return|short|signed|sizeof|static|static_assert|static_cast|struct|switch|template|this|thread_local|throw|true|try|typedef|typeid|typename|union|unsigned|using|virtual|void|volatile|wchar_t|while|xor|xor_eq)\b/g, '<span class="token keyword">$1<\/span>');
+      // Functions
+      s = s.replace(/\b([a-zA-Z_][\w]*)\s*(?=\()/g, '<span class="token function">$1<\/span>');
+      return s;
+    };
+
+    const ruby = () => {
+      let s = esc(code);
+      // Comments
+      s = s.replace(/(#[^\n]*)/gm, (m) => `<span class="token comment">${m}<\/span>`);
+      // Strings (single, double, and symbols)
+      s = s.replace(/"(?:\\.|[^"\\])*"/g, (m) => `<span class="token string">${m}<\/span>`);
+      s = s.replace(/'(?:\\.|[^'\\])*'/g, (m) => `<span class="token string">${m}<\/span>`);
+      s = s.replace(/:[a-zA-Z_][\w]*/g, (m) => `<span class="token property">${m}<\/span>`);
+      // Numbers
+      s = s.replace(/\b(\d+\.?\d*|\.\d+)\b/g, '<span class="token number">$1<\/span>');
+      // Keywords
+      s = s.replace(/\b(__ENCODING__|__LINE__|__FILE__|BEGIN|END|alias|and|begin|break|case|class|def|defined\?|do|else|elsif|end|ensure|false|for|if|in|module|next|nil|not|or|redo|rescue|retry|return|self|super|then|true|undef|unless|until|when|while|yield)\b/g, '<span class="token keyword">$1<\/span>');
+      // Instance variables
+      s = s.replace(/@[a-zA-Z_][\w]*/g, '<span class="token variable">$&<\/span>');
+      // Functions
+      s = s.replace(/\b([a-zA-Z_][\w]*[?!]?)\s*(?=\()/g, '<span class="token function">$1<\/span>');
+      return s;
+    };
+
+    const html = () => {
+      let s = esc(code);
+      // Comments
+      s = s.replace(/&lt;!--[\s\S]*?--&gt;/g, (m) => `<span class="token comment">${m}<\/span>`);
+      // Doctype
+      s = s.replace(/&lt;!DOCTYPE[^&]*&gt;/gi, (m) => `<span class="token keyword">${m}<\/span>`);
+      // Tags
+      s = s.replace(/&lt;\/?([a-zA-Z][\w-]*)/g, (m, tagName) => `&lt;<span class="token keyword">${tagName}<\/span>`);
+      // Attributes
+      s = s.replace(/\b([a-zA-Z][\w-]*)\s*=/g, '<span class="token property">$1<\/span>=');
+      // Attribute values
+      s = s.replace(/=\s*"[^"]*"/g, (m) => {
+        const value = m.substring(m.indexOf('"'));
+        return `=<span class="token string">${esc(value)}<\/span>`;
+      });
+      s = s.replace(/=\s*'[^']*'/g, (m) => {
+        const value = m.substring(m.indexOf("'"));
+        return `=<span class="token string">${esc(value)}<\/span>`;
+      });
+      return s;
+    };
+
+    const css = () => {
+      let s = esc(code);
+      // Comments
+      s = s.replace(/\/\*[\s\S]*?\*\//g, (m) => `<span class="token comment">${m}<\/span>`);
+      // Selectors (simple approach)
+      s = s.replace(/^([.#]?[a-zA-Z][\w-]*|\*|&gt;|\+|~)\s*\{/gm, (m, sel) => `<span class="token keyword">${sel}<\/span> {`);
+      // Properties
+      s = s.replace(/\b([a-zA-Z-]+)\s*:/g, '<span class="token property">$1<\/span>:');
+      // Values with units
+      s = s.replace(/:\s*([#][\da-fA-F]{3,8})/g, ': <span class="token string">$1<\/span>');
+      s = s.replace(/\b(\d+\.?\d*)(px|em|rem|%|vh|vw|pt|cm|mm|in|deg|s|ms)?\b/g, '<span class="token number">$1$2<\/span>');
+      // Important
+      s = s.replace(/!important\b/g, '<span class="token keyword">!important<\/span>');
+      return s;
+    };
+
+    const csharp = () => {
+      let s = esc(code);
+      
+      // Use placeholders to prevent regex interference
+      const PLACEHOLDER_PREFIX = '\x00THINKR';
+      const PLACEHOLDER_SUFFIX = 'THINKR\x00';
+      const placeholders = [];
+      
+      const createPlaceholder = (html) => {
+        const id = placeholders.length;
+        placeholders.push(html);
+        return `${PLACEHOLDER_PREFIX}${id}${PLACEHOLDER_SUFFIX}`;
+      };
+      
+      // Comments (including XML documentation comments ///)
+      // Process /// first, then //, then /* */
+      s = s.replace(/(\/\/\/[^\n]*)/gm, (m) => createPlaceholder(`<span class="token comment">${m}<\/span>`));
+      s = s.replace(/(\/\/[^\n]*)/gm, (m) => createPlaceholder(`<span class="token comment">${m}<\/span>`));
+      s = s.replace(/\/\*[\s\S]*?\*\//g, (m) => createPlaceholder(`<span class="token comment">${m}<\/span>`));
+      
+      // Strings (including verbatim strings @"..." and interpolated strings $"...")
+      s = s.replace(/@"(?:""|[^"])*"/g, (m) => createPlaceholder(`<span class="token string">${m}<\/span>`));
+      s = s.replace(/\$@"(?:""|[^"])*"/g, (m) => createPlaceholder(`<span class="token string">${m}<\/span>`));
+      s = s.replace(/\$"(?:\\.|[^"\\])*"/g, (m) => createPlaceholder(`<span class="token string">${m}<\/span>`));
+      s = s.replace(/"(?:\\.|[^"\\])*"/g, (m) => createPlaceholder(`<span class="token string">${m}<\/span>`));
+      s = s.replace(/'(?:\\.|[^'\\])'/g, (m) => createPlaceholder(`<span class="token string">${m}<\/span>`));
+      
+      // Numbers
+      s = s.replace(/\b(0x[\da-fA-F]+|\d+\.?\d*[fFdDmMuUlL]*|\.\d+)\b/g, (m) => 
+        createPlaceholder(`<span class="token number">${m}<\/span>`)
+      );
+      
+      // Keywords (including C# specific ones like async, await, var, dynamic, etc.)
+      s = s.replace(/\b(abstract|add|alias|as|ascending|async|await|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|descending|do|double|dynamic|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|from|get|global|goto|if|implicit|in|int|interface|internal|is|join|let|lock|long|namespace|new|null|object|operator|orderby|out|override|params|partial|private|protected|public|readonly|record|ref|remove|return|sbyte|sealed|select|set|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|value|var|virtual|void|volatile|where|while|yield)\b/g, (m) => 
+        createPlaceholder(`<span class="token keyword">${m}<\/span>`)
+      );
+      
+      // Attributes
+      s = s.replace(/\[([a-zA-Z_][\w]*)\]/g, (match, attrName) => 
+        '[' + createPlaceholder(`<span class="token property">${attrName}<\/span>`) + ']'
+      );
+      
+      // Functions
+      s = s.replace(/\b([a-zA-Z_][\w]*)\s*(?=\()/g, (match, funcName) => {
+        const keywords = ['abstract', 'add', 'alias', 'as', 'ascending', 'async', 'await', 'base', 'bool', 'break', 'byte', 'case', 'catch', 'char', 'checked', 'class', 'const', 'continue', 'decimal', 'default', 'delegate', 'descending', 'do', 'double', 'dynamic', 'else', 'enum', 'event', 'explicit', 'extern', 'false', 'finally', 'fixed', 'float', 'for', 'foreach', 'from', 'get', 'global', 'goto', 'if', 'implicit', 'in', 'int', 'interface', 'internal', 'is', 'join', 'let', 'lock', 'long', 'namespace', 'new', 'null', 'object', 'operator', 'orderby', 'out', 'override', 'params', 'partial', 'private', 'protected', 'public', 'readonly', 'record', 'ref', 'remove', 'return', 'sbyte', 'sealed', 'select', 'set', 'short', 'sizeof', 'stackalloc', 'static', 'string', 'struct', 'switch', 'this', 'throw', 'true', 'try', 'typeof', 'uint', 'ulong', 'unchecked', 'unsafe', 'ushort', 'using', 'value', 'var', 'virtual', 'void', 'volatile', 'where', 'while', 'yield'];
+        if (keywords.includes(funcName.toLowerCase())) return match;
+        return createPlaceholder(`<span class="token function">${funcName}<\/span>`) + match.substring(funcName.length);
+      });
+      
+      // Restore all placeholders
+      placeholders.forEach((html, id) => {
+        s = s.replace(new RegExp(`${PLACEHOLDER_PREFIX}${id}${PLACEHOLDER_SUFFIX}`, 'g'), html);
+      });
+      
       return s;
     };
 
@@ -323,19 +610,73 @@ export function applySimpleSyntaxHighlighting(rootElement) {
         return sql();
       case 'php':
         return php();
+      case 'go':
+      case 'golang':
+        return go();
+      case 'rust':
+      case 'rs':
+        return rust();
+      case 'java':
+        return java();
+      case 'kotlin':
+      case 'kt':
+        return kotlin();
+      case 'c':
+      case 'cpp':
+      case 'c++':
+      case 'cxx':
+        return cpp();
+      case 'ruby':
+      case 'rb':
+        return ruby();
+      case 'html':
+      case 'htm':
+        return html();
+      case 'css':
+      case 'scss':
+      case 'sass':
+        return css();
+      case 'csharp':
+      case 'cs':
+      case 'c#':
+      case 'dotnet':
+        return csharp();
       default:
         return esc(code);
     }
   };
 
   codeBlocks.forEach((el) => {
+    // Skip if already highlighted
+    if (el.querySelector('.token') || el.innerHTML.includes('class="token')) {
+      return;
+    }
+    
     const classList = el.className || '';
     const match = classList.match(/language-([\w-]+)/);
     const lang = match ? match[1].toLowerCase() : 'plaintext';
     const original = el.textContent || '';
-    const highlighted = highlight(original, lang);
-    if (!/class=\"token /.test(el.innerHTML)) {
-      el.innerHTML = highlighted;
+    
+    // Only highlight if we have actual code
+    if (!original || original.trim() === '') {
+      return;
+    }
+    
+    try {
+      const highlighted = highlight(original, lang);
+      
+      
+      // Verify the highlighted HTML is valid before setting
+      // Check that it contains proper span tags (not just orphaned attributes)
+      if (highlighted && highlighted.includes('<span class="token')) {
+        el.innerHTML = highlighted;
+      } else if (!highlighted.includes('class="token')) {
+        // If no tokens, just use the escaped version
+        el.innerHTML = highlight(original, 'plaintext');
+      }
+    } catch (error) {
+      // Fallback to plain escaped text if highlighting fails
+      el.textContent = original;
     }
   });
 }
