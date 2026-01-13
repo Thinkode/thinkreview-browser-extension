@@ -256,21 +256,35 @@
 }
 
 .chat-message-wrapper.user-message {
-  align-items: flex-end;
+  align-items: flex-start !important;
+}
+
+.chat-message-wrapper.user-message .chat-message-bubble-wrapper {
+  align-self: flex-start;
+  display: flex;
+  align-items: flex-start;
 }
 
 .chat-message-wrapper.ai-message {
+  align-items: flex-start !important;
+}
+
+.chat-message-wrapper.ai-message .chat-message-bubble-wrapper {
+  align-self: flex-start;
+  display: flex;
   align-items: flex-start;
 }
 
 .chat-message {
   max-width: 80%;
+  width: fit-content;
   padding: 12px 16px;
   border-radius: 18px;
   word-wrap: break-word;
   line-height: 1.4;
   overflow-x: auto;
   box-sizing: border-box;
+  text-align: left;
 }
 
 .chat-message.user-message {
@@ -446,20 +460,102 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   background-color: var(--thinkreview-bg-transparent);
 }
 
-/* Lightweight syntax highlighting tokens */
-#gitlab-mr-integrated-review .chat-message .token.comment { color: #6a9955; }
-#gitlab-mr-integrated-review .chat-message .token.string { color: #ce9178; }
-#gitlab-mr-integrated-review .chat-message .token.number { color: #b5cea8; }
-#gitlab-mr-integrated-review .chat-message .token.keyword { color: #c586c0; }
-#gitlab-mr-integrated-review .chat-message .token.function { color: #dcdcaa; }
-#gitlab-mr-integrated-review .chat-message .token.property { color: #9cdcfe; }
-#gitlab-mr-integrated-review .chat-message .token.variable { color: #4fc1ff; }
-#gitlab-mr-integrated-review .chat-message .token.builtin { color: #4ec9b0; }
-#gitlab-mr-integrated-review .chat-message .token.operator { color: #d4d4d4; }
-#gitlab-mr-integrated-review .chat-message .token.punctuation { color: #d4d4d4; }
-#gitlab-mr-integrated-review .chat-message .token.insert { color: #b5f7b7; }
-#gitlab-mr-integrated-review .chat-message .token.delete { color: #ff9da4; }
-#gitlab-mr-integrated-review .chat-message .token.hunk { color: #ffd700; }
+/* Lightweight syntax highlighting tokens - Enhanced vibrant colors */
+/* Apply to all code blocks within the review panel */
+
+/* Comments - Grey with italic style like VS Code */
+#gitlab-mr-integrated-review .token.comment,
+#gitlab-mr-integrated-review pre .token.comment,
+#gitlab-mr-integrated-review code .token.comment { 
+  color: #858585 !important; 
+  font-style: italic !important;
+}
+
+/* Strings - Vibrant orange for high visibility */
+#gitlab-mr-integrated-review .token.string,
+#gitlab-mr-integrated-review pre .token.string,
+#gitlab-mr-integrated-review code .token.string { 
+  color: #CE9178 !important; 
+}
+
+/* Numbers - Bright mint green */
+#gitlab-mr-integrated-review .token.number,
+#gitlab-mr-integrated-review pre .token.number,
+#gitlab-mr-integrated-review code .token.number { 
+  color: #B5CEA8 !important; 
+}
+
+/* Keywords - Vibrant purple/magenta */
+#gitlab-mr-integrated-review .token.keyword,
+#gitlab-mr-integrated-review pre .token.keyword,
+#gitlab-mr-integrated-review code .token.keyword { 
+  color: #C586C0 !important;
+  font-weight: 600 !important;
+}
+
+/* Functions - Bright yellow for prominence */
+#gitlab-mr-integrated-review .token.function,
+#gitlab-mr-integrated-review pre .token.function,
+#gitlab-mr-integrated-review code .token.function { 
+  color: #DCDCAA !important; 
+}
+
+/* Properties - Bright cyan */
+#gitlab-mr-integrated-review .token.property,
+#gitlab-mr-integrated-review pre .token.property,
+#gitlab-mr-integrated-review code .token.property { 
+  color: #9CDCFE !important; 
+}
+
+/* Variables - Electric blue */
+#gitlab-mr-integrated-review .token.variable,
+#gitlab-mr-integrated-review pre .token.variable,
+#gitlab-mr-integrated-review code .token.variable { 
+  color: #4FC1FF !important; 
+}
+
+/* Built-ins - Bright teal/turquoise */
+#gitlab-mr-integrated-review .token.builtin,
+#gitlab-mr-integrated-review pre .token.builtin,
+#gitlab-mr-integrated-review code .token.builtin { 
+  color: #4EC9B0 !important; 
+}
+
+/* Operators - Light gray */
+#gitlab-mr-integrated-review .token.operator,
+#gitlab-mr-integrated-review pre .token.operator,
+#gitlab-mr-integrated-review code .token.operator { 
+  color: #D4D4D4 !important; 
+}
+
+/* Punctuation - Light gray */
+#gitlab-mr-integrated-review .token.punctuation,
+#gitlab-mr-integrated-review pre .token.punctuation,
+#gitlab-mr-integrated-review code .token.punctuation { 
+  color: #D4D4D4 !important; 
+}
+
+/* Diff colors - for git diffs */
+#gitlab-mr-integrated-review .token.insert,
+#gitlab-mr-integrated-review pre .token.insert,
+#gitlab-mr-integrated-review code .token.insert { 
+  color: #4EC9B0 !important; 
+  background-color: rgba(40, 120, 40, 0.2) !important;
+}
+
+#gitlab-mr-integrated-review .token.delete,
+#gitlab-mr-integrated-review pre .token.delete,
+#gitlab-mr-integrated-review code .token.delete { 
+  color: #F48771 !important; 
+  background-color: rgba(200, 40, 40, 0.2) !important;
+}
+
+#gitlab-mr-integrated-review .token.hunk,
+#gitlab-mr-integrated-review pre .token.hunk,
+#gitlab-mr-integrated-review code .token.hunk { 
+  color: #FFD700 !important; 
+  font-weight: 600 !important;
+}
 
 #gitlab-mr-integrated-review .chat-message code {
   background-color: rgba(107, 79, 187, 0.2);

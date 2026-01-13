@@ -23,6 +23,363 @@ export function createCopyButton() {
 }
 
 /**
+ * Plain text copy utilities
+ * Modular functions for extracting plain text with preserved formatting
+ */
+
+// Block-level elements that should create line breaks
+const BLOCK_ELEMENTS = ['div', 'p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'blockquote', 'section', 'article'];
+
+/**
+ * Creates indentation string for plain text based on indent level
+ * @param {number} indentLevel - The level of indentation
+ * @returns {string} Indentation string (2 spaces per level)
+ */
+function createPlainTextIndent(indentLevel) {
+  return '  '.repeat(indentLevel);
+}
+
+/**
+ * Processes an unordered list (<ul>) element for plain text copy
+ * @param {HTMLElement} ulElement - The <ul> element to process
+ * @param {Object} listContext - Current list context
+ * @param {Function} processNode - Function to recursively process child nodes
+ * @returns {string} Formatted plain text with bullet points
+ */
+function processPlainTextUnorderedList(ulElement, listContext, processNode) {
+  const children = Array.from(ulElement.childNodes);
+  let result = '';
+  let itemNumber = 0;
+  
+  children.forEach((child, index) => {
+    if (child.nodeType === Node.ELEMENT_NODE && child.tagName.toLowerCase() === 'li') {
+      itemNumber++;
+      const newContext = { 
+        type: 'ul', 
+        itemNumber: itemNumber, 
+        indentLevel: listContext.indentLevel + 1 
+      };
+      const childText = processNode(child, newContext);
+      
+      // Add bullet point prefix with indentation
+      const indent = createPlainTextIndent(listContext.indentLevel);
+      const prefix = indent + '- ';
+      
+      if (index > 0) {
+        result += '\n';
+      }
+      result += prefix + childText.trim();
+    } else {
+      // Process non-li children normally
+      const childText = processNode(child, listContext);
+      if (childText.trim()) {
+        if (result && !result.endsWith('\n')) {
+          result += '\n';
+        }
+        result += childText;
+      }
+    }
+  });
+  
+  return result;
+}
+
+/**
+ * Processes an ordered list (<ol>) element for plain text copy
+ * @param {HTMLElement} olElement - The <ol> element to process
+ * @param {Object} listContext - Current list context
+ * @param {Function} processNode - Function to recursively process child nodes
+ * @returns {string} Formatted plain text with numbered items
+ */
+function processPlainTextOrderedList(olElement, listContext, processNode) {
+  const children = Array.from(olElement.childNodes);
+  let result = '';
+  let itemNumber = 0;
+  
+  // Get start attribute if present (for custom numbering start)
+  const startAttr = olElement.getAttribute('start');
+  const startNumber = startAttr ? parseInt(startAttr, 10) : 1;
+  
+  children.forEach((child, index) => {
+    if (child.nodeType === Node.ELEMENT_NODE && child.tagName.toLowerCase() === 'li') {
+      itemNumber++;
+      const actualNumber = startNumber + itemNumber - 1;
+      const newContext = { 
+        type: 'ol', 
+        itemNumber: actualNumber, 
+        indentLevel: listContext.indentLevel + 1 
+      };
+      const childText = processNode(child, newContext);
+      
+      // Add numbered prefix with indentation
+      const indent = createPlainTextIndent(listContext.indentLevel);
+      const prefix = indent + actualNumber + '. ';
+      
+      if (index > 0) {
+        result += '\n';
+      }
+      result += prefix + childText.trim();
+    } else {
+      // Process non-li children normally
+      const childText = processNode(child, listContext);
+      if (childText.trim()) {
+        if (result && !result.endsWith('\n')) {
+          result += '\n';
+        }
+        result += childText;
+      }
+    }
+  });
+  
+  return result;
+}
+
+/**
+ * Processes a list item (<li>) element for plain text copy
+ * @param {HTMLElement} liElement - The <li> element to process
+ * @param {Object} listContext - Current list context
+ * @param {Function} processNode - Function to recursively process child nodes
+ * @returns {string} Plain text content of the list item
+ */
+function processPlainTextListItem(liElement, listContext, processNode) {
+  const children = Array.from(liElement.childNodes);
+  let result = '';
+  
+  children.forEach((child) => {
+    const childText = processNode(child, listContext);
+    result += childText;
+  });
+  
+  return result;
+}
+
+/**
+ * Processes code block elements (.thinkreview-code-block) for plain text copy
+ * Formats as markdown code blocks (```language\ncode\n```) and excludes the "Copy code" button
+ * @param {HTMLElement} codeBlockElement - The .thinkreview-code-block element to process
+ * @param {Object} listContext - Current list context
+ * @param {Function} processNode - Function to recursively process child nodes
+ * @returns {string} Plain text formatted as markdown code block
+ */
+function processPlainTextCodeBlock(codeBlockElement, listContext, processNode) {
+  // Find the <pre><code> element inside the code block (skip the header with "Copy code" button)
+  const codeElement = codeBlockElement.querySelector('pre code');
+  if (!codeElement) {
+    // Fallback: process children normally but skip the header
+    const header = codeBlockElement.querySelector('.thinkreview-code-header');
+    const pre = codeBlockElement.querySelector('pre');
+    if (pre) {
+      return processNode(pre, listContext);
+    }
+    return '';
+  }
+  
+  // Extract the language from the code element's class
+  const classList = codeElement.className || '';
+  const langMatch = classList.match(/language-([\w-]+)/);
+  const language = langMatch ? langMatch[1] : '';
+  
+  // Get the code content (text only, no HTML)
+  const codeText = codeElement.textContent || '';
+  
+  // Format as markdown code block
+  if (language && language !== 'text' && language !== 'plaintext') {
+    return '\n```' + language + '\n' + codeText + '\n```\n';
+  } else {
+    return '\n```\n' + codeText + '\n```\n';
+  }
+}
+
+/**
+ * Processes inline code elements (<code>) for plain text copy
+ * Wraps with backticks (`text`) and preserves existing line breaks
+ * @param {HTMLElement} codeElement - The <code> element to process
+ * @param {Object} listContext - Current list context
+ * @param {Function} processNode - Function to recursively process child nodes
+ * @returns {string} Plain text with backtick formatting, preserving existing line breaks
+ */
+function processPlainTextInlineCode(codeElement, listContext, processNode) {
+  // Check if this code element is inside a <pre> block (block-level code)
+  let parent = codeElement.parentElement;
+  let isInsidePre = false;
+  while (parent) {
+    if (parent.tagName && parent.tagName.toLowerCase() === 'pre') {
+      isInsidePre = true;
+      break;
+    }
+    parent = parent.parentElement;
+  }
+  
+  // If inside <pre>, treat as part of pre block (no special formatting)
+  if (isInsidePre) {
+    const children = Array.from(codeElement.childNodes);
+    let result = '';
+    children.forEach((child) => {
+      result += processNode(child, listContext);
+    });
+    return result;
+  }
+  
+  // Process as inline code - wrap with backticks
+  const children = Array.from(codeElement.childNodes);
+  let result = '';
+  children.forEach((child) => {
+    result += processNode(child, listContext);
+  });
+  
+  // Remove leading and trailing newlines (inline code shouldn't have them)
+  // But preserve internal whitespace and any existing newlines within the content
+  result = result.replace(/^\n+/, '').replace(/\n+$/, '');
+  
+  // Wrap with backticks (`text`)
+  // Preserve any leading/trailing spaces (but not newlines)
+  const trimmed = result.trim();
+  if (trimmed) {
+    const leading = result.match(/^[ \t]*/)?.[0] || '';
+    const trailing = result.match(/[ \t]*$/)?.[0] || '';
+    return leading + '`' + trimmed + '`' + trailing;
+  }
+  
+  return result;
+}
+
+/**
+ * Processes block-level elements (div, p, headings, etc.) for plain text copy
+ * @param {HTMLElement} element - The block element to process
+ * @param {Object} listContext - Current list context
+ * @param {Function} processNode - Function to recursively process child nodes
+ * @returns {string} Plain text with preserved line breaks
+ */
+function processPlainTextBlockElement(element, listContext, processNode) {
+  const children = Array.from(element.childNodes);
+  let result = '';
+  
+  children.forEach((child, index) => {
+    const childText = processNode(child, listContext);
+    
+    // Only add newlines around block-level children, not inline elements
+    // Check if this is a block-level child by checking if it's a block element
+    const isBlockChild = child.nodeType === Node.ELEMENT_NODE && 
+                         BLOCK_ELEMENTS.includes(child.tagName?.toLowerCase());
+    
+    // Add newline before block elements (except first child)
+    // Only if the previous result doesn't already end with newline
+    if (index > 0 && isBlockChild && childText && !result.endsWith('\n')) {
+      result += '\n';
+    }
+    
+    result += childText;
+    
+    // Add newline after block elements (except last child)
+    // Only if the child text doesn't already end with newline
+    if (index < children.length - 1 && isBlockChild && childText && !childText.endsWith('\n')) {
+      result += '\n';
+    }
+  });
+  
+  return result;
+}
+
+/**
+ * Normalizes plain text output
+ * Trims lines (except list items), collapses multiple newlines
+ * @param {string} text - Raw plain text
+ * @returns {string} Normalized plain text
+ */
+function normalizePlainText(text) {
+  return text
+    .split('\n')
+    .map(line => {
+      // Don't trim lines that start with list markers (preserve indentation)
+      if (/^\s*[-•*]\s/.test(line) || /^\s*\d+\.\s/.test(line)) {
+        return line;
+      }
+      return line.trim();
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n') // Replace 3+ newlines with 2
+    .trim();
+}
+
+/**
+ * Recursively processes a node and builds text with line breaks and list formatting for plain text copy
+ * @param {Node} node - The node to process
+ * @param {Object} listContext - Context about current list (type: 'ul'|'ol'|null, itemNumber: number, indentLevel: number)
+ * @returns {string} Text with line breaks and list formatting
+ */
+function processNodeForPlainText(node, listContext = { type: null, itemNumber: 0, indentLevel: 0 }) {
+  if (!node) return '';
+  
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.textContent || '';
+  }
+  
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const tagName = node.tagName.toLowerCase();
+    
+    // <br> tags become newlines
+    if (tagName === 'br') {
+      return '\n';
+    }
+    
+    // Handle unordered lists
+    if (tagName === 'ul') {
+      return processPlainTextUnorderedList(node, listContext, processNodeForPlainText);
+    }
+    
+    // Handle ordered lists
+    if (tagName === 'ol') {
+      return processPlainTextOrderedList(node, listContext, processNodeForPlainText);
+    }
+    
+    // Handle list items
+    if (tagName === 'li') {
+      return processPlainTextListItem(node, listContext, processNodeForPlainText);
+    }
+    
+    // Handle code block elements (.thinkreview-code-block) - must come before other checks
+    if (node.classList && node.classList.contains('thinkreview-code-block')) {
+      return processPlainTextCodeBlock(node, listContext, processNodeForPlainText);
+    }
+    
+    // Handle inline code elements (<code> that's not inside <pre>)
+    if (tagName === 'code') {
+      return processPlainTextInlineCode(node, listContext, processNodeForPlainText);
+    }
+    
+    // Handle block elements
+    const isBlock = BLOCK_ELEMENTS.includes(tagName);
+    if (isBlock) {
+      return processPlainTextBlockElement(node, listContext, processNodeForPlainText);
+    }
+    
+    // Handle other elements (inline elements, etc.)
+    const children = Array.from(node.childNodes);
+    let result = '';
+    children.forEach((child) => {
+      result += processNodeForPlainText(child, listContext);
+    });
+    return result;
+  }
+  
+  return '';
+}
+
+/**
+ * Extracts plain text from an element while preserving line breaks
+ * Converts block elements and <br> tags to newlines
+ * Handles bullet points (-) and numbered lists (1., 2., etc.)
+ * @param {HTMLElement} element - The element to extract text from
+ * @returns {string} Plain text with preserved line breaks and list formatting
+ */
+function extractPlainTextWithLineBreaks(element) {
+  if (!element) return '';
+  
+  const text = processNodeForPlainText(element);
+  return normalizePlainText(text);
+}
+
+/**
  * Copies an element's content as rich text (HTML format) with preserved styling
  * This function can be reused to copy any element with its styling preserved
  * @param {HTMLElement} element - The element to copy
@@ -169,9 +526,10 @@ export async function copyAsRichText(element, plainText) {
   const styledHTML = clone.outerHTML;
   
   // Create clipboard items with both HTML and plain text formats
+  // plainText already has line breaks preserved from extractPlainTextWithLineBreaks
   const clipboardItem = new ClipboardItem({
     'text/html': new Blob([styledHTML], { type: 'text/html' }),
-    'text/plain': new Blob([plainText.trim()], { type: 'text/plain' })
+    'text/plain': new Blob([plainText], { type: 'text/plain' })
   });
   
   await navigator.clipboard.write([clipboardItem]);
@@ -200,8 +558,8 @@ export async function copyItemContent(element, button) {
   );
   const shouldPreserveStyle = isChatMessage || isSummary || isReviewItem || isInReviewSection;
   
-  // Extract plain text for fallback
-  const text = element.textContent || element.innerText || '';
+  // Extract plain text with preserved line breaks
+  const text = extractPlainTextWithLineBreaks(element);
   
   if (!text.trim()) {
     return;
@@ -212,12 +570,12 @@ export async function copyItemContent(element, button) {
       // Use the reusable rich text copy function
       await copyAsRichText(element, text);
     } else if (navigator.clipboard && navigator.clipboard.writeText) {
-      // Use modern clipboard API for plain text
-      await navigator.clipboard.writeText(text.trim());
+      // Use modern clipboard API for plain text (already has line breaks preserved)
+      await navigator.clipboard.writeText(text);
     } else {
       // Fallback for older browsers
       const textarea = document.createElement('textarea');
-      textarea.value = text.trim();
+      textarea.value = text;
       textarea.style.position = 'fixed';
       textarea.style.opacity = '0';
       document.body.appendChild(textarea);
@@ -235,7 +593,7 @@ export async function copyItemContent(element, button) {
     if (shouldPreserveStyle) {
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text.trim());
+          await navigator.clipboard.writeText(text);
           showCopySuccessFeedback(button);
         } else {
           showCopyErrorFeedback(button);
