@@ -23,86 +23,253 @@ export function createCopyButton() {
 }
 
 /**
+ * Plain text copy utilities
+ * Modular functions for extracting plain text with preserved formatting
+ */
+
+// Block-level elements that should create line breaks
+const BLOCK_ELEMENTS = ['div', 'p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'blockquote', 'section', 'article'];
+
+/**
+ * Creates indentation string for plain text based on indent level
+ * @param {number} indentLevel - The level of indentation
+ * @returns {string} Indentation string (2 spaces per level)
+ */
+function createPlainTextIndent(indentLevel) {
+  return '  '.repeat(indentLevel);
+}
+
+/**
+ * Processes an unordered list (<ul>) element for plain text copy
+ * @param {HTMLElement} ulElement - The <ul> element to process
+ * @param {Object} listContext - Current list context
+ * @param {Function} processNode - Function to recursively process child nodes
+ * @returns {string} Formatted plain text with bullet points
+ */
+function processPlainTextUnorderedList(ulElement, listContext, processNode) {
+  const children = Array.from(ulElement.childNodes);
+  let result = '';
+  let itemNumber = 0;
+  
+  children.forEach((child, index) => {
+    if (child.nodeType === Node.ELEMENT_NODE && child.tagName.toLowerCase() === 'li') {
+      itemNumber++;
+      const newContext = { 
+        type: 'ul', 
+        itemNumber: itemNumber, 
+        indentLevel: listContext.indentLevel + 1 
+      };
+      const childText = processNode(child, newContext);
+      
+      // Add bullet point prefix with indentation
+      const indent = createPlainTextIndent(listContext.indentLevel);
+      const prefix = indent + '- ';
+      
+      if (index > 0) {
+        result += '\n';
+      }
+      result += prefix + childText.trim();
+    } else {
+      // Process non-li children normally
+      const childText = processNode(child, listContext);
+      if (childText.trim()) {
+        if (result && !result.endsWith('\n')) {
+          result += '\n';
+        }
+        result += childText;
+      }
+    }
+  });
+  
+  return result;
+}
+
+/**
+ * Processes an ordered list (<ol>) element for plain text copy
+ * @param {HTMLElement} olElement - The <ol> element to process
+ * @param {Object} listContext - Current list context
+ * @param {Function} processNode - Function to recursively process child nodes
+ * @returns {string} Formatted plain text with numbered items
+ */
+function processPlainTextOrderedList(olElement, listContext, processNode) {
+  const children = Array.from(olElement.childNodes);
+  let result = '';
+  let itemNumber = 0;
+  
+  // Get start attribute if present (for custom numbering start)
+  const startAttr = olElement.getAttribute('start');
+  const startNumber = startAttr ? parseInt(startAttr, 10) : 1;
+  
+  children.forEach((child, index) => {
+    if (child.nodeType === Node.ELEMENT_NODE && child.tagName.toLowerCase() === 'li') {
+      itemNumber++;
+      const actualNumber = startNumber + itemNumber - 1;
+      const newContext = { 
+        type: 'ol', 
+        itemNumber: actualNumber, 
+        indentLevel: listContext.indentLevel + 1 
+      };
+      const childText = processNode(child, newContext);
+      
+      // Add numbered prefix with indentation
+      const indent = createPlainTextIndent(listContext.indentLevel);
+      const prefix = indent + actualNumber + '. ';
+      
+      if (index > 0) {
+        result += '\n';
+      }
+      result += prefix + childText.trim();
+    } else {
+      // Process non-li children normally
+      const childText = processNode(child, listContext);
+      if (childText.trim()) {
+        if (result && !result.endsWith('\n')) {
+          result += '\n';
+        }
+        result += childText;
+      }
+    }
+  });
+  
+  return result;
+}
+
+/**
+ * Processes a list item (<li>) element for plain text copy
+ * @param {HTMLElement} liElement - The <li> element to process
+ * @param {Object} listContext - Current list context
+ * @param {Function} processNode - Function to recursively process child nodes
+ * @returns {string} Plain text content of the list item
+ */
+function processPlainTextListItem(liElement, listContext, processNode) {
+  const children = Array.from(liElement.childNodes);
+  let result = '';
+  
+  children.forEach((child) => {
+    const childText = processNode(child, listContext);
+    result += childText;
+  });
+  
+  return result;
+}
+
+/**
+ * Processes block-level elements (div, p, headings, etc.) for plain text copy
+ * @param {HTMLElement} element - The block element to process
+ * @param {Object} listContext - Current list context
+ * @param {Function} processNode - Function to recursively process child nodes
+ * @returns {string} Plain text with preserved line breaks
+ */
+function processPlainTextBlockElement(element, listContext, processNode) {
+  const children = Array.from(element.childNodes);
+  let result = '';
+  
+  children.forEach((child, index) => {
+    const childText = processNode(child, listContext);
+    
+    // Add newline before block elements (except first child)
+    if (index > 0 && childText && !result.endsWith('\n')) {
+      result += '\n';
+    }
+    
+    result += childText;
+    
+    // Add newline after block elements (except last child)
+    if (index < children.length - 1 && childText && !childText.endsWith('\n')) {
+      result += '\n';
+    }
+  });
+  
+  return result;
+}
+
+/**
+ * Normalizes plain text output
+ * Trims lines (except list items), collapses multiple newlines
+ * @param {string} text - Raw plain text
+ * @returns {string} Normalized plain text
+ */
+function normalizePlainText(text) {
+  return text
+    .split('\n')
+    .map(line => {
+      // Don't trim lines that start with list markers (preserve indentation)
+      if (/^\s*[-•*]\s/.test(line) || /^\s*\d+\.\s/.test(line)) {
+        return line;
+      }
+      return line.trim();
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n') // Replace 3+ newlines with 2
+    .trim();
+}
+
+/**
+ * Recursively processes a node and builds text with line breaks and list formatting for plain text copy
+ * @param {Node} node - The node to process
+ * @param {Object} listContext - Context about current list (type: 'ul'|'ol'|null, itemNumber: number, indentLevel: number)
+ * @returns {string} Text with line breaks and list formatting
+ */
+function processNodeForPlainText(node, listContext = { type: null, itemNumber: 0, indentLevel: 0 }) {
+  if (!node) return '';
+  
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.textContent || '';
+  }
+  
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const tagName = node.tagName.toLowerCase();
+    
+    // <br> tags become newlines
+    if (tagName === 'br') {
+      return '\n';
+    }
+    
+    // Handle unordered lists
+    if (tagName === 'ul') {
+      return processPlainTextUnorderedList(node, listContext, processNodeForPlainText);
+    }
+    
+    // Handle ordered lists
+    if (tagName === 'ol') {
+      return processPlainTextOrderedList(node, listContext, processNodeForPlainText);
+    }
+    
+    // Handle list items
+    if (tagName === 'li') {
+      return processPlainTextListItem(node, listContext, processNodeForPlainText);
+    }
+    
+    // Handle block elements
+    const isBlock = BLOCK_ELEMENTS.includes(tagName);
+    if (isBlock) {
+      return processPlainTextBlockElement(node, listContext, processNodeForPlainText);
+    }
+    
+    // Handle other elements (inline elements, etc.)
+    const children = Array.from(node.childNodes);
+    let result = '';
+    children.forEach((child) => {
+      result += processNodeForPlainText(child, listContext);
+    });
+    return result;
+  }
+  
+  return '';
+}
+
+/**
  * Extracts plain text from an element while preserving line breaks
  * Converts block elements and <br> tags to newlines
+ * Handles bullet points (-) and numbered lists (1., 2., etc.)
  * @param {HTMLElement} element - The element to extract text from
- * @returns {string} Plain text with preserved line breaks
+ * @returns {string} Plain text with preserved line breaks and list formatting
  */
 function extractPlainTextWithLineBreaks(element) {
   if (!element) return '';
   
-  // Try using innerText first (it preserves line breaks from block elements)
-  // innerText is well-supported in modern browsers
-  if (typeof element.innerText === 'string') {
-    let text = element.innerText;
-    // innerText already handles <br> and block elements, but let's ensure consistency
-    // Normalize multiple spaces and newlines
-    text = text.replace(/[ \t]+/g, ' '); // Collapse spaces
-    text = text.replace(/\n{3,}/g, '\n\n'); // Max 2 consecutive newlines
-    return text.trim();
-  }
-  
-  // Fallback: manual extraction for older browsers
-  // Block-level elements that should create line breaks
-  const blockElements = ['div', 'p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'blockquote', 'section', 'article'];
-  
-  /**
-   * Recursively processes a node and builds text with line breaks
-   * @param {Node} node - The node to process
-   * @returns {string} Text with line breaks
-   */
-  function processNode(node) {
-    if (!node) return '';
-    
-    if (node.nodeType === Node.TEXT_NODE) {
-      return node.textContent || '';
-    }
-    
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const tagName = node.tagName.toLowerCase();
-      
-      // <br> tags become newlines
-      if (tagName === 'br') {
-        return '\n';
-      }
-      
-      const isBlock = blockElements.includes(tagName);
-      const children = Array.from(node.childNodes);
-      let result = '';
-      
-      // Process children
-      children.forEach((child, index) => {
-        const childText = processNode(child);
-        
-        // Add newline before block elements (except first child)
-        if (isBlock && index > 0 && childText && !result.endsWith('\n')) {
-          result += '\n';
-        }
-        
-        result += childText;
-        
-        // Add newline after block elements (except last child)
-        if (isBlock && index < children.length - 1 && childText && !childText.endsWith('\n')) {
-          result += '\n';
-        }
-      });
-      
-      return result;
-    }
-    
-    return '';
-  }
-  
-  let text = processNode(element);
-  
-  // Normalize whitespace: trim each line and replace 3+ newlines with 2
-  text = text
-    .split('\n')
-    .map(line => line.trim())
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n'); // Replace 3+ newlines with 2
-  
-  return text.trim();
+  const text = processNodeForPlainText(element);
+  return normalizePlainText(text);
 }
 
 /**
