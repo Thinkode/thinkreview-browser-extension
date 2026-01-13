@@ -256,10 +256,22 @@
 }
 
 .chat-message-wrapper.user-message {
-  align-items: flex-end;
+  align-items: flex-start !important;
+}
+
+.chat-message-wrapper.user-message .chat-message-bubble-wrapper {
+  align-self: flex-start;
+  display: flex;
+  align-items: flex-start;
 }
 
 .chat-message-wrapper.ai-message {
+  align-items: flex-start !important;
+}
+
+.chat-message-wrapper.ai-message .chat-message-bubble-wrapper {
+  align-self: flex-start;
+  display: flex;
   align-items: flex-start;
 }
 
