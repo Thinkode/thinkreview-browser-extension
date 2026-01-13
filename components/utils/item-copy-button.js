@@ -155,11 +155,11 @@ function processPlainTextListItem(liElement, listContext, processNode) {
 
 /**
  * Processes inline code elements (<code>) for plain text copy
- * Wraps with italic markers (*text*) and preserves existing line breaks
+ * Wraps with backticks (`text`) and preserves existing line breaks
  * @param {HTMLElement} codeElement - The <code> element to process
  * @param {Object} listContext - Current list context
  * @param {Function} processNode - Function to recursively process child nodes
- * @returns {string} Plain text with italic formatting, preserving existing line breaks
+ * @returns {string} Plain text with backtick formatting, preserving existing line breaks
  */
 function processPlainTextInlineCode(codeElement, listContext, processNode) {
   // Check if this code element is inside a <pre> block (block-level code)
@@ -183,7 +183,7 @@ function processPlainTextInlineCode(codeElement, listContext, processNode) {
     return result;
   }
   
-  // Process as inline code - wrap with italic markers
+  // Process as inline code - wrap with backticks
   const children = Array.from(codeElement.childNodes);
   let result = '';
   children.forEach((child) => {
@@ -194,13 +194,13 @@ function processPlainTextInlineCode(codeElement, listContext, processNode) {
   // But preserve internal whitespace and any existing newlines within the content
   result = result.replace(/^\n+/, '').replace(/\n+$/, '');
   
-  // Wrap with italic markers (*text*)
+  // Wrap with backticks (`text`)
   // Preserve any leading/trailing spaces (but not newlines)
   const trimmed = result.trim();
   if (trimmed) {
     const leading = result.match(/^[ \t]*/)?.[0] || '';
     const trailing = result.match(/[ \t]*$/)?.[0] || '';
-    return leading + '*' + trimmed + '*' + trailing;
+    return leading + '`' + trimmed + '`' + trailing;
   }
   
   return result;
