@@ -23,6 +23,89 @@ export function createCopyButton() {
 }
 
 /**
+ * Extracts plain text from an element while preserving line breaks
+ * Converts block elements and <br> tags to newlines
+ * @param {HTMLElement} element - The element to extract text from
+ * @returns {string} Plain text with preserved line breaks
+ */
+function extractPlainTextWithLineBreaks(element) {
+  if (!element) return '';
+  
+  // Try using innerText first (it preserves line breaks from block elements)
+  // innerText is well-supported in modern browsers
+  if (typeof element.innerText === 'string') {
+    let text = element.innerText;
+    // innerText already handles <br> and block elements, but let's ensure consistency
+    // Normalize multiple spaces and newlines
+    text = text.replace(/[ \t]+/g, ' '); // Collapse spaces
+    text = text.replace(/\n{3,}/g, '\n\n'); // Max 2 consecutive newlines
+    return text.trim();
+  }
+  
+  // Fallback: manual extraction for older browsers
+  // Block-level elements that should create line breaks
+  const blockElements = ['div', 'p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'blockquote', 'section', 'article'];
+  
+  /**
+   * Recursively processes a node and builds text with line breaks
+   * @param {Node} node - The node to process
+   * @returns {string} Text with line breaks
+   */
+  function processNode(node) {
+    if (!node) return '';
+    
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent || '';
+    }
+    
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const tagName = node.tagName.toLowerCase();
+      
+      // <br> tags become newlines
+      if (tagName === 'br') {
+        return '\n';
+      }
+      
+      const isBlock = blockElements.includes(tagName);
+      const children = Array.from(node.childNodes);
+      let result = '';
+      
+      // Process children
+      children.forEach((child, index) => {
+        const childText = processNode(child);
+        
+        // Add newline before block elements (except first child)
+        if (isBlock && index > 0 && childText && !result.endsWith('\n')) {
+          result += '\n';
+        }
+        
+        result += childText;
+        
+        // Add newline after block elements (except last child)
+        if (isBlock && index < children.length - 1 && childText && !childText.endsWith('\n')) {
+          result += '\n';
+        }
+      });
+      
+      return result;
+    }
+    
+    return '';
+  }
+  
+  let text = processNode(element);
+  
+  // Normalize whitespace: trim each line and replace 3+ newlines with 2
+  text = text
+    .split('\n')
+    .map(line => line.trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n'); // Replace 3+ newlines with 2
+  
+  return text.trim();
+}
+
+/**
  * Copies an element's content as rich text (HTML format) with preserved styling
  * This function can be reused to copy any element with its styling preserved
  * @param {HTMLElement} element - The element to copy
@@ -169,9 +252,10 @@ export async function copyAsRichText(element, plainText) {
   const styledHTML = clone.outerHTML;
   
   // Create clipboard items with both HTML and plain text formats
+  // plainText already has line breaks preserved from extractPlainTextWithLineBreaks
   const clipboardItem = new ClipboardItem({
     'text/html': new Blob([styledHTML], { type: 'text/html' }),
-    'text/plain': new Blob([plainText.trim()], { type: 'text/plain' })
+    'text/plain': new Blob([plainText], { type: 'text/plain' })
   });
   
   await navigator.clipboard.write([clipboardItem]);
@@ -200,8 +284,8 @@ export async function copyItemContent(element, button) {
   );
   const shouldPreserveStyle = isChatMessage || isSummary || isReviewItem || isInReviewSection;
   
-  // Extract plain text for fallback
-  const text = element.textContent || element.innerText || '';
+  // Extract plain text with preserved line breaks
+  const text = extractPlainTextWithLineBreaks(element);
   
   if (!text.trim()) {
     return;
@@ -212,12 +296,12 @@ export async function copyItemContent(element, button) {
       // Use the reusable rich text copy function
       await copyAsRichText(element, text);
     } else if (navigator.clipboard && navigator.clipboard.writeText) {
-      // Use modern clipboard API for plain text
-      await navigator.clipboard.writeText(text.trim());
+      // Use modern clipboard API for plain text (already has line breaks preserved)
+      await navigator.clipboard.writeText(text);
     } else {
       // Fallback for older browsers
       const textarea = document.createElement('textarea');
-      textarea.value = text.trim();
+      textarea.value = text;
       textarea.style.position = 'fixed';
       textarea.style.opacity = '0';
       document.body.appendChild(textarea);
@@ -235,7 +319,7 @@ export async function copyItemContent(element, button) {
     if (shouldPreserveStyle) {
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text.trim());
+          await navigator.clipboard.writeText(text);
           showCopySuccessFeedback(button);
         } else {
           showCopyErrorFeedback(button);
