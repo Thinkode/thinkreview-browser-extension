@@ -154,6 +154,59 @@ function processPlainTextListItem(liElement, listContext, processNode) {
 }
 
 /**
+ * Processes inline code elements (<code>) for plain text copy
+ * Wraps with italic markers (*text*) and preserves existing line breaks
+ * @param {HTMLElement} codeElement - The <code> element to process
+ * @param {Object} listContext - Current list context
+ * @param {Function} processNode - Function to recursively process child nodes
+ * @returns {string} Plain text with italic formatting, preserving existing line breaks
+ */
+function processPlainTextInlineCode(codeElement, listContext, processNode) {
+  // Check if this code element is inside a <pre> block (block-level code)
+  let parent = codeElement.parentElement;
+  let isInsidePre = false;
+  while (parent) {
+    if (parent.tagName && parent.tagName.toLowerCase() === 'pre') {
+      isInsidePre = true;
+      break;
+    }
+    parent = parent.parentElement;
+  }
+  
+  // If inside <pre>, treat as part of pre block (no special formatting)
+  if (isInsidePre) {
+    const children = Array.from(codeElement.childNodes);
+    let result = '';
+    children.forEach((child) => {
+      result += processNode(child, listContext);
+    });
+    return result;
+  }
+  
+  // Process as inline code - wrap with italic markers
+  const children = Array.from(codeElement.childNodes);
+  let result = '';
+  children.forEach((child) => {
+    result += processNode(child, listContext);
+  });
+  
+  // Remove leading and trailing newlines (inline code shouldn't have them)
+  // But preserve internal whitespace and any existing newlines within the content
+  result = result.replace(/^\n+/, '').replace(/\n+$/, '');
+  
+  // Wrap with italic markers (*text*)
+  // Preserve any leading/trailing spaces (but not newlines)
+  const trimmed = result.trim();
+  if (trimmed) {
+    const leading = result.match(/^[ \t]*/)?.[0] || '';
+    const trailing = result.match(/[ \t]*$/)?.[0] || '';
+    return leading + '*' + trimmed + '*' + trailing;
+  }
+  
+  return result;
+}
+
+/**
  * Processes block-level elements (div, p, headings, etc.) for plain text copy
  * @param {HTMLElement} element - The block element to process
  * @param {Object} listContext - Current list context
@@ -167,15 +220,22 @@ function processPlainTextBlockElement(element, listContext, processNode) {
   children.forEach((child, index) => {
     const childText = processNode(child, listContext);
     
+    // Only add newlines around block-level children, not inline elements
+    // Check if this is a block-level child by checking if it's a block element
+    const isBlockChild = child.nodeType === Node.ELEMENT_NODE && 
+                         BLOCK_ELEMENTS.includes(child.tagName?.toLowerCase());
+    
     // Add newline before block elements (except first child)
-    if (index > 0 && childText && !result.endsWith('\n')) {
+    // Only if the previous result doesn't already end with newline
+    if (index > 0 && isBlockChild && childText && !result.endsWith('\n')) {
       result += '\n';
     }
     
     result += childText;
     
     // Add newline after block elements (except last child)
-    if (index < children.length - 1 && childText && !childText.endsWith('\n')) {
+    // Only if the child text doesn't already end with newline
+    if (index < children.length - 1 && isBlockChild && childText && !childText.endsWith('\n')) {
       result += '\n';
     }
   });
@@ -238,6 +298,11 @@ function processNodeForPlainText(node, listContext = { type: null, itemNumber: 0
     // Handle list items
     if (tagName === 'li') {
       return processPlainTextListItem(node, listContext, processNodeForPlainText);
+    }
+    
+    // Handle inline code elements (<code> that's not inside <pre>)
+    if (tagName === 'code') {
+      return processPlainTextInlineCode(node, listContext, processNodeForPlainText);
     }
     
     // Handle block elements
