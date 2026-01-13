@@ -689,16 +689,32 @@ export function setupCopyHandler() {
     if (!container) return;
     const codeEl = container.querySelector('pre code');
     if (!codeEl) return;
-    const text = codeEl.textContent || '';
+    
+    // Extract the code text
+    const codeText = codeEl.textContent || '';
+    
+    // Extract the language from the code element's class
+    const classList = codeEl.className || '';
+    const langMatch = classList.match(/language-([\w-]+)/);
+    const language = langMatch ? langMatch[1] : '';
+    
+    // Format as markdown code block
+    let formattedText;
+    if (language && language !== 'text' && language !== 'plaintext') {
+      formattedText = '```' + language + '\n' + codeText + '\n```';
+    } else {
+      formattedText = '```\n' + codeText + '\n```';
+    }
+    
     try {
-      navigator.clipboard.writeText(text);
+      navigator.clipboard.writeText(formattedText);
       const original = btn.textContent;
       btn.textContent = 'Copied';
       btn.disabled = true;
       setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1200);
     } catch (_) {
       const textarea = document.createElement('textarea');
-      textarea.value = text;
+      textarea.value = formattedText;
       document.body.appendChild(textarea);
       textarea.select();
       document.execCommand('copy');

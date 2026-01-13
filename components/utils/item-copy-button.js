@@ -154,6 +154,43 @@ function processPlainTextListItem(liElement, listContext, processNode) {
 }
 
 /**
+ * Processes code block elements (.thinkreview-code-block) for plain text copy
+ * Formats as markdown code blocks (```language\ncode\n```) and excludes the "Copy code" button
+ * @param {HTMLElement} codeBlockElement - The .thinkreview-code-block element to process
+ * @param {Object} listContext - Current list context
+ * @param {Function} processNode - Function to recursively process child nodes
+ * @returns {string} Plain text formatted as markdown code block
+ */
+function processPlainTextCodeBlock(codeBlockElement, listContext, processNode) {
+  // Find the <pre><code> element inside the code block (skip the header with "Copy code" button)
+  const codeElement = codeBlockElement.querySelector('pre code');
+  if (!codeElement) {
+    // Fallback: process children normally but skip the header
+    const header = codeBlockElement.querySelector('.thinkreview-code-header');
+    const pre = codeBlockElement.querySelector('pre');
+    if (pre) {
+      return processNode(pre, listContext);
+    }
+    return '';
+  }
+  
+  // Extract the language from the code element's class
+  const classList = codeElement.className || '';
+  const langMatch = classList.match(/language-([\w-]+)/);
+  const language = langMatch ? langMatch[1] : '';
+  
+  // Get the code content (text only, no HTML)
+  const codeText = codeElement.textContent || '';
+  
+  // Format as markdown code block
+  if (language && language !== 'text' && language !== 'plaintext') {
+    return '\n```' + language + '\n' + codeText + '\n```\n';
+  } else {
+    return '\n```\n' + codeText + '\n```\n';
+  }
+}
+
+/**
  * Processes inline code elements (<code>) for plain text copy
  * Wraps with backticks (`text`) and preserves existing line breaks
  * @param {HTMLElement} codeElement - The <code> element to process
@@ -298,6 +335,11 @@ function processNodeForPlainText(node, listContext = { type: null, itemNumber: 0
     // Handle list items
     if (tagName === 'li') {
       return processPlainTextListItem(node, listContext, processNodeForPlainText);
+    }
+    
+    // Handle code block elements (.thinkreview-code-block) - must come before other checks
+    if (node.classList && node.classList.contains('thinkreview-code-block')) {
+      return processPlainTextCodeBlock(node, listContext, processNodeForPlainText);
     }
     
     // Handle inline code elements (<code> that's not inside <pre>)
