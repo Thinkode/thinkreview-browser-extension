@@ -48,3 +48,6 @@ tmp/
 OPEN_SOURCE_LAUNCH_GUIDE.md
 cleanup-media.sh
 *-backup*/
+
+# Azure logs and diffs (removed from history)
+dev-azure-logs-diffs/
