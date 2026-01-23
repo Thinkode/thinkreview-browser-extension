@@ -194,6 +194,22 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
     details.appendChild(listTitle);
     details.appendChild(list);
 
+    // Add "About excluded files" button linking to excluded files documentation
+    const learnMoreButton = document.createElement('a');
+    learnMoreButton.href = 'https://thinkreview.dev/docs/excluded-files';
+    learnMoreButton.target = '_blank';
+    learnMoreButton.rel = 'noopener noreferrer';
+    learnMoreButton.className = 'thinkreview-excluded-files-learn-more';
+    learnMoreButton.textContent = 'About excluded files';
+    learnMoreButton.setAttribute('aria-label', 'Learn more about excluded files');
+    
+    // Prevent click event from bubbling
+    learnMoreButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+    
+    details.appendChild(learnMoreButton);
+
     // Get the expand arrow button
     const expandArrow = topRow.querySelector('.thinkreview-patch-size-expand-arrow');
     

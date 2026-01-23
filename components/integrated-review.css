@@ -1207,6 +1207,29 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   overflow-wrap: break-word;
 }
 
+/* Learn more button for excluded files */
+#gitlab-mr-integrated-review .thinkreview-excluded-files-learn-more {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 6px 12px;
+  background-color: rgba(107, 79, 187, 0.2);
+  border: 1px solid rgba(107, 79, 187, 0.4);
+  border-radius: 4px;
+  color: #c5b3ff;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+#gitlab-mr-integrated-review .thinkreview-excluded-files-learn-more:hover {
+  background-color: rgba(107, 79, 187, 0.3);
+  border-color: rgba(107, 79, 187, 0.6);
+  color: #d4c5ff;
+  text-decoration: none;
+}
+
 /* Upgrade message for forced truncation on free tier */
 #gitlab-mr-integrated-review .thinkreview-upgrade-message {
   width: 100%;
