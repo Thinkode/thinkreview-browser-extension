@@ -248,11 +248,20 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
 
   // Add upgrade message if forced truncation occurred and user is on free tier
   if (showUpgradeMessage) {
-    // Randomly select one of the upgrade messages
+    // Calculate percentages
+    const percentageReviewed = patchSize.original > 0 
+      ? Math.round((patchSize.truncated / patchSize.original) * 100) 
+      : 100;
+    
+    // Format sizes for display
+    const truncatedSizeFormatted = formatSize(patchSize.truncated);
+    const originalSizeFormatted = formatSize(patchSize.original);
+    
+    // Randomly select one of the upgrade messages with percentage and sizes
     const upgradeMessages = [
-      'Your patch was too large for the free tier. <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">Upgrade to one of our premium plans</a> to review patches up to 4MB.',
-      'Your patch was too large for the free tier. <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">Upgrade to one of our premium plans</a> to get a complete review for this PR',
-      '<a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">Upgrade to one of our premium plans</a> to review your entire patch (up to 5MB)'
+      `Only ${percentageReviewed}% of this PR was reviewed (${truncatedSizeFormatted}/${originalSizeFormatted}) due to free tier limits. <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">Upgrade to one of our premium plans</a> to get a full review of this PR.`,
+      `Only ${percentageReviewed}% of your patch was reviewed (${truncatedSizeFormatted}/${originalSizeFormatted}) due to free tier limits. <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">Upgrade to one of our premium plans</a> to review your entire patch.`,
+      `This review covers ${percentageReviewed}% of your code changes (${truncatedSizeFormatted}/${originalSizeFormatted}) due to free tier limits. <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">Upgrade to one of our premium plans</a> to get a complete review of this PR.`
     ];
     
     const randomMessage = upgradeMessages[Math.floor(Math.random() * upgradeMessages.length)];
