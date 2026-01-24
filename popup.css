@@ -65,6 +65,39 @@ header {
   gap: 8px;
 }
 
+.header-auth-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+}
+
+.account-button {
+  padding: 4px 8px;
+  background: #f1f3f4;
+  border: none;
+  color: #3c4043;
+  font-size: 14px;
+  font-family: 'Roboto', arial, sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  line-height: 1;
+  white-space: nowrap;
+  border-radius: 20px;
+  box-sizing: border-box;
+}
+
+.account-button:hover {
+  color: #202124;
+  background: #e8eaed;
+}
+
 .login-prompt {
   font-size: 12px;
   color: #666;

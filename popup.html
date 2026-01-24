@@ -16,7 +16,17 @@
         </div>
       </div>
       <div class="header-bottom-row">
-        <google-signin></google-signin>
+        <div class="header-auth-section">
+          <button 
+            id="account-btn" 
+            class="account-button"
+            style="display: none;"
+            aria-label="Open Account Portal - Opens in new tab"
+            title="Open Account Portal">
+            Account
+          </button>
+          <google-signin></google-signin>
+        </div>
         <p id="login-prompt" class="login-prompt" style="display: none;">Please login to continue</p>
         <div id="privacy-policy-text" class="privacy-policy-text" style="display: none;">
           <div class="privacy-policy-icon">🔒</div>

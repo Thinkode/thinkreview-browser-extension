@@ -273,6 +273,11 @@ async function updateUIForLoginStatus() {
       if (privacyPolicyNotice) {
         privacyPolicyNotice.style.display = 'none';
       }
+      // Show Account button when logged in
+      const accountBtn = document.getElementById('account-btn');
+      if (accountBtn) {
+        accountBtn.style.display = 'block';
+      }
       
       // Fetch review count if CloudService is ready
       if (cloudServiceReady && window.CloudService) {
@@ -303,6 +308,11 @@ async function updateUIForLoginStatus() {
       }
       if (privacyPolicyNotice) {
         privacyPolicyNotice.style.display = 'flex';
+      }
+      // Hide Account button when not logged in
+      const accountBtn = document.getElementById('account-btn');
+      if (accountBtn) {
+        accountBtn.style.display = 'none';
       }
       clearStatusState();
       pendingUserDataFetch = false; // Clear pending fetch
@@ -456,6 +466,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       dbgLog('[popup] User signed in, refreshing UI');
       await updateUIForLoginStatus();
       
+      // Show Account button when signed in
+      const accountBtn = document.getElementById('account-btn');
+      if (accountBtn) {
+        accountBtn.style.display = 'block';
+      }
+      
       // If CloudService is already ready, fetch review count immediately
       if (cloudServiceReady && window.CloudService) {
         dbgLog('[popup] CloudService ready, fetching review count immediately after sign-in');
@@ -489,6 +505,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (privacyPolicyNotice) {
         privacyPolicyNotice.style.display = 'flex';
+      }
+      // Hide Account button when signed out
+      const accountBtn = document.getElementById('account-btn');
+      if (accountBtn) {
+        accountBtn.style.display = 'none';
       }
       clearStatusState();
       pendingUserDataFetch = false; // Clear pending fetch
@@ -536,6 +557,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     dbgWarn('[popup] Module loading error:', event.detail);
     showErrorState('Failed to load extension modules');
   });
+  
+  // Set up the Account button
+  const accountBtn = document.getElementById('account-btn');
+  if (accountBtn) {
+    accountBtn.addEventListener('click', () => {
+      // Open the ThinkReview portal in a new tab
+      chrome.tabs.create({ url: 'https://portal.thinkreview.dev' });
+    });
+  }
   
   // Set up the How it works button
   const howItWorksBtn = document.getElementById('how-it-works-btn');
