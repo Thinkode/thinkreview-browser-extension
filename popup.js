@@ -273,6 +273,11 @@ async function updateUIForLoginStatus() {
       if (privacyPolicyNotice) {
         privacyPolicyNotice.style.display = 'none';
       }
+      // Show portal buttons row when logged in
+      const portalButtonsRow = document.getElementById('portal-buttons-row');
+      if (portalButtonsRow) {
+        portalButtonsRow.style.display = 'flex';
+      }
       
       // Fetch review count if CloudService is ready
       if (cloudServiceReady && window.CloudService) {
@@ -303,6 +308,11 @@ async function updateUIForLoginStatus() {
       }
       if (privacyPolicyNotice) {
         privacyPolicyNotice.style.display = 'flex';
+      }
+      // Hide portal buttons row when not logged in
+      const portalButtonsRow = document.getElementById('portal-buttons-row');
+      if (portalButtonsRow) {
+        portalButtonsRow.style.display = 'none';
       }
       clearStatusState();
       pendingUserDataFetch = false; // Clear pending fetch
@@ -456,6 +466,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       dbgLog('[popup] User signed in, refreshing UI');
       await updateUIForLoginStatus();
       
+      // Show portal buttons row when signed in
+      const portalButtonsRow = document.getElementById('portal-buttons-row');
+      if (portalButtonsRow) {
+        portalButtonsRow.style.display = 'flex';
+      }
+      
       // If CloudService is already ready, fetch review count immediately
       if (cloudServiceReady && window.CloudService) {
         dbgLog('[popup] CloudService ready, fetching review count immediately after sign-in');
@@ -489,6 +505,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (privacyPolicyNotice) {
         privacyPolicyNotice.style.display = 'flex';
+      }
+      // Hide portal buttons row when signed out
+      const portalButtonsRow = document.getElementById('portal-buttons-row');
+      if (portalButtonsRow) {
+        portalButtonsRow.style.display = 'none';
       }
       clearStatusState();
       pendingUserDataFetch = false; // Clear pending fetch
@@ -537,12 +558,56 @@ document.addEventListener('DOMContentLoaded', async () => {
     showErrorState('Failed to load extension modules');
   });
   
+  // Set up the portal buttons
+  const dashboardBtn = document.getElementById('dashboard-btn');
+  if (dashboardBtn) {
+    dashboardBtn.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://portal.thinkreview.dev/dashboard' });
+    });
+  }
+  
+  const analyticsBtn = document.getElementById('analytics-btn');
+  if (analyticsBtn) {
+    analyticsBtn.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://portal.thinkreview.dev/analytics' });
+    });
+  }
+  
+  const modelSelectionBtn = document.getElementById('model-selection-btn');
+  if (modelSelectionBtn) {
+    modelSelectionBtn.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://portal.thinkreview.dev/model-selection' });
+    });
+  }
+  
+  const scoringMetricsBtn = document.getElementById('scoring-metrics-btn');
+  if (scoringMetricsBtn) {
+    scoringMetricsBtn.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://portal.thinkreview.dev/scoring-metrics' });
+    });
+  }
+  
+  // Set up the signout button in portal buttons row
+  const signoutBtn = document.getElementById('signout-btn');
+  if (signoutBtn) {
+    signoutBtn.addEventListener('click', () => {
+      // Find the google-signin component and trigger its signout
+      const googleSignIn = document.querySelector('google-signin');
+      if (googleSignIn && googleSignIn.shadowRoot) {
+        const signoutButton = googleSignIn.shadowRoot.querySelector('#signout');
+        if (signoutButton) {
+          signoutButton.click();
+        }
+      }
+    });
+  }
+  
   // Set up the How it works button
   const howItWorksBtn = document.getElementById('how-it-works-btn');
   if (howItWorksBtn) {
     howItWorksBtn.addEventListener('click', () => {
-      // Open the onboarding page in a new tab
-      chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') });
+      // Open the docs portal in a new tab
+      chrome.tabs.create({ url: 'https://thinkreview.dev/docs' });
     });
   }
   

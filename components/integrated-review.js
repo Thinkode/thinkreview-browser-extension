@@ -1,7 +1,12 @@
 // integrated-review.js
 // Component for displaying code review results directly in GitLab MR page
+// Debug toggle: set to false to disable console logs in production
 
-console.log('[GitLab MR Reviews] Integrated review component loaded');
+// Debug toggle: set to false to disable console logs in production
+var DEBUG = false;
+function dbgLog(...args) { if (DEBUG) console.log(...args); }
+function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
+
 
 // Import the CSS for the integrated review panel
 const cssURL = chrome.runtime.getURL('components/integrated-review.css');
@@ -42,10 +47,10 @@ const badgeModulePromise = (async () => {
   try {
     const module = await import('./utils/new-badge.js');
     createNewBadge = module.createNewBadge;
-    console.log('[IntegratedReview] Badge utils loaded');
+    dbgLog('[IntegratedReview] Badge utils loaded');
     return module;
   } catch (e) {
-    console.warn('[IntegratedReview] Failed to load badge utils', e);
+    dbgWarn('[IntegratedReview] Failed to load badge utils', e);
     return null;
   }
 })();
@@ -58,9 +63,9 @@ async function initFormattingUtils() {
     applySimpleSyntaxHighlighting = module.applySimpleSyntaxHighlighting;
     setupCopyHandler = module.setupCopyHandler;
     setupCopyHandler();
-    console.log('[IntegratedReview] Formatting utils loaded');
+    dbgLog('[IntegratedReview] Formatting utils loaded');
   } catch (e) {
-    console.warn('[IntegratedReview] Failed to load formatting utils', e);
+    dbgWarn('[IntegratedReview] Failed to load formatting utils', e);
   }
 }
 
@@ -70,9 +75,9 @@ async function initCopyButtonUtils() {
     createCopyButton = module.createCopyButton;
     copyItemContent = module.copyItemContent;
     attachCopyButtonToItem = module.attachCopyButtonToItem;
-    console.log('[IntegratedReview] Copy button utils loaded');
+    dbgLog('[IntegratedReview] Copy button utils loaded');
   } catch (e) {
-    console.warn('[IntegratedReview] Failed to load copy button utils', e);
+    dbgWarn('[IntegratedReview] Failed to load copy button utils', e);
   }
 }
 
@@ -106,9 +111,9 @@ async function initReviewPromptComponent() {
     });
     reviewPrompt.init('review-prompt-container');
     window.reviewPrompt = reviewPrompt; // Make accessible globally
-    console.log('[IntegratedReview] Review prompt component initialized with daily threshold of 5');
+    dbgLog('[IntegratedReview] Review prompt component initialized with daily threshold of 5');
   } catch (error) {
-    console.warn('[IntegratedReview] Failed to initialize review prompt component:', error);
+    dbgWarn('[IntegratedReview] Failed to initialize review prompt component:', error);
   }
 }
 
@@ -126,7 +131,7 @@ let currentPatchContent = '';
 function clearPatchContentAndHistory() {
   currentPatchContent = '';
   conversationHistory = [];
-  console.log('[IntegratedReview] Cleared patch content and conversation history');
+  dbgLog('[IntegratedReview] Cleared patch content and conversation history');
 }
 
 // Expose function for content.js to call when navigating to new PR
@@ -229,6 +234,8 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Load refresh icon from centralized icons.js
   const iconsModule = await import('../assets/icons.js');
   const refreshIconSvg = iconsModule.REFRESH_ICON_SVG;
+  // Get logo URL
+  const logoUrl = chrome.runtime.getURL('images/icon16.png');
   // Create the container for the review panel
   const container = document.createElement('div');
   container.id = 'gitlab-mr-integrated-review';
@@ -239,7 +246,9 @@ async function createIntegratedReviewPanel(patchUrl) {
     <div class="thinkreview-card gl-border-1 gl-border-gray-100">
       <div class="thinkreview-card-header gl-display-flex gl-justify-content-space-between gl-align-items-center">
         <div class="gl-display-flex gl-align-items-center thinkreview-card-title">
-          <span class="gl-font-weight-bold">AI Code Review</span>
+          <img src="${logoUrl}" alt="ThinkReview" class="thinkreview-header-logo">
+          <span class="gl-font-weight-bold">ThinkReview</span>
+          <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
           <span class="thinkreview-toggle-icon gl-ml-2" title="Minimize">▲</span>
         </div>
         <div class="thinkreview-header-actions">
@@ -384,6 +393,25 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Add the panel to the page
   document.body.appendChild(container);
   
+  // Set extension version in the header
+  try {
+    const manifest = chrome.runtime.getManifest();
+    const versionText = container.querySelector('#extension-version-text');
+    if (versionText && manifest.version) {
+      versionText.textContent = manifest.version;
+    }
+  } catch (error) {
+    dbgWarn('Failed to get extension version:', error);
+    const versionText = container.querySelector('#extension-version-text');
+    if (versionText) {
+      versionText.textContent = '';
+      const versionLink = container.querySelector('#extension-version-link');
+      if (versionLink) {
+        versionLink.style.display = 'none';
+      }
+    }
+  }
+  
   // Apply platform-specific styling
   applyPlatformSpecificStyling(container);
   
@@ -487,7 +515,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   if (bugReportButton) {
     bugReportButton.addEventListener('click', (e) => {
       e.stopPropagation(); // Prevent triggering the header click event
-      console.log('[IntegratedReview] Bug report button clicked');
+      dbgLog('[IntegratedReview] Bug report button clicked');
       window.open('https://thinkreview.dev/bug-report', '_blank');
     });
   }
@@ -497,7 +525,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   if (regenerateButton) {
     regenerateButton.addEventListener('click', async (e) => {
       e.stopPropagation(); // Prevent triggering the header click event
-      console.log('[IntegratedReview] Regenerate review button clicked');
+      dbgLog('[IntegratedReview] Regenerate review button clicked');
       
       // Show loading state
       const reviewLoading = document.getElementById('review-loading');
@@ -570,7 +598,7 @@ async function createIntegratedReviewPanel(patchUrl) {
       e.stopPropagation(); // Prevent triggering the header click event
       const selectedLanguage = e.target.value;
       setLanguagePreference(selectedLanguage);
-      console.log('[IntegratedReview] Language preference updated to:', selectedLanguage);
+      dbgLog('[IntegratedReview] Language preference updated to:', selectedLanguage);
     });
   }
   
@@ -590,11 +618,11 @@ function applyPlatformSpecificStyling(container) {
                        window.location.hostname.includes('visualstudio.com');
   
   if (isAzureDevOps) {
-    console.log('[IntegratedReview] Detected Azure DevOps platform, applying Azure DevOps styling');
+    dbgLog('[IntegratedReview] Detected Azure DevOps platform, applying Azure DevOps styling');
     
     // Detect Azure DevOps theme
     const theme = detectAzureDevOpsTheme();
-    console.log('[IntegratedReview] Detected Azure DevOps theme:', theme);
+    dbgLog('[IntegratedReview] Detected Azure DevOps theme:', theme);
     
     // Apply theme-specific styling
     const cardBody = container.querySelector('.thinkreview-card-body');
@@ -633,7 +661,7 @@ function applyPlatformSpecificStyling(container) {
     container.classList.add(`${theme}-theme`);
     container.setAttribute('data-theme', theme);
   } else {
-    console.log('[IntegratedReview] Detected GitLab platform, using GitLab styling');
+    dbgLog('[IntegratedReview] Detected GitLab platform, using GitLab styling');
     container.classList.add('gitlab-platform');
   }
 }
@@ -963,7 +991,7 @@ function setupFeedbackButtons(container, aiResponse, mrUrl = null) {
       const userData = result.userData;
       
       if (!userData || !userData.email) {
-        console.warn('[IntegratedReview] User not logged in, cannot submit feedback');
+        dbgWarn('[IntegratedReview] User not logged in, cannot submit feedback');
         // Remove selection if user not logged in
         clickedBtn.classList.remove('selected');
         return;
@@ -1012,7 +1040,7 @@ function setupFeedbackButtons(container, aiResponse, mrUrl = null) {
  */
 function submitFeedback(email, feedbackType, aiResponse, mrUrl, rating, additionalFeedback) {
   // Log what we're sending for debugging
-  console.log('[IntegratedReview] Submitting feedback:', {
+  dbgLog('[IntegratedReview] Submitting feedback:', {
     hasEmail: !!email,
     feedbackType,
     hasAiResponse: !!aiResponse,
@@ -1036,17 +1064,17 @@ function submitFeedback(email, feedbackType, aiResponse, mrUrl, rating, addition
       if (chrome.runtime.lastError) {
         const errorMsg = chrome.runtime.lastError.message || 
                         (typeof chrome.runtime.lastError === 'string' ? chrome.runtime.lastError : JSON.stringify(chrome.runtime.lastError));
-        console.warn('[IntegratedReview] Error submitting feedback (fire-and-forget):', errorMsg);
+        dbgWarn('[IntegratedReview] Error submitting feedback (fire-and-forget):', errorMsg);
         return;
       }
       
       if (response && response.success) {
-        console.log('[IntegratedReview] Feedback submitted successfully (fire-and-forget)');
+        dbgLog('[IntegratedReview] Feedback submitted successfully (fire-and-forget)');
       } else {
         const errorMsg = response?.error || 
                         (response?.message) ||
                         (typeof response === 'string' ? response : JSON.stringify(response));
-        console.warn('[IntegratedReview] Failed to submit feedback (fire-and-forget):', errorMsg);
+        dbgWarn('[IntegratedReview] Failed to submit feedback (fire-and-forget):', errorMsg);
       }
     }
   );
@@ -1102,7 +1130,7 @@ async function handleSendMessage(messageText) {
     // Extract the response text with fallback handling
     // Handle the nested response structure: { status: "success", review: { response: "..." } }
     const responseText = aiResponse.review?.response || aiResponse.response || aiResponse.content || aiResponse;
-    console.log('[IntegratedReview] Response text to display:', responseText);
+    dbgLog('[IntegratedReview] Response text to display:', responseText);
     
     // Store raw response text for feedback querying (use original response before markdown processing)
     const rawResponseText = responseText;
@@ -1165,7 +1193,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   
   // Check if there was a JSON parsing error (safety check)
   if (review.parsingError === true) {
-    console.warn('[IntegratedReview] JSON parsing error detected in review object');
+    dbgWarn('[IntegratedReview] JSON parsing error detected in review object');
     const errorMessage = review.errorMessage 
       ? `Unable to parse AI response: ${review.errorMessage}. Please try regenerating the review.`
       : 'The AI generated a response that could not be parsed. Please try regenerating the review or report this issue at https://thinkreview.dev/bug-report';
@@ -1182,7 +1210,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     loadingModule.hideButtonLoadingIndicator();
   } catch (error) {
     // Silently fail if module not available
-    console.warn('[IntegratedReview] Failed to hide loading indicator:', error);
+    dbgWarn('[IntegratedReview] Failed to hide loading indicator:', error);
   }
 
   const reviewLoading = document.getElementById('review-loading');
@@ -1212,7 +1240,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       const metadataModule = await import('./review-metadata-bar.js');
       metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionType, modelUsed, isCached);
     } catch (error) {
-      console.warn('[IntegratedReview] Failed to load review metadata bar:', error);
+      dbgWarn('[IntegratedReview] Failed to load review metadata bar:', error);
       // Best-effort: hide banner container on failure
       patchSizeBanner.classList.add('gl-hidden');
     }
@@ -1258,7 +1286,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
           reviewMetricsContainer.classList.add('gl-hidden');
         }
       } catch (error) {
-        console.warn('[IntegratedReview] Failed to load quality scorecard component:', error);
+        dbgWarn('[IntegratedReview] Failed to load quality scorecard component:', error);
         reviewMetricsContainer.classList.add('gl-hidden');
       }
     } else {
@@ -1275,7 +1303,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
         const scorePopupModule = await import('./popup-modules/score-popup.js');
         scorePopupModule.showScorePopupOnButton(review.metrics.overallScore);
       } catch (error) {
-        console.warn('[IntegratedReview] Failed to load score popup module:', error);
+        dbgWarn('[IntegratedReview] Failed to load score popup module:', error);
       }
     }
     
@@ -1284,7 +1312,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       const notificationModule = await import('./popup-modules/button-notification.js');
       notificationModule.showButtonNotification();
     } catch (error) {
-      console.warn('[IntegratedReview] Failed to load button notification module:', error);
+      dbgWarn('[IntegratedReview] Failed to load button notification module:', error);
     }
   }
 
@@ -1440,7 +1468,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
           staticQuestionButton.appendChild(newBadge);
         }
       } catch (error) {
-        console.warn('[IntegratedReview] Failed to load badge module for button:', error);
+        dbgWarn('[IntegratedReview] Failed to load badge module for button:', error);
       }
     })();
     
@@ -1474,7 +1502,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       // Pass mrUrl as the identifier (null for aiResponse)
       setupFeedbackButtons(initialFeedbackContainer, null, mrUrl);
     } else {
-      console.warn('[IntegratedReview] Cannot get mrUrl');
+      dbgWarn('[IntegratedReview] Cannot get mrUrl');
       initialFeedbackContainer.classList.add('gl-hidden');
     }
   }
@@ -1595,9 +1623,9 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
         });
         
         if (refreshResponse.status === 'success') {
-          console.log('[IntegratedReview] User data refreshed before feedback check:', refreshResponse.data);
+          dbgLog('[IntegratedReview] User data refreshed before feedback check:', refreshResponse.data);
         } else {
-          console.warn('[IntegratedReview] Failed to refresh user data:', refreshResponse.error);
+          dbgWarn('[IntegratedReview] Failed to refresh user data:', refreshResponse.error);
         }
         
         // Now check if we should show the prompt (with fresh data in storage)

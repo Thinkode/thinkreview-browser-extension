@@ -151,7 +151,7 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
   customizeButton.rel = 'noopener noreferrer';
   customizeButton.className = 'thinkreview-patch-size-customize-button';
   // Randomly display either "Customize" or "Try a different model"
-  const buttonTexts = ['Customize', 'Try a different model'];
+  const buttonTexts = ['Customize review models'];
   customizeButton.textContent = buttonTexts[Math.floor(Math.random() * buttonTexts.length)];
   customizeButton.setAttribute('aria-label', 'Customize model selection');
   

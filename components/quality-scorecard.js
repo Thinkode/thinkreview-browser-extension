@@ -62,14 +62,20 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
     </div>
     <div class="thinkreview-scorecard-content">
       <div class="thinkreview-overall-score gl-display-flex gl-align-items-center gl-justify-content-center gl-mb-4">
-        <div class="thinkreview-score-circle ${getScoreColorClass(overallScore)} thinkreview-clickable-metric" 
-             data-metric="overall" 
-             data-score="${overallScore}"
-             aria-label="Overall quality score: ${overallScore}. Click to learn more." 
-             role="button"
-             tabindex="0">
-          <span class="thinkreview-score-value">${overallScore}</span>
-          <span class="thinkreview-score-label">Overall</span>
+        <div class="thinkreview-overall-score-wrapper gl-display-flex gl-align-items-center gl-justify-content-center" style="position: relative;">
+          <div class="thinkreview-score-circle ${getScoreColorClass(overallScore)} thinkreview-clickable-metric" 
+               data-metric="overall" 
+               data-score="${overallScore}"
+               aria-label="Overall quality score: ${overallScore}. Click to learn more." 
+               role="button"
+               tabindex="0">
+            <span class="thinkreview-score-value">${overallScore}</span>
+            <span class="thinkreview-score-label">Overall</span>
+          </div>
+          <a href="https://portal.thinkreview.dev/scoring-metrics" target="_blank" rel="noopener noreferrer" class="thinkreview-overall-score-configure" aria-label="Configure scoring metrics">
+            ${CONFIGURE_ICON_SVG}
+            <span class="thinkreview-configure-tooltip">Configure</span>
+          </a>
         </div>
       </div>
       <div class="thinkreview-metrics-grid">
@@ -81,8 +87,9 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
           <div class="thinkreview-metric-header gl-display-flex gl-justify-content-space-between gl-mb-1">
             <span class="thinkreview-metric-label">Code Quality</span>
             <span class="thinkreview-metric-score-container gl-display-flex gl-align-items-center">
-              <a href="https://portal.thinkreview.dev/scoring-metrics" target="_blank" rel="noopener noreferrer" class="thinkreview-metric-settings-icon" title="Configure">
+              <a href="https://portal.thinkreview.dev/scoring-metrics" target="_blank" rel="noopener noreferrer" class="thinkreview-metric-settings-icon">
                 ${CONFIGURE_ICON_SVG}
+                <span class="thinkreview-configure-tooltip">Configure</span>
               </a>
               <span class="thinkreview-metric-score ${getScoreColorClass(codeQuality)}">${codeQuality}</span>
             </span>
@@ -105,8 +112,9 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
           <div class="thinkreview-metric-header gl-display-flex gl-justify-content-space-between gl-mb-1">
             <span class="thinkreview-metric-label">Security</span>
             <span class="thinkreview-metric-score-container gl-display-flex gl-align-items-center">
-              <a href="https://portal.thinkreview.dev/scoring-metrics" target="_blank" rel="noopener noreferrer" class="thinkreview-metric-settings-icon" title="configure">
+              <a href="https://portal.thinkreview.dev/scoring-metrics" target="_blank" rel="noopener noreferrer" class="thinkreview-metric-settings-icon">
                 ${CONFIGURE_ICON_SVG}
+                <span class="thinkreview-configure-tooltip">Configure</span>
               </a>
               <span class="thinkreview-metric-score ${getScoreColorClass(securityScore)}">${securityScore}</span>
             </span>
@@ -129,8 +137,9 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
           <div class="thinkreview-metric-header gl-display-flex gl-justify-content-space-between gl-mb-1">
             <span class="thinkreview-metric-label">Best Practices</span>
             <span class="thinkreview-metric-score-container gl-display-flex gl-align-items-center">
-              <a href="https://portal.thinkreview.dev/scoring-metrics" target="_blank" rel="noopener noreferrer" class="thinkreview-metric-settings-icon" title="configure">
+              <a href="https://portal.thinkreview.dev/scoring-metrics" target="_blank" rel="noopener noreferrer" class="thinkreview-metric-settings-icon">
                 ${CONFIGURE_ICON_SVG}
+                <span class="thinkreview-configure-tooltip">Configure</span>
               </a>
               <span class="thinkreview-metric-score ${getScoreColorClass(bestPracticesScore)}">${bestPracticesScore}</span>
             </span>

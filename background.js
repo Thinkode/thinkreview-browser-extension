@@ -884,13 +884,35 @@ const DEFAULT_DOMAINS = ['https://gitlab.com'];
 
 // Register content scripts for stored domains on startup
 chrome.runtime.onStartup.addListener(updateContentScripts);
-chrome.runtime.onInstalled.addListener((details) => {
+chrome.runtime.onInstalled.addListener(async (details) => {
   // Update content scripts
   updateContentScripts();
   
   // Open onboarding page on first install
   if (details.reason === 'install') {
-    chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') });
+    chrome.tabs.create({ url: 'https://thinkreview.dev/onboarding' });
+    // Store the current version
+    const manifest = chrome.runtime.getManifest();
+    await chrome.storage.local.set({ lastInstalledVersion: manifest.version });
+  }
+  
+  // Open release notes page on update
+  if (details.reason === 'update') {
+    const manifest = chrome.runtime.getManifest();
+    const currentVersion = manifest.version;
+    
+    // Get the previous version from storage
+    const result = await chrome.storage.local.get(['lastInstalledVersion']);
+    const previousVersion = result.lastInstalledVersion;
+    
+    // Only show release notes if this is a version change (not just a reload)
+    if (previousVersion && previousVersion !== currentVersion) {
+      dbgLog(`Extension updated from ${previousVersion} to ${currentVersion}, opening release notes`);
+      chrome.tabs.create({ url: 'https://thinkreview.dev/release-notes' });
+    }
+    
+    // Update stored version
+    await chrome.storage.local.set({ lastInstalledVersion: currentVersion });
   }
 });
 

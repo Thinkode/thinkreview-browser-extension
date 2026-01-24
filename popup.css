@@ -65,6 +65,102 @@ header {
   gap: 8px;
 }
 
+.header-auth-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+}
+
+.account-button {
+  padding: 4px 8px;
+  background: #f1f3f4;
+  border: none;
+  color: #3c4043;
+  font-size: 14px;
+  font-family: 'Roboto', arial, sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  line-height: 1;
+  white-space: nowrap;
+  border-radius: 20px;
+  box-sizing: border-box;
+}
+
+.account-button:hover {
+  color: #202124;
+  background: #e8eaed;
+}
+
+.portal-buttons-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.portal-button {
+  padding: 6px 10px;
+  background: #f1f3f4;
+  border: none;
+  color: #3c4043;
+  font-size: 11px;
+  font-family: 'Roboto', arial, sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  line-height: 1;
+  white-space: nowrap;
+  border-radius: 14px;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+}
+
+.portal-button svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.portal-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portal-button:hover {
+  color: #202124;
+  background: #e8eaed;
+}
+
+.portal-button:active {
+  background: #dadce0;
+}
+
+.signout-portal-button {
+  color: #5f6368;
+}
+
+.signout-portal-button:hover {
+  color: #202124;
+  background: #e8eaed;
+}
+
 .login-prompt {
   font-size: 12px;
   color: #666;
@@ -1321,6 +1417,46 @@ footer {
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid #e1e4e8;
+}
+
+/* GitHub Settings Styles */
+.github-settings-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e1e4e8;
+}
+
+.github-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+.github-info-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.github-info-content {
+  flex: 1;
+}
+
+.github-info-text {
+  font-size: 13px;
+  color: #0c4a6e;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.github-info-text strong {
+  color: #075985;
+  font-weight: 600;
 }
 
 .token-input-section {
