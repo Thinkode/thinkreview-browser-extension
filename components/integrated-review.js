@@ -240,6 +240,7 @@ async function createIntegratedReviewPanel(patchUrl) {
       <div class="thinkreview-card-header gl-display-flex gl-justify-content-space-between gl-align-items-center">
         <div class="gl-display-flex gl-align-items-center thinkreview-card-title">
           <span class="gl-font-weight-bold">AI Code Review</span>
+          <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
           <span class="thinkreview-toggle-icon gl-ml-2" title="Minimize">▲</span>
         </div>
         <div class="thinkreview-header-actions">
@@ -383,6 +384,25 @@ async function createIntegratedReviewPanel(patchUrl) {
   
   // Add the panel to the page
   document.body.appendChild(container);
+  
+  // Set extension version in the header
+  try {
+    const manifest = chrome.runtime.getManifest();
+    const versionText = container.querySelector('#extension-version-text');
+    if (versionText && manifest.version) {
+      versionText.textContent = manifest.version;
+    }
+  } catch (error) {
+    console.warn('Failed to get extension version:', error);
+    const versionText = container.querySelector('#extension-version-text');
+    if (versionText) {
+      versionText.textContent = '';
+      const versionLink = container.querySelector('#extension-version-link');
+      if (versionLink) {
+        versionLink.style.display = 'none';
+      }
+    }
+  }
   
   // Apply platform-specific styling
   applyPlatformSpecificStyling(container);
