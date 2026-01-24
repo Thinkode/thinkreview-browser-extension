@@ -196,7 +196,7 @@ class GoogleSignIn extends HTMLElement {
             <img src="${this.user.picture}" alt="${this.user.name}" class="user-avatar">
             <span>${this.user.name}</span>
           </div>
-          <button class="gitlab-mr-btn signout-button" id="signout">Sign out</button>
+          <button class="gitlab-mr-btn signout-button" id="signout" style="display: none;">Sign out</button>
         </div>
       ` : `
         <button class="gitlab-mr-btn signin-button" id="signin" ${this.isSigningIn ? 'disabled' : ''}>
