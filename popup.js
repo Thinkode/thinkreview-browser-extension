@@ -572,7 +572,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (howItWorksBtn) {
     howItWorksBtn.addEventListener('click', () => {
       // Open the onboarding page in a new tab
-      chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') });
+      chrome.tabs.create({ url: 'https://thinkreview.dev/onboarding' });
     });
   }
   

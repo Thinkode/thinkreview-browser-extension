@@ -890,7 +890,7 @@ chrome.runtime.onInstalled.addListener((details) => {
   
   // Open onboarding page on first install
   if (details.reason === 'install') {
-    chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') });
+    chrome.tabs.create({ url: 'https://thinkreview.dev/onboarding' });
   }
 });
 
