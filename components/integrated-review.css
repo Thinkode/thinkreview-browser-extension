@@ -1864,6 +1864,78 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login
   margin-bottom: 20px;
 }
 
+#gitlab-mr-integrated-review .thinkreview-overall-score-wrapper {
+  position: relative;
+  gap: 12px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-overall-score-configure {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #a8a8a8;
+  opacity: 0.7;
+  transition: opacity 0.2s ease, color 0.2s ease;
+  text-decoration: none;
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+  position: relative;
+}
+
+#gitlab-mr-integrated-review .thinkreview-overall-score-configure:hover {
+  opacity: 1;
+  color: #6b4fbb;
+}
+
+#gitlab-mr-integrated-review .thinkreview-overall-score-configure:focus {
+  outline: 2px solid rgba(107, 79, 187, 0.5);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-overall-score-configure svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+/* Tooltip for configure icons */
+#gitlab-mr-integrated-review .thinkreview-configure-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.95);
+  color: #ffffff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 1000;
+}
+
+#gitlab-mr-integrated-review .thinkreview-configure-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.95);
+}
+
+#gitlab-mr-integrated-review .thinkreview-overall-score-configure:hover .thinkreview-configure-tooltip,
+#gitlab-mr-integrated-review .thinkreview-metric-settings-icon:hover .thinkreview-configure-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-4px);
+}
+
 #gitlab-mr-integrated-review .thinkreview-score-circle {
   width: 100px;
   height: 100px;
@@ -1975,6 +2047,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login
   cursor: pointer;
   line-height: 1;
   flex-shrink: 0;
+  position: relative;
 }
 
 #gitlab-mr-integrated-review .thinkreview-metric-settings-icon:hover {
