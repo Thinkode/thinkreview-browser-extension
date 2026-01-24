@@ -229,6 +229,8 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Load refresh icon from centralized icons.js
   const iconsModule = await import('../assets/icons.js');
   const refreshIconSvg = iconsModule.REFRESH_ICON_SVG;
+  // Get logo URL
+  const logoUrl = chrome.runtime.getURL('images/icon16.png');
   // Create the container for the review panel
   const container = document.createElement('div');
   container.id = 'gitlab-mr-integrated-review';
@@ -239,7 +241,8 @@ async function createIntegratedReviewPanel(patchUrl) {
     <div class="thinkreview-card gl-border-1 gl-border-gray-100">
       <div class="thinkreview-card-header gl-display-flex gl-justify-content-space-between gl-align-items-center">
         <div class="gl-display-flex gl-align-items-center thinkreview-card-title">
-          <span class="gl-font-weight-bold">AI Code Review</span>
+          <img src="${logoUrl}" alt="ThinkReview" class="thinkreview-header-logo">
+          <span class="gl-font-weight-bold">ThinkReview</span>
           <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
           <span class="thinkreview-toggle-icon gl-ml-2" title="Minimize">▲</span>
         </div>

@@ -2,7 +2,7 @@
   "manifest_version": 3,
 
   "name": "ThinkReview: AI Code Review for GitLab, GitHub & Azure DevOps",
-  "version": "1.4.11",
+  "version": "1.4.13",
   "description": "AI Copilot & AI Code Reviews for GitLab,GitHub and Azure DevOps PRs - Ollama support",
 
   "permissions": [
@@ -55,7 +55,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["patch-viewer.html", "patch-viewer.js", "patch-viewer.css", "icons/*", "components/*", "components/integrated-review.css", "components/review-prompt/*", "services/*", "services/ollama-service.js", "utils/*", "assets/*", "stripe-redirect.html","stripe-redirect.js", "onboarding.html", "onboarding.js","components/subscription-section.html","components/subscription-section.css"],
+      "resources": ["patch-viewer.html", "patch-viewer.js", "patch-viewer.css", "icons/*", "images/*", "components/*", "components/integrated-review.css", "components/review-prompt/*", "services/*", "services/ollama-service.js", "utils/*", "assets/*", "stripe-redirect.html","stripe-redirect.js", "onboarding.html", "onboarding.js","components/subscription-section.html","components/subscription-section.css"],
       "matches": ["<all_urls>"]
     }
   ],
