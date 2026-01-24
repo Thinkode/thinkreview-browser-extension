@@ -1869,7 +1869,9 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login
   gap: 12px;
 }
 
-#gitlab-mr-integrated-review .thinkreview-overall-score-configure {
+/* Shared styles for configure icons (overall score and metric settings) */
+#gitlab-mr-integrated-review .thinkreview-overall-score-configure,
+#gitlab-mr-integrated-review .thinkreview-metric-settings-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1883,18 +1885,21 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login
   position: relative;
 }
 
-#gitlab-mr-integrated-review .thinkreview-overall-score-configure:hover {
+#gitlab-mr-integrated-review .thinkreview-overall-score-configure:hover,
+#gitlab-mr-integrated-review .thinkreview-metric-settings-icon:hover {
   opacity: 1;
   color: #6b4fbb;
 }
 
-#gitlab-mr-integrated-review .thinkreview-overall-score-configure:focus {
+#gitlab-mr-integrated-review .thinkreview-overall-score-configure:focus,
+#gitlab-mr-integrated-review .thinkreview-metric-settings-icon:focus {
   outline: 2px solid rgba(107, 79, 187, 0.5);
   outline-offset: 2px;
   border-radius: 2px;
 }
 
-#gitlab-mr-integrated-review .thinkreview-overall-score-configure svg {
+#gitlab-mr-integrated-review .thinkreview-overall-score-configure svg,
+#gitlab-mr-integrated-review .thinkreview-metric-settings-icon svg {
   display: block;
   width: 14px;
   height: 14px;
@@ -2036,36 +2041,6 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login
   gap: 6px;
 }
 
-#gitlab-mr-integrated-review .thinkreview-metric-settings-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #a8a8a8;
-  opacity: 0.7;
-  transition: opacity 0.2s ease, color 0.2s ease;
-  text-decoration: none;
-  cursor: pointer;
-  line-height: 1;
-  flex-shrink: 0;
-  position: relative;
-}
-
-#gitlab-mr-integrated-review .thinkreview-metric-settings-icon:hover {
-  opacity: 1;
-  color: #6b4fbb;
-}
-
-#gitlab-mr-integrated-review .thinkreview-metric-settings-icon:focus {
-  outline: 2px solid rgba(107, 79, 187, 0.5);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-
-#gitlab-mr-integrated-review .thinkreview-metric-settings-icon svg {
-  display: block;
-  width: 14px;
-  height: 14px;
-}
 
 #gitlab-mr-integrated-review .thinkreview-metric-score {
   font-size: 14px;
