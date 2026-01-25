@@ -144,17 +144,49 @@ function isGitLabMRPage() {
 
 /**
  * Get patch URL for GitLab or GitHub (legacy function)
+ * Normalizes the URL to remove path segments after PR/MR number before appending extension
  * @returns {string} Patch URL
  */
-function getPatchUrl() {
+async function getPatchUrl() {
   let url = window.location.href;
   
   // GitHub uses .diff, GitLab uses .patch
   const extension = platformDetector && platformDetector.isOnGitHubPRPage() ? '.diff' : '.patch';
   
-  if (!url.endsWith(extension)) {
-    url = url.replace(/[#?].*$/, '') + extension;
+  // Normalize URL to base PR/MR URL before appending extension
+  if (platformDetector) {
+    try {
+      // Dynamically import URL normalizer
+      const urlNormalizerModule = await import(chrome.runtime.getURL('utils/pr-mr-url-normalizer.js'));
+      const { normalizePRUrl } = urlNormalizerModule;
+      
+      // Determine platform
+      let platform = null;
+      if (platformDetector.isOnGitHubPRPage()) {
+        platform = 'github';
+      } else if (platformDetector.isOnGitLabMRPage()) {
+        platform = 'gitlab';
+      }
+      
+      // Normalize URL if we're on a supported platform
+      if (platform) {
+        url = normalizePRUrl(url, platform);
+      }
+    } catch (error) {
+      dbgWarn('[Code Review Extension] Error normalizing URL, using fallback:', error);
+      // Fallback to simple hash/query removal if normalization fails
+      url = url.replace(/[#?].*$/, '');
+    }
+  } else {
+    // Fallback if platform detector not initialized
+    url = url.replace(/[#?].*$/, '');
   }
+  
+  // Append extension if not already present
+  if (!url.endsWith(extension)) {
+    url = url + extension;
+  }
+  
   return url;
 }
 
@@ -402,7 +434,7 @@ async function injectIntegratedReviewPanel() {
   
   dbgLog('[Code Review Extension] Creating integrated review panel');
   // Create the review panel with the patch URL
-  const patchUrl = getPatchUrl();
+  const patchUrl = await getPatchUrl();
   await createIntegratedReviewPanel(patchUrl);
   
   dbgLog('[Code Review Extension] Integrated review panel created');
@@ -735,7 +767,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
 
     if (platformDetector && platformDetector.isOnGitLabMRPage()) {
       // GitLab: fetch patch file
-      const patchUrl = getPatchUrl();
+      const patchUrl = await getPatchUrl();
       const response = await fetch(patchUrl, { credentials: 'include' });
       if (!response.ok) {
         throw new Error(`Not a Merge request page or there are no code changes yet in this MR- if you think this is a bug, please report it here: https://thinkreview.dev/bug-report`);
@@ -745,7 +777,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       
     } else if (platformDetector && platformDetector.isOnGitHubPRPage()) {
       // GitHub: fetch diff file through background script (to avoid CORS)
-      const patchUrl = getPatchUrl();
+      const patchUrl = await getPatchUrl();
       dbgLog('[Code Review Extension] Fetching GitHub diff through background script:', patchUrl);
       
       const bgResponse = await new Promise((resolve) => {
