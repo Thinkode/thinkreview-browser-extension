@@ -1635,6 +1635,22 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       }
     }
   }, 1000);
+
+  // Handle code suggestions if present (for GitLab only - will be processed in content.js)
+  if (Array.isArray(review.codeSuggestions) && review.codeSuggestions.length > 0 && patchContent) {
+    // Store code suggestions in a way that content.js can access them
+    // We'll trigger injection from content.js after the review is displayed
+    window.__thinkreview_codeSuggestions = {
+      suggestions: review.codeSuggestions,
+      patchContent: patchContent,
+      timestamp: Date.now()
+    };
+    
+    dbgLog(`[IntegratedReview] Stored ${review.codeSuggestions.length} code suggestions for injection`);
+  } else {
+    // Clear any previous suggestions
+    delete window.__thinkreview_codeSuggestions;
+  }
 }
 
 /**

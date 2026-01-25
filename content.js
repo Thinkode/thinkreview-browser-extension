@@ -3,7 +3,7 @@
 // Debug toggle: set to false to disable console logs in production
 
 // Debug toggle: set to false to disable console logs in production
-var DEBUG = false;
+var DEBUG = true;
 function dbgLog(...args) { if (DEBUG) console.log(...args); }
 function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
 
@@ -925,6 +925,41 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     
     // Display the review results with patchSize, subscriptionType, modelUsed, and cached status if available
     displayIntegratedReview(data.review, codeContent, data.patchSize, data.subscriptionType, data.modelUsed, data.cached);
+    
+    // Handle code suggestions injection for GitLab
+    if (Array.isArray(data.review.codeSuggestions) && data.review.codeSuggestions.length > 0) {
+      // Check if we're on GitLab
+      const platform = getCurrentPlatform();
+      if (platform === 'gitlab' || (platformDetector && platformDetector.isOnGitLabMRPage())) {
+        dbgLog('[Code Review Extension] Code suggestions detected, will inject into GitLab diff view');
+        
+        // Wait a bit for the review panel to be fully rendered, then inject suggestions
+        // The injection module has its own waiting logic for GitLab's diff view
+        setTimeout(async () => {
+          try {
+            // Check if suggestions were stored by displayIntegratedReview
+            if (window.__thinkreview_codeSuggestions) {
+              const { suggestions, patchContent: storedPatchContent } = window.__thinkreview_codeSuggestions;
+              
+              dbgLog(`[Code Review Extension] Attempting to inject ${suggestions.length} code suggestions`);
+              
+              // Import and use the injection module
+              const injectorModule = await import(chrome.runtime.getURL('utils/gitlab-suggestion-injector.js'));
+              const result = await injectorModule.injectCodeSuggestions(suggestions, storedPatchContent || codeContent);
+              
+              dbgLog(`[Code Review Extension] Code suggestions injection result:`, result);
+              
+              // Clear the stored suggestions after injection
+              delete window.__thinkreview_codeSuggestions;
+            }
+          } catch (injectionError) {
+            dbgWarn('[Code Review Extension] Error injecting code suggestions:', injectionError);
+          }
+        }, 1000); // Initial delay, injection module will wait for diff view to be ready
+      } else {
+        dbgLog('[Code Review Extension] Code suggestions found but not on GitLab, skipping injection');
+      }
+    }
   } catch (error) {
     dbgWarn('[Code Review Extension] Error during code review:', error);
     
