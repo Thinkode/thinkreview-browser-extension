@@ -10,6 +10,26 @@ function dbgWarn(...args) { if (DEBUG) console.warn('[GitHub Detector]', ...args
  * GitHub Detector Service
  * Handles detection of GitHub pull request pages and extraction of PR information
  */
+
+/**
+ * Parse GitHub PR URL path into owner, repo, and PR number.
+ * Matches typical patterns like: /owner/repo/pull/123 or /owner/repo/pull/123/files
+ *
+ * @param {string} pathname - window.location.pathname
+ * @returns {{ owner: string, repo: string, prNumber: string } | null}
+ */
+function parseGitHubPRFromPath(pathname) {
+  // Single source of truth for GitHub PR URL structure
+  // GitHub PR URLs: /owner/repo/pull/{number}[/*]
+  const match = pathname.match(/\/([^\/]+)\/([^\/]+)\/pull\/(\d+)/);
+  if (!match) {
+    return null;
+  }
+
+  const [, owner, repo, prNumber] = match;
+  return { owner, repo, prNumber };
+}
+
 export class GitHubDetector {
   constructor() {
     this.isInitialized = false;
@@ -43,7 +63,8 @@ export class GitHubDetector {
     
     // Check if URL contains pull request path pattern
     // GitHub PR URLs: /owner/repo/pull/{number}
-    const isPRPath = /\/pull\/\d+/.test(window.location.pathname);
+    const prInfo = parseGitHubPRFromPath(window.location.pathname);
+    const isPRPath = !!prInfo;
     
     dbgLog('GitHub PR detection:', {
       isGitHubDomain,
@@ -92,9 +113,9 @@ export class GitHubDetector {
    */
   extractPRId() {
     // Extract from URL pattern: /owner/repo/pull/{number}
-    const urlMatch = window.location.pathname.match(/\/pull\/(\d+)/);
-    if (urlMatch) {
-      return urlMatch[1];
+    const prInfo = parseGitHubPRFromPath(window.location.pathname);
+    if (prInfo) {
+      return prInfo.prNumber;
     }
 
     return null;
@@ -147,13 +168,11 @@ export class GitHubDetector {
     
     // Primary: Extract from URL pattern (most reliable)
     // GitHub PR URLs: /owner/repo/pull/{number}
-    const repoMatch = pathname.match(/\/([^\/]+)\/([^\/]+)\/pull\//);
-    if (repoMatch) {
-      const owner = repoMatch[1];
-      const repo = repoMatch[2];
+    const prInfo = parseGitHubPRFromPath(pathname);
+    if (prInfo) {
       return {
-        name: repo,
-        fullName: `${owner}/${repo}`
+        name: prInfo.repo,
+        fullName: `${prInfo.owner}/${prInfo.repo}`
       };
     }
 
@@ -203,9 +222,9 @@ export class GitHubDetector {
     const pathname = window.location.pathname;
     
     // Extract from URL pattern: /owner/repo/pull/{number}
-    const ownerMatch = pathname.match(/\/([^\/]+)\/[^\/]+\/pull\//);
-    if (ownerMatch) {
-      return ownerMatch[1];
+    const prInfo = parseGitHubPRFromPath(pathname);
+    if (prInfo) {
+      return prInfo.owner;
     }
 
     return 'Unknown Owner';
@@ -356,6 +375,36 @@ export class GitHubDetector {
     }
     
     return hasChanged;
+  }
+
+  /**
+   * Get the canonical GitHub PR URL (without suffix segments like /files or /commits)
+   * @returns {string} Canonical PR URL or current URL without query/hash as a fallback
+   */
+  getCanonicalPRUrl() {
+    const { origin, pathname } = window.location;
+    const prInfo = parseGitHubPRFromPath(pathname);
+
+    if (prInfo) {
+      const { owner, repo, prNumber } = prInfo;
+      return `${origin}/${owner}/${repo}/pull/${prNumber}`;
+    }
+
+    // Fallback: strip query/hash but otherwise return current URL
+    return window.location.href.replace(/[#?].*$/, '');
+  }
+
+  /**
+   * Get the canonical GitHub PR diff URL (always .../pull/{number}.diff)
+   * @returns {string} Canonical PR diff URL
+   */
+  getCanonicalPRDiffUrl() {
+    const baseUrl = this.getCanonicalPRUrl();
+    // Ensure we don't end up with .patch.diff, etc.
+    const normalized = baseUrl
+      .replace(/[#?].*$/, '')
+      .replace(/\.(diff|patch)$/, '');
+    return `${normalized}.diff`;
   }
 }
 
