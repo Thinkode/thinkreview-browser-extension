@@ -376,6 +376,36 @@ export class GitHubDetector {
     
     return hasChanged;
   }
+
+  /**
+   * Get the canonical GitHub PR URL (without suffix segments like /files or /commits)
+   * @returns {string} Canonical PR URL or current URL without query/hash as a fallback
+   */
+  getCanonicalPRUrl() {
+    const { origin, pathname } = window.location;
+    const prInfo = parseGitHubPRFromPath(pathname);
+
+    if (prInfo) {
+      const { owner, repo, prNumber } = prInfo;
+      return `${origin}/${owner}/${repo}/pull/${prNumber}`;
+    }
+
+    // Fallback: strip query/hash but otherwise return current URL
+    return window.location.href.replace(/[#?].*$/, '');
+  }
+
+  /**
+   * Get the canonical GitHub PR diff URL (always .../pull/{number}.diff)
+   * @returns {string} Canonical PR diff URL
+   */
+  getCanonicalPRDiffUrl() {
+    const baseUrl = this.getCanonicalPRUrl();
+    // Ensure we don't end up with .patch.diff, etc.
+    const normalized = baseUrl
+      .replace(/[#?].*$/, '')
+      .replace(/\.(diff|patch)$/, '');
+    return `${normalized}.diff`;
+  }
 }
 
 // Create and export a singleton instance

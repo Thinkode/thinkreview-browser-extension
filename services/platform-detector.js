@@ -275,6 +275,17 @@ export class PlatformDetector {
   }
 
   /**
+   * Get canonical GitHub PR diff URL (normalizes suffixes like /files or /commits)
+   * @returns {string|null} Canonical PR diff URL if on a GitHub PR page, otherwise null
+   */
+  getGitHubPRDiffUrl() {
+    if (!this.isGitHubPRPage() && !this.isOnGitHubPRPage()) {
+      return null;
+    }
+    return githubDetector.getCanonicalPRDiffUrl();
+  }
+
+  /**
    * Get current platform
    * @returns {string|null} Current platform ('gitlab', 'github', or 'azure-devops')
    */

@@ -147,13 +147,26 @@ function isGitLabMRPage() {
  * @returns {string} Patch URL
  */
 function getPatchUrl() {
-  let url = window.location.href;
-  
-  // GitHub uses .diff, GitLab uses .patch
-  const extension = platformDetector && platformDetector.isOnGitHubPRPage() ? '.diff' : '.patch';
+  // GitHub: normalize to canonical PR diff URL so suffix views like /files or /commits still work
+  if (platformDetector && platformDetector.isOnGitHubPRPage()) {
+    const githubDiffUrl = platformDetector.getGitHubPRDiffUrl && platformDetector.getGitHubPRDiffUrl();
+    if (githubDiffUrl) {
+      return githubDiffUrl;
+    }
+    // Fallback: legacy behavior for safety
+    let legacyUrl = window.location.href.replace(/[#?].*$/, '');
+    if (!legacyUrl.endsWith('.diff')) {
+      legacyUrl += '.diff';
+    }
+    return legacyUrl;
+  }
+
+  // GitLab and others: keep existing .patch behavior
+  let url = window.location.href.replace(/[#?].*$/, '');
+  const extension = '.patch';
   
   if (!url.endsWith(extension)) {
-    url = url.replace(/[#?].*$/, '') + extension;
+    url += extension;
   }
   return url;
 }
