@@ -10,6 +10,44 @@ const DEBUG = true;
 function dbgLog(...args) { if (DEBUG) console.log('[GitLabSuggestionInjector]', ...args); }
 function dbgWarn(...args) { if (DEBUG) console.warn('[GitLabSuggestionInjector]', ...args); }
 
+// Import copy button utility
+let copyButtonUtils = null;
+async function loadCopyButtonUtils() {
+  if (!copyButtonUtils) {
+    const module = await import('../components/utils/item-copy-button.js');
+    copyButtonUtils = {
+      createCopyButton: module.createCopyButton,
+      showCopySuccessFeedback: (button) => {
+        const originalHTML = button.innerHTML;
+        button.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
+          </svg>
+        `;
+        button.style.color = '#4ade80';
+        setTimeout(() => {
+          button.innerHTML = originalHTML;
+          button.style.color = '';
+        }, 2000);
+      },
+      showCopyErrorFeedback: (button) => {
+        const originalHTML = button.innerHTML;
+        button.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
+          </svg>
+        `;
+        button.style.color = '#ef4444';
+        setTimeout(() => {
+          button.innerHTML = originalHTML;
+          button.style.color = '';
+        }, 2000);
+      }
+    };
+  }
+  return copyButtonUtils;
+}
+
 /**
  * Parse patch content to build a mapping of file paths to line number ranges
  * @param {string} patchContent - The git patch/diff content
@@ -740,24 +778,45 @@ function findGitLabDiffLine(filePath, lineNumber) {
 /**
  * Create a GitLab suggestion block format
  * @param {Object} suggestion - The code suggestion object
+ * @param {string} suggestion.filePath
+ * @param {number} suggestion.startLine - Start line for the suggested change (new file)
+ * @param {number} [suggestion.endLine] - End line for the suggested change (new file)
+ * @param {string} suggestion.suggestedCode
  * @returns {string} - Formatted suggestion block
  */
 function createSuggestionBlock(suggestion) {
-  // Format as GitLab suggestion block
-  // The format is: ```suggestion:-0+0\ncode\n```
-  // For now, we'll use -0+0 (no lines removed, no lines added)
-  // This may need adjustment based on the actual diff context
+  const startLine = typeof suggestion.startLine === 'number' ? suggestion.startLine : undefined;
+  const endLine = typeof suggestion.endLine === 'number' && suggestion.endLine >= startLine
+    ? suggestion.endLine
+    : startLine;
+
   const code = suggestion.suggestedCode || '';
-  return `\`\`\`suggestion:-0+0\n${code}\n\`\`\``;
+
+  // Optionally embed the range as a comment header inside the suggestion block for clarity
+  const rangeHeader = (startLine && endLine)
+    ? `// ${suggestion.filePath || ''} [lines ${startLine}${endLine !== startLine ? '–' + endLine : ''}]\n`
+    : '';
+
+  // GitLab suggestion syntax; we still use -0+0 because the extension is just
+  // generating a copy-pastable suggestion block, not applying it automatically.
+  return `\`\`\`suggestion:-0+0\n${rangeHeader}${code}\n\`\`\``;
 }
 
 /**
  * Inject a suggestion into GitLab's diff view
- * @param {Object} suggestion - The code suggestion object with filePath, lineNumber, suggestedCode
- * @returns {boolean} - True if injection was successful
+ * @param {Object} suggestion - The code suggestion object with filePath, startLine/endLine, suggestedCode
+ * @returns {Promise<boolean>} - Promise that resolves to true if injection was successful
  */
-function injectSuggestionIntoLine(suggestion) {
-  const { filePath, lineNumber } = suggestion;
+async function injectSuggestionIntoLine(suggestion) {
+  const { filePath } = suggestion;
+
+  // Use startLine as the anchor for the diff
+  const lineNumber = typeof suggestion.startLine === 'number' ? suggestion.startLine : null;
+  
+  if (!lineNumber) {
+    dbgWarn(`Could not inject suggestion for ${filePath} - missing startLine`);
+    return false;
+  }
   
   const lineElement = findGitLabDiffLine(filePath, lineNumber);
   if (!lineElement) {
@@ -855,6 +914,22 @@ function injectSuggestionIntoLine(suggestion) {
   const suggestionElement = document.createElement('div');
   suggestionElement.className = 'thinkreview-code-suggestion';
   suggestionElement.style.marginTop = '4px';
+
+  // If we have a range, show it as metadata
+  if (typeof suggestion.startLine === 'number') {
+    const meta = document.createElement('div');
+    meta.className = 'thinkreview-suggestion-meta';
+    meta.style.fontSize = '11px';
+    meta.style.color = '#888';
+
+    const start = suggestion.startLine;
+    const end = typeof suggestion.endLine === 'number' && suggestion.endLine >= start
+      ? suggestion.endLine
+      : start;
+
+    meta.textContent = `Lines ${start}${end !== start ? '–' + end : ''}`;
+    suggestionElement.appendChild(meta);
+  }
   
   // Add description if available
   if (suggestion.description) {
@@ -880,6 +955,52 @@ function injectSuggestionIntoLine(suggestion) {
   const codeText = document.createTextNode(suggestion.suggestedCode);
   codeBlock.appendChild(codeText);
   suggestionElement.appendChild(codeBlock);
+
+  // Add copy button (description + code) - use utility from item-copy-button.js
+  const utils = await loadCopyButtonUtils();
+  const copyButton = utils.createCopyButton();
+  copyButton.title = 'Copy description + code';
+  copyButton.style.marginTop = '6px';
+  copyButton.style.marginRight = '8px';
+  
+  copyButton.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const lines = [];
+
+    if (suggestion.description) {
+      lines.push(`Description: ${suggestion.description}`);
+    }
+
+    if (typeof suggestion.startLine === 'number') {
+      const start = suggestion.startLine;
+      const end = typeof suggestion.endLine === 'number' && suggestion.endLine >= start
+        ? suggestion.endLine
+        : start;
+      const file = suggestion.filePath || '';
+      lines.push(`Location: ${file} (lines ${start}${end !== start ? '–' + end : ''})`);
+    }
+
+    if (suggestion.suggestedCode) {
+      lines.push('');
+      lines.push('Suggested code:');
+      lines.push(suggestion.suggestedCode);
+    }
+
+    const textToCopy = lines.join('\n');
+
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      dbgLog('Copied suggestion description + code to clipboard');
+      utils.showCopySuccessFeedback(copyButton);
+    } catch (err) {
+      dbgWarn('Failed to copy suggestion to clipboard', err);
+      utils.showCopyErrorFeedback(copyButton);
+    }
+  });
+
+  suggestionElement.appendChild(copyButton);
 
   // Add suggestion block format (for copy-paste into GitLab)
   const suggestionBlock = createSuggestionBlock(suggestion);
@@ -1042,13 +1163,15 @@ export async function injectCodeSuggestions(suggestions, patchContent) {
   let failedCount = 0;
 
   for (const suggestion of suggestions) {
-    if (!suggestion.filePath || !suggestion.lineNumber || !suggestion.suggestedCode) {
-      dbgWarn('Invalid suggestion object:', suggestion);
+    const hasStart = typeof suggestion.startLine === 'number' && suggestion.startLine >= 1;
+
+    if (!suggestion.filePath || !hasStart || !suggestion.suggestedCode) {
+      dbgWarn('Invalid suggestion object (must have filePath, startLine, and suggestedCode):', suggestion);
       failedCount++;
       continue;
     }
 
-    const success = injectSuggestionIntoLine(suggestion);
+    const success = await injectSuggestionIntoLine(suggestion);
     if (success) {
       successCount++;
     } else {
