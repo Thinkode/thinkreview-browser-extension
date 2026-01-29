@@ -969,30 +969,35 @@ async function injectSuggestionIntoLine(suggestion) {
     
     const lines = [];
 
+    // Add description if available
     if (suggestion.description) {
-      lines.push(`Description: ${suggestion.description}`);
+      lines.push(suggestion.description);
     }
 
-    if (typeof suggestion.startLine === 'number') {
-      const start = suggestion.startLine;
+    // Add GitLab suggestion block
+    if (suggestion.suggestedCode) {
+      const start = typeof suggestion.startLine === 'number' ? suggestion.startLine : 0;
       const end = typeof suggestion.endLine === 'number' && suggestion.endLine >= start
         ? suggestion.endLine
         : start;
-      const file = suggestion.filePath || '';
-      lines.push(`Location: ${file} (lines ${start}${end !== start ? '–' + end : ''})`);
-    }
-
-    if (suggestion.suggestedCode) {
+      
+      // Calculate lines to remove (old code) and lines to add (new code)
+      const linesToRemove = end - start + 1; // Number of lines being replaced
+      const suggestedCodeLines = suggestion.suggestedCode.split('\n');
+      const linesToAdd = suggestedCodeLines.length;
+      
+      // Format as GitLab suggestion block
       lines.push('');
-      lines.push('Suggested code:');
+      lines.push(`\`\`\`suggestion:-${linesToRemove}+${linesToAdd}`);
       lines.push(suggestion.suggestedCode);
+      lines.push('```');
     }
 
     const textToCopy = lines.join('\n');
 
     try {
       await navigator.clipboard.writeText(textToCopy);
-      dbgLog('Copied suggestion description + code to clipboard');
+      dbgLog('Copied suggestion in GitLab format to clipboard');
       utils.showCopySuccessFeedback(copyButton);
     } catch (err) {
       dbgWarn('Failed to copy suggestion to clipboard', err);
