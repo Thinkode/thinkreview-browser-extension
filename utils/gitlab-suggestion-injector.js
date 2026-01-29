@@ -959,7 +959,7 @@ async function injectSuggestionIntoLine(suggestion) {
   // Add copy button (description + code) - use utility from item-copy-button.js
   const utils = await loadCopyButtonUtils();
   const copyButton = utils.createCopyButton();
-  copyButton.title = 'Copy description + code';
+  copyButton.title = 'Copy code suggestion';
   copyButton.style.marginTop = '6px';
   copyButton.style.marginRight = '8px';
   
@@ -1006,30 +1006,6 @@ async function injectSuggestionIntoLine(suggestion) {
   });
 
   suggestionElement.appendChild(copyButton);
-
-  // Add suggestion block format (for copy-paste into GitLab)
-  const suggestionBlock = createSuggestionBlock(suggestion);
-  const blockElement = document.createElement('details');
-  blockElement.style.marginTop = '8px';
-  
-  const summary = document.createElement('summary');
-  summary.textContent = 'Copy GitLab suggestion format';
-  summary.style.cursor = 'pointer';
-  summary.style.fontSize = '12px';
-  summary.style.color = '#6b4fbb';
-  
-  const blockPre = document.createElement('pre');
-  blockPre.style.marginTop = '8px';
-  blockPre.style.padding = '8px';
-  blockPre.style.backgroundColor = '#f4f4f4';
-  blockPre.style.borderRadius = '4px';
-  blockPre.style.overflow = 'auto';
-  blockPre.style.fontSize = '11px';
-  blockPre.textContent = suggestionBlock;
-  
-  blockElement.appendChild(summary);
-  blockElement.appendChild(blockPre);
-  suggestionElement.appendChild(blockElement);
 
   commentArea.appendChild(suggestionElement);
   
