@@ -976,19 +976,14 @@ async function injectSuggestionIntoLine(suggestion) {
 
     // Add GitLab suggestion block
     if (suggestion.suggestedCode) {
-      const start = typeof suggestion.startLine === 'number' ? suggestion.startLine : 0;
-      const end = typeof suggestion.endLine === 'number' && suggestion.endLine >= start
-        ? suggestion.endLine
-        : start;
-      
-      // Calculate lines to remove (old code) and lines to add (new code)
-      const linesToRemove = end - start + 1; // Number of lines being replaced
+      // Always use -0+X format where X is (number of lines in suggested code - 1), but never below 0
       const suggestedCodeLines = suggestion.suggestedCode.split('\n');
-      const linesToAdd = suggestedCodeLines.length;
+      const rawLinesToAdd = suggestedCodeLines.length;
+      const linesToAdd = Math.max(0, rawLinesToAdd - 1);
       
       // Format as GitLab suggestion block
       lines.push('');
-      lines.push(`\`\`\`suggestion:-${linesToRemove}+${linesToAdd}`);
+      lines.push(`\`\`\`suggestion:-0+${linesToAdd}`);
       lines.push(suggestion.suggestedCode);
       lines.push('```');
     }
