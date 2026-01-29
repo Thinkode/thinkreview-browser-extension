@@ -720,6 +720,20 @@ function findGitLabDiffLine(filePath, lineNumber) {
     // Note: line element data attributes already checked at the start of the loop
   }
 
+  // If we reached here, we have a file container but no structured line elements
+  // (e.g. some GitLab views for files like Dockerfile may not expose per-line DOM).
+  // In that case, fall back to injecting against the main content block of the file.
+  if (allLines.length === 0) {
+    dbgWarn(
+      `No structured line elements found for ${filePath}; falling back to main content block for line ${lineNumber}`
+    );
+    const fallbackContent =
+      targetFileContainer.querySelector(
+        '.file-content, .diff-viewer, pre, code, .blob-content, .diff-td, .line_content'
+      ) || targetFileContainer;
+    return fallbackContent;
+  }
+
   dbgWarn(`Could not find line element for ${filePath}:${lineNumber}`);
   // Log some sample lines for debugging
   if (allLines.length > 0) {
@@ -811,16 +825,52 @@ async function injectSuggestionIntoLine(suggestion) {
   const { filePath } = suggestion;
 
   // Use startLine as the anchor for the diff
-  const lineNumber = typeof suggestion.startLine === 'number' ? suggestion.startLine : null;
+  const requestedLineNumber = typeof suggestion.startLine === 'number' ? suggestion.startLine : null;
   
-  if (!lineNumber) {
+  if (!requestedLineNumber) {
     dbgWarn(`Could not inject suggestion for ${filePath} - missing startLine`);
     return false;
   }
-  
-  const lineElement = findGitLabDiffLine(filePath, lineNumber);
+
+  dbgLog(
+    `[Inject] Preparing to inject suggestion for ${filePath} at requested line ${requestedLineNumber}`
+  );
+
+  // Try to find the exact line first
+  let anchorLineNumber = requestedLineNumber;
+  let lineElement = findGitLabDiffLine(filePath, anchorLineNumber);
+
+  // If exact line isn't found, try a few lines before as a fallback anchor
   if (!lineElement) {
-    dbgWarn(`Could not inject suggestion for ${filePath}:${lineNumber} - line not found`);
+    dbgLog(
+      `[Inject] Exact line not found for ${filePath}:${requestedLineNumber}, trying backoff to earlier lines`
+    );
+
+    const MAX_BACKOFF = 5;
+    for (let offset = 1; offset <= MAX_BACKOFF; offset++) {
+      const candidateLine = requestedLineNumber - offset;
+      if (candidateLine < 1) break;
+
+      dbgLog(
+        `[Inject] Backoff attempt offset=${offset}, candidateLine=${candidateLine} for ${filePath}`
+      );
+
+      const candidateElement = findGitLabDiffLine(filePath, candidateLine);
+      if (candidateElement) {
+        dbgLog(
+          `Falling back to line ${candidateLine} (requested ${requestedLineNumber}) for injection in ${filePath}`
+        );
+        anchorLineNumber = candidateLine;
+        lineElement = candidateElement;
+        break;
+      }
+    }
+  }
+
+  if (!lineElement) {
+    dbgWarn(
+      `Could not inject suggestion for ${filePath}:${requestedLineNumber} - no suitable anchor line found (exact or backoff)`
+    );
     return false;
   }
 
@@ -847,7 +897,7 @@ async function injectSuggestionIntoLine(suggestion) {
   // Check if targetElement is a line_content div
   if (targetElement.classList.contains('line_content') || targetElement.classList.contains('diff-td')) {
     // Find the parent line_holder to insert after
-    const lineHolder = targetElement.closest('.line_holder, .diff-grid-row, [id*="_' + lineNumber + '"]');
+    const lineHolder = targetElement.closest('.line_holder, .diff-grid-row, [id*="_' + anchorLineNumber + '"]');
     
     if (lineHolder) {
       // Create suggestion area after the line_holder
@@ -915,7 +965,7 @@ async function injectSuggestionIntoLine(suggestion) {
   suggestionElement.className = 'thinkreview-code-suggestion';
   suggestionElement.style.marginTop = '4px';
 
-  // If we have a range, show it as metadata
+  // If we have a range, show it as metadata (file name + line range)
   if (typeof suggestion.startLine === 'number') {
     const meta = document.createElement('div');
     meta.className = 'thinkreview-suggestion-meta';
@@ -927,7 +977,8 @@ async function injectSuggestionIntoLine(suggestion) {
       ? suggestion.endLine
       : start;
 
-    meta.textContent = `Lines ${start}${end !== start ? '–' + end : ''}`;
+    const fileLabel = suggestion.filePath || 'Unknown file';
+    meta.textContent = `${fileLabel} — lines ${start}${end !== start ? '–' + end : ''}`;
     suggestionElement.appendChild(meta);
   }
   
@@ -1004,7 +1055,7 @@ async function injectSuggestionIntoLine(suggestion) {
 
   commentArea.appendChild(suggestionElement);
   
-  dbgLog(`Successfully injected suggestion for ${filePath}:${lineNumber}`);
+  dbgLog(`Successfully injected suggestion for ${filePath}:${anchorLineNumber} (requested ${requestedLineNumber})`);
   return true;
 }
 
