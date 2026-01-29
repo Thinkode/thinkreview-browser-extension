@@ -960,52 +960,9 @@ async function injectSuggestionIntoLine(suggestion) {
     }
   }
 
-  // Create suggestion element
-  const suggestionElement = document.createElement('div');
-  suggestionElement.className = 'thinkreview-code-suggestion';
-  suggestionElement.style.marginTop = '4px';
-
-  // If we have a range, show it as metadata (file name + line range)
-  if (typeof suggestion.startLine === 'number') {
-    const meta = document.createElement('div');
-    meta.className = 'thinkreview-suggestion-meta';
-    meta.style.fontSize = '11px';
-    meta.style.color = '#888';
-
-    const start = suggestion.startLine;
-    const end = typeof suggestion.endLine === 'number' && suggestion.endLine >= start
-      ? suggestion.endLine
-      : start;
-
-    const fileLabel = suggestion.filePath || 'Unknown file';
-    meta.textContent = `${fileLabel} — lines ${start}${end !== start ? '–' + end : ''}`;
-    suggestionElement.appendChild(meta);
-  }
-  
-  // Add description if available
-  if (suggestion.description) {
-    const descElement = document.createElement('div');
-    descElement.className = 'thinkreview-suggestion-description';
-    descElement.style.marginBottom = '8px';
-    descElement.style.fontSize = '13px';
-    descElement.style.color = '#666';
-    descElement.textContent = suggestion.description;
-    suggestionElement.appendChild(descElement);
-  }
-
-  // Add code block
-  const codeBlock = document.createElement('pre');
-  codeBlock.className = 'thinkreview-suggestion-code';
-  codeBlock.style.backgroundColor = '#f4f4f4';
-  codeBlock.style.padding = '8px';
-  codeBlock.style.borderRadius = '4px';
-  codeBlock.style.overflow = 'auto';
-  codeBlock.style.fontSize = '12px';
-  codeBlock.style.fontFamily = 'monospace';
-  
-  const codeText = document.createTextNode(suggestion.suggestedCode);
-  codeBlock.appendChild(codeText);
-  suggestionElement.appendChild(codeBlock);
+  // Create suggestion element using shared UI utility
+  const suggestionUiModule = await import('../components/utils/code-suggestion-element.js');
+  const suggestionElement = suggestionUiModule.createCodeSuggestionElement(suggestion);
 
   // Add copy button (description + code) - use utility from item-copy-button.js
   const utils = await loadCopyButtonUtils();
