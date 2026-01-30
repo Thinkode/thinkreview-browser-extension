@@ -1,10 +1,8 @@
 // azure-devops-detector.js
 // Detects Azure DevOps pull request pages and extracts relevant information
+import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[Azure DevOps Detector]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[Azure DevOps Detector]', ...args); }
+
 
 /**
  * Azure DevOps Detector Service

@@ -10,9 +10,25 @@
   
   // Debug toggle: set to false to disable console logs in production
   const DEBUG = false;
-  function dbgLog(...args) { if (DEBUG) console.log(...args); }
-  function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
-  function dbgError(...args) { if (DEBUG) console.error(...args); }
+  
+  // Logger functions - loaded dynamically to avoid module import issues in content scripts
+  // Provide fallback functions immediately, then upgrade when logger loads
+  // Check if variables already exist to avoid redeclaration errors (though IIFE should prevent this)
+  var dbgLog = (...args) => { if (DEBUG) console.log('[ThinkReview Extension]', ...args); };
+  var dbgWarn = (...args) => { if (DEBUG) console.warn('[ThinkReview Extension]', ...args); };
+  var dbgError = (...args) => { if (DEBUG) console.error('[ThinkReview Extension]', ...args); };
+  
+  // Initialize logger functions with dynamic import
+  (async () => {
+    try {
+      const loggerModule = await import(chrome.runtime.getURL('utils/logger.js'));
+      dbgLog = loggerModule.dbgLog;
+      dbgWarn = loggerModule.dbgWarn;
+      dbgError = loggerModule.dbgError;
+    } catch (error) {
+      console.warn('[ThinkReview Extension] Failed to load logger module, using console fallback:', error);
+    }
+  })();
   
   // Origin validation - imported from utils/origin-validator.js
   // Using dynamic import since content scripts can't use static ES6 imports

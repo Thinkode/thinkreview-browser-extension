@@ -1,7 +1,5 @@
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[OllamaService]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[OllamaService]', ...args); }
+import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
+
 
 /**
  * Ollama Service for ThinkReview

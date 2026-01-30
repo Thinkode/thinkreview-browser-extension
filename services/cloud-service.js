@@ -1,7 +1,5 @@
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log(...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
+import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
+
 
 // Cloud function URLs
 const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net';

@@ -1,7 +1,5 @@
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[GoogleSignIn]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[GoogleSignIn]', ...args); }
+import { dbgLog, dbgWarn, dbgError } from '../../utils/logger.js';
+
 
 // We'll use the CloudService dynamically
 let CloudService = null;

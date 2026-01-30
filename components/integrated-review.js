@@ -1,13 +1,38 @@
 // integrated-review.js
 // Component for displaying code review results directly in GitLab MR page
 // Debug toggle: set to false to disable console logs in production
+// Check if DEBUG already exists to avoid conflicts
+if (typeof DEBUG === 'undefined') {
+  var DEBUG = false;
+}
 
-// Debug toggle: set to false to disable console logs in production
-var DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log(...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
+// Logger functions - loaded dynamically to avoid module import issues in content scripts
+// Provide fallback functions immediately, then upgrade when logger loads
+// Check if variables already exist to avoid redeclaration errors
+if (typeof dbgLog === 'undefined') {
+  var dbgLog = (...args) => { if (DEBUG) console.log('[IntegratedReview]', ...args); };
+}
+if (typeof dbgWarn === 'undefined') {
+  var dbgWarn = (...args) => { if (DEBUG) console.warn('[IntegratedReview]', ...args); };
+}
+if (typeof dbgError === 'undefined') {
+  var dbgError = (...args) => { if (DEBUG) console.error('[IntegratedReview]', ...args); };
+}
 
-
+// Initialize logger functions with dynamic import
+(async () => {
+  try {
+    // Use chrome.runtime.getURL for content scripts (same pattern as other dynamic imports)
+    const loggerModule = await import(chrome.runtime.getURL('utils/logger.js'));
+    // Upgrade to use the real logger functions
+    dbgLog = loggerModule.dbgLog;
+    dbgWarn = loggerModule.dbgWarn;
+    dbgError = loggerModule.dbgError;
+  } catch (error) {
+    // Keep using fallback functions if logger fails to load
+    console.warn('[IntegratedReview] Failed to load logger module, using console fallback:', error);
+  }
+})();
 // Import the CSS for the integrated review panel
 const cssURL = chrome.runtime.getURL('components/integrated-review.css');
 const linkElement = document.createElement('link');

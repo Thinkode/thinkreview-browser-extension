@@ -1,10 +1,8 @@
 // subscription.js
 // Handles subscription upgrade functionality for GitLab MR Reviews
+import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[subscription]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[subscription]', ...args); }
+
 
 /**
  * Subscription component for handling upgrade functionality

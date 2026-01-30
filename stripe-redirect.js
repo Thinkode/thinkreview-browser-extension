@@ -1,7 +1,5 @@
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[stripe-redirect]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[stripe-redirect]', ...args); }
+import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+
 
 document.addEventListener('DOMContentLoaded', function() {
   // Get the session ID from the URL query parameter

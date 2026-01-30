@@ -1,10 +1,8 @@
+import { dbgLog, dbgWarn, dbgError } from '../../utils/logger.js';
 /**
  * Review Prompt Component
  * Modular component for handling user feedback prompts after generating reviews
  */
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[popup]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[popup]', ...args); }
 // Configuration
 const REVIEW_PROMPT_CONFIG = {
   threshold: 5, // Show prompt after 5 daily reviews

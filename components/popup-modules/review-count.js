@@ -1,10 +1,8 @@
 // review-count.js
 // Module for handling review count display in the popup
+import { dbgLog, dbgWarn, dbgError } from '../../utils/logger.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[review-count]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[review-count]', ...args); }
+
 
 /**
  * Review Count Module

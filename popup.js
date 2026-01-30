@@ -5,10 +5,7 @@
 import { subscriptionStatus } from './components/popup-modules/subscription-status.js';
 import { reviewCount } from './components/popup-modules/review-count.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[popup]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[popup]', ...args); }
+import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 
 // State management
 let isInitialized = false;
