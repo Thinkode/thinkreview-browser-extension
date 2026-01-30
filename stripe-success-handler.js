@@ -1,7 +1,5 @@
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[stripe-success-handler]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[stripe-success-handler]', ...args); }
+import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+
 
 /**
  * Listens for messages from the background script

@@ -1,14 +1,12 @@
 // platform-detector.js
 // Unified platform detector for GitLab, GitHub, and Azure DevOps
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[Platform Detector]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[Platform Detector]', ...args); }
+
 
 import { azureDevOpsDetector } from './azure-devops-detector.js';
 import { githubDetector } from './github-detector.js';
 
+import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 /**
  * Platform Detector Service
  * Detects whether the current page is GitLab MR, GitHub PR, or Azure DevOps PR

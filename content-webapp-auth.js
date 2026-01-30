@@ -10,9 +10,25 @@
   
   // Debug toggle: set to false to disable console logs in production
   const DEBUG = false;
-  function dbgLog(...args) { if (DEBUG) console.log(...args); }
-  function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
-  function dbgError(...args) { if (DEBUG) console.error(...args); }
+  
+  // Logger functions - loaded dynamically to avoid module import issues in content scripts
+  // Provide fallback functions immediately, then upgrade when logger loads
+  // Check if variables already exist to avoid redeclaration errors (though IIFE should prevent this)
+  var dbgLog = (...args) => { if (DEBUG) console.log('[ThinkReview Extension]', ...args); };
+  var dbgWarn = (...args) => { if (DEBUG) console.warn('[ThinkReview Extension]', ...args); };
+  var dbgError = (...args) => { if (DEBUG) console.error('[ThinkReview Extension]', ...args); };
+  
+  // Initialize logger functions with dynamic import
+  (async () => {
+    try {
+      const loggerModule = await import(chrome.runtime.getURL('utils/logger.js'));
+      dbgLog = loggerModule.dbgLog;
+      dbgWarn = loggerModule.dbgWarn;
+      dbgError = loggerModule.dbgError;
+    } catch (error) {
+      dbgWarn('[ThinkReview Extension] Failed to load logger module, using console fallback:', error);
+    }
+  })();
   
   // Origin validation - imported from utils/origin-validator.js
   // Using dynamic import since content scripts can't use static ES6 imports
@@ -40,11 +56,11 @@
     const isAllowedOrigin = isValidOrigin(currentOrigin, DEBUG);
   
     if (!isAllowedOrigin) {
-      console.warn('[ThinkReview Extension] Content script loaded on unauthorized domain:', currentOrigin);
+      dbgWarn('[ThinkReview Extension] Content script loaded on unauthorized domain:', currentOrigin);
       return; // Don't run on wrong domain
     }
   
-    console.log('[ThinkReview Extension] Webapp auth content script loaded on:', currentOrigin);
+    dbgLog('[ThinkReview Extension] Webapp auth content script loaded on:', currentOrigin);
   
     // Maximum age for auth data (5 minutes)
     const MAX_AUTH_AGE = 5 * 60 * 1000;
@@ -65,13 +81,13 @@
     function sendAuthToExtension(userData, timestamp) {
       // SECURITY: Validate data before sending
       if (!validateUserData(userData)) {
-        console.warn('[ThinkReview Extension] Invalid user data structure:', userData);
+        dbgWarn('[ThinkReview Extension] Invalid user data structure:', userData);
         return;
       }
       
       // SECURITY: Check timestamp freshness
       if (timestamp && (Date.now() - timestamp > MAX_AUTH_AGE)) {
-        console.warn('[ThinkReview Extension] Auth data is stale, ignoring');
+        dbgWarn('[ThinkReview Extension] Auth data is stale, ignoring');
         return;
       }
       
@@ -83,9 +99,9 @@
           origin: window.location.origin
         }, (response) => {
           if (chrome.runtime.lastError) {
-            console.warn('[ThinkReview Extension] Failed to send auth message:', chrome.runtime.lastError);
+            dbgWarn('[ThinkReview Extension] Failed to send auth message:', chrome.runtime.lastError);
           } else if (response && response.success) {
-            console.log('[ThinkReview Extension] Auth state synced to extension');
+            dbgLog('[ThinkReview Extension] Auth state synced to extension');
           }
         });
       } catch (error) {
@@ -95,7 +111,7 @@
   
     // Listen for custom events from webapp (login only)
     window.addEventListener('thinkreview-auth-changed', (event) => {
-      console.log('[ThinkReview Extension] Received auth-changed event:', event.detail);
+      dbgLog('[ThinkReview Extension] Received auth-changed event:', event.detail);
       
       // Only handle login events, ignore logout (event.detail === null)
       if (event.detail !== null) {
@@ -136,7 +152,7 @@
       }
       
       if (event.data && event.data.type === 'thinkreview-auth-state') {
-        console.log('[ThinkReview Extension] Received auth state via postMessage:', event.data);
+        dbgLog('[ThinkReview Extension] Received auth state via postMessage:', event.data);
         
         // Only handle login events, ignore logout (event.data.userData === null)
         if (event.data.userData !== null) {
@@ -146,7 +162,7 @@
       }
     });
   
-    console.log('[ThinkReview Extension] Webapp auth listener initialized');
+    dbgLog('[ThinkReview Extension] Webapp auth listener initialized');
   }
 })();
 

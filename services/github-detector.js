@@ -1,10 +1,8 @@
 // github-detector.js
 // Detects GitHub pull request pages and extracts relevant information
+import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[GitHub Detector]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[GitHub Detector]', ...args); }
+
 
 /**
  * GitHub Detector Service

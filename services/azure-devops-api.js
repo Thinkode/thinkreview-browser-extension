@@ -1,10 +1,8 @@
 // azure-devops-api.js
 // Azure DevOps API service for fetching pull request data and code changes
+import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[Azure DevOps API]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[Azure DevOps API]', ...args); }
+
 
 /**
  * Custom error class for Azure DevOps authentication failures

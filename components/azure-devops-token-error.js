@@ -1,10 +1,8 @@
 // azure-devops-token-error.js
 // Module for displaying Azure DevOps token configuration error with helpful UI
+import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[Azure DevOps Token Error]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[Azure DevOps Token Error]', ...args); }
+
 
 /**
  * Shows Azure DevOps token configuration error with helpful UI

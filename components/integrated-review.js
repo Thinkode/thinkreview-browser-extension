@@ -1,13 +1,38 @@
 // integrated-review.js
 // Component for displaying code review results directly in GitLab MR page
 // Debug toggle: set to false to disable console logs in production
+// Check if DEBUG already exists to avoid conflicts
+if (typeof DEBUG === 'undefined') {
+  var DEBUG = false;
+}
 
-// Debug toggle: set to false to disable console logs in production
-var DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log(...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
+// Logger functions - loaded dynamically to avoid module import issues in content scripts
+// Provide fallback functions immediately, then upgrade when logger loads
+// Check if variables already exist to avoid redeclaration errors
+if (typeof dbgLog === 'undefined') {
+  var dbgLog = (...args) => { if (DEBUG) console.log('[IntegratedReview]', ...args); };
+}
+if (typeof dbgWarn === 'undefined') {
+  var dbgWarn = (...args) => { if (DEBUG) console.warn('[IntegratedReview]', ...args); };
+}
+if (typeof dbgError === 'undefined') {
+  var dbgError = (...args) => { if (DEBUG) console.error('[IntegratedReview]', ...args); };
+}
 
-
+// Initialize logger functions with dynamic import
+(async () => {
+  try {
+    // Use chrome.runtime.getURL for content scripts (same pattern as other dynamic imports)
+    const loggerModule = await import(chrome.runtime.getURL('utils/logger.js'));
+    // Upgrade to use the real logger functions
+    dbgLog = loggerModule.dbgLog;
+    dbgWarn = loggerModule.dbgWarn;
+    dbgError = loggerModule.dbgError;
+  } catch (error) {
+    // Keep using fallback functions if logger fails to load
+    dbgWarn('[IntegratedReview] Failed to load logger module, using console fallback:', error);
+  }
+})();
 // Import the CSS for the integrated review panel
 const cssURL = chrome.runtime.getURL('components/integrated-review.css');
 const linkElement = document.createElement('link');
@@ -1130,7 +1155,11 @@ async function handleSendMessage(messageText) {
     // Extract the response text with fallback handling
     // Handle the nested response structure: { status: "success", review: { response: "..." } }
     const responseText = aiResponse.review?.response || aiResponse.response || aiResponse.content || aiResponse;
-    dbgLog('[IntegratedReview] Response text to display:', responseText);
+    // Log only metadata, not the actual response text
+    dbgLog('[IntegratedReview] Response text extracted:', {
+      hasResponse: !!responseText,
+      responseLength: responseText?.length || 0
+    });
     
     // Store raw response text for feedback querying (use original response before markdown processing)
     const rawResponseText = responseText;
@@ -1623,7 +1652,11 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
         });
         
         if (refreshResponse.status === 'success') {
-          dbgLog('[IntegratedReview] User data refreshed before feedback check:', refreshResponse.data);
+          // Log only metadata, not full user data which may contain email
+          dbgLog('[IntegratedReview] User data refreshed before feedback check:', {
+            hasEmail: !!refreshResponse.data?.email,
+            todayReviewCount: refreshResponse.data?.todayReviewCount
+          });
         } else {
           dbgWarn('[IntegratedReview] Failed to refresh user data:', refreshResponse.error);
         }

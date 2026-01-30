@@ -1,13 +1,11 @@
 // azure-devops-fetcher.js
 // Azure DevOps code fetcher that retrieves and formats code changes for AI review
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[Azure DevOps Fetcher]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[Azure DevOps Fetcher]', ...args); }
+
 
 import { azureDevOpsAPI } from './azure-devops-api.js';
 
+import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 /**
  * Azure DevOps Code Fetcher
  * Handles fetching and formatting code changes from Azure DevOps pull requests

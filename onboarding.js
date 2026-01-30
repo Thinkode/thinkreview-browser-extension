@@ -1,10 +1,8 @@
 // onboarding.js
 // Handles onboarding page functionality for ThinkReview extension
+import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[onboarding]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[onboarding]', ...args); }
+
 
 dbgLog('Onboarding page loaded');
 
