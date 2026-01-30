@@ -822,7 +822,11 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
 
         dbgLog('[Code Review Extension] Azure token found, getting PR info');
         const prInfo = platformDetector.detectPlatform().pageInfo;
-        dbgLog('[Code Review Extension] PR info:', prInfo);
+        // Log only metadata, not full PR info which may contain sensitive details
+        dbgLog('[Code Review Extension] PR info retrieved:', {
+          hasPrId: !!prInfo?.prId,
+          hasPrUrl: !!prInfo?.prUrl
+        });
         
         try {
           dbgLog('[Code Review Extension] Initializing Azure DevOps fetcher');
@@ -933,7 +937,12 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     }
 
     const data = bgResponse.data;
-    dbgLog('[Code Review Extension] Code review completed successfully:', data);
+    // Log only metadata, not the actual review content
+    dbgLog('[Code Review Extension] Code review completed successfully:', {
+      status: data?.status,
+      hasReview: !!data?.review,
+      reviewLength: data?.review?.response?.length || 0
+    });
     
     if (!data || data.status !== 'success' || !data.review) {
       throw new Error('Invalid response from code review service');

@@ -1155,7 +1155,11 @@ async function handleSendMessage(messageText) {
     // Extract the response text with fallback handling
     // Handle the nested response structure: { status: "success", review: { response: "..." } }
     const responseText = aiResponse.review?.response || aiResponse.response || aiResponse.content || aiResponse;
-    dbgLog('[IntegratedReview] Response text to display:', responseText);
+    // Log only metadata, not the actual response text
+    dbgLog('[IntegratedReview] Response text extracted:', {
+      hasResponse: !!responseText,
+      responseLength: responseText?.length || 0
+    });
     
     // Store raw response text for feedback querying (use original response before markdown processing)
     const rawResponseText = responseText;
@@ -1648,7 +1652,11 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
         });
         
         if (refreshResponse.status === 'success') {
-          dbgLog('[IntegratedReview] User data refreshed before feedback check:', refreshResponse.data);
+          // Log only metadata, not full user data which may contain email
+          dbgLog('[IntegratedReview] User data refreshed before feedback check:', {
+            hasEmail: !!refreshResponse.data?.email,
+            todayReviewCount: refreshResponse.data?.todayReviewCount
+          });
         } else {
           dbgWarn('[IntegratedReview] Failed to refresh user data:', refreshResponse.error);
         }

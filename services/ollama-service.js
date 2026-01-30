@@ -112,7 +112,11 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
       }
 
       const data = await response.json();
-      dbgLog('Ollama raw response:', data);
+      // Log only metadata, not the actual review response content
+      dbgLog('Ollama raw response received:', {
+        hasResponse: !!data?.response,
+        responseLength: data?.response?.length || 0
+      });
       
       // Parse the response (Ollama returns text in 'response' field)
       const reviewText = data.response;

@@ -335,7 +335,12 @@ export class CloudService {
       }
       
       const data = await response.json();
-      dbgLog('[CloudService] Code review completed successfully:', data);
+      // Log only metadata, not the actual review content
+      dbgLog('[CloudService] Code review completed successfully:', {
+        status: data?.status,
+        hasReview: !!data?.review,
+        reviewLength: data?.review?.response?.length || 0
+      });
       return data;
     } catch (error) {
       dbgWarn('[CloudService] Error reviewing code:', error);
@@ -467,7 +472,12 @@ export class CloudService {
       }
       
       const data = await response.json();
-      dbgLog('[CloudService] Conversational review completed successfully:', data);
+      // Log only metadata, not the actual response content
+      dbgLog('[CloudService] Conversational review completed successfully:', {
+        status: data?.status,
+        hasResponse: !!data?.response,
+        responseLength: data?.response?.length || 0
+      });
       return data;
     } catch (error) {
       dbgWarn('[CloudService] Error getting conversational review:', error);

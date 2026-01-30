@@ -172,7 +172,8 @@ async function trackOllamaReview(patchContent, mrId, mrUrl, reviewData, model) {
       return;
     }
     
-    dbgLog('[BG] Tracking Ollama review for email:', email);
+    // Log only that tracking occurred, not the email address
+    dbgLog('[BG] Tracking Ollama review');
     
     // Extract review object from response
     const review = reviewData.review || reviewData;
@@ -315,7 +316,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         // Default: Use cloud service (Gemini)
         const data = await CloudService.getConversationalResponse(patchContent, conversationHistory, mrId, mrUrl, language || 'English');
-        dbgLog('[GitLab MR Reviews][BG] Conversational response received:', data);
+        // Log only metadata, not the actual response content
+        dbgLog('[GitLab MR Reviews][BG] Conversational response received:', {
+          status: data?.status,
+          hasResponse: !!data?.response,
+          responseLength: data?.response?.length || 0
+        });
         
         sendResponse({ 
           success: true, 
@@ -517,7 +523,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     dbgLog('[GitLab MR Reviews][BG] Getting user data with subscription');
     CloudService.getUserDataWithSubscription()
       .then(userData => {
-        dbgLog('[GitLab MR Reviews][BG] User data retrieved:', userData);
+        // Log only metadata, not full user data which may contain email
+        dbgLog('[GitLab MR Reviews][BG] User data retrieved:', {
+          hasEmail: !!userData?.email,
+          todayReviewCount: userData?.todayReviewCount,
+          hasSubscription: !!userData?.subscription
+        });
         dbgLog('[GitLab MR Reviews][BG] Today review count:', userData.todayReviewCount);
         // Use consolidated subscriptionType field (fallback to stripeSubscriptionType for legacy support)
         const subscriptionType = userData.subscriptionType || userData.stripeSubscriptionType || 'Free';
@@ -561,7 +572,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     CloudService.refreshUserData()
       .then(userData => {
-        dbgLog('[GitLab MR Reviews][BG] User data refreshed from CloudService:', userData);
+        // Log only metadata, not full user data which may contain email
+        dbgLog('[GitLab MR Reviews][BG] User data refreshed from CloudService:', {
+          hasEmail: !!userData?.email,
+          todayReviewCount: userData?.todayReviewCount,
+          hasSubscription: !!userData?.subscription
+        });
         
         // Update chrome.storage.local with the data from CloudService
         chrome.storage.local.set(userData, () => {
@@ -679,7 +695,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           additionalFeedback
         );
         
-        dbgLog('[GitLab MR Reviews][BG] Feedback submitted successfully:', data);
+        // Log only success status, not the response data which may contain review content
+        dbgLog('[GitLab MR Reviews][BG] Feedback submitted successfully');
         sendResponse({ success: true, data: data });
       } catch (err) {
         dbgWarn('[GitLab MR Reviews][BG] Error submitting feedback:', err);
