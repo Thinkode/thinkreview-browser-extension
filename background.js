@@ -5,12 +5,9 @@
 import { CloudService } from './services/cloud-service.js';
 import { OllamaService } from './services/ollama-service.js';
 import { isValidOrigin } from './utils/origin-validator.js';
+import { AnalyticsService } from './utils/analytics-service.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[background]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[background]', ...args); }
-
+import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 // Set uninstall URL to redirect users to feedback page
 chrome.runtime.setUninstallURL('https://thinkreview.dev/goodbye.html', () => {
   console.log('[GitLab MR Reviews][BG] Uninstall URL set successfully');
@@ -450,6 +447,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     })();
     return true; // Keep channel open
+  }
+
+  // Handle analytics events from content scripts (to avoid CORS)
+  if (message.type === 'SEND_ANALYTICS_EVENT') {
+    const { eventName, eventParams } = message;
+    (async () => {
+      try {
+        // Use the analytics service to send the event (background script has no CORS restrictions)
+        // sendEvent will get the clientId itself
+        await AnalyticsService.sendEvent(eventName, eventParams);
+        sendResponse({ success: true });
+      } catch (error) {
+        dbgWarn('[BG] Error sending analytics event:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true; // Keep channel open for async response
   }
 
   // Handle request to open extension page in a new tab
