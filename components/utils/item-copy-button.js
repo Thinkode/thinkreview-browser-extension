@@ -1,6 +1,8 @@
 // item-copy-button.js
 // Module for creating and handling copy buttons for review items
 
+import { dbgWarn } from '../../utils/logger.js';
+
 /**
  * Creates a copy button element with SVG icon
  * @returns {HTMLElement} The copy button element
@@ -587,7 +589,7 @@ export async function copyItemContent(element, button) {
     // Show success feedback
     showCopySuccessFeedback(button);
   } catch (error) {
-    console.warn('[ItemCopyButton] Failed to copy content:', error);
+    dbgWarn('[ItemCopyButton] Failed to copy content:', error);
     
     // Fallback to plain text if HTML copy fails
     if (shouldPreserveStyle) {
@@ -599,7 +601,7 @@ export async function copyItemContent(element, button) {
           showCopyErrorFeedback(button);
         }
       } catch (fallbackError) {
-        console.warn('[ItemCopyButton] Fallback copy also failed:', fallbackError);
+        dbgWarn('[ItemCopyButton] Fallback copy also failed:', fallbackError);
         showCopyErrorFeedback(button);
       }
     } else {
@@ -654,7 +656,7 @@ function showCopyErrorFeedback(button) {
  */
 export function attachCopyButtonToItem(contentElement, wrapperElement) {
   if (!contentElement || !wrapperElement) {
-    console.warn('[ItemCopyButton] Cannot attach copy button: missing contentElement or wrapperElement');
+    dbgWarn('[ItemCopyButton] Cannot attach copy button: missing contentElement or wrapperElement');
     return null;
   }
   

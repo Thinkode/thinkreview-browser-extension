@@ -1486,7 +1486,7 @@ function showCorsInstructions() {
           setTimeout(() => toast.remove(), 300);
         }, 1500);
       }).catch(err => {
-        console.warn('Copy failed:', err);
+        dbgWarn('[popup] Copy failed:', err);
         
         // Show error state
         button.style.color = '#ef4444';

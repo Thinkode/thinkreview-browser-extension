@@ -30,7 +30,7 @@ if (typeof dbgError === 'undefined') {
     dbgError = loggerModule.dbgError;
   } catch (error) {
     // Keep using fallback functions if logger fails to load
-    console.warn('[IntegratedReview] Failed to load logger module, using console fallback:', error);
+    dbgWarn('[IntegratedReview] Failed to load logger module, using console fallback:', error);
   }
 })();
 // Import the CSS for the integrated review panel
