@@ -8,6 +8,7 @@ import { isValidOrigin } from './utils/origin-validator.js';
 import { AnalyticsService } from './utils/analytics-service.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+// Logger module will automatically initialize Honeybadger
 // Set uninstall URL to redirect users to feedback page
 chrome.runtime.setUninstallURL('https://thinkreview.dev/goodbye.html', () => {
   dbgLog('[ThinkReview Extension][BG] Uninstall URL set successfully');
@@ -129,7 +130,7 @@ async function handleGoogleSignIn() {
     
     return syncedUser;
   } catch (error) {
-    // console.error('Google Sign-In error:', error);
+    dbgError('[ThinkReview Extension][BG] Google Sign-In error:', error);
     throw error;
   }
 }
@@ -234,7 +235,7 @@ async function trackOllamaReview(patchContent, mrId, mrUrl, reviewData, model) {
     const result = await response.json();
     dbgLog('[ThinkReview Extension][BG] Ollama review tracked successfully:', result);
   } catch (error) {
-    dbgWarn('[ThinkReview Extension][BG] Error tracking Ollama review:', error);
+    dbgError('[ThinkReview Extension][BG] Error tracking Ollama review:', error);
     throw error;
   }
 }
@@ -1068,7 +1069,7 @@ async function updateContentScripts() {
         const scriptConfig = {
           id: scriptId,
           matches: [matchPattern],
-          js: ['components/integrated-review.js', 'content.js'],
+          js: ['vendor/honeybadger.ext.min.js', 'components/integrated-review.js', 'content.js'],
           runAt: 'document_idle'
         };
         

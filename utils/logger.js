@@ -1,7 +1,8 @@
 // logger.js
-// Shared logging utility that integrates with Google Analytics
+// Shared logging utility that integrates with Google Analytics and Honeybadger
 
 import { logToAnalytics } from './analytics-service.js';
+import { reportError, reportMessage, isInitialized } from './honeybadger-service.js';
 
 // Debug toggle: set to false to disable console logs in production
 const DEBUG = false;
@@ -102,6 +103,14 @@ export function dbgWarn(component, ...args) {
   logToAnalytics('warn', componentName, message).catch(() => {
     // Silently fail
   });
+  
+  // Report to Honeybadger if initialized
+  if (isInitialized()) {
+    reportMessage(message, {
+      component: componentName,
+      level: 'warning'
+    });
+  }
 }
 
 /**
@@ -128,15 +137,36 @@ export function dbgError(component, ...args) {
   
   // Include error details if available
   const errorData = {};
+  let errorObject = null;
   if (logArgs[0] instanceof Error) {
-    errorData.error_name = logArgs[0].name;
-    errorData.error_message = logArgs[0].message;
-    errorData.error_stack = logArgs[0].stack?.substring(0, 1000); // Truncate stack
+    errorObject = logArgs[0];
+    errorData.error_name = errorObject.name;
+    errorData.error_message = errorObject.message;
+    errorData.error_stack = errorObject.stack?.substring(0, 1000); // Truncate stack
   }
   
   logToAnalytics('error', componentName, message, errorData).catch(() => {
     // Silently fail
   });
+  
+  // Report to Honeybadger if initialized
+  if (isInitialized()) {
+    if (errorObject) {
+      // Report the actual error object
+      reportError(errorObject, {
+        component: componentName,
+        message: message,
+        ...errorData
+      });
+    } else {
+      // Report as a message
+      reportError(message, {
+        component: componentName,
+        level: 'error',
+        ...errorData
+      });
+    }
+  }
 }
 
 // Export default for convenience
