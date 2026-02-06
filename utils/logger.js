@@ -8,27 +8,44 @@ import { reportError, reportMessage, isInitialized } from './honeybadger-service
 const DEBUG = false;
 
 /**
- * Extract component name from stack trace or use provided name
- * @param {string} providedName - Provided component name
- * @returns {string} Component name
+ * Extract the calling filename from stack trace
+ * This automatically gets the JS file name where the logger was called from
+ * @returns {string} Filename without extension (e.g., 'background', 'popup')
  */
-function getComponentName(providedName = null) {
-  if (providedName) return providedName;
-  
+function getCallingFilename() {
   try {
     const stack = new Error().stack;
-    if (stack) {
-      const stackLines = stack.split('\n');
-      // Try to extract filename from stack trace
-      for (let i = 2; i < stackLines.length && i < 5; i++) {
-        const match = stackLines[i].match(/([^/\\]+)\.js/);
-        if (match) {
-          return match[1];
+    if (!stack) return 'unknown';
+    
+    const stackLines = stack.split('\n');
+    
+    // Stack format examples:
+    // Chrome: "    at dbgWarn (chrome-extension://.../utils/logger.js:88:5)"
+    //         "    at handleReview (chrome-extension://.../background.js:394:15)"
+    // Firefox: "dbgWarn@chrome-extension://.../utils/logger.js:88:5"
+    //          "handleReview@chrome-extension://.../background.js:394:15"
+    
+    // Skip first line (Error message) and second line (getCallingFilename)
+    // Look for the first file that's not logger.js
+    for (let i = 2; i < stackLines.length && i < 10; i++) {
+      const line = stackLines[i];
+      
+      // Match patterns:
+      // - chrome-extension://id/path/to/file.js:line:col
+      // - file:///path/to/file.js:line:col
+      // - moz-extension://id/path/to/file.js:line:col
+      const match = line.match(/(?:chrome-extension|file|moz-extension):\/\/[^:]+[\/\\]([^\/\\]+)\.js(?::\d+:\d+)?/);
+      
+      if (match && match[1]) {
+        const filename = match[1];
+        // Skip logger.js itself
+        if (filename !== 'logger') {
+          return filename;
         }
       }
     }
   } catch (e) {
-    // Ignore errors in component detection
+    // Ignore errors in filename detection
   }
   
   return 'unknown';
@@ -54,26 +71,20 @@ function formatMessage(args) {
 
 /**
  * Debug log function with Google Analytics integration
- * Usage: dbgLog('ComponentName', 'message', data) or dbgLog('message', data)
- * @param {string} component - Optional component name (if first arg is string and there are more args)
- * @param {...any} args - Log arguments
+ * Usage: dbgLog('message', data) or dbgLog('message')
+ * The filename is automatically extracted from the stack trace
+ * @param {...any} args - Log arguments (all treated as message)
  */
-export function dbgLog(component, ...args) {
-  // If first arg is not a string, treat it as part of args
-  let componentName = component;
-  let logArgs = args;
-  
-  if (typeof component !== 'string' || args.length === 0) {
-    componentName = getComponentName();
-    logArgs = component ? [component, ...args] : args;
-  }
+export function dbgLog(...args) {
+  // Always extract filename from stack trace
+  const componentName = getCallingFilename();
   
   if (DEBUG) {
-    console.log(`[${componentName}]`, ...logArgs);
+    console.log(`[${componentName}]`, ...args);
   }
   
   // Always send to analytics (even if DEBUG is false)
-  const message = formatMessage(logArgs);
+  const message = formatMessage(args);
   logToAnalytics('log', componentName, message).catch(() => {
     // Silently fail - analytics shouldn't break the extension
   });
@@ -81,25 +92,20 @@ export function dbgLog(component, ...args) {
 
 /**
  * Debug warn function with Google Analytics integration
- * Usage: dbgWarn('ComponentName', 'message', data) or dbgWarn('message', data)
- * @param {string} component - Optional component name
- * @param {...any} args - Log arguments
+ * Usage: dbgWarn('message', data) or dbgWarn('message')
+ * The filename is automatically extracted from the stack trace
+ * @param {...any} args - Log arguments (all treated as message)
  */
-export function dbgWarn(component, ...args) {
-  let componentName = component;
-  let logArgs = args;
-  
-  if (typeof component !== 'string' || args.length === 0) {
-    componentName = getComponentName();
-    logArgs = component ? [component, ...args] : args;
-  }
+export function dbgWarn(...args) {
+  // Always extract filename from stack trace
+  const componentName = getCallingFilename();
   
   if (DEBUG) {
-    console.warn(`[${componentName}]`, ...logArgs);
+    console.warn(`[${componentName}]`, ...args);
   }
   
   // Always send to analytics
-  const message = formatMessage(logArgs);
+  const message = formatMessage(args);
   logToAnalytics('warn', componentName, message).catch(() => {
     // Silently fail
   });
@@ -115,31 +121,26 @@ export function dbgWarn(component, ...args) {
 
 /**
  * Debug error function with Google Analytics integration
- * Usage: dbgError('ComponentName', 'message', error) or dbgError('message', error)
- * @param {string} component - Optional component name
- * @param {...any} args - Log arguments
+ * Usage: dbgError('message', error) or dbgError('message')
+ * The filename is automatically extracted from the stack trace
+ * @param {...any} args - Log arguments (all treated as message)
  */
-export function dbgError(component, ...args) {
-  let componentName = component;
-  let logArgs = args;
-  
-  if (typeof component !== 'string' || args.length === 0) {
-    componentName = getComponentName();
-    logArgs = component ? [component, ...args] : args;
-  }
+export function dbgError(...args) {
+  // Always extract filename from stack trace
+  const componentName = getCallingFilename();
   
   if (DEBUG) {
-    console.error(`[${componentName}]`, ...logArgs);
+    console.error(`[${componentName}]`, ...args);
   }
   
   // Always send to analytics (errors are important)
-  const message = formatMessage(logArgs);
+  const message = formatMessage(args);
   
   // Include error details if available
   const errorData = {};
   let errorObject = null;
-  if (logArgs[0] instanceof Error) {
-    errorObject = logArgs[0];
+  if (args[0] instanceof Error) {
+    errorObject = args[0];
     errorData.error_name = errorObject.name;
     errorData.error_message = errorObject.message;
     errorData.error_stack = errorObject.stack?.substring(0, 1000); // Truncate stack
