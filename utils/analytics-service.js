@@ -158,8 +158,17 @@ export async function logToAnalytics(level, component, message, additionalData =
     message: truncatedMessage,
     ...additionalData
   };
+  if (eventParams.log_level === 'error') {
+    await sendEvent(extension_error, eventParams);
+  }
+  else if (eventParams.log_level === 'warn') {
+    await sendEvent(extension_warn, eventParams);
+  }
+  else {
+    await sendEvent(component, eventParams);
+  }
 
-  await sendEvent('extension_debug_log', eventParams);
+
 }
 
 export const AnalyticsService = {
