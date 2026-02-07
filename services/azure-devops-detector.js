@@ -37,20 +37,32 @@ export class AzureDevOpsDetector {
 
   /**
    * Normalize a stored domain (URL or hostname) to hostname for comparison.
-   * @param {string} input
-   * @returns {string}
+   * Uses URL parsing for validation; logs errors for invalid input.
+   * @param {string} input - User-provided domain or URL (e.g. https://devops.company.com or user:pass@host:8080)
+   * @returns {string} Normalized hostname or '' if invalid
    */
   _normalizeDomainToHostname(input) {
     if (!input || typeof input !== 'string') return '';
     const s = input.trim().toLowerCase().replace(/\/+$/, '');
-    if (s.startsWith('http://') || s.startsWith('https://')) {
-      try {
-        return new URL(s).hostname;
-      } catch {
+    if (!s) return '';
+
+    let urlStr = s;
+    if (!s.startsWith('http://') && !s.startsWith('https://')) {
+      urlStr = 'https://' + s;
+    }
+
+    try {
+      const url = new URL(urlStr);
+      const hostname = url.hostname || '';
+      if (!hostname) {
+        dbgError('_normalizeDomainToHostname: URL produced empty hostname', { input: input.substring(0, 150) });
         return '';
       }
+      return hostname;
+    } catch (err) {
+      dbgError('_normalizeDomainToHostname: invalid domain/URL', { input: input.substring(0, 80), error: err?.message });
+      return '';
     }
-    return s.split('/')[0].split(':')[0];
   }
 
   /**
