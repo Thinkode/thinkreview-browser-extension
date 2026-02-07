@@ -28,7 +28,24 @@ function isContentScriptContext() {
 }
 
 /**
- * Load and initialize Honeybadger SDK
+ * Safe configure + setContext helper; never throws.
+ */
+function safeConfigure(hb, apiKey, revision) {
+  try {
+    if (!hb || typeof hb.configure !== 'function') return false;
+    hb.configure({
+      apiKey,
+      environment: 'production',
+      revision: revision || '',
+    });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Load and initialize Honeybadger SDK. Wrapped in error boundaries so vendor load/init failures never break the extension.
  * @returns {Promise<void>}
  */
 async function initHoneybadger() {
@@ -37,31 +54,26 @@ async function initHoneybadger() {
   try {
     const isServiceWorker = isServiceWorkerContext();
     const isContentScript = isContentScriptContext();
-    
+    const revision = typeof chrome?.runtime?.getManifest === 'function' ? chrome.runtime.getManifest().version : '';
+
     if (isServiceWorker) {
       // For ES module service workers, we need to load via fetch and eval
-      // This is the only way since importScripts() doesn't work with modules
       try {
         const response = await fetch(chrome.runtime.getURL('vendor/honeybadger.ext.min.js'));
+        if (!response.ok) return;
         const scriptText = await response.text();
-        // Use Function constructor to execute in global scope (self in service workers)
-        // The script will set self.Honeybadger or globalThis.Honeybadger
-        new Function(scriptText)();
-        
-        // Check both self and globalThis for Honeybadger
-        const hb = (typeof self !== 'undefined' && self.Honeybadger) || 
+        try {
+          new Function(scriptText)();
+        } catch (_) {
+          return; // Vendor script execution failed
+        }
+
+        const hb = (typeof self !== 'undefined' && self.Honeybadger) ||
                    (typeof globalThis !== 'undefined' && globalThis.Honeybadger) ||
                    (typeof Honeybadger !== 'undefined' ? Honeybadger : null);
-        
-        if (hb) {
+
+        if (hb && safeConfigure(hb, HONEYBADGER_API_KEY, revision)) {
           Honeybadger = hb;
-          Honeybadger.configure({
-            apiKey: HONEYBADGER_API_KEY,
-            environment: 'production',
-            revision: chrome.runtime.getManifest().version,
-          });
-          
-          // Set user context if available
           try {
             const userData = await chrome.storage.local.get(['userEmail', 'userId']);
             if (userData.userEmail || userData.userId) {
@@ -70,78 +82,72 @@ async function initHoneybadger() {
                 user_email: userData.userEmail || undefined,
               });
             }
-          } catch (e) {
-            // Silently fail
-          }
-          
+          } catch (_) {}
           honeybadgerInitialized = true;
         }
-      } catch (e) {
-        // Silently fail - Honeybadger is optional
+      } catch (_) {
+        // fetch/network or script load failed
       }
-    } else if (isContentScript || typeof window !== 'undefined') {
-      // Content scripts or extension pages: load via script tag
+      return;
+    }
+
+    if (isContentScript || typeof window !== 'undefined') {
       return new Promise((resolve) => {
-        if (typeof window === 'undefined') {
-          resolve();
-          return;
-        }
-        
-        // Check if already loaded
-        if (window.Honeybadger) {
-          Honeybadger = window.Honeybadger;
-          Honeybadger.configure({
-            apiKey: HONEYBADGER_API_KEY,
-            environment: 'production',
-            revision: chrome.runtime.getManifest().version,
-          });
-          
-          // Set user context
-          chrome.storage.local.get(['userEmail', 'userId']).then((userData) => {
-            if (userData.userEmail || userData.userId) {
-              Honeybadger.setContext({
-                user_id: userData.userId || undefined,
-                user_email: userData.userEmail || undefined,
-              });
-            }
-          }).catch(() => {});
-          
-          honeybadgerInitialized = true;
-          resolve();
-          return;
-        }
-        
-        const script = document.createElement('script');
-        script.src = chrome.runtime.getURL('vendor/honeybadger.ext.min.js');
-        script.onload = () => {
-          if (window.Honeybadger) {
-            Honeybadger = window.Honeybadger;
-            Honeybadger.configure({
-              apiKey: HONEYBADGER_API_KEY,
-              environment: 'production',
-              revision: chrome.runtime.getManifest().version,
-            });
-            
-            // Set user context
-            chrome.storage.local.get(['userEmail', 'userId']).then((userData) => {
-              if (userData.userEmail || userData.userId) {
-                Honeybadger.setContext({
-                  user_id: userData.userId || undefined,
-                  user_email: userData.userEmail || undefined,
-                });
-              }
-            }).catch(() => {});
-            
-            honeybadgerInitialized = true;
+        try {
+          if (typeof window === 'undefined') {
+            resolve();
+            return;
           }
+
+          if (window.Honeybadger) {
+            if (safeConfigure(window.Honeybadger, HONEYBADGER_API_KEY, revision)) {
+              Honeybadger = window.Honeybadger;
+              honeybadgerInitialized = true;
+              chrome.storage?.local?.get(['userEmail', 'userId']).then((userData) => {
+                try {
+                  if (userData?.userEmail || userData?.userId) {
+                    Honeybadger?.setContext?.({
+                      user_id: userData.userId || undefined,
+                      user_email: userData.userEmail || undefined,
+                    });
+                  }
+                } catch (_) {}
+              }).catch(() => {});
+            }
+            resolve();
+            return;
+          }
+
+          const script = document.createElement('script');
+          script.src = chrome.runtime.getURL('vendor/honeybadger.ext.min.js');
+          script.onload = () => {
+            try {
+              if (window.Honeybadger && safeConfigure(window.Honeybadger, HONEYBADGER_API_KEY, revision)) {
+                Honeybadger = window.Honeybadger;
+                honeybadgerInitialized = true;
+                chrome.storage?.local?.get(['userEmail', 'userId']).then((userData) => {
+                  try {
+                    if (userData?.userEmail || userData?.userId) {
+                      Honeybadger?.setContext?.({
+                        user_id: userData.userId || undefined,
+                        user_email: userData.userEmail || undefined,
+                      });
+                    }
+                  } catch (_) {}
+                }).catch(() => {});
+              }
+            } catch (_) {}
+            resolve();
+          };
+          script.onerror = () => resolve();
+          (document.head || document.documentElement).appendChild(script);
+        } catch (_) {
           resolve();
-        };
-        script.onerror = () => resolve(); // Silently fail
-        (document.head || document.documentElement).appendChild(script);
+        }
       });
     }
-  } catch (error) {
-    // Silently fail - Honeybadger is optional
+  } catch (_) {
+    // Top-level boundary: init must never throw
   }
 }
 
