@@ -5,15 +5,13 @@
 import { CloudService } from './services/cloud-service.js';
 import { OllamaService } from './services/ollama-service.js';
 import { isValidOrigin } from './utils/origin-validator.js';
+import { AnalyticsService } from './utils/analytics-service.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[background]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[background]', ...args); }
-
+import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+// Logger module will automatically initialize Honeybadger
 // Set uninstall URL to redirect users to feedback page
 chrome.runtime.setUninstallURL('https://thinkreview.dev/goodbye.html', () => {
-  console.log('[GitLab MR Reviews][BG] Uninstall URL set successfully');
+  dbgLog('Uninstall URL set successfully');
 });
 
 // OAuth constants
@@ -126,13 +124,13 @@ async function handleGoogleSignIn() {
             window.postMessage({ type: 'GOOGLE_SIGNIN_COMPLETE', user: userData }, '*');
           },
           args: [syncedUser]
-        }).catch(err => console.log('Failed to execute script:', err));
+        }).catch(err => dbgWarn('Failed to execute script:', err));
       }
     });
     
     return syncedUser;
   } catch (error) {
-    // console.error('Google Sign-In error:', error);
+    dbgError('Google Sign-In error:', error);
     throw error;
   }
 }
@@ -166,16 +164,17 @@ async function trackOllamaReview(patchContent, mrId, mrUrl, reviewData, model) {
           email = parsedUser.email;
         }
       } catch (e) {
-        console.warn('[BG] Failed to parse user data for Ollama tracking:', e);
+        dbgWarn('Failed to parse user data for Ollama tracking:', e);
       }
     }
     
     if (!email) {
-      console.warn('[BG] No email found for Ollama review tracking');
+      dbgWarn('No email found for Ollama review tracking');
       return;
     }
     
-    dbgLog('[BG] Tracking Ollama review for email:', email);
+    // Log only that tracking occurred, not the email address
+    dbgLog('Tracking Ollama review');
     
     // Extract review object from response
     const review = reviewData.review || reviewData;
@@ -234,16 +233,16 @@ async function trackOllamaReview(patchContent, mrId, mrUrl, reviewData, model) {
     }
     
     const result = await response.json();
-    dbgLog('[BG] Ollama review tracked successfully:', result);
+    dbgLog('Ollama review tracked successfully:', result);
   } catch (error) {
-    console.warn('[BG] Error tracking Ollama review:', error);
+    dbgError('Error tracking Ollama review:', error);
     throw error;
   }
 }
 
 // Listen for extension icon clicks to open full page
 chrome.action.onClicked.addListener((tab) => {
-  dbgLog('[GitLab MR Reviews][BG] Extension icon clicked, opening full page');
+  dbgLog('Extension icon clicked, opening full page');
   chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
 });
 
@@ -281,7 +280,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
         const provider = settings.aiProvider || 'cloud';
         
-        dbgLog('[BG] Using AI provider for conversation:', provider);
+        dbgLog('Using AI provider for conversation:', provider);
         
         // Route to appropriate service based on provider
         if (provider === 'ollama') {
@@ -289,7 +288,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           try {
             const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'qwen3-coder:30b' };
             
-            dbgLog('[BG] Getting conversational response from Ollama:', config);
+            dbgLog('Getting conversational response from Ollama:', config);
             
             const data = await OllamaService.getConversationalResponse(
               patchContent, 
@@ -299,11 +298,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               mrUrl
             );
             
-            dbgLog('[BG] Ollama conversational response completed successfully');
+            dbgLog('Ollama conversational response completed successfully');
             sendResponse({ success: true, data: data, provider: 'ollama' });
             return;
           } catch (ollamaError) {
-            console.warn('[BG] Ollama conversational response failed:', ollamaError.message);
+            dbgWarn('Ollama conversational response failed:', ollamaError.message);
             
             // Provide a helpful error message
             sendResponse({ 
@@ -318,7 +317,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         // Default: Use cloud service (Gemini)
         const data = await CloudService.getConversationalResponse(patchContent, conversationHistory, mrId, mrUrl, language || 'English');
-        dbgLog('[GitLab MR Reviews][BG] Conversational response received:', data);
+        // Log only metadata, not the actual response content
+        dbgLog('Conversational response received:', {
+          status: data?.status,
+          hasResponse: !!data?.response,
+          responseLength: data?.response?.length || 0
+        });
         
         sendResponse({ 
           success: true, 
@@ -328,13 +332,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       } catch (err) {
         // Log error details for debugging
         // if (err.isRateLimit) {
-        //   console.warn('[GitLab MR Reviews][BG] Rate limit reached for conversational review:', {
+        //   console.warn('Rate limit reached for conversational review:', {
         //     message: err.rateLimitMessage,
         //     retryAfter: err.retryAfter,
         //     minutes: Math.ceil((err.retryAfter || 900) / 60)
         //   });
         // } else {
-        //   console.warn('[GitLab MR Reviews][BG] Conversational review fetch error:', err.message);
+        //   console.warn('Conversational review fetch error:', err.message);
         // }
         
         // Pass rate limit error properties if available
@@ -365,7 +369,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
         provider = settings.aiProvider || 'cloud';
         
-        dbgLog('[BG] Using AI provider:', provider);
+        dbgLog('Using AI provider:', provider);
         
         // Route to appropriate service based on provider
         if (provider === 'ollama') {
@@ -373,21 +377,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           try {
             const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'qwen3-coder:30b' };
             
-            dbgLog('[BG] Reviewing with Ollama:', config);
+            dbgLog('Reviewing with Ollama:', config);
             
             const data = await OllamaService.reviewPatchCode(patchContent, language, mrId, mrUrl);
             
-            dbgLog('[BG] Ollama review completed successfully');
+            dbgLog('Ollama review completed successfully');
             
             // Track the review in Firebase (fire-and-forget)
             trackOllamaReview(patchContent, mrId, mrUrl, data, config.model).catch(err => {
-              console.warn('[BG] Failed to track Ollama review in Firebase:', err.message);
+              dbgWarn('Failed to track Ollama review in Firebase:', err.message);
             });
             
             sendResponse({ success: true, data, provider: 'ollama' });
             return;
           } catch (ollamaError) {
-            console.warn('[BG] Ollama review failed:', ollamaError.message);
+            dbgWarn('Ollama review failed:', ollamaError.message);
             
             // Provide a helpful error message
             sendResponse({ 
@@ -412,12 +416,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Track the review if mrId is provided
         if (mrId) {
           // Review tracking is now handled automatically by the cloud function reviewPatchCode_1_1
-          dbgLog('[GitLab MR Reviews][BG] Review completed for MR:', mrId);
+          dbgLog('Review completed for MR:', mrId);
         }
         
         sendResponse({ success: true, data, provider: 'cloud' });
       } catch (err) {
-        console.warn('[GitLab MR Reviews][BG] Review fetch error:', err);
+        dbgWarn('Review fetch error:', err);
         sendResponse({ 
           success: false, 
           error: err.message,
@@ -436,25 +440,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { url } = message;
     (async () => {
       try {
-        dbgLog('[BG] Fetching GitHub diff from:', url);
+        dbgLog('Fetching GitHub diff from:', url);
         const response = await fetch(url);
         if (!response.ok) {
           throw new Error(`Failed to fetch GitHub diff: ${response.status} ${response.statusText}`);
         }
         const diffContent = await response.text();
-        dbgLog('[BG] Successfully fetched GitHub diff, length:', diffContent.length);
+        dbgLog('Successfully fetched GitHub diff, length:', diffContent.length);
         sendResponse({ success: true, content: diffContent });
       } catch (error) {
-        dbgWarn('[BG] Error fetching GitHub diff:', error);
+        dbgWarn('Error fetching GitHub diff:', error);
         sendResponse({ success: false, error: error.message });
       }
     })();
     return true; // Keep channel open
   }
 
+  // Handle analytics events from content scripts (to avoid CORS)
+  if (message.type === 'SEND_ANALYTICS_EVENT') {
+    const { eventName, eventParams } = message;
+    (async () => {
+      try {
+        // Use the analytics service to send the event (background script has no CORS restrictions)
+        // sendEvent will get the clientId itself
+        await AnalyticsService.sendEvent(eventName, eventParams);
+        sendResponse({ success: true });
+      } catch (error) {
+        dbgWarn('Error sending analytics event:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true; // Keep channel open for async response
+  }
+
   // Handle request to open extension page in a new tab
   if (message.type === 'OPEN_EXTENSION_PAGE') {
-    console.log('[GitLab MR Reviews][BG] Opening extension page in new tab with auto sign-in');
+    dbgLog('Opening extension page in new tab with auto sign-in');
     
     // Get the extension popup URL with auto sign-in parameter
     const extensionUrl = chrome.runtime.getURL('popup.html') + '?autoSignIn=true';
@@ -462,10 +483,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Open in a new tab
     chrome.tabs.create({ url: extensionUrl }, (tab) => {
       if (chrome.runtime.lastError) {
-        console.warn('[GitLab MR Reviews][BG] Error opening extension page:', chrome.runtime.lastError);
+        dbgWarn('Error opening extension page:', chrome.runtime.lastError);
         sendResponse({ success: false, error: chrome.runtime.lastError.message });
       } else {
-        console.log('[GitLab MR Reviews][BG] Extension page opened successfully in tab:', tab.id);
+        dbgLog('Extension page opened successfully in tab:', tab.id);
         sendResponse({ success: true, tabId: tab.id });
       }
     });
@@ -479,7 +500,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then(userData => {
         // Store user data in chrome.storage.local
         chrome.storage.local.set({ userData }, () => {
-          console.log('User data stored successfully');
+          dbgLog('User data stored successfully');
           
           // Reload the active tab to refresh the content
           chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -500,24 +521,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   // Handle request to get user data with subscription info
   if (message.type === 'GET_USER_DATA_WITH_SUBSCRIPTION') {
-    dbgLog('[GitLab MR Reviews][BG] Getting user data with subscription');
+    dbgLog('Getting user data with subscription');
     CloudService.getUserDataWithSubscription()
       .then(userData => {
-        dbgLog('[GitLab MR Reviews][BG] User data retrieved:', userData);
-        dbgLog('[GitLab MR Reviews][BG] Today review count:', userData.todayReviewCount);
+        // Log only metadata, not full user data which may contain email
+        dbgLog('User data retrieved:', {
+          hasEmail: !!userData?.email,
+          todayReviewCount: userData?.todayReviewCount,
+          hasSubscription: !!userData?.subscription
+        });
+        dbgLog('Today review count:', userData.todayReviewCount);
         // Use consolidated subscriptionType field (fallback to stripeSubscriptionType for legacy support)
         const subscriptionType = userData.subscriptionType || userData.stripeSubscriptionType || 'Free';
-        dbgLog('[GitLab MR Reviews][BG] Subscription type:', subscriptionType);
-        dbgLog('[GitLab MR Reviews][BG] Is free plan:', subscriptionType === 'Free' || subscriptionType === 'Free plan' || !subscriptionType);
-        dbgLog('[GitLab MR Reviews][BG] Is over limit:', userData.todayReviewCount > 10);
+        dbgLog('Subscription type:', subscriptionType);
+        dbgLog('Is free plan:', subscriptionType === 'Free' || subscriptionType === 'Free plan' || !subscriptionType);
+        dbgLog('Is over limit:', userData.todayReviewCount > 10);
         
         // Store todayReviewCount and lastFeedbackPromptInteraction in chrome.storage for review prompt to use
         chrome.storage.local.set({ 
           todayReviewCount: userData.todayReviewCount || 0,
           lastFeedbackPromptInteraction: userData.lastFeedbackPromptInteraction || null
         }, () => {
-          dbgLog('[GitLab MR Reviews][BG] Stored todayReviewCount:', userData.todayReviewCount);
-          dbgLog('[GitLab MR Reviews][BG] Stored lastFeedbackPromptInteraction:', userData.lastFeedbackPromptInteraction);
+          dbgLog('Stored todayReviewCount:', userData.todayReviewCount);
+          dbgLog('Stored lastFeedbackPromptInteraction:', userData.lastFeedbackPromptInteraction);
         });
         
         // Make sure we're sending the complete userData object
@@ -535,7 +561,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }});
       })
       .catch(error => {
-        dbgWarn('[GitLab MR Reviews][BG] Error getting user data:', error);
+        dbgWarn('Error getting user data:', error);
         sendResponse({ status: 'error', error: error.message });
       });
     return true; // Keep the message channel open for async response
@@ -543,15 +569,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   // Handle request to refresh user data and update local storage
   if (message.type === 'REFRESH_USER_DATA_STORAGE') {
-    dbgLog('[GitLab MR Reviews][BG] Refreshing user data and updating local storage');
+    dbgLog('Refreshing user data and updating local storage');
     
     CloudService.refreshUserData()
       .then(userData => {
-        dbgLog('[GitLab MR Reviews][BG] User data refreshed from CloudService:', userData);
+        // Log only metadata, not full user data which may contain email
+        dbgLog('User data refreshed from CloudService:', {
+          hasEmail: !!userData?.email,
+          todayReviewCount: userData?.todayReviewCount,
+          hasSubscription: !!userData?.subscription
+        });
         
         // Update chrome.storage.local with the data from CloudService
         chrome.storage.local.set(userData, () => {
-          dbgLog('[GitLab MR Reviews][BG] Local storage updated:', userData);
+          dbgLog('Local storage updated:', userData);
           sendResponse({ 
             status: 'success', 
             data: userData,
@@ -560,7 +591,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
       })
       .catch(error => {
-        dbgWarn('[GitLab MR Reviews][BG] Error refreshing user data:', error);
+        dbgWarn('Error refreshing user data:', error);
         sendResponse({ 
           status: 'error', 
           error: error.message 
@@ -573,14 +604,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle subscription upgrade request
   if (message.type === 'HANDLE_SUBSCRIPTION_UPGRADE') {
     const plan = message.plan || 'monthly';
-    dbgLog(`[GitLab MR Reviews][BG] Handling subscription upgrade for plan: ${plan}`);
+    dbgLog(`Handling subscription upgrade for plan: ${plan}`);
     
     // First check if user is logged in
     chrome.storage.local.get(['userData'], async (result) => {
       try {
         if (!result.userData || !result.userData.uid) {
           // User is not logged in, trigger sign in first
-          dbgLog('[GitLab MR Reviews][BG] User not logged in, triggering sign in');
+          dbgLog('User not logged in, triggering sign in');
           const userData = await handleGoogleSignIn();
           
           if (userData) {
@@ -608,7 +639,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         }
       } catch (error) {
-        dbgWarn('[GitLab MR Reviews][BG] Error handling subscription upgrade:', error);
+        dbgWarn('Error handling subscription upgrade:', error);
         sendResponse({ status: 'error', error: error.message });
       }
     });
@@ -617,24 +648,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   // Handle request to open the extension popup
   if (message.type === 'OPEN_POPUP') {
-    dbgLog('[GitLab MR Reviews][BG] Opening extension popup');
+    dbgLog('Opening extension popup');
     chrome.action.openPopup();
     return true;
   }
 
   // Handle request to open extension popup for Azure DevOps token configuration
   if (message.type === 'OPEN_EXTENSION_POPUP') {
-    dbgLog('[GitLab MR Reviews][BG] Opening extension popup for Azure DevOps token configuration');
+    dbgLog('Opening extension popup for Azure DevOps token configuration');
     
     // Open the extension popup page in a new tab
     const extensionUrl = chrome.runtime.getURL('popup.html');
     
     chrome.tabs.create({ url: extensionUrl }, (tab) => {
       if (chrome.runtime.lastError) {
-        dbgWarn('[GitLab MR Reviews][BG] Error opening extension popup:', chrome.runtime.lastError);
+        dbgWarn('Error opening extension popup:', chrome.runtime.lastError);
         sendResponse({ success: false, error: chrome.runtime.lastError.message });
       } else {
-        dbgLog('[GitLab MR Reviews][BG] Extension popup opened successfully in tab:', tab.id);
+        dbgLog('Extension popup opened successfully in tab:', tab.id);
         sendResponse({ success: true, tabId: tab.id });
       }
     });
@@ -648,7 +679,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     (async () => {
       try {
-        dbgLog('[GitLab MR Reviews][BG] Submitting feedback:', { 
+        dbgLog('Submitting feedback:', { 
           hasEmail: !!email,
           feedbackType,
           hasAiResponse: !!aiResponse,
@@ -665,10 +696,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           additionalFeedback
         );
         
-        dbgLog('[GitLab MR Reviews][BG] Feedback submitted successfully:', data);
+        // Log only success status, not the response data which may contain review content
+        dbgLog('Feedback submitted successfully');
         sendResponse({ success: true, data: data });
       } catch (err) {
-        dbgWarn('[GitLab MR Reviews][BG] Error submitting feedback:', err);
+        dbgWarn('Error submitting feedback:', err);
         sendResponse({ 
           success: false, 
           error: err.message || 'Failed to submit feedback' 
@@ -1037,7 +1069,7 @@ async function updateContentScripts() {
         const scriptConfig = {
           id: scriptId,
           matches: [matchPattern],
-          js: ['components/integrated-review.js', 'content.js'],
+          js: ['vendor/honeybadger.ext.min.js', 'components/integrated-review.js', 'content.js'],
           runAt: 'document_idle'
         };
         

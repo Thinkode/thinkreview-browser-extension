@@ -1,10 +1,8 @@
 // azure-devops-token-error.js
 // Module for displaying Azure DevOps token configuration error with helpful UI
+import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[Azure DevOps Token Error]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[Azure DevOps Token Error]', ...args); }
+
 
 /**
  * Shows Azure DevOps token configuration error with helpful UI
@@ -170,17 +168,17 @@ function createSettingsButton(actionContainer) {
   
   // Add click event to open extension popup
   settingsButton.addEventListener('click', () => {
-    dbgLog('[Content] Requesting background to open extension popup for Azure DevOps token configuration');
+    dbgLog('Requesting background to open extension popup for Azure DevOps token configuration');
     
     // Ask background script to open the extension popup
     chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_POPUP' }, (response) => {
       if (chrome.runtime.lastError) {
-        dbgWarn('[Content] Error opening extension popup:', chrome.runtime.lastError);
+        dbgWarn('Error opening extension popup:', chrome.runtime.lastError);
         return;
       }
       
       if (response && response.success) {
-        dbgLog('[Content] Extension popup opened successfully');
+        dbgLog('Extension popup opened successfully');
       }
     });
   });

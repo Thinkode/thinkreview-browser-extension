@@ -1,7 +1,5 @@
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log(...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
+import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
+
 
 // Cloud function URLs
 const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net';
@@ -31,10 +29,10 @@ export class CloudService {
    * @returns {Promise<Object>} - Response from the backend with user data
    */
   static async syncUserData(userData) {
-    dbgLog('[CloudService] Syncing user data:', userData);
+    dbgLog('Syncing user data:', userData);
     
     if (!userData || !userData.email) {
-      dbgWarn('[CloudService] Cannot sync user data: Missing email');
+      dbgWarn('Cannot sync user data: Missing email');
       return null;
     }
     
@@ -57,10 +55,10 @@ export class CloudService {
       // Ensure uid is not undefined or null
       if (!payload.uid) {
         payload.uid = `ext_${Date.now()}`; // Fallback to a timestamp-based ID
-        dbgLog('[CloudService] Using fallback uid:', payload.uid);
+        dbgLog('Using fallback uid:', payload.uid);
       }
       
-      dbgLog('[CloudService] Sending request to cloud function:', payload);
+      dbgLog('Sending request to cloud function:', payload);
       
       // Make the API call to the cloud function
       const response = await fetch(SYNC_USER_URL, {
@@ -76,7 +74,7 @@ export class CloudService {
       }
       
       const data = await response.json();
-      dbgLog('[CloudService] Cloud function response:', data);
+      dbgLog('Cloud function response:', data);
       
       if (data.status === 'success' && data.data && data.data.currentUser) {
         // Store the server-side user ID for future reference
@@ -96,11 +94,11 @@ export class CloudService {
         
         return mergedUserData;
       } else {
-        dbgWarn('[CloudService] Invalid response from cloud function:', data);
+        dbgWarn('Invalid response from cloud function:', data);
         return userData;
       }
     } catch (error) {
-      dbgWarn('[CloudService] Error syncing user data:', error);
+      dbgWarn('Error syncing user data:', error);
       return userData;
     }
   }
@@ -111,10 +109,10 @@ export class CloudService {
    * @returns {Promise<Object>} - User data from the backend
    */
   static async getUserData(email) {
-    dbgLog('[CloudService] Getting user data for:', email);
+    dbgLog('Getting user data for:', email);
     
     if (!email) {
-      dbgWarn('[CloudService] Cannot get user data: Missing email');
+      dbgWarn('Cannot get user data: Missing email');
       return null;
     }
     
@@ -168,7 +166,7 @@ export class CloudService {
         return null;
       }
     } catch (error) {
-      dbgWarn('[CloudService] Error getting user data:', error);
+      dbgWarn('Error getting user data:', error);
       return localUser; // Fall back to local user if available
     }
   }
@@ -179,7 +177,7 @@ export class CloudService {
    * @returns {Promise<Object>} - Response from the backend
    */
   static async savePatchData(patchData) {
-    dbgLog('[CloudService] Saving patch data:', patchData);
+    dbgLog('Saving patch data:', patchData);
     
     // Get the current user from local storage
     const user = await new Promise((resolve) => {
@@ -198,7 +196,7 @@ export class CloudService {
     
     // If there's no authenticated user, just store locally
     if (!user || !user.email) {
-      dbgWarn('[CloudService] No authenticated user, storing patch data locally only');
+      dbgWarn('No authenticated user, storing patch data locally only');
       return patchData;
     }
     
@@ -219,10 +217,10 @@ export class CloudService {
    * @returns {Promise<Object>} - Code review results from Gemini API
    */
   static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null, forceRegenerate = false, platform = null) {
-    dbgLog('[CloudService] Sending patch for code review');
+    dbgLog('Sending patch for code review');
     
     if (!patchContent) {
-      dbgWarn('[CloudService] Cannot review code: Missing patch content');
+      dbgWarn('Cannot review code: Missing patch content');
       return null;
     }
     
@@ -240,25 +238,25 @@ export class CloudService {
       // If userData exists, use it
       if (userData && userData.email) {
         email = userData.email;
-        dbgLog('[CloudService] Using userData email for review:', email);
+        dbgLog('Using userData email for review:', email);
       } else if (storageData.user) {
         // If userData doesn't exist but user does, try to parse it
         try {
           const parsedUser = JSON.parse(storageData.user);
           if (parsedUser && parsedUser.email) {
             email = parsedUser.email;
-            dbgLog('[CloudService] Using parsed user email for review:', email);
+            dbgLog('Using parsed user email for review:', email);
           }
         } catch (parseError) {
-          dbgWarn('[CloudService] Failed to parse user data for review:', parseError);
+          dbgWarn('Failed to parse user data for review:', parseError);
         }
       }
       
       if (!email) {
-        dbgWarn('[CloudService] No user email found for review - this may cause the review to fail');
+        dbgWarn('No user email found for review - this may cause the review to fail');
       }
     } catch (error) {
-      dbgWarn('[CloudService] Error getting user email for review:', error);
+      dbgWarn('Error getting user email for review:', error);
     }
     
     try {
@@ -337,10 +335,15 @@ export class CloudService {
       }
       
       const data = await response.json();
-      dbgLog('[CloudService] Code review completed successfully:', data);
+      // Log only metadata, not the actual review content
+      dbgLog('Code review completed successfully:', {
+        status: data?.status,
+        hasReview: !!data?.review,
+        reviewLength: data?.review?.response?.length || 0
+      });
       return data;
     } catch (error) {
-      dbgWarn('[CloudService] Error reviewing code:', error);
+      dbgWarn('Error reviewing code:', error);
       throw error;
     }
   }
@@ -355,10 +358,10 @@ export class CloudService {
    * @returns {Promise<Object>} - AI response from the backend.
    */
   static async getConversationalResponse(patchContent, conversationHistory, mrId = null, mrUrl = null, language = 'English') {
-    dbgLog('[CloudService] Sending conversation for review');
+    dbgLog('Sending conversation for review');
     
     if (!patchContent || !conversationHistory) {
-      dbgWarn('[CloudService] Cannot get conversational review: Missing patch content or history');
+      dbgWarn('Cannot get conversational review: Missing patch content or history');
       return null;
     }
     
@@ -376,21 +379,21 @@ export class CloudService {
       // If userData exists, use it
       if (userData && userData.email) {
         email = userData.email;
-        dbgLog('[CloudService] Using userData email for conversation tracking:', email);
+        dbgLog('Using userData email for conversation tracking:', email);
       } else if (storageData.user) {
         // If userData doesn't exist but user does, try to parse it
         try {
           const parsedUser = JSON.parse(storageData.user);
           if (parsedUser && parsedUser.email) {
             email = parsedUser.email;
-            dbgLog('[CloudService] Using parsed user email for conversation tracking:', email);
+            dbgLog('Using parsed user email for conversation tracking:', email);
           }
         } catch (parseError) {
-          dbgWarn('[CloudService] Failed to parse user data for conversation tracking:', parseError);
+          dbgWarn('Failed to parse user data for conversation tracking:', parseError);
         }
       }
     } catch (error) {
-      dbgWarn('[CloudService] Error getting user email for conversation tracking:', error);
+      dbgWarn('Error getting user email for conversation tracking:', error);
     }
     
     try {
@@ -419,7 +422,7 @@ export class CloudService {
         requestBody.language = language;
       }
       
-      dbgLog('[CloudService] Sending conversational review request with tracking:', {
+      dbgLog('Sending conversational review request with tracking:', {
         hasEmail: !!email,
         hasMrId: !!mrId,
         hasMrUrl: !!mrUrl,
@@ -469,10 +472,15 @@ export class CloudService {
       }
       
       const data = await response.json();
-      dbgLog('[CloudService] Conversational review completed successfully:', data);
+      // Log only metadata, not the actual response content
+      dbgLog('Conversational review completed successfully:', {
+        status: data?.status,
+        hasResponse: !!data?.response,
+        responseLength: data?.response?.length || 0
+      });
       return data;
     } catch (error) {
-      dbgWarn('[CloudService] Error getting conversational review:', error);
+      dbgWarn('Error getting conversational review:', error);
       throw error;
     }
   }
@@ -495,13 +503,13 @@ export class CloudService {
       });
       
       if (!userInfo || !userInfo.email) {
-        dbgWarn('[CloudService] No user email available');
+        dbgWarn('No user email available');
         return null;
       }
       
       return userInfo.email;
     } catch (error) {
-      dbgWarn('[CloudService] Error getting user email:', error);
+      dbgWarn('Error getting user email:', error);
       return null;
     }
   }
@@ -518,7 +526,7 @@ export class CloudService {
    * @returns {Promise<number>} - Promise that resolves with the review count
    */
   static async getReviewCount() {
-    dbgLog('[CloudService] Getting review count');
+    dbgLog('Getting review count');
     
     try {
       // Get user data from chrome.storage.local - check both userData and user fields
@@ -528,7 +536,7 @@ export class CloudService {
         });
       });
       
-      dbgLog('[CloudService] Storage data found:', {
+      dbgLog('Storage data found:', {
         hasUserData: !!storageData.userData,
         hasUser: !!storageData.user,
         userDataKeys: storageData.userData ? Object.keys(storageData.userData) : [],
@@ -541,7 +549,7 @@ export class CloudService {
       // If userData exists, use it
       if (userData && userData.email) {
         email = userData.email;
-        dbgLog('[CloudService] Using userData email:', email);
+        dbgLog('Using userData email:', email);
       } else if (storageData.user) {
         // If userData doesn't exist but user does, try to parse it
         try {
@@ -549,19 +557,19 @@ export class CloudService {
           if (parsedUser && parsedUser.email) {
             email = parsedUser.email;
             userData = parsedUser;
-            dbgLog('[CloudService] Using parsed user email:', email);
+            dbgLog('Using parsed user email:', email);
           }
         } catch (parseError) {
-          dbgWarn('[CloudService] Failed to parse user data:', parseError);
+          dbgWarn('Failed to parse user data:', parseError);
         }
       }
       
       if (!email) {
-        dbgWarn('[CloudService] Cannot get review count: No user data in storage');
+        dbgWarn('Cannot get review count: No user data in storage');
         return 0;
       }
       
-      dbgLog('[CloudService] Getting review count for email:', email);
+      dbgLog('Getting review count for email:', email);
       
       const response = await fetch(GET_REVIEW_COUNT_URL, {
         method: 'POST',
@@ -579,16 +587,16 @@ export class CloudService {
       }
       
       const data = await response.json();
-      dbgLog('[CloudService] Review count retrieved successfully:', data);
+      dbgLog('Review count retrieved successfully:', data);
       
       if (data.status === 'success') {
         return data.reviewCount || 0;
       } else {
-        dbgWarn('[CloudService] Invalid response from getReviewCount:', data);
+        dbgWarn('Invalid response from getReviewCount:', data);
         return 0;
       }
     } catch (error) {
-      dbgWarn('[CloudService] Error getting review count:', error);
+      dbgWarn('Error getting review count:', error);
       return 0;
     }
   }
@@ -598,7 +606,7 @@ export class CloudService {
    * @returns {Promise<Object>} - Promise that resolves with user data including subscription info
    */
   static async getUserDataWithSubscription() {
-    dbgLog('[CloudService] Getting comprehensive user data');
+    dbgLog('Getting comprehensive user data');
     
     try {
       // Get user data from chrome.storage.local - check both userData and user fields
@@ -608,7 +616,7 @@ export class CloudService {
         });
       });
       
-      dbgLog('[CloudService] Storage data found:', {
+      dbgLog('Storage data found:', {
         hasUserData: !!storageData.userData,
         hasUser: !!storageData.user,
         userDataKeys: storageData.userData ? Object.keys(storageData.userData) : [],
@@ -621,7 +629,7 @@ export class CloudService {
       // If userData exists, use it
       if (userData && userData.email) {
         email = userData.email;
-        dbgLog('[CloudService] Using userData email:', email);
+        dbgLog('Using userData email:', email);
       } else if (storageData.user) {
         // If userData doesn't exist but user does, try to parse it
         try {
@@ -629,15 +637,15 @@ export class CloudService {
           if (parsedUser && parsedUser.email) {
             email = parsedUser.email;
             userData = parsedUser;
-            dbgLog('[CloudService] Using parsed user email:', email);
+            dbgLog('Using parsed user email:', email);
           }
         } catch (parseError) {
-          dbgWarn('[CloudService] Failed to parse user data:', parseError);
+          dbgWarn('Failed to parse user data:', parseError);
         }
       }
       
       if (!email) {
-        dbgWarn('[CloudService] Cannot get user data: No user data in storage');
+        dbgWarn('Cannot get user data: No user data in storage');
         return {
           userExists: false,
           reviewCount: 0,
@@ -649,7 +657,7 @@ export class CloudService {
         };
       }
       
-      dbgLog('[CloudService] Getting user data for email:', email);
+      dbgLog('Getting user data for email:', email);
       
       const response = await fetch(GET_USER_DATA_URL, {
         method: 'POST',
@@ -667,7 +675,7 @@ export class CloudService {
       }
       
       const data = await response.json();
-      dbgLog('[CloudService] User data retrieved successfully:', data);
+      dbgLog('User data retrieved successfully:', data);
       
       if (data.status === 'success') {
         return {
@@ -684,7 +692,7 @@ export class CloudService {
           lastReviewDate: data.lastReviewDate || null
         };
       } else {
-        dbgWarn('[CloudService] Invalid response from getUserDataWithSubscription:', data);
+        dbgWarn('Invalid response from getUserDataWithSubscription:', data);
         return {
           userExists: false,
           reviewCount: 0,
@@ -699,7 +707,7 @@ export class CloudService {
         };
       }
     } catch (error) {
-      dbgWarn('[CloudService] Error getting user data:', error);
+      dbgWarn('Error getting user data:', error);
       return {
         userExists: false,
         reviewCount: 0,
@@ -719,7 +727,7 @@ export class CloudService {
    * @returns {Promise<Object>} - Promise that resolves with updated user data (reviewCount, todayReviewCount, lastReviewDate, lastFeedbackPromptInteraction)
    */
   static async refreshUserData() {
-    dbgLog('[CloudService] Refreshing user data from server');
+    dbgLog('Refreshing user data from server');
     
     try {
       // Get user email from storage
@@ -734,17 +742,17 @@ export class CloudService {
       // Try to get email from userData first
       if (storageData.userData && storageData.userData.email) {
         email = storageData.userData.email;
-        dbgLog('[CloudService] Using userData email:', email);
+        dbgLog('Using userData email:', email);
       } else if (storageData.user) {
         // Try to parse user data
         try {
           const parsedUser = JSON.parse(storageData.user);
           if (parsedUser && parsedUser.email) {
             email = parsedUser.email;
-            dbgLog('[CloudService] Using parsed user email:', email);
+            dbgLog('Using parsed user email:', email);
           }
         } catch (parseError) {
-          dbgWarn('[CloudService] Failed to parse user data:', parseError);
+          dbgWarn('Failed to parse user data:', parseError);
         }
       }
       
@@ -752,7 +760,7 @@ export class CloudService {
         throw new Error('User not logged in - no email found');
       }
       
-      dbgLog('[CloudService] Fetching user data for email:', email);
+      dbgLog('Fetching user data for email:', email);
       
       // Call GET_USER_DATA_URL endpoint
       const response = await fetch(GET_USER_DATA_URL, {
@@ -769,7 +777,7 @@ export class CloudService {
       }
       
       const data = await response.json();
-      dbgLog('[CloudService] User data fetched successfully:', data);
+      dbgLog('User data fetched successfully:', data);
       
       if (data.status === 'success') {
         return {
@@ -782,7 +790,7 @@ export class CloudService {
         throw new Error('Invalid response from server');
       }
     } catch (error) {
-      dbgWarn('[CloudService] Error refreshing user data:', error);
+      dbgWarn('Error refreshing user data:', error);
       throw error;
     }
   }
@@ -796,7 +804,7 @@ export class CloudService {
    * @returns {Promise<Object>} - Promise that resolves with the tracking result
    */
   static async trackReviewPromptInteraction(email, action, rating = null, redirectUrl = null) {
-    dbgLog('[CloudService] Tracking review prompt interaction:', { email, action, rating, redirectUrl });
+    dbgLog('Tracking review prompt interaction:', { email, action, rating, redirectUrl });
     
     try {
       if (!email) {
@@ -824,7 +832,7 @@ export class CloudService {
         }
       };
 
-      dbgLog('[CloudService] Sending trackReviewPromptInteraction request:', payload);
+      dbgLog('Sending trackReviewPromptInteraction request:', payload);
 
       const response = await fetch(TRACK_REVIEW_PROMPT_INTERACTION_URL, {
         method: 'POST',
@@ -840,7 +848,7 @@ export class CloudService {
       }
 
       const data = await response.json();
-      dbgLog('[CloudService] TrackReviewPromptInteraction response:', data);
+      dbgLog('TrackReviewPromptInteraction response:', data);
 
       if (data.status === 'success') {
         return data;
@@ -849,7 +857,7 @@ export class CloudService {
       }
 
     } catch (error) {
-      dbgWarn('[CloudService] Error tracking review prompt interaction:', error);
+      dbgWarn('Error tracking review prompt interaction:', error);
       throw error; // Re-throw so the caller can handle it
     }
   }
@@ -860,7 +868,7 @@ export class CloudService {
    * @returns {Promise<Object>} - Promise that resolves with messages object { subtitle, question }
    */
   static async getReviewPromptMessages(email) {
-    dbgLog('[CloudService] Fetching review prompt messages:', { email });
+    dbgLog('Fetching review prompt messages:', { email });
     
     try {
       if (!email) {
@@ -871,7 +879,7 @@ export class CloudService {
         email
       };
 
-      dbgLog('[CloudService] Sending getReviewPromptMessages request:', payload);
+      dbgLog('Sending getReviewPromptMessages request:', payload);
 
       const response = await fetch(GET_REVIEW_PROMPT_MESSAGES_URL, {
         method: 'POST',
@@ -887,7 +895,7 @@ export class CloudService {
       }
 
       const data = await response.json();
-      dbgLog('[CloudService] GetReviewPromptMessages response:', data);
+      dbgLog('GetReviewPromptMessages response:', data);
 
       if (data.status === 'success' && data.subtitle && data.question) {
         return {
@@ -898,7 +906,7 @@ export class CloudService {
         throw new Error('Invalid response format from getReviewPromptMessages');
       }
     } catch (error) {
-      dbgWarn('[CloudService] Error fetching review prompt messages:', error);
+      dbgWarn('Error fetching review prompt messages:', error);
       throw error;
     }
   }
@@ -909,7 +917,7 @@ export class CloudService {
    * @returns {Promise<Object>} - Response from the backend with session data
    */
   static async createCheckoutSession(plan) {
-    dbgLog('[CloudService] Creating checkout session for plan:', plan);
+    dbgLog('Creating checkout session for plan:', plan);
     
     try {
       // Get user data from storage
@@ -928,7 +936,7 @@ export class CloudService {
         email = userData.email;
         // For Firebase Auth, we need to use the email directly since we don't have Firebase Auth UIDs
         // The cloud function will look up the user by email
-        dbgLog('[CloudService] Using userData email for auth:', email);
+        dbgLog('Using userData email for auth:', email);
       }
       else {      
        if (storageData.user) {
@@ -939,20 +947,20 @@ export class CloudService {
             email = parsedUser.email;
             // For Firebase Auth, we need to use the email directly
             userData = parsedUser;
-            dbgLog('[CloudService] Using parsed user email for auth:', email);
+            dbgLog('Using parsed user email for auth:', email);
           }
         } catch (parseError) {
-          dbgWarn('[CloudService] Failed to parse user data:', parseError);
+          dbgWarn('Failed to parse user data:', parseError);
         }
       }
     }
       
       if (!email) {
-        dbgWarn('[CloudService] Cannot create checkout session: No user data in storage');
+        dbgWarn('Cannot create checkout session: No user data in storage');
         throw new Error('User not authenticated');
       }
       
-      dbgLog('[CloudService] Creating checkout session for user:', { email, plan });
+      dbgLog('Creating checkout session for user:', { email, plan });
       
       const response = await fetch(CREATE_CHECKOUT_SESSION_URL, {
         method: 'POST',
@@ -971,11 +979,11 @@ export class CloudService {
       }
       
       const data = await response.json();
-      dbgLog('[CloudService] Checkout session created successfully:', data);
+      dbgLog('Checkout session created successfully:', data);
       
       return data;
     } catch (error) {
-      dbgWarn('[CloudService] Error creating checkout session:', error);
+      dbgWarn('Error creating checkout session:', error);
       throw error;
     }
   }
@@ -985,7 +993,7 @@ export class CloudService {
    * @returns {Promise<Object>} - Response from the backend with cancellation result
    */
   static async cancelSubscription() {
-    dbgLog('[CloudService] Cancelling subscription');
+    dbgLog('Cancelling subscription');
     
     try {
       // Get user data from storage
@@ -1001,7 +1009,7 @@ export class CloudService {
       // If userData exists, use it
       if (userData && userData.email) {
         email = userData.email;
-        dbgLog('[CloudService] Using userData email for cancellation:', email);
+        dbgLog('Using userData email for cancellation:', email);
       } else if (storageData.user) {
         // If userData doesn't exist but user does, try to parse it
         try {
@@ -1009,19 +1017,19 @@ export class CloudService {
           if (parsedUser && parsedUser.email) {
             email = parsedUser.email;
             userData = parsedUser;
-            dbgLog('[CloudService] Using parsed user email for cancellation:', email);
+            dbgLog('Using parsed user email for cancellation:', email);
           }
         } catch (parseError) {
-          dbgWarn('[CloudService] Failed to parse user data:', parseError);
+          dbgWarn('Failed to parse user data:', parseError);
         }
       }
       
       if (!email) {
-        dbgWarn('[CloudService] Cannot cancel subscription: No user data in storage');
+        dbgWarn('Cannot cancel subscription: No user data in storage');
         throw new Error('User not authenticated');
       }
       
-      dbgLog('[CloudService] Cancelling subscription for user:', { email });
+      dbgLog('Cancelling subscription for user:', { email });
       
       const response = await fetch(CANCEL_SUBSCRIPTION_URL, {
         method: 'POST',
@@ -1039,11 +1047,11 @@ export class CloudService {
       }
       
       const data = await response.json();
-      dbgLog('[CloudService] Subscription cancelled successfully:', data);
+      dbgLog('Subscription cancelled successfully:', data);
       
       return data;
     } catch (error) {
-      dbgWarn('[CloudService] Error cancelling subscription:', error);
+      dbgWarn('Error cancelling subscription:', error);
       throw error;
     }
   }
@@ -1055,7 +1063,7 @@ export class CloudService {
    * @returns {Promise<Object>} - Response from the backend with tracking result
    */
   static async trackCustomDomains(domain, action = 'add') {
-    dbgLog('[CloudService] Tracking custom domain:', { domain, action });
+    dbgLog('Tracking custom domain:', { domain, action });
     
     try {
       // Get user data from storage
@@ -1071,7 +1079,7 @@ export class CloudService {
       // If userData exists, use it
       if (userData && userData.email) {
         email = userData.email;
-        dbgLog('[CloudService] Using userData email for domain tracking:', email);
+        dbgLog('Using userData email for domain tracking:', email);
       } else if (storageData.user) {
         // If userData doesn't exist but user does, try to parse it
         try {
@@ -1079,19 +1087,19 @@ export class CloudService {
           if (parsedUser && parsedUser.email) {
             email = parsedUser.email;
             userData = parsedUser;
-            dbgLog('[CloudService] Using parsed user email for domain tracking:', email);
+            dbgLog('Using parsed user email for domain tracking:', email);
           }
         } catch (parseError) {
-          dbgWarn('[CloudService] Failed to parse user data:', parseError);
+          dbgWarn('Failed to parse user data:', parseError);
         }
       }
       
       if (!email) {
-        dbgWarn('[CloudService] Cannot track custom domain: No user data in storage');
+        dbgWarn('Cannot track custom domain: No user data in storage');
         throw new Error('User not authenticated');
       }
       
-      dbgLog('[CloudService] Tracking custom domain for user:', { email, domain, action });
+      dbgLog('Tracking custom domain for user:', { email, domain, action });
       
       const response = await fetch(TRACK_CUSTOM_DOMAINS_URL, {
         method: 'POST',
@@ -1111,11 +1119,11 @@ export class CloudService {
       }
       
       const data = await response.json();
-      dbgLog('[CloudService] Custom domain tracked successfully:', data);
+      dbgLog('Custom domain tracked successfully:', data);
       
       return data;
     } catch (error) {
-      dbgWarn('[CloudService] Error tracking custom domain:', error);
+      dbgWarn('Error tracking custom domain:', error);
       throw error;
     }
   }
@@ -1127,7 +1135,7 @@ export class CloudService {
    * @returns {Promise<Object>} - Response from the backend
    */
   static async trackOllamaConfig(enabled, config = null) {
-    dbgLog('[CloudService] Tracking Ollama config:', { enabled, config });
+    dbgLog('Tracking Ollama config:', { enabled, config });
     
     const TRACK_OLLAMA_CONFIG_URL = 'https://us-central1-thinkgpt.cloudfunctions.net/trackOllamaConfigThinkReview';
     
@@ -1145,7 +1153,7 @@ export class CloudService {
       // If userData exists, use it
       if (userData && userData.email) {
         email = userData.email;
-        dbgLog('[CloudService] Using userData email for Ollama config tracking:', email);
+        dbgLog('Using userData email for Ollama config tracking:', email);
       } else if (storageData.user) {
         // If userData doesn't exist but user does, try to parse it
         try {
@@ -1153,19 +1161,19 @@ export class CloudService {
           if (parsedUser && parsedUser.email) {
             email = parsedUser.email;
             userData = parsedUser;
-            dbgLog('[CloudService] Using parsed user email for Ollama config tracking:', email);
+            dbgLog('Using parsed user email for Ollama config tracking:', email);
           }
         } catch (parseError) {
-          dbgWarn('[CloudService] Failed to parse user data:', parseError);
+          dbgWarn('Failed to parse user data:', parseError);
         }
       }
       
       if (!email) {
-        dbgWarn('[CloudService] Cannot track Ollama config: No user data in storage');
+        dbgWarn('Cannot track Ollama config: No user data in storage');
         throw new Error('User not authenticated');
       }
       
-      dbgLog('[CloudService] Tracking Ollama config for user:', { email, enabled, config });
+      dbgLog('Tracking Ollama config for user:', { email, enabled, config });
       
       const response = await fetch(TRACK_OLLAMA_CONFIG_URL, {
         method: 'POST',
@@ -1185,11 +1193,11 @@ export class CloudService {
       }
       
       const data = await response.json();
-      dbgLog('[CloudService] Ollama config tracked successfully:', data);
+      dbgLog('Ollama config tracked successfully:', data);
       
       return data;
     } catch (error) {
-      dbgWarn('[CloudService] Error tracking Ollama config:', error);
+      dbgWarn('Error tracking Ollama config:', error);
       throw error;
     }
   }
@@ -1205,7 +1213,7 @@ export class CloudService {
    * @returns {Promise<Object>} - Response from the backend
    */
   static async submitReviewFeedback(email, type, aiResponse, mrUrl, rating, additionalFeedback = null) {
-    dbgLog('[CloudService] Submitting review feedback:', { 
+    dbgLog('Submitting review feedback:', { 
       email, 
       type,
       hasAiResponse: !!aiResponse,
@@ -1214,27 +1222,27 @@ export class CloudService {
     });
     
     if (!email) {
-      dbgWarn('[CloudService] Cannot submit feedback: Missing email');
+      dbgWarn('Cannot submit feedback: Missing email');
       throw new Error('Email is required');
     }
 
     if (!type || (type !== 'conversation' && type !== 'codereview')) {
-      dbgWarn('[CloudService] Cannot submit feedback: Invalid type');
+      dbgWarn('Cannot submit feedback: Invalid type');
       throw new Error('Type must be "conversation" or "codereview"');
     }
 
     if (type === 'codereview' && !mrUrl) {
-      dbgWarn('[CloudService] Cannot submit feedback: Missing mrUrl for codereview type');
+      dbgWarn('Cannot submit feedback: Missing mrUrl for codereview type');
       throw new Error('mrUrl is required for codereview type');
     }
 
     if (type === 'conversation' && !aiResponse) {
-      dbgWarn('[CloudService] Cannot submit feedback: Missing aiResponse for conversation type');
+      dbgWarn('Cannot submit feedback: Missing aiResponse for conversation type');
       throw new Error('aiResponse is required for conversation type');
     }
 
     if (!rating || (rating !== 'thumbs_up' && rating !== 'thumbs_down')) {
-      dbgWarn('[CloudService] Cannot submit feedback: Invalid rating');
+      dbgWarn('Cannot submit feedback: Invalid rating');
       throw new Error('Rating must be "thumbs_up" or "thumbs_down"');
     }
 
@@ -1253,7 +1261,7 @@ export class CloudService {
         payload.mrUrl = mrUrl;
       }
 
-      dbgLog('[CloudService] Sending feedback request:', payload);
+      dbgLog('Sending feedback request:', payload);
 
       const response = await fetch(SUBMIT_REVIEW_FEEDBACK_URL, {
         method: 'POST',
@@ -1269,11 +1277,11 @@ export class CloudService {
       }
 
       const data = await response.json();
-      dbgLog('[CloudService] Feedback submitted successfully:', data);
+      dbgLog('Feedback submitted successfully:', data);
 
       return data;
     } catch (error) {
-      dbgWarn('[CloudService] Error submitting feedback:', error);
+      dbgWarn('Error submitting feedback:', error);
       throw error;
     }
   }

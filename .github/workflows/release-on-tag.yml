@@ -1,3 +1,7 @@
+# Required: set in repo Settings → Secrets and variables → Actions:
+# - Variable: GA_MEASUREMENT_ID (GA4 Measurement ID)
+# - Secret: GA_API_SECRET (Measurement Protocol API Secret)
+# - Secret: HONEYBADGER_API_KEY (Honeybadger API key)
 name: Release Extension
 
 on:
@@ -48,6 +52,10 @@ jobs:
 
       - name: Build extension
         run: npm run build
+        env:
+          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
+          GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
+          HONEYBADGER_API_KEY: ${{ secrets.HONEYBADGER_API_KEY }}
 
       - name: Archive extension
         id: archive

@@ -1,6 +1,9 @@
 // item-copy-button.js
 // Module for creating and handling copy buttons for review items
 
+import { dbgWarn } from '../../utils/logger.js';
+import { trackUserAction } from '../../utils/analytics-service.js';
+
 /**
  * Creates a copy button element with SVG icon
  * @returns {HTMLElement} The copy button element
@@ -586,8 +589,14 @@ export async function copyItemContent(element, button) {
     
     // Show success feedback
     showCopySuccessFeedback(button);
+    
+    // Track copy action
+    trackUserAction('copy_button', {
+      context: 'review_item',
+      location: 'integrated_panel'
+    }).catch(() => {}); // Silently fail
   } catch (error) {
-    console.warn('[ItemCopyButton] Failed to copy content:', error);
+    dbgWarn('Failed to copy content:', error);
     
     // Fallback to plain text if HTML copy fails
     if (shouldPreserveStyle) {
@@ -595,11 +604,18 @@ export async function copyItemContent(element, button) {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(text);
           showCopySuccessFeedback(button);
+          
+          // Track copy action (fallback success)
+          trackUserAction('copy_button', {
+            context: 'review_item',
+            location: 'integrated_panel',
+            method: 'fallback'
+          }).catch(() => {}); // Silently fail
         } else {
           showCopyErrorFeedback(button);
         }
       } catch (fallbackError) {
-        console.warn('[ItemCopyButton] Fallback copy also failed:', fallbackError);
+        dbgWarn('Fallback copy also failed:', fallbackError);
         showCopyErrorFeedback(button);
       }
     } else {
@@ -654,7 +670,7 @@ function showCopyErrorFeedback(button) {
  */
 export function attachCopyButtonToItem(contentElement, wrapperElement) {
   if (!contentElement || !wrapperElement) {
-    console.warn('[ItemCopyButton] Cannot attach copy button: missing contentElement or wrapperElement');
+    dbgWarn('Cannot attach copy button: missing contentElement or wrapperElement');
     return null;
   }
   

@@ -1,10 +1,8 @@
 // subscription-status.js
 // Module for handling subscription status display in the popup
+import { dbgLog, dbgWarn, dbgError } from '../../utils/logger.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[subscription-status]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[subscription-status]', ...args); }
+
 
 /**
  * Subscription Status Module
