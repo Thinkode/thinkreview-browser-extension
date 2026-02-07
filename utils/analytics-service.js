@@ -173,16 +173,11 @@ export async function logToAnalytics(level, component, message, additionalData =
 
 /**
  * Track key user actions/events
- * @param {string} action - Action name (e.g., 'copy_button', 'refresh_review', 'ai_review_clicked')
+ * @param {string} eventName - Event name that describes the action (e.g., 'copy_button', 'refresh_review', 'ai_review_clicked')
  * @param {Object} params - Additional parameters (e.g., { context: 'review_item', location: 'integrated_panel' })
  */
-export async function trackUserAction(action, params = {}) {
-  const eventParams = {
-    action: action,
-    ...params
-  };
-  
-  await sendEvent('user_action', eventParams);
+export async function trackUserAction(eventName, params = {}) {
+  await sendEvent(eventName, params);
 }
 
 export const AnalyticsService = {
