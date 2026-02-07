@@ -1,11 +1,11 @@
 // analytics-service.js
 // Google Analytics service using Measurement Protocol for browser extensions
 
-// Configuration - Replace with your GA4 Measurement ID and API Secret
-// Get these from: https://analytics.google.com/
-const GA_MEASUREMENT_ID = 'G-HM2CWJREJ1'; // Your GA4 Measurement ID
-const GA_API_SECRET = 'pekxL43pRVGKSOKuL155_g'; // Your Measurement Protocol API Secret
-const GA_ENDPOINT = `https://www.google-analytics.com/mp/collect?measurement_id=${GA_MEASUREMENT_ID}&api_secret=${GA_API_SECRET}`;
+import { GA_MEASUREMENT_ID, GA_API_SECRET } from './env-config.js';
+
+const GA_ENDPOINT = (GA_MEASUREMENT_ID && GA_API_SECRET)
+  ? `https://www.google-analytics.com/mp/collect?measurement_id=${GA_MEASUREMENT_ID}&api_secret=${GA_API_SECRET}`
+  : null;
 
 // Cache for client ID
 let cachedClientId = null;
@@ -87,6 +87,7 @@ function isContentScriptContext() {
  * @returns {Promise<void>}
  */
 async function sendEvent(eventName, eventParams = {}) {
+  if (!GA_ENDPOINT) return;
   try {
     const clientId = await getClientId();
     

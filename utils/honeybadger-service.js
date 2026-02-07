@@ -1,9 +1,7 @@
 // honeybadger-service.js
 // Honeybadger error tracking service for Chrome extension
-// Handles initialization and error reporting across different extension contexts
 
-// Honeybadger API Key
-const HONEYBADGER_API_KEY = 'hbp_OXlwGcN8OXC137VMzbTvdiQNL9Zlxe4601Ht';
+import { HONEYBADGER_API_KEY } from './env-config.js';
 
 let honeybadgerInitialized = false;
 let Honeybadger = null;
@@ -34,9 +32,7 @@ function isContentScriptContext() {
  * @returns {Promise<void>}
  */
 async function initHoneybadger() {
-  if (honeybadgerInitialized || !HONEYBADGER_API_KEY) {
-    return;
-  }
+  if (honeybadgerInitialized || !HONEYBADGER_API_KEY) return;
 
   try {
     const isServiceWorker = isServiceWorkerContext();
