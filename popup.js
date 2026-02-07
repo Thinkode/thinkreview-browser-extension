@@ -1131,11 +1131,8 @@ function setupAzureEventListeners() {
 
 function validateTokenInput(token) {
   if (!token) return false;
-  
-  // Azure DevOps PATs are typically base64 encoded strings
-  // They usually start with a specific pattern and are 52 characters long
-  // But we'll be more lenient and just check for reasonable length and characters
-  const tokenRegex = /^[A-Za-z0-9+/=_-]{20,}$/;
+  // Azure DevOps PATs: allow typical base64-style characters, no length requirement
+  const tokenRegex = /^[A-Za-z0-9+/=_-]+$/;
   return tokenRegex.test(token);
 }
 
