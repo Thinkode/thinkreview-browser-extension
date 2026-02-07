@@ -47,12 +47,16 @@ export class AzureDevOpsAPI {
     
     // Determine base URL based on hostname or organization
     // For visualstudio.com domains, use the hostname directly
+    // For custom/on-prem hostnames, use the hostname as origin
     // For dev.azure.com domains, construct the URL with organization
     if (hostname && hostname.includes('visualstudio.com')) {
       this.baseUrl = `https://${hostname}`;
     } else if (organization.includes('visualstudio.com')) {
       // Fallback: if organization already includes the domain
       this.baseUrl = `https://${organization}`;
+    } else if (hostname && !hostname.includes('dev.azure.com') && !hostname.includes('visualstudio.com')) {
+      // Custom/on-prem Azure DevOps (e.g. devops.companyname.com); API path is /{organization}/{project}/_apis/...
+      this.baseUrl = `https://${hostname}/${organization}`;
     } else {
       this.baseUrl = `https://dev.azure.com/${organization}`;
     }
