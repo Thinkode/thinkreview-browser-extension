@@ -425,6 +425,24 @@ async function createIntegratedReviewPanel(patchUrl) {
     if (versionText && manifest.version) {
       versionText.textContent = manifest.version;
     }
+    
+    // Add tracking to version link click
+    const versionLink = container.querySelector('#extension-version-link');
+    if (versionLink) {
+      versionLink.addEventListener('click', async (e) => {
+        // Track version link click
+        try {
+          const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+          analyticsModule.trackUserAction('version_link_clicked', {
+            context: 'header',
+            location: 'integrated_panel',
+            version: manifest.version || 'unknown'
+          }).catch(() => {}); // Silently fail
+        } catch (error) {
+          // Silently fail - analytics shouldn't break the extension
+        }
+      });
+    }
   } catch (error) {
     dbgWarn('Failed to get extension version:', error);
     const versionText = container.querySelector('#extension-version-text');
@@ -1021,6 +1039,18 @@ function setupFeedbackButtons(container, aiResponse, mrUrl = null) {
   const handleFeedback = async (rating, clickedBtn) => {
     // Mark button as selected immediately for visual feedback
     setButtonSelected(clickedBtn);
+    
+    // Track feedback button click
+    try {
+      const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+      const feedbackType = mrUrl ? 'codereview' : 'conversation';
+      analyticsModule.trackUserAction(rating === 'thumbs_up' ? 'thumbs_up_clicked' : 'thumbs_down_clicked', {
+        context: feedbackType,
+        location: 'integrated_panel'
+      }).catch(() => {}); // Silently fail
+    } catch (error) {
+      // Silently fail - analytics shouldn't break the extension
+    }
     
     // Get user email (fire-and-forget, don't block UI)
     chrome.storage.local.get(['userData'], (result) => {
