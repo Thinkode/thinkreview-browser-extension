@@ -589,7 +589,7 @@ export async function copyItemContent(element, button) {
     // Show success feedback
     showCopySuccessFeedback(button);
   } catch (error) {
-    dbgWarn('[ItemCopyButton] Failed to copy content:', error);
+    dbgWarn('Failed to copy content:', error);
     
     // Fallback to plain text if HTML copy fails
     if (shouldPreserveStyle) {
@@ -601,7 +601,7 @@ export async function copyItemContent(element, button) {
           showCopyErrorFeedback(button);
         }
       } catch (fallbackError) {
-        dbgWarn('[ItemCopyButton] Fallback copy also failed:', fallbackError);
+        dbgWarn('Fallback copy also failed:', fallbackError);
         showCopyErrorFeedback(button);
       }
     } else {
@@ -656,7 +656,7 @@ function showCopyErrorFeedback(button) {
  */
 export function attachCopyButtonToItem(contentElement, wrapperElement) {
   if (!contentElement || !wrapperElement) {
-    dbgWarn('[ItemCopyButton] Cannot attach copy button: missing contentElement or wrapperElement');
+    dbgWarn('Cannot attach copy button: missing contentElement or wrapperElement');
     return null;
   }
   

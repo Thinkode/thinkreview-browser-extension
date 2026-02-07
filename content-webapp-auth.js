@@ -26,7 +26,7 @@
       dbgWarn = loggerModule.dbgWarn;
       dbgError = loggerModule.dbgError;
     } catch (error) {
-      dbgWarn('[ThinkReview Extension] Failed to load logger module, using console fallback:', error);
+      dbgWarn('Failed to load logger module, using console fallback:', error);
     }
   })();
   
@@ -43,9 +43,9 @@
       originValidatorLoaded = true;
       initializeContentScript();
     } catch (error) {
-      dbgError('[ThinkReview Extension] Failed to load origin validator utility:', error);
+      dbgError('Failed to load origin validator utility:', error);
       // Don't initialize if we can't load the shared utility - ensures we always use the single source of truth
-      dbgError('[ThinkReview Extension] Content script initialization aborted due to missing origin validator');
+      dbgError('Content script initialization aborted due to missing origin validator');
     }
   })();
   
@@ -56,11 +56,11 @@
     const isAllowedOrigin = isValidOrigin(currentOrigin, DEBUG);
   
     if (!isAllowedOrigin) {
-      dbgWarn('[ThinkReview Extension] Content script loaded on unauthorized domain:', currentOrigin);
+      dbgWarn('Content script loaded on unauthorized domain:', currentOrigin);
       return; // Don't run on wrong domain
     }
   
-    dbgLog('[ThinkReview Extension] Webapp auth content script loaded on:', currentOrigin);
+    dbgLog('Webapp auth content script loaded on:', currentOrigin);
   
     // Maximum age for auth data (5 minutes)
     const MAX_AUTH_AGE = 5 * 60 * 1000;
@@ -81,13 +81,13 @@
     function sendAuthToExtension(userData, timestamp) {
       // SECURITY: Validate data before sending
       if (!validateUserData(userData)) {
-        dbgWarn('[ThinkReview Extension] Invalid user data structure:', userData);
+        dbgWarn('Invalid user data structure:', userData);
         return;
       }
       
       // SECURITY: Check timestamp freshness
       if (timestamp && (Date.now() - timestamp > MAX_AUTH_AGE)) {
-        dbgWarn('[ThinkReview Extension] Auth data is stale, ignoring');
+        dbgWarn('Auth data is stale, ignoring');
         return;
       }
       
@@ -99,19 +99,19 @@
           origin: window.location.origin
         }, (response) => {
           if (chrome.runtime.lastError) {
-            dbgWarn('[ThinkReview Extension] Failed to send auth message:', chrome.runtime.lastError);
+            dbgWarn('Failed to send auth message:', chrome.runtime.lastError);
           } else if (response && response.success) {
-            dbgLog('[ThinkReview Extension] Auth state synced to extension');
+            dbgLog('Auth state synced to extension');
           }
         });
       } catch (error) {
-        console.error('[ThinkReview Extension] Error sending auth message:', error);
+        console.error('Error sending auth message:', error);
       }
     }
   
     // Listen for custom events from webapp (login only)
     window.addEventListener('thinkreview-auth-changed', (event) => {
-      dbgLog('[ThinkReview Extension] Received auth-changed event:', event.detail);
+      dbgLog('Received auth-changed event:', event.detail);
       
       // Only handle login events, ignore logout (event.detail === null)
       if (event.detail !== null) {
@@ -129,7 +129,7 @@
         
         // Validate the origin hostname using shared utility
         if (!isValidOrigin(eventHostname, DEBUG)) {
-          dbgLog('[ThinkReview Extension] Rejected postMessage from unauthorized origin:', event.origin);
+          dbgLog('Rejected postMessage from unauthorized origin:', event.origin);
           return; // Ignore messages from unauthorized origins
         }
         
@@ -141,18 +141,18 @@
                              (currentOrigin === 'localhost' || currentOrigin === '127.0.0.1') &&
                              (eventHostname === 'localhost' || eventHostname === '127.0.0.1');
           if (!isLocalhost) {
-            dbgLog('[ThinkReview Extension] Rejected postMessage from different origin:', event.origin, 'expected:', window.location.origin);
+            dbgLog('Rejected postMessage from different origin:', event.origin, 'expected:', window.location.origin);
             return;
           }
         }
       } catch (error) {
         // Invalid origin URL, reject
-        dbgWarn('[ThinkReview Extension] Invalid postMessage origin:', event.origin, error);
+        dbgWarn('Invalid postMessage origin:', event.origin, error);
         return;
       }
       
       if (event.data && event.data.type === 'thinkreview-auth-state') {
-        dbgLog('[ThinkReview Extension] Received auth state via postMessage:', event.data);
+        dbgLog('Received auth state via postMessage:', event.data);
         
         // Only handle login events, ignore logout (event.data.userData === null)
         if (event.data.userData !== null) {
@@ -162,7 +162,7 @@
       }
     });
   
-    dbgLog('[ThinkReview Extension] Webapp auth listener initialized');
+    dbgLog('Webapp auth listener initialized');
   }
 })();
 

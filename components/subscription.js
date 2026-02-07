@@ -35,26 +35,26 @@ class SubscriptionComponent {
     this.setupSubscriptionButtons();
     this.initialized = true;
     
-    dbgLog('[SubscriptionComponent] Initialized');
+    dbgLog('Initialized');
   }
 
   /**
    * Set up subscription upgrade button
    */
   setupSubscriptionButtons() {
-    dbgLog('[SubscriptionComponent] Setting up subscription button');
+    dbgLog('Setting up subscription button');
     
     // Get the button
     const upgradeBtn = document.getElementById('upgrade-btn');
     
     if (!upgradeBtn) {
-      dbgWarn('[SubscriptionComponent] Subscription button not found in the DOM');
+      dbgWarn('Subscription button not found in the DOM');
       return;
     }
     
     // Check if event listeners are already attached
     if (this.eventListenersAttached) {
-      dbgLog('[SubscriptionComponent] Event listener already attached, skipping');
+      dbgLog('Event listener already attached, skipping');
       return;
     }
     
@@ -68,19 +68,19 @@ class SubscriptionComponent {
     upgradeBtn.addEventListener('click', this.upgradeClickHandler);
     
     this.eventListenersAttached = true;
-    dbgLog('[SubscriptionComponent] Event listener attached');
+    dbgLog('Event listener attached');
   }
 
   /**
    * Handle upgrade button click
    */
   async handleUpgradeClick() {
-    dbgLog('[SubscriptionComponent] Handling upgrade click');
+    dbgLog('Handling upgrade click');
     
     try {
       // Redirect to the subscription portal
       const subscriptionPortalUrl = 'https://portal.thinkreview.dev/subscription';
-      dbgLog('[SubscriptionComponent] Redirecting to subscription portal:', subscriptionPortalUrl);
+      dbgLog('Redirecting to subscription portal:', subscriptionPortalUrl);
       
       // Open the subscription portal in a new tab
       window.open(subscriptionPortalUrl, '_blank');
@@ -90,7 +90,7 @@ class SubscriptionComponent {
       this.showErrorState(); // This just resets the UI state
       
     } catch (error) {
-      dbgWarn('[SubscriptionComponent] Error redirecting to subscription portal:', error);
+      dbgWarn('Error redirecting to subscription portal:', error);
       this.showMessage('Failed to open subscription portal', 'error');
       this.showErrorState('Failed to open subscription portal');
     }

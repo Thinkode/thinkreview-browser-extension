@@ -30,7 +30,7 @@ if (typeof dbgError === 'undefined') {
     dbgError = loggerModule.dbgError;
   } catch (error) {
     // Keep using fallback functions if logger fails to load
-    dbgWarn('[IntegratedReview] Failed to load logger module, using console fallback:', error);
+    dbgWarn('Failed to load logger module, using console fallback:', error);
   }
 })();
 // Import the CSS for the integrated review panel
@@ -72,10 +72,10 @@ const badgeModulePromise = (async () => {
   try {
     const module = await import('./utils/new-badge.js');
     createNewBadge = module.createNewBadge;
-    dbgLog('[IntegratedReview] Badge utils loaded');
+    dbgLog('Badge utils loaded');
     return module;
   } catch (e) {
-    dbgWarn('[IntegratedReview] Failed to load badge utils', e);
+    dbgWarn('Failed to load badge utils', e);
     return null;
   }
 })();
@@ -88,9 +88,9 @@ async function initFormattingUtils() {
     applySimpleSyntaxHighlighting = module.applySimpleSyntaxHighlighting;
     setupCopyHandler = module.setupCopyHandler;
     setupCopyHandler();
-    dbgLog('[IntegratedReview] Formatting utils loaded');
+    dbgLog('Formatting utils loaded');
   } catch (e) {
-    dbgWarn('[IntegratedReview] Failed to load formatting utils', e);
+    dbgWarn('Failed to load formatting utils', e);
   }
 }
 
@@ -100,9 +100,9 @@ async function initCopyButtonUtils() {
     createCopyButton = module.createCopyButton;
     copyItemContent = module.copyItemContent;
     attachCopyButtonToItem = module.attachCopyButtonToItem;
-    dbgLog('[IntegratedReview] Copy button utils loaded');
+    dbgLog('Copy button utils loaded');
   } catch (e) {
-    dbgWarn('[IntegratedReview] Failed to load copy button utils', e);
+    dbgWarn('Failed to load copy button utils', e);
   }
 }
 
@@ -136,9 +136,9 @@ async function initReviewPromptComponent() {
     });
     reviewPrompt.init('review-prompt-container');
     window.reviewPrompt = reviewPrompt; // Make accessible globally
-    dbgLog('[IntegratedReview] Review prompt component initialized with daily threshold of 5');
+    dbgLog('Review prompt component initialized with daily threshold of 5');
   } catch (error) {
-    dbgWarn('[IntegratedReview] Failed to initialize review prompt component:', error);
+    dbgWarn('Failed to initialize review prompt component:', error);
   }
 }
 
@@ -156,7 +156,7 @@ let currentPatchContent = '';
 function clearPatchContentAndHistory() {
   currentPatchContent = '';
   conversationHistory = [];
-  dbgLog('[IntegratedReview] Cleared patch content and conversation history');
+  dbgLog('Cleared patch content and conversation history');
 }
 
 // Expose function for content.js to call when navigating to new PR
@@ -540,7 +540,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   if (bugReportButton) {
     bugReportButton.addEventListener('click', (e) => {
       e.stopPropagation(); // Prevent triggering the header click event
-      dbgLog('[IntegratedReview] Bug report button clicked');
+      dbgLog('Bug report button clicked');
       window.open('https://thinkreview.dev/bug-report', '_blank');
     });
   }
@@ -550,7 +550,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   if (regenerateButton) {
     regenerateButton.addEventListener('click', async (e) => {
       e.stopPropagation(); // Prevent triggering the header click event
-      dbgLog('[IntegratedReview] Regenerate review button clicked');
+      dbgLog('Regenerate review button clicked');
       
       // Show loading state
       const reviewLoading = document.getElementById('review-loading');
@@ -568,7 +568,7 @@ async function createIntegratedReviewPanel(patchUrl) {
       if (typeof fetchAndDisplayCodeReview === 'function') {
         await fetchAndDisplayCodeReview(true); // Pass true to force regeneration
       } else {
-        console.error('[IntegratedReview] fetchAndDisplayCodeReview function not found');
+        console.error('fetchAndDisplayCodeReview function not found');
       }
     });
   }
@@ -623,7 +623,7 @@ async function createIntegratedReviewPanel(patchUrl) {
       e.stopPropagation(); // Prevent triggering the header click event
       const selectedLanguage = e.target.value;
       setLanguagePreference(selectedLanguage);
-      dbgLog('[IntegratedReview] Language preference updated to:', selectedLanguage);
+      dbgLog('Language preference updated to:', selectedLanguage);
     });
   }
   
@@ -643,11 +643,11 @@ function applyPlatformSpecificStyling(container) {
                        window.location.hostname.includes('visualstudio.com');
   
   if (isAzureDevOps) {
-    dbgLog('[IntegratedReview] Detected Azure DevOps platform, applying Azure DevOps styling');
+    dbgLog('Detected Azure DevOps platform, applying Azure DevOps styling');
     
     // Detect Azure DevOps theme
     const theme = detectAzureDevOpsTheme();
-    dbgLog('[IntegratedReview] Detected Azure DevOps theme:', theme);
+    dbgLog('Detected Azure DevOps theme:', theme);
     
     // Apply theme-specific styling
     const cardBody = container.querySelector('.thinkreview-card-body');
@@ -686,7 +686,7 @@ function applyPlatformSpecificStyling(container) {
     container.classList.add(`${theme}-theme`);
     container.setAttribute('data-theme', theme);
   } else {
-    dbgLog('[IntegratedReview] Detected GitLab platform, using GitLab styling');
+    dbgLog('Detected GitLab platform, using GitLab styling');
     container.classList.add('gitlab-platform');
   }
 }
@@ -1016,7 +1016,7 @@ function setupFeedbackButtons(container, aiResponse, mrUrl = null) {
       const userData = result.userData;
       
       if (!userData || !userData.email) {
-        dbgWarn('[IntegratedReview] User not logged in, cannot submit feedback');
+        dbgWarn('User not logged in, cannot submit feedback');
         // Remove selection if user not logged in
         clickedBtn.classList.remove('selected');
         return;
@@ -1065,7 +1065,7 @@ function setupFeedbackButtons(container, aiResponse, mrUrl = null) {
  */
 function submitFeedback(email, feedbackType, aiResponse, mrUrl, rating, additionalFeedback) {
   // Log what we're sending for debugging
-  dbgLog('[IntegratedReview] Submitting feedback:', {
+  dbgLog('Submitting feedback:', {
     hasEmail: !!email,
     feedbackType,
     hasAiResponse: !!aiResponse,
@@ -1089,17 +1089,17 @@ function submitFeedback(email, feedbackType, aiResponse, mrUrl, rating, addition
       if (chrome.runtime.lastError) {
         const errorMsg = chrome.runtime.lastError.message || 
                         (typeof chrome.runtime.lastError === 'string' ? chrome.runtime.lastError : JSON.stringify(chrome.runtime.lastError));
-        dbgWarn('[IntegratedReview] Error submitting feedback (fire-and-forget):', errorMsg);
+        dbgWarn('Error submitting feedback (fire-and-forget):', errorMsg);
         return;
       }
       
       if (response && response.success) {
-        dbgLog('[IntegratedReview] Feedback submitted successfully (fire-and-forget)');
+        dbgLog('Feedback submitted successfully (fire-and-forget)');
       } else {
         const errorMsg = response?.error || 
                         (response?.message) ||
                         (typeof response === 'string' ? response : JSON.stringify(response));
-        dbgWarn('[IntegratedReview] Failed to submit feedback (fire-and-forget):', errorMsg);
+        dbgWarn('Failed to submit feedback (fire-and-forget):', errorMsg);
       }
     }
   );
@@ -1156,7 +1156,7 @@ async function handleSendMessage(messageText) {
     // Handle the nested response structure: { status: "success", review: { response: "..." } }
     const responseText = aiResponse.review?.response || aiResponse.response || aiResponse.content || aiResponse;
     // Log only metadata, not the actual response text
-    dbgLog('[IntegratedReview] Response text extracted:', {
+    dbgLog('Response text extracted:', {
       hasResponse: !!responseText,
       responseLength: responseText?.length || 0
     });
@@ -1222,7 +1222,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   
   // Check if there was a JSON parsing error (safety check)
   if (review.parsingError === true) {
-    dbgWarn('[IntegratedReview] JSON parsing error detected in review object');
+    dbgWarn('JSON parsing error detected in review object');
     const errorMessage = review.errorMessage 
       ? `Unable to parse AI response: ${review.errorMessage}. Please try regenerating the review.`
       : 'The AI generated a response that could not be parsed. Please try regenerating the review or report this issue at https://thinkreview.dev/bug-report';
@@ -1239,7 +1239,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     loadingModule.hideButtonLoadingIndicator();
   } catch (error) {
     // Silently fail if module not available
-    dbgWarn('[IntegratedReview] Failed to hide loading indicator:', error);
+    dbgWarn('Failed to hide loading indicator:', error);
   }
 
   const reviewLoading = document.getElementById('review-loading');
@@ -1269,7 +1269,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       const metadataModule = await import('./review-metadata-bar.js');
       metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionType, modelUsed, isCached);
     } catch (error) {
-      dbgWarn('[IntegratedReview] Failed to load review metadata bar:', error);
+      dbgWarn('Failed to load review metadata bar:', error);
       // Best-effort: hide banner container on failure
       patchSizeBanner.classList.add('gl-hidden');
     }
@@ -1315,7 +1315,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
           reviewMetricsContainer.classList.add('gl-hidden');
         }
       } catch (error) {
-        dbgWarn('[IntegratedReview] Failed to load quality scorecard component:', error);
+        dbgWarn('Failed to load quality scorecard component:', error);
         reviewMetricsContainer.classList.add('gl-hidden');
       }
     } else {
@@ -1332,7 +1332,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
         const scorePopupModule = await import('./popup-modules/score-popup.js');
         scorePopupModule.showScorePopupOnButton(review.metrics.overallScore);
       } catch (error) {
-        dbgWarn('[IntegratedReview] Failed to load score popup module:', error);
+        dbgWarn('Failed to load score popup module:', error);
       }
     }
     
@@ -1341,7 +1341,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       const notificationModule = await import('./popup-modules/button-notification.js');
       notificationModule.showButtonNotification();
     } catch (error) {
-      dbgWarn('[IntegratedReview] Failed to load button notification module:', error);
+      dbgWarn('Failed to load button notification module:', error);
     }
   }
 
@@ -1497,7 +1497,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
           staticQuestionButton.appendChild(newBadge);
         }
       } catch (error) {
-        dbgWarn('[IntegratedReview] Failed to load badge module for button:', error);
+        dbgWarn('Failed to load badge module for button:', error);
       }
     })();
     
@@ -1531,7 +1531,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       // Pass mrUrl as the identifier (null for aiResponse)
       setupFeedbackButtons(initialFeedbackContainer, null, mrUrl);
     } else {
-      dbgWarn('[IntegratedReview] Cannot get mrUrl');
+      dbgWarn('Cannot get mrUrl');
       initialFeedbackContainer.classList.add('gl-hidden');
     }
   }
@@ -1653,18 +1653,18 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
         
         if (refreshResponse.status === 'success') {
           // Log only metadata, not full user data which may contain email
-          dbgLog('[IntegratedReview] User data refreshed before feedback check:', {
+          dbgLog('User data refreshed before feedback check:', {
             hasEmail: !!refreshResponse.data?.email,
             todayReviewCount: refreshResponse.data?.todayReviewCount
           });
         } else {
-          dbgWarn('[IntegratedReview] Failed to refresh user data:', refreshResponse.error);
+          dbgWarn('Failed to refresh user data:', refreshResponse.error);
         }
         
         // Now check if we should show the prompt (with fresh data in storage)
         await reviewPrompt.checkAndShow();
       } catch (error) {
-        // console.warn('[IntegratedReview] Error checking review prompt:', error);
+        // console.warn('Error checking review prompt:', error);
       }
     }
   }, 1000);

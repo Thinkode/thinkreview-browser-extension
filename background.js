@@ -11,7 +11,7 @@ import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 // Logger module will automatically initialize Honeybadger
 // Set uninstall URL to redirect users to feedback page
 chrome.runtime.setUninstallURL('https://thinkreview.dev/goodbye.html', () => {
-  dbgLog('[ThinkReview Extension][BG] Uninstall URL set successfully');
+  dbgLog('Uninstall URL set successfully');
 });
 
 // OAuth constants
@@ -124,13 +124,13 @@ async function handleGoogleSignIn() {
             window.postMessage({ type: 'GOOGLE_SIGNIN_COMPLETE', user: userData }, '*');
           },
           args: [syncedUser]
-        }).catch(err => dbgWarn('[ThinkReview Extension][BG] Failed to execute script:', err));
+        }).catch(err => dbgWarn('Failed to execute script:', err));
       }
     });
     
     return syncedUser;
   } catch (error) {
-    dbgError('[ThinkReview Extension][BG] Google Sign-In error:', error);
+    dbgError('Google Sign-In error:', error);
     throw error;
   }
 }
@@ -164,17 +164,17 @@ async function trackOllamaReview(patchContent, mrId, mrUrl, reviewData, model) {
           email = parsedUser.email;
         }
       } catch (e) {
-        dbgWarn('[ThinkReview Extension][BG] Failed to parse user data for Ollama tracking:', e);
+        dbgWarn('Failed to parse user data for Ollama tracking:', e);
       }
     }
     
     if (!email) {
-      dbgWarn('[ThinkReview Extension][BG] No email found for Ollama review tracking');
+      dbgWarn('No email found for Ollama review tracking');
       return;
     }
     
     // Log only that tracking occurred, not the email address
-    dbgLog('[ThinkReview Extension][BG] Tracking Ollama review');
+    dbgLog('Tracking Ollama review');
     
     // Extract review object from response
     const review = reviewData.review || reviewData;
@@ -233,16 +233,16 @@ async function trackOllamaReview(patchContent, mrId, mrUrl, reviewData, model) {
     }
     
     const result = await response.json();
-    dbgLog('[ThinkReview Extension][BG] Ollama review tracked successfully:', result);
+    dbgLog('Ollama review tracked successfully:', result);
   } catch (error) {
-    dbgError('[ThinkReview Extension][BG] Error tracking Ollama review:', error);
+    dbgError('Error tracking Ollama review:', error);
     throw error;
   }
 }
 
 // Listen for extension icon clicks to open full page
 chrome.action.onClicked.addListener((tab) => {
-  dbgLog('[ThinkReview Extension][BG] Extension icon clicked, opening full page');
+  dbgLog('Extension icon clicked, opening full page');
   chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
 });
 
@@ -280,7 +280,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
         const provider = settings.aiProvider || 'cloud';
         
-        dbgLog('[ThinkReview Extension][BG] Using AI provider for conversation:', provider);
+        dbgLog('Using AI provider for conversation:', provider);
         
         // Route to appropriate service based on provider
         if (provider === 'ollama') {
@@ -288,7 +288,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           try {
             const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'qwen3-coder:30b' };
             
-            dbgLog('[ThinkReview Extension][BG] Getting conversational response from Ollama:', config);
+            dbgLog('Getting conversational response from Ollama:', config);
             
             const data = await OllamaService.getConversationalResponse(
               patchContent, 
@@ -298,11 +298,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               mrUrl
             );
             
-            dbgLog('[ThinkReview Extension][BG] Ollama conversational response completed successfully');
+            dbgLog('Ollama conversational response completed successfully');
             sendResponse({ success: true, data: data, provider: 'ollama' });
             return;
           } catch (ollamaError) {
-            dbgWarn('[ThinkReview Extension][BG] Ollama conversational response failed:', ollamaError.message);
+            dbgWarn('Ollama conversational response failed:', ollamaError.message);
             
             // Provide a helpful error message
             sendResponse({ 
@@ -318,7 +318,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Default: Use cloud service (Gemini)
         const data = await CloudService.getConversationalResponse(patchContent, conversationHistory, mrId, mrUrl, language || 'English');
         // Log only metadata, not the actual response content
-        dbgLog('[ThinkReview Extension][BG] Conversational response received:', {
+        dbgLog('Conversational response received:', {
           status: data?.status,
           hasResponse: !!data?.response,
           responseLength: data?.response?.length || 0
@@ -332,13 +332,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       } catch (err) {
         // Log error details for debugging
         // if (err.isRateLimit) {
-        //   console.warn('[ThinkReview Extension][BG] Rate limit reached for conversational review:', {
+        //   console.warn('Rate limit reached for conversational review:', {
         //     message: err.rateLimitMessage,
         //     retryAfter: err.retryAfter,
         //     minutes: Math.ceil((err.retryAfter || 900) / 60)
         //   });
         // } else {
-        //   console.warn('[ThinkReview Extension][BG] Conversational review fetch error:', err.message);
+        //   console.warn('Conversational review fetch error:', err.message);
         // }
         
         // Pass rate limit error properties if available
@@ -369,7 +369,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
         provider = settings.aiProvider || 'cloud';
         
-        dbgLog('[ThinkReview Extension][BG] Using AI provider:', provider);
+        dbgLog('Using AI provider:', provider);
         
         // Route to appropriate service based on provider
         if (provider === 'ollama') {
@@ -377,21 +377,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           try {
             const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'qwen3-coder:30b' };
             
-            dbgLog('[ThinkReview Extension][BG] Reviewing with Ollama:', config);
+            dbgLog('Reviewing with Ollama:', config);
             
             const data = await OllamaService.reviewPatchCode(patchContent, language, mrId, mrUrl);
             
-            dbgLog('[ThinkReview Extension][BG] Ollama review completed successfully');
+            dbgLog('Ollama review completed successfully');
             
             // Track the review in Firebase (fire-and-forget)
             trackOllamaReview(patchContent, mrId, mrUrl, data, config.model).catch(err => {
-              dbgWarn('[ThinkReview Extension][BG] Failed to track Ollama review in Firebase:', err.message);
+              dbgWarn('Failed to track Ollama review in Firebase:', err.message);
             });
             
             sendResponse({ success: true, data, provider: 'ollama' });
             return;
           } catch (ollamaError) {
-            dbgWarn('[ThinkReview Extension][BG] Ollama review failed:', ollamaError.message);
+            dbgWarn('Ollama review failed:', ollamaError.message);
             
             // Provide a helpful error message
             sendResponse({ 
@@ -416,12 +416,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Track the review if mrId is provided
         if (mrId) {
           // Review tracking is now handled automatically by the cloud function reviewPatchCode_1_1
-          dbgLog('[ThinkReview Extension][BG] Review completed for MR:', mrId);
+          dbgLog('Review completed for MR:', mrId);
         }
         
         sendResponse({ success: true, data, provider: 'cloud' });
       } catch (err) {
-        dbgWarn('[ThinkReview Extension][BG] Review fetch error:', err);
+        dbgWarn('Review fetch error:', err);
         sendResponse({ 
           success: false, 
           error: err.message,
@@ -440,16 +440,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { url } = message;
     (async () => {
       try {
-        dbgLog('[ThinkReview Extension][BG] Fetching GitHub diff from:', url);
+        dbgLog('Fetching GitHub diff from:', url);
         const response = await fetch(url);
         if (!response.ok) {
           throw new Error(`Failed to fetch GitHub diff: ${response.status} ${response.statusText}`);
         }
         const diffContent = await response.text();
-        dbgLog('[ThinkReview Extension][BG] Successfully fetched GitHub diff, length:', diffContent.length);
+        dbgLog('Successfully fetched GitHub diff, length:', diffContent.length);
         sendResponse({ success: true, content: diffContent });
       } catch (error) {
-        dbgWarn('[ThinkReview Extension][BG] Error fetching GitHub diff:', error);
+        dbgWarn('Error fetching GitHub diff:', error);
         sendResponse({ success: false, error: error.message });
       }
     })();
@@ -466,7 +466,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         await AnalyticsService.sendEvent(eventName, eventParams);
         sendResponse({ success: true });
       } catch (error) {
-        dbgWarn('[ThinkReview Extension][BG] Error sending analytics event:', error);
+        dbgWarn('Error sending analytics event:', error);
         sendResponse({ success: false, error: error.message });
       }
     })();
@@ -475,7 +475,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Handle request to open extension page in a new tab
   if (message.type === 'OPEN_EXTENSION_PAGE') {
-    dbgLog('[ThinkReview Extension][BG] Opening extension page in new tab with auto sign-in');
+    dbgLog('Opening extension page in new tab with auto sign-in');
     
     // Get the extension popup URL with auto sign-in parameter
     const extensionUrl = chrome.runtime.getURL('popup.html') + '?autoSignIn=true';
@@ -483,10 +483,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Open in a new tab
     chrome.tabs.create({ url: extensionUrl }, (tab) => {
       if (chrome.runtime.lastError) {
-        dbgWarn('[ThinkReview Extension][BG] Error opening extension page:', chrome.runtime.lastError);
+        dbgWarn('Error opening extension page:', chrome.runtime.lastError);
         sendResponse({ success: false, error: chrome.runtime.lastError.message });
       } else {
-        dbgLog('[ThinkReview Extension][BG] Extension page opened successfully in tab:', tab.id);
+        dbgLog('Extension page opened successfully in tab:', tab.id);
         sendResponse({ success: true, tabId: tab.id });
       }
     });
@@ -500,7 +500,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then(userData => {
         // Store user data in chrome.storage.local
         chrome.storage.local.set({ userData }, () => {
-          dbgLog('[ThinkReview Extension][BG] User data stored successfully');
+          dbgLog('User data stored successfully');
           
           // Reload the active tab to refresh the content
           chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -521,29 +521,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   // Handle request to get user data with subscription info
   if (message.type === 'GET_USER_DATA_WITH_SUBSCRIPTION') {
-    dbgLog('[ThinkReview Extension][BG] Getting user data with subscription');
+    dbgLog('Getting user data with subscription');
     CloudService.getUserDataWithSubscription()
       .then(userData => {
         // Log only metadata, not full user data which may contain email
-        dbgLog('[ThinkReview Extension][BG] User data retrieved:', {
+        dbgLog('User data retrieved:', {
           hasEmail: !!userData?.email,
           todayReviewCount: userData?.todayReviewCount,
           hasSubscription: !!userData?.subscription
         });
-        dbgLog('[ThinkReview Extension][BG] Today review count:', userData.todayReviewCount);
+        dbgLog('Today review count:', userData.todayReviewCount);
         // Use consolidated subscriptionType field (fallback to stripeSubscriptionType for legacy support)
         const subscriptionType = userData.subscriptionType || userData.stripeSubscriptionType || 'Free';
-        dbgLog('[ThinkReview Extension][BG] Subscription type:', subscriptionType);
-        dbgLog('[ThinkReview Extension][BG] Is free plan:', subscriptionType === 'Free' || subscriptionType === 'Free plan' || !subscriptionType);
-        dbgLog('[ThinkReview Extension][BG] Is over limit:', userData.todayReviewCount > 10);
+        dbgLog('Subscription type:', subscriptionType);
+        dbgLog('Is free plan:', subscriptionType === 'Free' || subscriptionType === 'Free plan' || !subscriptionType);
+        dbgLog('Is over limit:', userData.todayReviewCount > 10);
         
         // Store todayReviewCount and lastFeedbackPromptInteraction in chrome.storage for review prompt to use
         chrome.storage.local.set({ 
           todayReviewCount: userData.todayReviewCount || 0,
           lastFeedbackPromptInteraction: userData.lastFeedbackPromptInteraction || null
         }, () => {
-          dbgLog('[ThinkReview Extension][BG] Stored todayReviewCount:', userData.todayReviewCount);
-          dbgLog('[ThinkReview Extension][BG] Stored lastFeedbackPromptInteraction:', userData.lastFeedbackPromptInteraction);
+          dbgLog('Stored todayReviewCount:', userData.todayReviewCount);
+          dbgLog('Stored lastFeedbackPromptInteraction:', userData.lastFeedbackPromptInteraction);
         });
         
         // Make sure we're sending the complete userData object
@@ -561,7 +561,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }});
       })
       .catch(error => {
-        dbgWarn('[ThinkReview Extension][BG] Error getting user data:', error);
+        dbgWarn('Error getting user data:', error);
         sendResponse({ status: 'error', error: error.message });
       });
     return true; // Keep the message channel open for async response
@@ -569,12 +569,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   // Handle request to refresh user data and update local storage
   if (message.type === 'REFRESH_USER_DATA_STORAGE') {
-    dbgLog('[ThinkReview Extension][BG] Refreshing user data and updating local storage');
+    dbgLog('Refreshing user data and updating local storage');
     
     CloudService.refreshUserData()
       .then(userData => {
         // Log only metadata, not full user data which may contain email
-        dbgLog('[ThinkReview Extension][BG] User data refreshed from CloudService:', {
+        dbgLog('User data refreshed from CloudService:', {
           hasEmail: !!userData?.email,
           todayReviewCount: userData?.todayReviewCount,
           hasSubscription: !!userData?.subscription
@@ -582,7 +582,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         // Update chrome.storage.local with the data from CloudService
         chrome.storage.local.set(userData, () => {
-          dbgLog('[ThinkReview Extension][BG] Local storage updated:', userData);
+          dbgLog('Local storage updated:', userData);
           sendResponse({ 
             status: 'success', 
             data: userData,
@@ -591,7 +591,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
       })
       .catch(error => {
-        dbgWarn('[ThinkReview Extension][BG] Error refreshing user data:', error);
+        dbgWarn('Error refreshing user data:', error);
         sendResponse({ 
           status: 'error', 
           error: error.message 
@@ -604,14 +604,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle subscription upgrade request
   if (message.type === 'HANDLE_SUBSCRIPTION_UPGRADE') {
     const plan = message.plan || 'monthly';
-    dbgLog(`[ThinkReview Extension][BG] Handling subscription upgrade for plan: ${plan}`);
+    dbgLog(`Handling subscription upgrade for plan: ${plan}`);
     
     // First check if user is logged in
     chrome.storage.local.get(['userData'], async (result) => {
       try {
         if (!result.userData || !result.userData.uid) {
           // User is not logged in, trigger sign in first
-          dbgLog('[ThinkReview Extension][BG] User not logged in, triggering sign in');
+          dbgLog('User not logged in, triggering sign in');
           const userData = await handleGoogleSignIn();
           
           if (userData) {
@@ -639,7 +639,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         }
       } catch (error) {
-        dbgWarn('[ThinkReview Extension][BG] Error handling subscription upgrade:', error);
+        dbgWarn('Error handling subscription upgrade:', error);
         sendResponse({ status: 'error', error: error.message });
       }
     });
@@ -648,24 +648,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   // Handle request to open the extension popup
   if (message.type === 'OPEN_POPUP') {
-    dbgLog('[ThinkReview Extension][BG] Opening extension popup');
+    dbgLog('Opening extension popup');
     chrome.action.openPopup();
     return true;
   }
 
   // Handle request to open extension popup for Azure DevOps token configuration
   if (message.type === 'OPEN_EXTENSION_POPUP') {
-    dbgLog('[ThinkReview Extension][BG] Opening extension popup for Azure DevOps token configuration');
+    dbgLog('Opening extension popup for Azure DevOps token configuration');
     
     // Open the extension popup page in a new tab
     const extensionUrl = chrome.runtime.getURL('popup.html');
     
     chrome.tabs.create({ url: extensionUrl }, (tab) => {
       if (chrome.runtime.lastError) {
-        dbgWarn('[ThinkReview Extension][BG] Error opening extension popup:', chrome.runtime.lastError);
+        dbgWarn('Error opening extension popup:', chrome.runtime.lastError);
         sendResponse({ success: false, error: chrome.runtime.lastError.message });
       } else {
-        dbgLog('[ThinkReview Extension][BG] Extension popup opened successfully in tab:', tab.id);
+        dbgLog('Extension popup opened successfully in tab:', tab.id);
         sendResponse({ success: true, tabId: tab.id });
       }
     });
@@ -679,7 +679,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     (async () => {
       try {
-        dbgLog('[ThinkReview Extension][BG] Submitting feedback:', { 
+        dbgLog('Submitting feedback:', { 
           hasEmail: !!email,
           feedbackType,
           hasAiResponse: !!aiResponse,
@@ -697,10 +697,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         );
         
         // Log only success status, not the response data which may contain review content
-        dbgLog('[ThinkReview Extension][BG] Feedback submitted successfully');
+        dbgLog('Feedback submitted successfully');
         sendResponse({ success: true, data: data });
       } catch (err) {
-        dbgWarn('[ThinkReview Extension][BG] Error submitting feedback:', err);
+        dbgWarn('Error submitting feedback:', err);
         sendResponse({ 
           success: false, 
           error: err.message || 'Failed to submit feedback' 
