@@ -63,6 +63,10 @@ async function initializePlatformDetection() {
     const platformModule = await import(chrome.runtime.getURL('services/platform-detector.js'));
     platformDetector = platformModule.platformDetector;
     platformDetector.init();
+
+    // Load custom Azure DevOps domains so on-prem URLs are detected
+    const storage = await chrome.storage.local.get(['azureDevOpsDomains']);
+    platformDetector.setAzureDevOpsCustomDomains(storage.azureDevOpsDomains || []);
     
     // Dynamically import Azure DevOps fetcher if needed
     const fetcherModule = await import(chrome.runtime.getURL('services/azure-devops-fetcher.js'));

@@ -12,6 +12,8 @@ export class AzureDevOpsDetector {
   constructor() {
     this.isInitialized = false;
     this.currentPageInfo = null;
+    /** @type {string[]} Normalized hostnames for custom/on-prem Azure DevOps domains */
+    this.customDomains = [];
   }
 
   /**
@@ -25,34 +27,60 @@ export class AzureDevOpsDetector {
   }
 
   /**
+   * Set custom Azure DevOps domains (on-prem URLs). Stores normalized hostnames for comparison.
+   * @param {string[]} domains - Array of full URLs or hostnames (e.g. https://devops.companyname.com or devops.companyname.com)
+   */
+  setCustomDomains(domains) {
+    this.customDomains = (domains || []).map(d => this._normalizeDomainToHostname(d)).filter(Boolean);
+    dbgLog('Azure DevOps custom domains set:', this.customDomains);
+  }
+
+  /**
+   * Normalize a stored domain (URL or hostname) to hostname for comparison.
+   * @param {string} input
+   * @returns {string}
+   */
+  _normalizeDomainToHostname(input) {
+    if (!input || typeof input !== 'string') return '';
+    const s = input.trim().toLowerCase().replace(/\/+$/, '');
+    if (s.startsWith('http://') || s.startsWith('https://')) {
+      try {
+        return new URL(s).hostname;
+      } catch {
+        return '';
+      }
+    }
+    return s.split('/')[0].split(':')[0];
+  }
+
+  /**
+   * Check if the current page is on an Azure DevOps domain (built-in or custom).
+   * @returns {boolean}
+   */
+  isAzureDevOpsDomain() {
+    const hostname = window.location.hostname;
+    if (hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com')) {
+      return true;
+    }
+    return this.customDomains.includes(hostname);
+  }
+
+  /**
    * Check if the current page is an Azure DevOps pull request page
    * @returns {boolean} True if the current page is an Azure DevOps PR page
    */
   isAzureDevOpsPRPage() {
     const url = window.location.href;
-    const hostname = window.location.hostname;
-    
-    // Check if we're on Azure DevOps domains
-    const isAzureDevOpsDomain = hostname.includes('dev.azure.com') || 
-                               hostname.includes('visualstudio.com');
-    
-    if (!isAzureDevOpsDomain) {
+    if (!this.isAzureDevOpsDomain()) {
       return false;
     }
-    
-    // Check if URL contains pull request path patterns
-    // This is sufficient and more reliable than DOM checks
-    // URL patterns are consistent and available immediately in SPAs
-    const isPRPath = url.includes('/pullrequest/') || 
-                    url.includes('/pullRequest/');
-    
+    const isPRPath = url.includes('/pullrequest/') || url.includes('/pullRequest/');
     dbgLog('Azure DevOps PR detection:', {
-      isAzureDevOpsDomain,
+      isAzureDevOpsDomain: true,
       isPRPath,
       url: url.substring(0, 100) + '...'
     });
-    
-    return isAzureDevOpsDomain && isPRPath;
+    return isPRPath;
   }
 
   /**
@@ -193,7 +221,8 @@ export class AzureDevOpsDetector {
    */
   extractOrganization() {
     const url = window.location.href;
-    
+    const hostname = window.location.hostname;
+
     // For dev.azure.com: https://dev.azure.com/{organization}
     const devAzureMatch = url.match(/dev\.azure\.com\/([^\/]+)/);
     if (devAzureMatch) {
@@ -206,6 +235,14 @@ export class AzureDevOpsDetector {
       return vsMatch[1];
     }
 
+    // For custom/on-prem: path is /{organization}/{project}/_git/...
+    if (this.customDomains.includes(hostname)) {
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      if (pathParts.length >= 1) {
+        return pathParts[0];
+      }
+    }
+
     return 'Unknown Organization';
   }
 
@@ -215,8 +252,8 @@ export class AzureDevOpsDetector {
    */
   extractProject() {
     const url = window.location.href;
-    
-    // Extract from URL pattern: /{organization}/{project}/_git
+
+    // Extract from URL pattern: /{organization}/{project}/_git (works for both cloud and on-prem)
     const projectMatch = url.match(/\/[^\/]+\/([^\/]+)\/_git/);
     if (projectMatch) {
       return projectMatch[1];

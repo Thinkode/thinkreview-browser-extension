@@ -638,6 +638,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize domain settings
   initializeDomainSettings();
   
+  // Initialize Azure DevOps domain settings
+  initializeAzureDevOpsDomainSettings();
+  
   // Initialize AI Provider settings
   initializeAIProviderSettings();
 });
@@ -890,6 +893,183 @@ async function removeDomain(domain) {
     
   } catch (error) {
     dbgWarn('Error removing domain:', error);
+    alert('Error removing domain. Please try again.');
+  }
+}
+
+// Azure DevOps Domain Management (custom on-prem domains only; dev.azure.com / visualstudio.com are built-in)
+function initializeAzureDevOpsDomainSettings() {
+  loadAzureDevOpsDomains();
+  setupAzureDevOpsDomainEventListeners();
+}
+
+function setupAzureDevOpsDomainEventListeners() {
+  const addButton = document.getElementById('add-azure-domain-btn');
+  const domainInput = document.getElementById('azure-domain-input');
+  if (!addButton || !domainInput) return;
+
+  addButton.addEventListener('click', addAzureDevOpsDomain);
+  domainInput.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') addAzureDevOpsDomain();
+  });
+  domainInput.addEventListener('input', () => {
+    addButton.disabled = !validateDomainInput(domainInput.value.trim());
+  });
+}
+
+async function loadAzureDevOpsDomains() {
+  try {
+    const result = await chrome.storage.local.get(['azureDevOpsDomains']);
+    const domains = result.azureDevOpsDomains || [];
+    renderAzureDevOpsDomainList(domains);
+  } catch (error) {
+    dbgWarn('Error loading Azure DevOps domains:', error);
+    renderAzureDevOpsDomainList([]);
+  }
+}
+
+function renderAzureDevOpsDomainList(domains) {
+  const domainList = document.getElementById('azure-domain-list');
+  if (!domainList) return;
+
+  if (domains.length === 0) {
+    domainList.innerHTML = '<div class="no-domains">No custom domains added</div>';
+    return;
+  }
+
+  domainList.innerHTML = domains.map(domain => {
+    const displayDomain = formatDomainForDisplay(domain);
+    return `
+      <div class="domain-item">
+        <span class="domain-name">${displayDomain}</span>
+        <div>
+          <button class="remove-domain-btn" data-domain="${domain.replace(/"/g, '&quot;')}">Remove</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  domainList.querySelectorAll('.remove-domain-btn').forEach(button => {
+    button.addEventListener('click', () => removeAzureDevOpsDomain(button.dataset.domain));
+  });
+}
+
+let isAddingAzureDomain = false;
+
+async function addAzureDevOpsDomain() {
+  if (isAddingAzureDomain) return;
+
+  const domainInput = document.getElementById('azure-domain-input');
+  const addButton = document.getElementById('add-azure-domain-btn');
+  const inputValue = domainInput?.value?.trim()?.toLowerCase() ?? '';
+
+  if (!validateDomainInput(inputValue)) {
+    alert('Please enter a valid domain (e.g., devops.companyname.com, https://devops.companyname.com)');
+    return;
+  }
+
+  const domain = normalizeDomain(inputValue);
+
+  try {
+    isAddingAzureDomain = true;
+    const originalButtonText = addButton?.textContent ?? 'Add';
+    if (addButton) {
+      addButton.textContent = 'Adding...';
+      addButton.disabled = true;
+    }
+
+    const result = await chrome.storage.local.get(['azureDevOpsDomains']);
+    const domains = result.azureDevOpsDomains || [];
+
+    if (domains.includes(domain)) {
+      alert('Domain already exists');
+      if (addButton) {
+        addButton.textContent = originalButtonText;
+        addButton.disabled = false;
+      }
+      return;
+    }
+
+    let originPattern;
+    if (domain.startsWith('http://') || domain.startsWith('https://')) {
+      const url = new URL(domain);
+      originPattern = `${url.protocol}//${url.host}/*`;
+    } else {
+      originPattern = `https://${domain}/*`;
+    }
+
+    const granted = await chrome.permissions.request({ origins: [originPattern] });
+    if (!granted) {
+      alert('Permission not granted. The extension needs permission to access this domain.');
+      if (addButton) {
+        addButton.textContent = originalButtonText;
+        addButton.disabled = false;
+      }
+      return;
+    }
+
+    const updatedDomains = [...domains, domain];
+    await chrome.storage.local.set({ azureDevOpsDomains: updatedDomains });
+
+    // Track custom domain in cloud (same list as GitLab custom domains)
+    isUserLoggedIn().then(isLoggedIn => {
+      if (isLoggedIn && window.CloudService) {
+        dbgLog('User logged in, tracking custom domain in cloud (async)');
+        window.CloudService.trackCustomDomains(domain, 'add')
+          .then(() => dbgLog('Custom domain tracked successfully in cloud'))
+          .catch(trackError => dbgWarn('Error tracking custom domain in cloud (non-critical):', trackError));
+      } else {
+        dbgLog('User not logged in or CloudService not available, skipping cloud tracking');
+      }
+    }).catch(err => dbgWarn('Error checking login status for cloud tracking:', err));
+
+    chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
+
+    if (domainInput) domainInput.value = '';
+    if (addButton) {
+      addButton.textContent = originalButtonText;
+      addButton.disabled = true;
+    }
+    renderAzureDevOpsDomainList(updatedDomains);
+    showMessage('Domain added. You may need to reload Azure DevOps pages for changes to take effect.', 'success');
+  } catch (error) {
+    dbgWarn('Error adding Azure DevOps domain:', error);
+    alert(`Error adding domain: ${error.message}. Please try again.`);
+    if (addButton) {
+      addButton.textContent = 'Add';
+      addButton.disabled = false;
+    }
+  } finally {
+    isAddingAzureDomain = false;
+  }
+}
+
+async function removeAzureDevOpsDomain(domain) {
+  if (!confirm(`Remove domain "${domain}"?`)) return;
+
+  try {
+    const result = await chrome.storage.local.get(['azureDevOpsDomains']);
+    const domains = result.azureDevOpsDomains || [];
+    const updatedDomains = domains.filter(d => d !== domain);
+    await chrome.storage.local.set({ azureDevOpsDomains: updatedDomains });
+
+    // Track custom domain removal in cloud (same list as GitLab)
+    isUserLoggedIn().then(isLoggedIn => {
+      if (isLoggedIn && window.CloudService) {
+        dbgLog('User logged in, tracking custom domain removal in cloud (async)');
+        window.CloudService.trackCustomDomains(domain, 'remove')
+          .then(() => dbgLog('Custom domain removal tracked successfully in cloud'))
+          .catch(trackError => dbgWarn('Error tracking custom domain removal in cloud (non-critical):', trackError));
+      } else {
+        dbgLog('User not logged in or CloudService not available, skipping cloud tracking');
+      }
+    }).catch(err => dbgWarn('Error checking login status for cloud tracking:', err));
+
+    chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
+    renderAzureDevOpsDomainList(updatedDomains);
+    showMessage('Domain removed successfully!', 'success');
+  } catch (error) {
+    dbgWarn('Error removing Azure DevOps domain:', error);
     alert('Error removing domain. Please try again.');
   }
 }
