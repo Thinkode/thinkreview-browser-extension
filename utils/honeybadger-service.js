@@ -75,12 +75,9 @@ async function initHoneybadger() {
         if (hb && safeConfigure(hb, HONEYBADGER_API_KEY, revision)) {
           Honeybadger = hb;
           try {
-            const userData = await chrome.storage.local.get(['userEmail', 'userId']);
-            if (userData.userEmail || userData.userId) {
-              Honeybadger.setContext({
-                user_id: userData.userId || undefined,
-                user_email: userData.userEmail || undefined,
-              });
+            const userData = await chrome.storage.local.get(['userId']);
+            if (userData.userId) {
+              Honeybadger.setContext({ user_id: userData.userId });
             }
           } catch (_) {}
           honeybadgerInitialized = true;
@@ -103,13 +100,10 @@ async function initHoneybadger() {
             if (safeConfigure(window.Honeybadger, HONEYBADGER_API_KEY, revision)) {
               Honeybadger = window.Honeybadger;
               honeybadgerInitialized = true;
-              chrome.storage?.local?.get(['userEmail', 'userId']).then((userData) => {
+              chrome.storage?.local?.get(['userId']).then((userData) => {
                 try {
-                  if (userData?.userEmail || userData?.userId) {
-                    Honeybadger?.setContext?.({
-                      user_id: userData.userId || undefined,
-                      user_email: userData.userEmail || undefined,
-                    });
+                  if (userData?.userId) {
+                    Honeybadger?.setContext?.({ user_id: userData.userId });
                   }
                 } catch (_) {}
               }).catch(() => {});
@@ -125,13 +119,10 @@ async function initHoneybadger() {
               if (window.Honeybadger && safeConfigure(window.Honeybadger, HONEYBADGER_API_KEY, revision)) {
                 Honeybadger = window.Honeybadger;
                 honeybadgerInitialized = true;
-                chrome.storage?.local?.get(['userEmail', 'userId']).then((userData) => {
+                chrome.storage?.local?.get(['userId']).then((userData) => {
                   try {
-                    if (userData?.userEmail || userData?.userId) {
-                      Honeybadger?.setContext?.({
-                        user_id: userData.userId || undefined,
-                        user_email: userData.userEmail || undefined,
-                      });
+                    if (userData?.userId) {
+                      Honeybadger?.setContext?.({ user_id: userData.userId });
                     }
                   } catch (_) {}
                 }).catch(() => {});
