@@ -1,7 +1,7 @@
 // logger.js
-// Shared logging utility that integrates with Google Analytics and Honeybadger
+// Shared logging utility that integrates with Honeybadger
+// Note: User action events are tracked separately via trackUserAction in analytics-service.js
 
-import { logToAnalytics } from './analytics-service.js';
 import { reportError, reportMessage, isInitialized } from './honeybadger-service.js';
 
 // Debug toggle: set to false to disable console logs in production
@@ -70,7 +70,7 @@ function formatMessage(args) {
 }
 
 /**
- * Debug log function with Google Analytics integration
+ * Debug log function
  * Usage: dbgLog('message', data) or dbgLog('message')
  * The filename is automatically extracted from the stack trace
  * @param {...any} args - Log arguments (all treated as message)
@@ -83,15 +83,11 @@ export function dbgLog(...args) {
     console.log(`[${componentName}]`, ...args);
   }
   
-  // Always send to analytics (even if DEBUG is false)
-  const message = formatMessage(args);
-  logToAnalytics('log', componentName, message).catch(() => {
-    // Silently fail - analytics shouldn't break the extension
-  });
+  // Note: User action events should be tracked separately via trackUserAction in analytics-service.js
 }
 
 /**
- * Debug warn function with Google Analytics integration
+ * Debug warn function with Honeybadger integration
  * Usage: dbgWarn('message', data) or dbgWarn('message')
  * The filename is automatically extracted from the stack trace
  * @param {...any} args - Log arguments (all treated as message)
@@ -104,23 +100,20 @@ export function dbgWarn(...args) {
     console.warn(`[${componentName}]`, ...args);
   }
   
-  // Always send to analytics
-  const message = formatMessage(args);
-  logToAnalytics('warn', componentName, message).catch(() => {
-    // Silently fail
-  });
-  
   // Report to Honeybadger if initialized
+  const message = formatMessage(args);
   if (isInitialized()) {
     reportMessage(message, {
       component: componentName,
       level: 'warning'
     });
   }
+  
+  // Note: User action events should be tracked separately via trackUserAction in analytics-service.js
 }
 
 /**
- * Debug error function with Google Analytics integration
+ * Debug error function with Honeybadger integration
  * Usage: dbgError('message', error) or dbgError('message')
  * The filename is automatically extracted from the stack trace
  * @param {...any} args - Log arguments (all treated as message)
@@ -133,7 +126,6 @@ export function dbgError(...args) {
     console.error(`[${componentName}]`, ...args);
   }
   
-  // Always send to analytics (errors are important)
   const message = formatMessage(args);
   
   // Include error details if available
@@ -145,10 +137,6 @@ export function dbgError(...args) {
     errorData.error_message = errorObject.message;
     errorData.error_stack = errorObject.stack?.substring(0, 1000); // Truncate stack
   }
-  
-  logToAnalytics('error', componentName, message, errorData).catch(() => {
-    // Silently fail
-  });
   
   // Report to Honeybadger if initialized
   if (isInitialized()) {
@@ -168,6 +156,8 @@ export function dbgError(...args) {
       });
     }
   }
+  
+  // Note: User action events should be tracked separately via trackUserAction in analytics-service.js
 }
 
 // Export default for convenience
