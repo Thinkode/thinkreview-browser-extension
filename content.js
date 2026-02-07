@@ -701,8 +701,21 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
         // Add direct event listener to the upgrade button (simple redirect)
         const upgradeBtn = document.getElementById('upgrade-btn');
         if (upgradeBtn) {
-          upgradeBtn.addEventListener('click', (e) => {
+          upgradeBtn.addEventListener('click', async (e) => {
             e.preventDefault();
+            
+            // Track upgrade button click
+            try {
+              const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+              trackUserAction('upgrade_button_clicked', {
+                context: 'subscription_section',
+                location: 'integrated_panel',
+                source: 'daily_limit'
+              }).catch(() => {}); // Silently fail
+            } catch (error) {
+              // Silently fail - analytics shouldn't break the extension
+            }
+            
             const subscriptionPortalUrl = 'https://portal.thinkreview.dev/subscription';
             window.open(subscriptionPortalUrl, '_blank');
           });

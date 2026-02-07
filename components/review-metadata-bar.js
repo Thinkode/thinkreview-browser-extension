@@ -1,6 +1,17 @@
 // review-metadata-bar.js
 // Renders the patch size / metadata banner inside the integrated review panel
 
+// Track user actions (dynamically imported to avoid module issues)
+let trackUserAction = null;
+(async () => {
+  try {
+    const analyticsModule = await import('../utils/analytics-service.js');
+    trackUserAction = analyticsModule.trackUserAction;
+  } catch (error) {
+    // Silently fail - analytics shouldn't break the extension
+  }
+})();
+
 /**
  * Render the review metadata bar (patch size banner)
  * @param {HTMLElement} container - The container element for the banner
@@ -158,6 +169,14 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
   // Prevent click event from bubbling to topRow (which might be clickable for expanding)
   customizeButton.addEventListener('click', (e) => {
     e.stopPropagation();
+    
+    // Track customize button click
+    if (trackUserAction) {
+      trackUserAction('customize_review_models', {
+        context: 'metadata_bar',
+        location: 'integrated_panel'
+      }).catch(() => {}); // Silently fail
+    }
   });
   
   topRow.appendChild(customizeButton);
@@ -277,6 +296,21 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
       </div>
     `;
     banner.appendChild(upgradeMessage);
+    
+    // Add tracking to upgrade links in the message
+    const upgradeLinks = upgradeMessage.querySelectorAll('.thinkreview-upgrade-link');
+    upgradeLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        // Track upgrade link click
+        if (trackUserAction) {
+          trackUserAction('upgrade_link_clicked', {
+            context: 'upgrade_message',
+            location: 'metadata_bar',
+            source: 'truncation_limit'
+          }).catch(() => {}); // Silently fail
+        }
+      });
+    });
   }
 
   container.appendChild(banner);
