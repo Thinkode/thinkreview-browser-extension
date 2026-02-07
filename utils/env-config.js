@@ -1,3 +1,3 @@
-export const GA_MEASUREMENT_ID = "G-HM2CWJREJ1";
-export const GA_API_SECRET = "pekxL43pRVGKSOKuL155_g";
-export const HONEYBADGER_API_KEY = "hbp_OXlwGcN8OXC137VMzbTvdiQNL9Zlxe4601Ht";
+export const GA_MEASUREMENT_ID = "";
+export const GA_API_SECRET = "";
+export const HONEYBADGER_API_KEY = "";
