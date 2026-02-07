@@ -158,22 +158,37 @@ export async function logToAnalytics(level, component, message, additionalData =
     message: truncatedMessage,
     ...additionalData
   };
+  
+  // Use consistent event names for all log levels
   if (eventParams.log_level === 'error') {
-    await sendEvent(extension_error, eventParams);
+    await sendEvent('extension_error', eventParams);
   }
   else if (eventParams.log_level === 'warn') {
-    await sendEvent(extension_warn, eventParams);
+    await sendEvent('extension_warn', eventParams);
   }
   else {
-    await sendEvent(component, eventParams);
+    await sendEvent('extension_log', eventParams);
   }
+}
 
-
+/**
+ * Track key user actions/events
+ * @param {string} action - Action name (e.g., 'copy_button', 'refresh_review', 'ai_review_clicked')
+ * @param {Object} params - Additional parameters (e.g., { context: 'review_item', location: 'integrated_panel' })
+ */
+export async function trackUserAction(action, params = {}) {
+  const eventParams = {
+    action: action,
+    ...params
+  };
+  
+  await sendEvent('user_action', eventParams);
 }
 
 export const AnalyticsService = {
   sendEvent,
   logToAnalytics,
+  trackUserAction,
   getClientId
 };
 

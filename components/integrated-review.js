@@ -552,6 +552,17 @@ async function createIntegratedReviewPanel(patchUrl) {
       e.stopPropagation(); // Prevent triggering the header click event
       dbgLog('Regenerate review button clicked');
       
+      // Track refresh action
+      try {
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule.trackUserAction('refresh_review', {
+          context: 'regenerate_button',
+          location: 'integrated_panel'
+        }).catch(() => {}); // Silently fail
+      } catch (error) {
+        // Silently fail - analytics shouldn't break the extension
+      }
+      
       // Show loading state
       const reviewLoading = document.getElementById('review-loading');
       const reviewContent = document.getElementById('review-content');

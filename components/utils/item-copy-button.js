@@ -2,6 +2,7 @@
 // Module for creating and handling copy buttons for review items
 
 import { dbgWarn } from '../../utils/logger.js';
+import { trackUserAction } from '../../utils/analytics-service.js';
 
 /**
  * Creates a copy button element with SVG icon
@@ -588,6 +589,12 @@ export async function copyItemContent(element, button) {
     
     // Show success feedback
     showCopySuccessFeedback(button);
+    
+    // Track copy action
+    trackUserAction('copy_button', {
+      context: 'review_item',
+      location: 'integrated_panel'
+    }).catch(() => {}); // Silently fail
   } catch (error) {
     dbgWarn('Failed to copy content:', error);
     
@@ -597,6 +604,13 @@ export async function copyItemContent(element, button) {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(text);
           showCopySuccessFeedback(button);
+          
+          // Track copy action (fallback success)
+          trackUserAction('copy_button', {
+            context: 'review_item',
+            location: 'integrated_panel',
+            method: 'fallback'
+          }).catch(() => {}); // Silently fail
         } else {
           showCopyErrorFeedback(button);
         }

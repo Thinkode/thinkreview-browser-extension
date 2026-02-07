@@ -245,8 +245,20 @@ function injectButtons() {
   reviewBtn.innerHTML = '<span style="margin-right: 5px;">AI Review</span><span style="font-size: 10px;">▼</span>';
   
   // Add click handler with debugging
-  reviewBtn.onclick = function(event) {
+  reviewBtn.onclick = async function(event) {
     dbgLog('AI Review button clicked!');
+    
+    // Track AI review button click
+    try {
+      const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+      trackUserAction('ai_review_clicked', {
+        context: 'main_button',
+        location: 'pr_page'
+      }).catch(() => {}); // Silently fail
+    } catch (error) {
+      // Silently fail - analytics shouldn't break the extension
+    }
+    
     event.preventDefault();
     event.stopPropagation();
     toggleReviewPanel();
