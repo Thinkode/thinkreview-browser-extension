@@ -1273,9 +1273,9 @@ async function initializeExtension() {
     
     injectButtons();
     
-    // Start SPA navigation monitoring for GitHub and Azure DevOps sites
+    // Start SPA navigation monitoring for GitHub, Azure DevOps, and Bitbucket (SPAs)
     // Check by site (domain) rather than platform, because platform is null on non-PR pages
-    if (platformDetector && (platformDetector.isGitHubSite() || platformDetector.isAzureDevOpsSite())) {
+    if (platformDetector && (platformDetector.isGitHubSite() || platformDetector.isAzureDevOpsSite() || platformDetector.isBitbucketSite())) {
       startSPANavigationMonitoring();
     }
     
