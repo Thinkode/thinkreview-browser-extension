@@ -278,10 +278,10 @@ async function createIntegratedReviewPanel(patchUrl) {
         </div>
         <div class="thinkreview-header-actions">
           <span class="thinkreview-regenerate-btn-wrapper">
-            <button id="regenerate-review-btn" class="thinkreview-regenerate-btn" aria-label="Force refresh – regenerate AI review">
+            <button id="regenerate-review-btn" class="thinkreview-regenerate-btn" aria-label="Regenerate review">
               ${refreshIconSvg}
             </button>
-            <span class="thinkreview-regenerate-tooltip" aria-hidden="true">Force refresh – regenerate AI review</span>
+            <span class="thinkreview-regenerate-tooltip" aria-hidden="true">Regenerate review</span>
           </span>
           <select id="language-selector" class="thinkreview-language-dropdown" title="Select review language">
             <option value="English">English</option>
