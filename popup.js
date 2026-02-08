@@ -956,6 +956,26 @@ function renderAzureDevOpsDomainList(domains) {
 
 let isAddingAzureDomain = false;
 
+/**
+ * Tracks Azure DevOps custom domain add/remove in cloud when user is logged in (fire-and-forget).
+ * @param {string} domain - The domain that was added or removed
+ * @param {'add'|'remove'} action - 'add' or 'remove'
+ */
+function trackAzureDevOpsDomainInCloud(domain, action) {
+  const isAdd = action === 'add';
+  const actionLabel = isAdd ? 'custom domain' : 'custom domain removal';
+  isUserLoggedIn().then(isLoggedIn => {
+    if (isLoggedIn && window.CloudService) {
+      dbgLog(`User logged in, tracking ${actionLabel} in cloud (async)`);
+      window.CloudService.trackCustomDomains(domain, action)
+        .then(() => dbgLog(`${isAdd ? 'Custom domain' : 'Custom domain removal'} tracked successfully in cloud`))
+        .catch(trackError => dbgWarn(`Error tracking ${actionLabel} in cloud (non-critical):`, trackError));
+    } else {
+      dbgLog('User not logged in or CloudService not available, skipping cloud tracking');
+    }
+  }).catch(err => dbgWarn('Error checking login status for cloud tracking:', err));
+}
+
 async function addAzureDevOpsDomain() {
   if (isAddingAzureDomain) return;
 
@@ -1011,17 +1031,7 @@ async function addAzureDevOpsDomain() {
     const updatedDomains = [...domains, domain];
     await chrome.storage.local.set({ azureDevOpsDomains: updatedDomains });
 
-    // Track custom domain in cloud (same list as GitLab custom domains)
-    isUserLoggedIn().then(isLoggedIn => {
-      if (isLoggedIn && window.CloudService) {
-        dbgLog('User logged in, tracking custom domain in cloud (async)');
-        window.CloudService.trackCustomDomains(domain, 'add')
-          .then(() => dbgLog('Custom domain tracked successfully in cloud'))
-          .catch(trackError => dbgWarn('Error tracking custom domain in cloud (non-critical):', trackError));
-      } else {
-        dbgLog('User not logged in or CloudService not available, skipping cloud tracking');
-      }
-    }).catch(err => dbgWarn('Error checking login status for cloud tracking:', err));
+    trackAzureDevOpsDomainInCloud(domain, 'add');
 
     chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
 
@@ -1053,17 +1063,7 @@ async function removeAzureDevOpsDomain(domain) {
     const updatedDomains = domains.filter(d => d !== domain);
     await chrome.storage.local.set({ azureDevOpsDomains: updatedDomains });
 
-    // Track custom domain removal in cloud (same list as GitLab)
-    isUserLoggedIn().then(isLoggedIn => {
-      if (isLoggedIn && window.CloudService) {
-        dbgLog('User logged in, tracking custom domain removal in cloud (async)');
-        window.CloudService.trackCustomDomains(domain, 'remove')
-          .then(() => dbgLog('Custom domain removal tracked successfully in cloud'))
-          .catch(trackError => dbgWarn('Error tracking custom domain removal in cloud (non-critical):', trackError));
-      } else {
-        dbgLog('User not logged in or CloudService not available, skipping cloud tracking');
-      }
-    }).catch(err => dbgWarn('Error checking login status for cloud tracking:', err));
+    trackAzureDevOpsDomainInCloud(domain, 'remove');
 
     chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
     renderAzureDevOpsDomainList(updatedDomains);
