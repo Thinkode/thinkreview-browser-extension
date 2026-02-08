@@ -209,51 +209,6 @@ header {
   border-bottom-color: #5a3da8;
 }
 
-/* Prominent Privacy Policy Notice in Welcome Content */
-.privacy-policy-notice {
-  margin: 16px 0;
-  padding: 14px 16px;
-  background: linear-gradient(135deg, rgba(107, 79, 187, 0.1) 0%, rgba(90, 61, 168, 0.1) 100%);
-  border: 2px solid rgba(107, 79, 187, 0.3);
-  border-radius: 8px;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  box-shadow: 0 2px 8px rgba(107, 79, 187, 0.1);
-  transition: all 0.3s ease;
-}
-
-.privacy-policy-notice:hover {
-  border-color: rgba(107, 79, 187, 0.5);
-  box-shadow: 0 4px 12px rgba(107, 79, 187, 0.15);
-  transform: translateY(-1px);
-}
-
-.privacy-notice-icon {
-  font-size: 20px;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.privacy-notice-content {
-  flex: 1;
-}
-
-.privacy-notice-text {
-  font-size: 12px;
-  color: #333;
-  margin: 0;
-  line-height: 1.6;
-}
-
-.privacy-notice-text strong {
-  color: #6b4fbb;
-  font-weight: 600;
-  display: block;
-  margin-bottom: 4px;
-  font-size: 13px;
-}
-
 .privacy-notice-link {
   color: #6b4fbb;
   text-decoration: none;

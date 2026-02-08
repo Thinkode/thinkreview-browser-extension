@@ -248,7 +248,6 @@ async function updateUIForLoginStatus() {
     const welcomeContent = document.getElementById('welcome-content');
     const loginPrompt = document.getElementById('login-prompt');
     const privacyPolicyText = document.getElementById('privacy-policy-text');
-    const privacyPolicyNotice = document.getElementById('privacy-policy-notice');
     
     dbgLog('updateUIForLoginStatus - isLoggedIn:', isLoggedIn, 'cloudServiceReady:', cloudServiceReady, 'CloudService available:', !!window.CloudService);
     
@@ -266,9 +265,6 @@ async function updateUIForLoginStatus() {
       }
       if (privacyPolicyText) {
         privacyPolicyText.style.display = 'none';
-      }
-      if (privacyPolicyNotice) {
-        privacyPolicyNotice.style.display = 'none';
       }
       // Show portal buttons row when logged in
       const portalButtonsRow = document.getElementById('portal-buttons-row');
@@ -302,9 +298,6 @@ async function updateUIForLoginStatus() {
       }
       if (privacyPolicyText) {
         privacyPolicyText.style.display = 'flex';
-      }
-      if (privacyPolicyNotice) {
-        privacyPolicyNotice.style.display = 'flex';
       }
       // Hide portal buttons row when not logged in
       const portalButtonsRow = document.getElementById('portal-buttons-row');
@@ -486,7 +479,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const welcomeContent = document.getElementById('welcome-content');
       const loginPrompt = document.getElementById('login-prompt');
       const privacyPolicyText = document.getElementById('privacy-policy-text');
-      const privacyPolicyNotice = document.getElementById('privacy-policy-notice');
       if (authenticatedContent) {
         authenticatedContent.style.display = 'none';
         authenticatedContent.classList.remove('loading');
@@ -499,9 +491,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (privacyPolicyText) {
         privacyPolicyText.style.display = 'flex';
-      }
-      if (privacyPolicyNotice) {
-        privacyPolicyNotice.style.display = 'flex';
       }
       // Hide portal buttons row when signed out
       const portalButtonsRow = document.getElementById('portal-buttons-row');
