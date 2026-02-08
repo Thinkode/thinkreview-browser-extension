@@ -1035,7 +1035,7 @@ async function updateContentScripts() {
           // For localhost, be more permissive with paths
           matchPattern = `${url.protocol}//${url.host}/*`;
           dbgLog(`Using permissive localhost pattern: ${matchPattern}`);
-        } else if (azureMatchAllDomains.has(domain) || url.hostname.includes('dev.azure.com') || url.hostname.includes('visualstudio.com')) {
+        } else if (azureMatchAllDomains.has(domain) || azureMatchAllDomains.has(url.hostname)) {
           // Azure DevOps (built-in or custom): match all pages (SPA - button always visible, but only works on PR pages)
           matchPattern = `${url.protocol}//${url.host}/*`;
         } else if (url.hostname === 'github.com' || url.hostname.endsWith('.github.com')) {
