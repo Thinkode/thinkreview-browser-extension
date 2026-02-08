@@ -918,6 +918,20 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
         chrome.runtime.sendMessage({ type: 'FETCH_BITBUCKET_PATCH', url: patchUrl }, resolve);
       });
       if (!bgResponse || !bgResponse.success) {
+        // 401/403 from Bitbucket API (e.g. GET .../repositories/.../pullrequests/1) or token missing: show token error with link to docs (takes 60 seconds)
+        const authRequired = bgResponse?.bitbucketAuthRequired === true;
+        const errMsg = (bgResponse?.error || '').toLowerCase();
+        const isAuthError = authRequired || !errMsg || errMsg.includes('bitbucket') || errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('unauthorized') || errMsg.includes('forbidden');
+        if (isAuthError) {
+          try {
+            const bitbucketTokenErrorModule = await import(chrome.runtime.getURL('components/bitbucket-token-error.js'));
+            bitbucketTokenErrorModule.showBitbucketTokenError(stopEnhancedLoader);
+          } catch (e) {
+            dbgWarn('Failed to show Bitbucket token error UI:', e);
+            throw new Error('Generate a Bitbucket API token for ThinkReview (takes about 60 seconds): https://thinkreview.dev/docs/bitbucket-integration');
+          }
+          return;
+        }
         throw new Error(bgResponse?.error || `Not a pull request page or there are no code changes yet in this PR. If you think this is a bug, please report it here: https://thinkreview.dev/bug-report`);
       }
       codeContent = bgResponse.content;
@@ -938,6 +952,10 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     if (reviewContent) reviewContent.classList.add('gl-hidden');
     if (reviewError) reviewError.classList.add('gl-hidden');
     if (loginPrompt) loginPrompt.classList.add('gl-hidden');
+    const azureTokenErr = document.getElementById('review-azure-token-error');
+    const bitbucketTokenErr = document.getElementById('review-bitbucket-token-error');
+    if (azureTokenErr) azureTokenErr.classList.add('gl-hidden');
+    if (bitbucketTokenErr) bitbucketTokenErr.classList.add('gl-hidden');
     
     // Start the enhanced loader if available
     if (typeof startEnhancedLoader === 'function') {

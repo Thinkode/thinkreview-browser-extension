@@ -1733,6 +1733,7 @@ function showIntegratedReviewError(message) {
   const reviewError = document.getElementById('review-error');
   const reviewErrorMessage = document.getElementById('review-error-message');
   const tokenError = document.getElementById('review-azure-token-error');
+  const bitbucketTokenError = document.getElementById('review-bitbucket-token-error');
   const loginPrompt = document.getElementById('review-login-prompt');
   
   // Hide loading indicator and content
@@ -1741,6 +1742,7 @@ function showIntegratedReviewError(message) {
   
   // Hide other error states
   if (tokenError) tokenError.classList.add('gl-hidden');
+  if (bitbucketTokenError) bitbucketTokenError.classList.add('gl-hidden');
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
   
   // Display error message (message is already user-friendly from content.js)

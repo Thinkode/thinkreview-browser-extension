@@ -527,7 +527,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           dbgLog('Fetching Bitbucket PR:', prApiUrl);
           const prRes = await fetch(prApiUrl, { headers });
           if (!prRes.ok) {
-            throw new Error(`Failed to fetch Bitbucket PR: ${prRes.status} ${prRes.statusText}`);
+            const authRequired = prRes.status === 401 || prRes.status === 403;
+            const err = new Error(`Failed to fetch Bitbucket PR: ${prRes.status} ${prRes.statusText}`);
+            err.bitbucketAuthRequired = authRequired;
+            throw err;
           }
           const prJson = await prRes.json();
           const diffHref = prJson?.links?.diff?.href;
@@ -541,14 +544,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         const response = await fetch(diffUrl, { headers: { ...headers, 'Accept': 'text/plain,*/*' } });
         if (!response.ok) {
-          throw new Error(`Failed to fetch Bitbucket patch: ${response.status} ${response.statusText}`);
+          const authRequired = response.status === 401 || response.status === 403;
+          const err = new Error(`Failed to fetch Bitbucket patch: ${response.status} ${response.statusText}`);
+          err.bitbucketAuthRequired = authRequired;
+          throw err;
         }
         const patchContent = await response.text();
         dbgLog('Successfully fetched Bitbucket diff, length:', patchContent.length);
         sendResponse({ success: true, content: patchContent });
       } catch (error) {
         dbgWarn('Error fetching Bitbucket patch:', error);
-        sendResponse({ success: false, error: error.message });
+        const authRequired = error && error.bitbucketAuthRequired === true;
+        sendResponse({ success: false, error: error.message, bitbucketAuthRequired: authRequired });
       }
     })();
     return true; // Keep channel open
