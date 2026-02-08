@@ -824,7 +824,7 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
     const senderUrl = new URL(sender.url);
     
     // Use shared origin validation utility to prevent spoofing
-    if (!isValidOrigin(senderUrl.hostname, DEBUG)) {
+    if (!isValidOrigin(senderUrl.hostname)) {
       dbgWarn('Webapp auth message from unauthorized origin:', senderUrl.hostname);
       sendResponse({ success: false, error: 'Unauthorized origin' });
       return;

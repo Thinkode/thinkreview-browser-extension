@@ -53,7 +53,7 @@
     if (!originValidatorLoaded) return;
     
     const currentOrigin = window.location.hostname;
-    const isAllowedOrigin = isValidOrigin(currentOrigin, DEBUG);
+    const isAllowedOrigin = isValidOrigin(currentOrigin);
   
     if (!isAllowedOrigin) {
       dbgWarn('Content script loaded on unauthorized domain:', currentOrigin);
@@ -128,22 +128,15 @@
         const eventHostname = eventOriginUrl.hostname;
         
         // Validate the origin hostname using shared utility
-        if (!isValidOrigin(eventHostname, DEBUG)) {
+        if (!isValidOrigin(eventHostname)) {
           dbgLog('Rejected postMessage from unauthorized origin:', event.origin);
           return; // Ignore messages from unauthorized origins
         }
         
-        // Additional check: for same-origin messages, event.origin should match window.location.origin
-        // This prevents cross-origin spoofing even if hostname matches
+        // Same-origin: event.origin must match window.location.origin to prevent spoofing
         if (event.origin !== window.location.origin) {
-          // Allow localhost/127.0.0.1 cross-origin only in DEBUG mode
-          const isLocalhost = DEBUG && 
-                             (currentOrigin === 'localhost' || currentOrigin === '127.0.0.1') &&
-                             (eventHostname === 'localhost' || eventHostname === '127.0.0.1');
-          if (!isLocalhost) {
-            dbgLog('Rejected postMessage from different origin:', event.origin, 'expected:', window.location.origin);
-            return;
-          }
+          dbgLog('Rejected postMessage from different origin:', event.origin, 'expected:', window.location.origin);
+          return;
         }
       } catch (error) {
         // Invalid origin URL, reject
