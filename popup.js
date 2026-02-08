@@ -104,7 +104,7 @@ async function forceRefreshUserData() {
       dbgLog('Force refreshing user data');
       cloudServiceReady = true;
       await fetchAndDisplayUserData();
-      showSuccessState('Ready to generate AI reviews');
+      showSuccessState('Ready to generate AI reviews - Navigate to a PR/MR page to start generating reviews');
       return true;
     }
     return false;
@@ -276,7 +276,7 @@ async function updateUIForLoginStatus() {
       if (cloudServiceReady && window.CloudService) {
         dbgLog('CloudService ready, fetching review count immediately');
         await fetchAndDisplayUserData();
-        showSuccessState('Ready to generate AI reviews');
+        showSuccessState('Ready to generate AI reviews - Navigate to a PR/MR page to start generating reviews');
         pendingUserDataFetch = false; // Clear pending flag
       } else {
         // Mark that we need to fetch review count when CloudService becomes ready
@@ -342,7 +342,7 @@ async function initializePopup() {
       dbgLog('CloudService already ready during initialization, processing pending fetch');
       pendingUserDataFetch = false;
       await fetchAndDisplayUserData();
-      showSuccessState('Ready to generate AI reviews');
+      showSuccessState('Ready to generate AI reviews - Navigate to a PR/MR page to start generating reviews');
     }
     
     isInitialized = true;
@@ -466,7 +466,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (cloudServiceReady && window.CloudService) {
         dbgLog('CloudService ready, fetching review count immediately after sign-in');
         await fetchAndDisplayUserData();
-        showSuccessState('Ready to generate AI reviews');
+        showSuccessState('Ready to generate AI reviews - Navigate to a PR/MR page to start generating reviews');
         pendingUserDataFetch = false;
       } else {
         // Mark that we need to fetch review count when CloudService becomes ready
@@ -529,7 +529,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         dbgLog('Processing pending review count fetch');
         pendingUserDataFetch = false;
         await fetchAndDisplayUserData();
-        showSuccessState('Ready to generate AI reviews');
+        showSuccessState('Ready to generate AI reviews - Navigate to a PR/MR page to start generating reviews');
       } else {
         // Otherwise, just fetch the review count normally
         dbgLog('No pending fetch, fetching review count normally');
