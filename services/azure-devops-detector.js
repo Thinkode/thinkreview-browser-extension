@@ -55,12 +55,12 @@ export class AzureDevOpsDetector {
       const url = new URL(urlStr);
       const hostname = url.hostname || '';
       if (!hostname) {
-        dbgError('_normalizeDomainToHostname: URL produced empty hostname', { input: input.substring(0, 150) });
+        dbgError('_normalizeDomainToHostname: URL produced empty hostname', { input });
         return '';
       }
       return hostname;
     } catch (err) {
-      dbgError('_normalizeDomainToHostname: invalid domain/URL', { input: input.substring(0, 80), error: err?.message });
+      dbgError('_normalizeDomainToHostname: invalid domain/URL', { input, error: err?.message });
       return '';
     }
   }
