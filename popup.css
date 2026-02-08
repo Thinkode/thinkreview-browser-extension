@@ -1366,6 +1366,12 @@ footer {
   border-top: 1px solid #e1e4e8;
 }
 
+#azure-domain-settings.domain-settings-section {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 16px;
+}
+
 /* GitHub Settings Styles */
 .github-settings-section {
   margin-top: 20px;
