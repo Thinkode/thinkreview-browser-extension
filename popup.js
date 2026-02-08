@@ -1197,8 +1197,8 @@ async function loadBitbucketToken() {
       if (saveBtn) saveBtn.disabled = true;
     } else {
       if (statusEl) {
-        statusEl.textContent = 'No token (optional for private repos)';
-        statusEl.className = 'token-status info';
+        statusEl.textContent = '';
+        statusEl.className = 'token-status';
       }
       if (emailInput && email) emailInput.value = email;
       if (saveBtn) saveBtn.disabled = true;

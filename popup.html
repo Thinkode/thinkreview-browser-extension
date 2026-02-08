@@ -298,7 +298,7 @@
         <p class="settings-description">ThinkReview is ready to work on GitHub pull requests</p>
         
         <div class="github-info">
-          <div class="github-info-icon">✅</div>
+          <div class="github-info-icon thinkreview-tick-green">✓</div>
           <div class="github-info-content">
             <p class="github-info-text">
               <strong>No setup required!</strong> The extension automatically works on GitHub pull requests. Simply navigate to any GitHub PR page to start generating AI code reviews.
@@ -309,28 +309,32 @@
       
       <!-- Bitbucket Settings Section -->
       <div id="bitbucket-settings" class="bitbucket-settings-section">
-        <h3 class="settings-title">Bitbucket Integration</h3>
-        <p class="settings-description">Enable ThinkReview on Bitbucket.org pull requests</p>
-        
-        <div id="bitbucket-allow-section" class="bitbucket-allow-section">
-          <button id="allow-bitbucket-btn" class="add-domain-btn">Allow Bitbucket</button>
-          <span id="bitbucket-status" class="bitbucket-status"></span>
+        <div class="bitbucket-header-row">
+          <h3 class="settings-title">Bitbucket Integration</h3>
+          <div id="bitbucket-allow-section" class="bitbucket-allow-section">
+            <div class="bitbucket-allow-button-row">
+              <button id="allow-bitbucket-btn" class="add-domain-btn">Allow Bitbucket</button>
+              <span id="bitbucket-status" class="bitbucket-status"></span>
+            </div>
+            <p class="help-text bitbucket-allow-hint">You must grant permission by pressing the button above to use ThinkReview on Bitbucket.</p>
+          </div>
         </div>
         <div id="bitbucket-enabled-message" class="github-info" style="display: none;">
-          <div class="github-info-icon">✅</div>
+          <div class="github-info-icon thinkreview-tick-green">✓</div>
           <div class="github-info-content">
             <p class="github-info-text">
               <strong>Bitbucket enabled.</strong> Reload Bitbucket pull request pages to use AI code reviews.
             </p>
           </div>
         </div>
-        <div id="bitbucket-token-section" class="token-input-section" style="margin-top: 8px;">
-          <input type="email" id="bitbucket-email-input" placeholder="Atlassian account email (for API token)" class="token-input" style="margin-bottom: 4px;">
-          <input type="password" id="bitbucket-token-input" class="token-input" aria-label="Bitbucket API token">
+        <div id="bitbucket-token-section" class="token-input-section bitbucket-token-section">
+          <input type="email" id="bitbucket-email-input" placeholder="Atlassian account email (for API token)" class="token-input bitbucket-email-input">
+          <input type="password" id="bitbucket-token-input" class="token-input" placeholder="Paste your Bitbucket API token or app password" aria-label="Bitbucket API token">
           <button id="save-bitbucket-token-btn" class="save-token-btn">Save Token</button>
         </div>
-        <div id="bitbucket-token-status" class="token-status"></div>
-        <p class="help-text" style="margin-top: 4px; font-size: 11px;">For API tokens use your Atlassian account email + token. For app passwords use Bitbucket username + app password.</p>
+        <div id="bitbucket-token-status" class="token-status bitbucket-token-status"></div>
+        <p class="help-text">For API tokens use your Atlassian account email + token. For app passwords use Bitbucket username + app password.</p>
+        <p class="help-text"><a href="https://thinkreview.dev/docs/bitbucket-integration" target="_blank" rel="noopener noreferrer">How to generate a Bitbucket token</a></p>
       </div>
     </div>
     
