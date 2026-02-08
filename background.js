@@ -456,6 +456,104 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep channel open
   }
 
+  // Handle request to fetch extension resource as text (avoids page CSP blocking fetch to chrome-extension://)
+  if (message.type === 'GET_EXTENSION_RESOURCE') {
+    const { path } = message;
+    (async () => {
+      try {
+        if (!path || typeof path !== 'string') {
+          sendResponse({ success: false, error: 'Invalid path' });
+          return;
+        }
+        const url = chrome.runtime.getURL(path);
+        const response = await fetch(url);
+        if (!response.ok) {
+          sendResponse({ success: false, error: `Failed to load: ${response.status}` });
+          return;
+        }
+        const text = await response.text();
+        sendResponse({ success: true, content: text });
+      } catch (error) {
+        dbgWarn('Error fetching extension resource:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  /**
+   * Bitbucket patch/diff fetch (avoids page CSP blocking connect-src).
+   *
+   * Bitbucket API flow (two steps):
+   * 1. Content script sends URL: .../repositories/{workspace}/{repoSlug}/pullrequests/{prId}/diff
+   *    (That endpoint returns 302, so we don't use it directly.)
+   * 2. We parse workspace, repoSlug, prId and call the PR API:
+   *    GET .../repositories/{workspace}/{repoSlug}/pullrequests/{prId}
+   * 3. From the PR response we use links.diff.href as the diff URL (no manual encoding or spec building).
+   * 4. We fetch that URL and return the response body as the patch content for the code review.
+   *
+   * Auth: Bitbucket API tokens use Basic auth (Atlassian account email + token). If only token
+   * is set we send Bearer for backward compatibility.
+   */
+  if (message.type === 'FETCH_BITBUCKET_PATCH') {
+    const { url } = message;
+    (async () => {
+      try {
+        const { bitbucketToken, bitbucketEmail } = await chrome.storage.local.get(['bitbucketToken', 'bitbucketEmail']);
+        const token = bitbucketToken && String(bitbucketToken).trim() ? bitbucketToken.trim() : null;
+        const email = bitbucketEmail && String(bitbucketEmail).trim() ? bitbucketEmail.trim() : null;
+        const headers = { 'Accept': 'application/json' };
+        if (token) {
+          if (email) {
+            try {
+              const credentials = `${email}:${token}`;
+              const encoded = btoa(unescape(encodeURIComponent(credentials)));
+              headers['Authorization'] = `Basic ${encoded}`;
+            } catch (e) {
+              headers['Authorization'] = `Bearer ${token}`;
+            }
+          } else {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+        }
+        // Parse .../repositories/{workspace}/{repoSlug}/pullrequests/{prId}/diff
+        const prDiffMatch = url && url.match(/\/repositories\/([^/]+)\/([^/]+)\/pullrequests\/(\d+)\/diff/);
+        const workspace = prDiffMatch && prDiffMatch[1];
+        const repoSlug = prDiffMatch && prDiffMatch[2];
+        const prId = prDiffMatch && prDiffMatch[3];
+        let diffUrl = url;
+        if (workspace && repoSlug && prId) {
+          const prApiUrl = `https://api.bitbucket.org/2.0/repositories/${workspace}/${repoSlug}/pullrequests/${prId}`;
+          dbgLog('Fetching Bitbucket PR:', prApiUrl);
+          const prRes = await fetch(prApiUrl, { headers });
+          if (!prRes.ok) {
+            throw new Error(`Failed to fetch Bitbucket PR: ${prRes.status} ${prRes.statusText}`);
+          }
+          const prJson = await prRes.json();
+          const diffHref = prJson?.links?.diff?.href;
+          if (!diffHref) {
+            throw new Error('Bitbucket PR response missing links.diff.href');
+          }
+          diffUrl = diffHref;
+          dbgLog('Fetching Bitbucket diff from links.diff.href');
+        } else {
+          dbgLog('Fetching Bitbucket diff from:', url, token ? '(with auth)' : '(no token)');
+        }
+        const response = await fetch(diffUrl, { headers: { ...headers, 'Accept': 'text/plain,*/*' } });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch Bitbucket patch: ${response.status} ${response.statusText}`);
+        }
+        const patchContent = await response.text();
+        dbgLog('Successfully fetched Bitbucket diff, length:', patchContent.length);
+        sendResponse({ success: true, content: patchContent });
+      } catch (error) {
+        dbgWarn('Error fetching Bitbucket patch:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true; // Keep channel open
+  }
+
   // Handle analytics events from content scripts (to avoid CORS)
   if (message.type === 'SEND_ANALYTICS_EVENT') {
     const { eventName, eventParams } = message;
@@ -958,7 +1056,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Listen for domain changes
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'local' && (changes.gitlabDomains || changes.azureDevOpsDomains)) {
+  if (namespace === 'local' && (changes.gitlabDomains || changes.azureDevOpsDomains || changes.bitbucketAllowed)) {
     dbgLog('Domains changed, updating content scripts');
     updateContentScripts();
   }
@@ -967,7 +1065,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 async function updateContentScripts() {
   try {
     // Get current domains from storage
-    const result = await chrome.storage.local.get(['gitlabDomains', 'azureDevOpsDomains']);
+    const result = await chrome.storage.local.get(['gitlabDomains', 'azureDevOpsDomains', 'bitbucketAllowed']);
     const gitlabDomains = result.gitlabDomains || DEFAULT_DOMAINS;
     const customAzureDevOpsDomains = result.azureDevOpsDomains || [];
 
@@ -982,8 +1080,18 @@ async function updateContentScripts() {
       'https://github.com'
     ];
 
-    const allDomains = [...gitlabDomains, ...builtInAzureDevOpsDomains, ...customAzureDevOpsDomains, ...githubDomains];
+    // Add Bitbucket when user has allowed it and we have permission
+    const bitbucketDomains = [];
+    if (result.bitbucketAllowed === true) {
+      const hasBitbucket = await chrome.permissions.contains({ origins: ['https://bitbucket.org/*'] });
+      if (hasBitbucket) {
+        bitbucketDomains.push('https://bitbucket.org');
+      }
+    }
+
+    const allDomains = [...gitlabDomains, ...builtInAzureDevOpsDomains, ...customAzureDevOpsDomains, ...githubDomains, ...bitbucketDomains];
     const azureMatchAllDomains = new Set([...builtInAzureDevOpsDomains, ...customAzureDevOpsDomains]);
+    const bitbucketMatchAllDomains = new Set(bitbucketDomains);
     
     dbgLog('Updating content scripts for domains:', allDomains);
     
@@ -1041,6 +1149,9 @@ async function updateContentScripts() {
         } else if (url.hostname === 'github.com' || url.hostname.endsWith('.github.com')) {
           // GitHub: match all pages (SPA - button always visible, but only works on PR pages)
           matchPattern = `${url.protocol}//${url.host}/*`;
+        } else if (bitbucketMatchAllDomains.has(domain) || url.hostname === 'bitbucket.org') {
+          // Bitbucket: match all pages (SPA - button visible on PR pages)
+          matchPattern = `${url.protocol}//${url.host}/*`;
         } else {
           // GitLab: match merge request pages only
           matchPattern = `${url.protocol}//${url.host}/*/merge_requests/*`;
@@ -1048,7 +1159,7 @@ async function updateContentScripts() {
       } else {
         // Simple domain provided (e.g., gitlab.com, github.com, devops.companyname.com)
         originPattern = `https://${domain}/*`;
-        if (azureMatchAllDomains.has(domain) || domain === 'github.com' || domain.endsWith('.github.com')) {
+        if (azureMatchAllDomains.has(domain) || domain === 'github.com' || domain.endsWith('.github.com') || domain === 'bitbucket.org') {
           matchPattern = `https://${domain}/*`;
         } else {
           // GitLab: match merge request pages only
