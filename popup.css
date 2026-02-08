@@ -40,6 +40,7 @@ header {
   display: flex;
   justify-content: center;
   align-items: center;
+  margin-top: 8px;
   margin-bottom: 12px;
 }
 
@@ -51,8 +52,25 @@ header {
 
 .title-with-logo h2 {
   color: #6b4fbb;
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.header-title-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  text-align: center;
+}
+
+.header-subtitle {
+  margin: -2px 0 0 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: #666;
 }
 
 .header-bottom-row {
@@ -534,7 +552,11 @@ h1 {
   }
   
   .title-with-logo h2 {
-    font-size: 20px;
+    font-size: 24px;
+  }
+  
+  .header-subtitle {
+    font-size: 11px;
   }
   
   .header-logo {
@@ -549,7 +571,11 @@ h1 {
   }
   
   .title-with-logo h2 {
-    font-size: 18px;
+    font-size: 20px;
+  }
+  
+  .header-subtitle {
+    font-size: 10px;
   }
   
   .review-count {
