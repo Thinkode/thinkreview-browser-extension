@@ -302,12 +302,19 @@ export class PlatformDetector {
   }
 
   /**
+   * Set custom Azure DevOps domains (on-prem). Call after init so detection includes custom hostnames.
+   * @param {string[]} domains - Array of URLs or hostnames from storage (azureDevOpsDomains)
+   */
+  setAzureDevOpsCustomDomains(domains) {
+    azureDevOpsDetector.setCustomDomains(domains || []);
+  }
+
+  /**
    * Check if we're on an Azure DevOps site (regardless of being on a PR page)
-   * @returns {boolean} True if on Azure DevOps domain
+   * @returns {boolean} True if on Azure DevOps domain (built-in or custom)
    */
   isAzureDevOpsSite() {
-    const hostname = window.location.hostname;
-    return hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
+    return azureDevOpsDetector.isAzureDevOpsDomain();
   }
 
   /**

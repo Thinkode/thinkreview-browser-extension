@@ -63,6 +63,10 @@ async function initializePlatformDetection() {
     const platformModule = await import(chrome.runtime.getURL('services/platform-detector.js'));
     platformDetector = platformModule.platformDetector;
     platformDetector.init();
+
+    // Load custom Azure DevOps domains so on-prem URLs are detected
+    const storage = await chrome.storage.local.get(['azureDevOpsDomains']);
+    platformDetector.setAzureDevOpsCustomDomains(storage.azureDevOpsDomains || []);
     
     // Dynamically import Azure DevOps fetcher if needed
     const fetcherModule = await import(chrome.runtime.getURL('services/azure-devops-fetcher.js'));
@@ -738,19 +742,23 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
   if (reviewPractices) reviewPractices.innerHTML = '';
 }
 
+/** Dummy Azure DevOps token used when none is set in storage (>25 chars to satisfy length checks). */
+const DUMMY_AZURE_DEVOPS_TOKEN = 'thinkreview-azure-no-token-placeholder';
+
 /**
  * Get Azure DevOps token from storage
- * @returns {Promise<string|null>} Azure DevOps token or null if not set
+ * @returns {Promise<string>} Azure DevOps token, or a dummy placeholder if not set
  */
 async function getAzureDevOpsToken() {
   return new Promise((resolve) => {
     chrome.storage.local.get(['azureDevOpsToken'], (result) => {
       if (chrome.runtime.lastError) {
         dbgWarn('Error accessing Azure DevOps token storage:', chrome.runtime.lastError);
-        resolve(null);
+        resolve(DUMMY_AZURE_DEVOPS_TOKEN);
         return;
       }
-      resolve(result.azureDevOpsToken || null);
+      const token = result.azureDevOpsToken;
+      resolve(token && String(token).trim() ? token : DUMMY_AZURE_DEVOPS_TOKEN);
     });
   });
 }

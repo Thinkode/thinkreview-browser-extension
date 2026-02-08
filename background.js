@@ -958,8 +958,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Listen for domain changes
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'local' && changes.gitlabDomains) {
-    dbgLog('GitLab domains changed, updating content scripts');
+  if (namespace === 'local' && (changes.gitlabDomains || changes.azureDevOpsDomains)) {
+    dbgLog('Domains changed, updating content scripts');
     updateContentScripts();
   }
 });
@@ -967,21 +967,23 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 async function updateContentScripts() {
   try {
     // Get current domains from storage
-    const result = await chrome.storage.local.get(['gitlabDomains']);
+    const result = await chrome.storage.local.get(['gitlabDomains', 'azureDevOpsDomains']);
     const gitlabDomains = result.gitlabDomains || DEFAULT_DOMAINS;
-    
-    // Add Azure DevOps domains
-    const azureDevOpsDomains = [
+    const customAzureDevOpsDomains = result.azureDevOpsDomains || [];
+
+    // Built-in Azure DevOps domains (always included)
+    const builtInAzureDevOpsDomains = [
       'https://dev.azure.com',
       'https://*.visualstudio.com'
     ];
-    
+
     // Add GitHub domains
     const githubDomains = [
       'https://github.com'
     ];
-    
-    const allDomains = [...gitlabDomains, ...azureDevOpsDomains, ...githubDomains];
+
+    const allDomains = [...gitlabDomains, ...builtInAzureDevOpsDomains, ...customAzureDevOpsDomains, ...githubDomains];
+    const azureMatchAllDomains = new Set([...builtInAzureDevOpsDomains, ...customAzureDevOpsDomains]);
     
     dbgLog('Updating content scripts for domains:', allDomains);
     
@@ -1033,8 +1035,8 @@ async function updateContentScripts() {
           // For localhost, be more permissive with paths
           matchPattern = `${url.protocol}//${url.host}/*`;
           dbgLog(`Using permissive localhost pattern: ${matchPattern}`);
-        } else if (url.hostname.includes('dev.azure.com') || url.hostname.includes('visualstudio.com')) {
-          // Azure DevOps: match all pages (SPA - button always visible, but only works on PR pages)
+        } else if (azureMatchAllDomains.has(domain) || azureMatchAllDomains.has(url.hostname)) {
+          // Azure DevOps (built-in or custom): match all pages (SPA - button always visible, but only works on PR pages)
           matchPattern = `${url.protocol}//${url.host}/*`;
         } else if (url.hostname === 'github.com' || url.hostname.endsWith('.github.com')) {
           // GitHub: match all pages (SPA - button always visible, but only works on PR pages)
@@ -1044,10 +1046,9 @@ async function updateContentScripts() {
           matchPattern = `${url.protocol}//${url.host}/*/merge_requests/*`;
         }
       } else {
-        // Simple domain provided (e.g., gitlab.com, github.com)
+        // Simple domain provided (e.g., gitlab.com, github.com, devops.companyname.com)
         originPattern = `https://${domain}/*`;
-        if (domain === 'github.com' || domain.endsWith('.github.com')) {
-          // GitHub: match all pages (SPA - button always visible, but only works on PR pages)
+        if (azureMatchAllDomains.has(domain) || domain === 'github.com' || domain.endsWith('.github.com')) {
           matchPattern = `https://${domain}/*`;
         } else {
           // GitLab: match merge request pages only

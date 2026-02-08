@@ -276,6 +276,20 @@
             3. Copy the token and paste it above
           </p>
         </div>
+        
+        <div id="azure-domain-settings" class="domain-settings-section">
+          <h3 class="settings-title">Azure DevOps Domains</h3>
+          <p class="settings-description">Add custom Azure DevOps domains (e.g. on-prem) where the extension should work</p>
+          
+          <div class="domain-input-section">
+            <input type="text" id="azure-domain-input" placeholder="e.g., devops.companyname.com" class="domain-input">
+            <button id="add-azure-domain-btn" class="add-domain-btn">Add</button>
+          </div>
+          
+          <div id="azure-domain-list" class="domain-list">
+            <!-- Domain items will be populated by JavaScript -->
+          </div>
+        </div>
       </div>
       
       <!-- GitHub Settings Section -->
