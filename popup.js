@@ -641,6 +641,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize Azure DevOps domain settings
   initializeAzureDevOpsDomainSettings();
   
+  // Initialize Bitbucket settings (also called above after Azure)
+  initializeBitbucketSettings();
+  
   // Initialize AI Provider settings
   initializeAIProviderSettings();
 });
@@ -1071,6 +1074,182 @@ async function removeAzureDevOpsDomain(domain) {
   } catch (error) {
     dbgWarn('Error removing Azure DevOps domain:', error);
     alert('Error removing domain. Please try again.');
+  }
+}
+
+// Bitbucket: Allow Bitbucket (request permission for page + API host, store bitbucketAllowed, trigger content script update)
+const BITBUCKET_ORIGINS = ['https://bitbucket.org/*', 'https://api.bitbucket.org/*'];
+
+function initializeBitbucketSettings() {
+  loadBitbucketState();
+  loadBitbucketToken();
+  const allowBtn = document.getElementById('allow-bitbucket-btn');
+  if (allowBtn) {
+    allowBtn.addEventListener('click', allowBitbucket);
+  }
+  const saveTokenBtn = document.getElementById('save-bitbucket-token-btn');
+  const tokenInput = document.getElementById('bitbucket-token-input');
+  const emailInput = document.getElementById('bitbucket-email-input');
+  if (saveTokenBtn) saveTokenBtn.addEventListener('click', saveBitbucketToken);
+  if (tokenInput) {
+    tokenInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') saveBitbucketToken(); });
+    tokenInput.addEventListener('input', () => {
+      saveTokenBtn.disabled = !tokenInput.value.trim();
+    });
+  }
+  if (emailInput) {
+    emailInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') saveBitbucketToken(); });
+  }
+}
+
+async function loadBitbucketState() {
+  try {
+    const hasPermission = await chrome.permissions.contains({ origins: BITBUCKET_ORIGINS });
+    const result = await chrome.storage.local.get(['bitbucketAllowed']);
+    const allowed = result.bitbucketAllowed === true || hasPermission;
+
+    if (allowed) {
+      await chrome.storage.local.set({ bitbucketAllowed: true });
+    }
+
+    const allowSection = document.getElementById('bitbucket-allow-section');
+    const enabledMessage = document.getElementById('bitbucket-enabled-message');
+    const statusEl = document.getElementById('bitbucket-status');
+    const allowBtn = document.getElementById('allow-bitbucket-btn');
+
+    if (allowed) {
+      if (allowSection) allowSection.style.display = 'none';
+      if (enabledMessage) enabledMessage.style.display = 'flex';
+      if (statusEl) statusEl.textContent = '';
+    } else {
+      if (allowSection) allowSection.style.display = 'flex';
+      if (enabledMessage) enabledMessage.style.display = 'none';
+      if (statusEl) statusEl.textContent = '';
+      if (allowBtn) allowBtn.textContent = 'Allow Bitbucket';
+    }
+  } catch (error) {
+    dbgWarn('Error loading Bitbucket state:', error);
+  }
+}
+
+let isAllowingBitbucket = false;
+
+async function allowBitbucket() {
+  if (isAllowingBitbucket) return;
+  const allowBtn = document.getElementById('allow-bitbucket-btn');
+  const statusEl = document.getElementById('bitbucket-status');
+
+  try {
+    isAllowingBitbucket = true;
+    if (allowBtn) {
+      allowBtn.textContent = 'Adding...';
+      allowBtn.disabled = true;
+    }
+    if (statusEl) statusEl.textContent = '';
+
+    const granted = await chrome.permissions.request({ origins: BITBUCKET_ORIGINS });
+
+    if (!granted) {
+      if (statusEl) statusEl.textContent = 'Permission not granted.';
+      if (allowBtn) {
+        allowBtn.textContent = 'Allow Bitbucket';
+        allowBtn.disabled = false;
+      }
+      return;
+    }
+
+    await chrome.storage.local.set({ bitbucketAllowed: true });
+    chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
+
+    loadBitbucketState();
+    showMessage('Bitbucket enabled. Reload Bitbucket pages to use AI reviews.', 'success');
+  } catch (error) {
+    dbgWarn('Error allowing Bitbucket:', error);
+    if (statusEl) statusEl.textContent = 'Error: ' + (error.message || 'Failed');
+    if (allowBtn) {
+      allowBtn.textContent = 'Allow Bitbucket';
+      allowBtn.disabled = false;
+    }
+  } finally {
+    isAllowingBitbucket = false;
+  }
+}
+
+async function loadBitbucketToken() {
+  try {
+    const result = await chrome.storage.local.get(['bitbucketToken', 'bitbucketEmail']);
+    const token = result.bitbucketToken;
+    const email = result.bitbucketEmail;
+    const statusEl = document.getElementById('bitbucket-token-status');
+    const tokenInput = document.getElementById('bitbucket-token-input');
+    const emailInput = document.getElementById('bitbucket-email-input');
+    const saveBtn = document.getElementById('save-bitbucket-token-btn');
+    if (token && String(token).trim()) {
+      if (statusEl) {
+        statusEl.textContent = 'Token saved' + (email ? ' (with email)' : '');
+        statusEl.className = 'token-status success';
+      }
+      if (tokenInput) {
+        tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
+        tokenInput.type = 'password';
+      }
+      if (emailInput && email) emailInput.value = email;
+      if (saveBtn) saveBtn.disabled = true;
+    } else {
+      if (statusEl) {
+        statusEl.textContent = 'No token (optional for private repos)';
+        statusEl.className = 'token-status info';
+      }
+      if (emailInput && email) emailInput.value = email;
+      if (saveBtn) saveBtn.disabled = true;
+    }
+  } catch (error) {
+    dbgWarn('Error loading Bitbucket token:', error);
+  }
+}
+
+async function saveBitbucketToken() {
+  const tokenInput = document.getElementById('bitbucket-token-input');
+  const emailInput = document.getElementById('bitbucket-email-input');
+  const saveBtn = document.getElementById('save-bitbucket-token-btn');
+  const statusEl = document.getElementById('bitbucket-token-status');
+  const token = tokenInput?.value?.trim() ?? '';
+  const email = emailInput?.value?.trim() ?? '';
+  if (!token) {
+    if (statusEl) {
+      statusEl.textContent = 'Enter a token to save';
+      statusEl.className = 'token-status error';
+    }
+    return;
+  }
+  try {
+    if (saveBtn) {
+      saveBtn.textContent = 'Saving...';
+      saveBtn.disabled = true;
+    }
+    await chrome.storage.local.set({ bitbucketToken: token, bitbucketEmail: email || null });
+    if (statusEl) {
+      statusEl.textContent = 'Token saved' + (email ? ' (with email for Basic auth)' : '');
+      statusEl.className = 'token-status success';
+    }
+    if (tokenInput) {
+      tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
+      tokenInput.type = 'password';
+    }
+    if (saveBtn) {
+      saveBtn.textContent = 'Save Token';
+      saveBtn.disabled = true;
+    }
+  } catch (error) {
+    dbgWarn('Error saving Bitbucket token:', error);
+    if (statusEl) {
+      statusEl.textContent = 'Failed to save';
+      statusEl.className = 'token-status error';
+    }
+    if (saveBtn) {
+      saveBtn.textContent = 'Save Token';
+      saveBtn.disabled = false;
+    }
   }
 }
 

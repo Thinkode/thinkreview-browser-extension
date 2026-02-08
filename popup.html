@@ -306,6 +306,32 @@
           </div>
         </div>
       </div>
+      
+      <!-- Bitbucket Settings Section -->
+      <div id="bitbucket-settings" class="bitbucket-settings-section">
+        <h3 class="settings-title">Bitbucket Integration</h3>
+        <p class="settings-description">Enable ThinkReview on Bitbucket.org pull requests</p>
+        
+        <div id="bitbucket-allow-section" class="bitbucket-allow-section">
+          <button id="allow-bitbucket-btn" class="add-domain-btn">Allow Bitbucket</button>
+          <span id="bitbucket-status" class="bitbucket-status"></span>
+        </div>
+        <div id="bitbucket-enabled-message" class="github-info" style="display: none;">
+          <div class="github-info-icon">✅</div>
+          <div class="github-info-content">
+            <p class="github-info-text">
+              <strong>Bitbucket enabled.</strong> Reload Bitbucket pull request pages to use AI code reviews.
+            </p>
+          </div>
+        </div>
+        <div id="bitbucket-token-section" class="token-input-section" style="margin-top: 8px;">
+          <input type="email" id="bitbucket-email-input" placeholder="Atlassian account email (for API token)" class="token-input" style="margin-bottom: 4px;">
+          <input type="password" id="bitbucket-token-input" placeholder="Bitbucket API token or app password" class="token-input">
+          <button id="save-bitbucket-token-btn" class="save-token-btn">Save Token</button>
+        </div>
+        <div id="bitbucket-token-status" class="token-status"></div>
+        <p class="help-text" style="margin-top: 4px; font-size: 11px;">For API tokens use your Atlassian account email + token. For app passwords use Bitbucket username + app password.</p>
+      </div>
     </div>
     
     <footer class="app-footer">
