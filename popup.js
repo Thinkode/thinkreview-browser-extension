@@ -889,7 +889,9 @@ async function removeDomain(domain) {
   }
 }
 
-// Azure DevOps Domain Management (custom on-prem domains only; dev.azure.com / visualstudio.com are built-in)
+// Azure DevOps Domain Management: default cloud domains shown in list (like GitLab); custom on-prem stored separately
+const AZURE_DEFAULT_DOMAINS = ['https://dev.azure.com', 'https://visualstudio.com'];
+
 function initializeAzureDevOpsDomainSettings() {
   loadAzureDevOpsDomains();
   setupAzureDevOpsDomainEventListeners();
@@ -912,30 +914,38 @@ function setupAzureDevOpsDomainEventListeners() {
 async function loadAzureDevOpsDomains() {
   try {
     const result = await chrome.storage.local.get(['azureDevOpsDomains']);
-    const domains = result.azureDevOpsDomains || [];
-    renderAzureDevOpsDomainList(domains);
+    const customDomains = result.azureDevOpsDomains || [];
+    renderAzureDevOpsDomainList(customDomains);
   } catch (error) {
     dbgWarn('Error loading Azure DevOps domains:', error);
     renderAzureDevOpsDomainList([]);
   }
 }
 
-function renderAzureDevOpsDomainList(domains) {
+function renderAzureDevOpsDomainList(customDomains) {
   const domainList = document.getElementById('azure-domain-list');
   if (!domainList) return;
 
-  if (domains.length === 0) {
+  // Show default cloud domains first (like GitLab), then custom on-prem
+  const displayList = [
+    ...AZURE_DEFAULT_DOMAINS,
+    ...(customDomains.filter(d => !AZURE_DEFAULT_DOMAINS.includes(d)))
+  ];
+
+  if (displayList.length === 0) {
     domainList.innerHTML = '<div class="no-domains">No custom domains added</div>';
     return;
   }
 
-  domainList.innerHTML = domains.map(domain => {
+  domainList.innerHTML = displayList.map(domain => {
+    const isDefault = AZURE_DEFAULT_DOMAINS.includes(domain);
     const displayDomain = formatDomainForDisplay(domain);
     return `
-      <div class="domain-item">
+      <div class="domain-item ${isDefault ? 'default' : ''}">
         <span class="domain-name">${displayDomain}</span>
         <div>
-          <button class="remove-domain-btn" data-domain="${domain.replace(/"/g, '&quot;')}">Remove</button>
+          ${isDefault ? '<span class="default-label">DEFAULT</span>' : ''}
+          ${!isDefault ? `<button class="remove-domain-btn" data-domain="${domain.replace(/"/g, '&quot;')}">Remove</button>` : ''}
         </div>
       </div>
     `;
@@ -1020,8 +1030,8 @@ async function addAzureDevOpsDomain() {
       return;
     }
 
-    const updatedDomains = [...domains, domain];
-    await chrome.storage.local.set({ azureDevOpsDomains: updatedDomains });
+    const updatedCustomDomains = [...domains, domain];
+    await chrome.storage.local.set({ azureDevOpsDomains: updatedCustomDomains });
 
     trackAzureDevOpsDomainInCloud(domain, 'add');
 
@@ -1032,7 +1042,7 @@ async function addAzureDevOpsDomain() {
       addButton.textContent = originalButtonText;
       addButton.disabled = true;
     }
-    renderAzureDevOpsDomainList(updatedDomains);
+    renderAzureDevOpsDomainList(updatedCustomDomains);
     showMessage('Domain added. You may need to reload Azure DevOps pages for changes to take effect.', 'success');
   } catch (error) {
     dbgWarn('Error adding Azure DevOps domain:', error);
@@ -1051,14 +1061,14 @@ async function removeAzureDevOpsDomain(domain) {
 
   try {
     const result = await chrome.storage.local.get(['azureDevOpsDomains']);
-    const domains = result.azureDevOpsDomains || [];
-    const updatedDomains = domains.filter(d => d !== domain);
-    await chrome.storage.local.set({ azureDevOpsDomains: updatedDomains });
+    const customDomains = result.azureDevOpsDomains || [];
+    const updatedCustomDomains = customDomains.filter(d => d !== domain);
+    await chrome.storage.local.set({ azureDevOpsDomains: updatedCustomDomains });
 
     trackAzureDevOpsDomainInCloud(domain, 'remove');
 
     chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
-    renderAzureDevOpsDomainList(updatedDomains);
+    renderAzureDevOpsDomainList(updatedCustomDomains);
     showMessage('Domain removed successfully!', 'success');
   } catch (error) {
     dbgWarn('Error removing Azure DevOps domain:', error);
