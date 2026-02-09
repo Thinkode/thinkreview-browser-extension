@@ -1,6 +1,7 @@
 // bitbucket-detector.js
 // Detects Bitbucket Cloud pull request pages and extracts relevant information
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
+import { getBitbucketDiffApiUrl } from '../utils/bitbucket-api-urls.js';
 
 /**
  * Parse Bitbucket PR URL path into workspace, repo_slug, and PR id.
@@ -119,7 +120,7 @@ export class BitbucketDetector {
   getPatchApiUrl() {
     const parsed = parseBitbucketPRFromPath(window.location.pathname);
     if (!parsed) return null;
-    return `https://api.bitbucket.org/2.0/repositories/${parsed.workspace}/${parsed.repoSlug}/pullrequests/${parsed.prId}/diff`;
+    return getBitbucketDiffApiUrl(parsed.workspace, parsed.repoSlug, parsed.prId);
   }
 
   /**

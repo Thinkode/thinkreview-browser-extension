@@ -8,6 +8,7 @@ import { isValidOrigin } from './utils/origin-validator.js';
 import { AnalyticsService } from './utils/analytics-service.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+import { fetchPatchContent } from './services/bitbucket-api.js';
 // Logger module will automatically initialize Honeybadger
 // Set uninstall URL to redirect users to feedback page
 chrome.runtime.setUninstallURL('https://thinkreview.dev/goodbye.html', () => {
@@ -481,84 +482,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  /**
-   * Bitbucket patch/diff fetch (avoids page CSP blocking connect-src).
-   *
-   * Bitbucket API flow (two steps):
-   * 1. Content script sends URL: .../repositories/{workspace}/{repoSlug}/pullrequests/{prId}/diff
-   *    (That endpoint returns 302, so we don't use it directly.)
-   * 2. We parse workspace, repoSlug, prId and call the PR API:
-   *    GET .../repositories/{workspace}/{repoSlug}/pullrequests/{prId}
-   * 3. From the PR response we use links.diff.href as the diff URL (no manual encoding or spec building).
-   * 4. We fetch that URL and return the response body as the patch content for the code review.
-   *
-   * Auth: Bitbucket API tokens use Basic auth (Atlassian account email + token). If only token
-   * is set we send Bearer for backward compatibility.
-   */
+  // Bitbucket patch/diff fetch (avoids page CSP blocking connect-src). Logic in services/bitbucket-api.js.
   if (message.type === 'FETCH_BITBUCKET_PATCH') {
     const { url } = message;
     (async () => {
-      try {
-        const { bitbucketToken, bitbucketEmail } = await chrome.storage.local.get(['bitbucketToken', 'bitbucketEmail']);
-        const token = bitbucketToken && String(bitbucketToken).trim() ? bitbucketToken.trim() : null;
-        const email = (bitbucketEmail != null && bitbucketEmail !== '' && String(bitbucketEmail).trim()) ? String(bitbucketEmail).trim() : null;
-        const headers = { 'Accept': 'application/json' };
-        if (token) {
-          if (email) {
-            try {
-              const credentials = `${email}:${token}`;
-              const encoded = btoa(unescape(encodeURIComponent(credentials)));
-              headers['Authorization'] = `Basic ${encoded}`;
-            } catch (e) {
-              headers['Authorization'] = `Bearer ${token}`;
-            }
-          } else {
-            headers['Authorization'] = `Bearer ${token}`;
-          }
-        }
-        // Parse .../repositories/{workspace}/{repoSlug}/pullrequests/{prId}/diff
-        const prDiffMatch = url && url.match(/\/repositories\/([^/]+)\/([^/]+)\/pullrequests\/(\d+)\/diff/);
-        const workspace = prDiffMatch && prDiffMatch[1];
-        const repoSlug = prDiffMatch && prDiffMatch[2];
-        const prId = prDiffMatch && prDiffMatch[3];
-        let diffUrl = url;
-        if (workspace && repoSlug && prId) {
-          const prApiUrl = `https://api.bitbucket.org/2.0/repositories/${workspace}/${repoSlug}/pullrequests/${prId}`;
-          dbgLog('Fetching Bitbucket PR:', prApiUrl);
-          const prRes = await fetch(prApiUrl, { headers });
-          if (!prRes.ok) {
-            const authRequired = prRes.status === 401 || prRes.status === 403;
-            const err = new Error(`Failed to fetch Bitbucket PR: ${prRes.status} ${prRes.statusText}`);
-            err.bitbucketAuthRequired = authRequired;
-            throw err;
-          }
-          const prJson = await prRes.json();
-          const diffHref = prJson?.links?.diff?.href;
-          if (!diffHref) {
-            throw new Error('Bitbucket PR response missing links.diff.href');
-          }
-          diffUrl = diffHref;
-          dbgLog('Fetching Bitbucket diff from links.diff.href');
-        } else {
-          dbgLog('Fetching Bitbucket diff from:', url, token ? '(with auth)' : '(no token)');
-        }
-        const response = await fetch(diffUrl, { headers: { ...headers, 'Accept': 'text/plain,*/*' } });
-        if (!response.ok) {
-          const authRequired = response.status === 401 || response.status === 403;
-          const err = new Error(`Failed to fetch Bitbucket patch: ${response.status} ${response.statusText}`);
-          err.bitbucketAuthRequired = authRequired;
-          throw err;
-        }
-        const patchContent = await response.text();
-        dbgLog('Successfully fetched Bitbucket diff, length:', patchContent.length);
-        sendResponse({ success: true, content: patchContent });
-      } catch (error) {
-        // Log message only (never log the error object: it must not contain token or credentials)
-        dbgError('Error fetching Bitbucket patch:', error?.message || String(error));
-        const msg = String(error && error.message || '');
-        const authRequired = (error && error.bitbucketAuthRequired === true) || /401|403|unauthorized|forbidden/i.test(msg);
-        sendResponse({ success: false, error: error?.message || msg || 'Request failed', bitbucketAuthRequired: authRequired });
-      }
+      const { bitbucketToken, bitbucketEmail } = await chrome.storage.local.get(['bitbucketToken', 'bitbucketEmail']);
+      const result = await fetchPatchContent(url, { token: bitbucketToken, email: bitbucketEmail });
+      sendResponse(result);
     })();
     return true; // Keep channel open
   }
