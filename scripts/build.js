@@ -19,9 +19,10 @@ function loadEnv () {
 
 function writeEnvConfig (buildDir) {
   loadEnv()
-  const GA_MEASUREMENT_ID = process.env.GA_MEASUREMENT_ID || ''
-  const GA_API_SECRET = process.env.GA_API_SECRET || ''
-  const HONEYBADGER_API_KEY = process.env.HONEYBADGER_API_KEY || ''
+  // Trim to strip any trailing \r\n / whitespace from GitHub vars/secrets
+  const GA_MEASUREMENT_ID = (process.env.GA_MEASUREMENT_ID || '').trim()
+  const GA_API_SECRET = (process.env.GA_API_SECRET || '').trim()
+  const HONEYBADGER_API_KEY = (process.env.HONEYBADGER_API_KEY || '').trim()
   const outPath = path.join(buildDir, 'utils', 'env-config.js')
   const content = `// Injected at build from .env or CI
 export const GA_MEASUREMENT_ID = ${JSON.stringify(GA_MEASUREMENT_ID)};
