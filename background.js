@@ -553,7 +553,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         dbgLog('Successfully fetched Bitbucket diff, length:', patchContent.length);
         sendResponse({ success: true, content: patchContent });
       } catch (error) {
-        dbgError('Error fetching Bitbucket patch:', error?.message || error, error);
+        // Log message only (never log the error object: it must not contain token or credentials)
+        dbgError('Error fetching Bitbucket patch:', error?.message || String(error));
         const msg = String(error && error.message || '');
         const authRequired = (error && error.bitbucketAuthRequired === true) || /401|403|unauthorized|forbidden/i.test(msg);
         sendResponse({ success: false, error: error?.message || msg || 'Request failed', bitbucketAuthRequired: authRequired });
