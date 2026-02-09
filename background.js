@@ -501,7 +501,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       try {
         const { bitbucketToken, bitbucketEmail } = await chrome.storage.local.get(['bitbucketToken', 'bitbucketEmail']);
         const token = bitbucketToken && String(bitbucketToken).trim() ? bitbucketToken.trim() : null;
-        const email = bitbucketEmail && String(bitbucketEmail).trim() ? bitbucketEmail.trim() : null;
+        const email = (bitbucketEmail != null && bitbucketEmail !== '' && String(bitbucketEmail).trim()) ? String(bitbucketEmail).trim() : null;
         const headers = { 'Accept': 'application/json' };
         if (token) {
           if (email) {
