@@ -1,4 +1,4 @@
-# ThinkReview - Version 1.4.15 Release Notes
+# ThinkReview - Version 1.5.0 Release Notes
 
 **Release Date:** 13 February 2026
 
