@@ -1182,20 +1182,20 @@ async function loadBitbucketToken() {
     const saveBtn = document.getElementById('save-bitbucket-token-btn');
     if (token && String(token).trim()) {
       if (statusEl) {
-        statusEl.textContent = 'Token saved' + (email ? ' (with email)' : '');
+        statusEl.textContent = 'Token saved';
         statusEl.className = 'token-status success';
       }
       if (tokenInput) {
         tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
         tokenInput.type = 'password';
       }
-      if (emailInput && email) emailInput.value = email;
+      if (emailInput) emailInput.value = (email != null && email !== undefined) ? String(email) : '';
     } else {
       if (statusEl) {
         statusEl.textContent = '';
         statusEl.className = 'token-status';
       }
-      if (emailInput && email) emailInput.value = email;
+      if (emailInput) emailInput.value = (email != null && email !== undefined) ? String(email) : '';
     }
   } catch (error) {
     dbgWarn('Error loading Bitbucket token:', error);
@@ -1218,9 +1218,9 @@ async function saveBitbucketToken() {
   }
   try {
     if (saveBtn) saveBtn.textContent = 'Saving...';
-    await chrome.storage.local.set({ bitbucketToken: token, bitbucketEmail: email || null });
+    await chrome.storage.local.set({ bitbucketToken: token, bitbucketEmail: email || '' });
     if (statusEl) {
-      statusEl.textContent = 'Token saved' + (email ? ' (with email for Basic auth)' : '');
+      statusEl.textContent = 'Token saved';
       statusEl.className = 'token-status success';
     }
     if (tokenInput) {
