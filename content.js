@@ -152,6 +152,11 @@ function shouldShowButton() {
   if (platformDetector.isGitHubSite()) {
     return true;
   }
+
+  // Always show button on Bitbucket sites (SPA; content script only runs when user allowed Bitbucket)
+  if (platformDetector.isBitbucketSite()) {
+    return true;
+  }
   
   // For other platforms, only show on supported pages
   return platformDetector.isCurrentPageSupported();
@@ -194,6 +199,14 @@ function getPatchUrl() {
       legacyUrl += '.diff';
     }
     return legacyUrl;
+  }
+
+  // Bitbucket: API 2.0 patch endpoint (cookie auth from content script)
+  if (platformDetector && platformDetector.isOnBitbucketPRPage()) {
+    const bitbucketPatchUrl = platformDetector.getBitbucketPatchApiUrl && platformDetector.getBitbucketPatchApiUrl();
+    if (bitbucketPatchUrl) {
+      return bitbucketPatchUrl;
+    }
   }
 
   // GitLab and others: keep existing .patch behavior
@@ -354,6 +367,9 @@ function getCurrentPRId() {
   } else if (platformDetector.isOnGitHubPRPage()) {
     return getGitHubPRId();
   } else if (platformDetector.isOnAzureDevOpsPRPage()) {
+    const prInfo = platformDetector.detectPlatform().pageInfo;
+    return prInfo?.prId || null;
+  } else if (platformDetector.isOnBitbucketPRPage()) {
     const prInfo = platformDetector.detectPlatform().pageInfo;
     return prInfo?.prId || null;
   }
@@ -686,10 +702,15 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
       document.head.appendChild(linkEl);
     }
     
-    // Load subscription section HTML
-    fetch(chrome.runtime.getURL('components/subscription-section.html'))
-      .then(response => response.text())
-      .then(html => {
+    // Load subscription section HTML via background (avoids page CSP blocking fetch to chrome-extension://)
+    chrome.runtime.sendMessage(
+      { type: 'GET_EXTENSION_RESOURCE', path: 'components/subscription-section.html' },
+      (response) => {
+        if (chrome.runtime.lastError || !response?.success) {
+          dbgWarn('Error loading subscription section:', response?.error || chrome.runtime.lastError?.message);
+          return;
+        }
+        const html = response.content;
         reviewSummary.innerHTML = `
           <div class="gl-alert gl-alert-warning">
             <div class="gl-alert-content">
@@ -724,10 +745,8 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
             window.open(subscriptionPortalUrl, '_blank');
           });
         }
-      })
-      .catch(error => {
-        dbgWarn('Error loading subscription section:', error);
-      });
+      }
+    );
     
     // Event listeners are now handled within the fetch promise
   }
@@ -891,6 +910,32 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
           throw error;
         }
       
+    } else if (platformDetector && platformDetector.isOnBitbucketPRPage()) {
+      // Bitbucket: fetch patch via background script to avoid page CSP blocking connect-src
+      const patchUrl = getPatchUrl();
+      dbgLog('Fetching Bitbucket patch through background script:', patchUrl);
+      const bgResponse = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: 'FETCH_BITBUCKET_PATCH', url: patchUrl }, resolve);
+      });
+      if (!bgResponse || !bgResponse.success) {
+        // 401/403 from Bitbucket API (e.g. GET .../repositories/.../pullrequests/1) or token missing: show token prompt
+        const errMsg = (bgResponse?.error || '').toLowerCase();
+        const authRequired = bgResponse?.bitbucketAuthRequired === true || errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('unauthorized') || errMsg.includes('forbidden');
+        if (authRequired) {
+          try {
+            const bitbucketTokenErrorModule = await import(chrome.runtime.getURL('components/bitbucket-token-error.js'));
+            bitbucketTokenErrorModule.showBitbucketTokenError(stopEnhancedLoader);
+          } catch (e) {
+            dbgWarn('Failed to show Bitbucket token error UI:', e);
+            throw new Error('Generate a Bitbucket API token for ThinkReview (takes about 60 seconds): https://thinkreview.dev/docs/bitbucket-integration');
+          }
+          return;
+        }
+        throw new Error(bgResponse?.error || `Not a pull request page or there are no code changes yet in this PR. If you think this is a bug, please report it here: https://thinkreview.dev/bug-report`);
+      }
+      codeContent = bgResponse.content;
+      const prInfo = platformDetector.detectPlatform().pageInfo;
+      reviewId = prInfo?.prId || null;
     } else {
       throw new Error('Unsupported platform');
     }
@@ -906,17 +951,21 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     if (reviewContent) reviewContent.classList.add('gl-hidden');
     if (reviewError) reviewError.classList.add('gl-hidden');
     if (loginPrompt) loginPrompt.classList.add('gl-hidden');
+    const azureTokenErr = document.getElementById('review-azure-token-error');
+    const bitbucketTokenErr = document.getElementById('review-bitbucket-token-error');
+    if (azureTokenErr) azureTokenErr.classList.add('gl-hidden');
+    if (bitbucketTokenErr) bitbucketTokenErr.classList.add('gl-hidden');
     
     // Start the enhanced loader if available
     if (typeof startEnhancedLoader === 'function') {
       startEnhancedLoader();
     }
     
-    // Apply filtering for GitLab and GitHub patches (Azure DevOps changes are already filtered)
+    // Apply filtering for GitLab, GitHub, and Bitbucket patches (Azure DevOps changes are already filtered)
     let filteredCodeContent = codeContent;
     let filterSummaryText = null;
     
-    if (platformDetector && (platformDetector.isOnGitLabMRPage() || platformDetector.isOnGitHubPRPage())) {
+    if (platformDetector && (platformDetector.isOnGitLabMRPage() || platformDetector.isOnGitHubPRPage() || platformDetector.isOnBitbucketPRPage())) {
       // Dynamically import patch filtering utilities for GitLab and GitHub
       const patchFilterModule = await import(chrome.runtime.getURL('utils/patch-filter.js'));
       const { filterPatch, getFilterSummary } = patchFilterModule;
@@ -1241,9 +1290,9 @@ async function initializeExtension() {
     
     injectButtons();
     
-    // Start SPA navigation monitoring for GitHub and Azure DevOps sites
+    // Start SPA navigation monitoring for GitHub, Azure DevOps, and Bitbucket (SPAs)
     // Check by site (domain) rather than platform, because platform is null on non-PR pages
-    if (platformDetector && (platformDetector.isGitHubSite() || platformDetector.isAzureDevOpsSite())) {
+    if (platformDetector && (platformDetector.isGitHubSite() || platformDetector.isAzureDevOpsSite() || platformDetector.isBitbucketSite())) {
       startSPANavigationMonitoring();
     }
     

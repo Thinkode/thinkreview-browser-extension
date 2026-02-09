@@ -681,6 +681,37 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   transform: scale(0.95);
 }
 
+/* Wrapper for regenerate button + fast tooltip */
+#gitlab-mr-integrated-review .thinkreview-regenerate-btn-wrapper {
+  position: relative;
+  display: inline-flex;
+  margin-right: 8px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-regenerate-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e1e4e8;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  z-index: 1000;
+}
+
+#gitlab-mr-integrated-review .thinkreview-regenerate-tooltip.thinkreview-tooltip-visible {
+  opacity: 1;
+}
+
 #gitlab-mr-integrated-review .thinkreview-regenerate-btn {
   background: none;
   border: none;
@@ -693,7 +724,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   align-items: center;
   justify-content: center;
   opacity: 0.7;
-  margin-right: 8px;
+  margin-right: 0;
   width: 28px;
   height: 28px;
 }

@@ -8,6 +8,7 @@ import { isValidOrigin } from './utils/origin-validator.js';
 import { AnalyticsService } from './utils/analytics-service.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+import { fetchPatchContent } from './services/bitbucket-api.js';
 // Logger module will automatically initialize Honeybadger
 // Set uninstall URL to redirect users to feedback page
 chrome.runtime.setUninstallURL('https://thinkreview.dev/goodbye.html', () => {
@@ -452,6 +453,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         dbgWarn('Error fetching GitHub diff:', error);
         sendResponse({ success: false, error: error.message });
       }
+    })();
+    return true; // Keep channel open
+  }
+
+  // Handle request to fetch extension resource as text (avoids page CSP blocking fetch to chrome-extension://)
+  if (message.type === 'GET_EXTENSION_RESOURCE') {
+    const { path } = message;
+    (async () => {
+      try {
+        if (!path || typeof path !== 'string') {
+          sendResponse({ success: false, error: 'Invalid path' });
+          return;
+        }
+        const url = chrome.runtime.getURL(path);
+        const response = await fetch(url);
+        if (!response.ok) {
+          sendResponse({ success: false, error: `Failed to load: ${response.status}` });
+          return;
+        }
+        const text = await response.text();
+        sendResponse({ success: true, content: text });
+      } catch (error) {
+        dbgWarn('Error fetching extension resource:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  // Bitbucket patch/diff fetch (avoids page CSP blocking connect-src). Logic in services/bitbucket-api.js.
+  if (message.type === 'FETCH_BITBUCKET_PATCH') {
+    const { url } = message;
+    (async () => {
+      const { bitbucketToken, bitbucketEmail } = await chrome.storage.local.get(['bitbucketToken', 'bitbucketEmail']);
+      const result = await fetchPatchContent(url, { token: bitbucketToken, email: bitbucketEmail });
+      sendResponse(result);
     })();
     return true; // Keep channel open
   }
@@ -958,7 +995,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Listen for domain changes
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'local' && (changes.gitlabDomains || changes.azureDevOpsDomains)) {
+  if (namespace === 'local' && (changes.gitlabDomains || changes.azureDevOpsDomains || changes.bitbucketAllowed)) {
     dbgLog('Domains changed, updating content scripts');
     updateContentScripts();
   }
@@ -967,7 +1004,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 async function updateContentScripts() {
   try {
     // Get current domains from storage
-    const result = await chrome.storage.local.get(['gitlabDomains', 'azureDevOpsDomains']);
+    const result = await chrome.storage.local.get(['gitlabDomains', 'azureDevOpsDomains', 'bitbucketAllowed']);
     const gitlabDomains = result.gitlabDomains || DEFAULT_DOMAINS;
     const customAzureDevOpsDomains = result.azureDevOpsDomains || [];
 
@@ -982,8 +1019,18 @@ async function updateContentScripts() {
       'https://github.com'
     ];
 
-    const allDomains = [...gitlabDomains, ...builtInAzureDevOpsDomains, ...customAzureDevOpsDomains, ...githubDomains];
+    // Add Bitbucket when user has allowed it and we have permission
+    const bitbucketDomains = [];
+    if (result.bitbucketAllowed === true) {
+      const hasBitbucket = await chrome.permissions.contains({ origins: ['https://bitbucket.org/*'] });
+      if (hasBitbucket) {
+        bitbucketDomains.push('https://bitbucket.org');
+      }
+    }
+
+    const allDomains = [...gitlabDomains, ...builtInAzureDevOpsDomains, ...customAzureDevOpsDomains, ...githubDomains, ...bitbucketDomains];
     const azureMatchAllDomains = new Set([...builtInAzureDevOpsDomains, ...customAzureDevOpsDomains]);
+    const bitbucketMatchAllDomains = new Set(bitbucketDomains);
     
     dbgLog('Updating content scripts for domains:', allDomains);
     
@@ -1041,6 +1088,9 @@ async function updateContentScripts() {
         } else if (url.hostname === 'github.com' || url.hostname.endsWith('.github.com')) {
           // GitHub: match all pages (SPA - button always visible, but only works on PR pages)
           matchPattern = `${url.protocol}//${url.host}/*`;
+        } else if (bitbucketMatchAllDomains.has(domain) || url.hostname === 'bitbucket.org') {
+          // Bitbucket: match all pages (SPA - button visible on PR pages)
+          matchPattern = `${url.protocol}//${url.host}/*`;
         } else {
           // GitLab: match merge request pages only
           matchPattern = `${url.protocol}//${url.host}/*/merge_requests/*`;
@@ -1048,7 +1098,7 @@ async function updateContentScripts() {
       } else {
         // Simple domain provided (e.g., gitlab.com, github.com, devops.companyname.com)
         originPattern = `https://${domain}/*`;
-        if (azureMatchAllDomains.has(domain) || domain === 'github.com' || domain.endsWith('.github.com')) {
+        if (azureMatchAllDomains.has(domain) || domain === 'github.com' || domain.endsWith('.github.com') || domain === 'bitbucket.org') {
           matchPattern = `https://${domain}/*`;
         } else {
           // GitLab: match merge request pages only

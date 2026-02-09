@@ -12,7 +12,10 @@
       <div class="header-top-row">
         <div class="title-with-logo">
           <img src="images/icon48.png" alt="ThinkReview Logo" class="header-logo">
-          <h2>ThinkReview</h2>
+          <div class="header-title-block">
+            <h2>ThinkReview</h2>
+            <p class="header-subtitle">AI code reviews for your PRs</p>
+          </div>
         </div>
       </div>
       <div class="header-bottom-row">
@@ -97,11 +100,51 @@
           <h2>AI-Powered Code Reviews</h2>
           <div class="gemini-badge">Powered by Frontier Models & Ollama</div>
         </div>
-        <p class="welcome-subtitle">Transform your GitLab, GitHub and Azure DevOps PR workflow with intelligent AI code analysis</p>
+        <p class="welcome-subtitle">Transform your GitLab, GitHub, Bitbucket and Azure DevOps PR workflow with intelligent AI code analysis</p>
       </div>
       
       <!-- Feature Preview Cards -->
       <div class="feature-preview-grid">
+        <div class="feature-preview-card">
+          <div class="feature-icon ai-powered">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <h3>Works straight out of the box</h3>
+          <p>No repo admin access or CI integration required.</p>
+        </div>
+        
+        <div class="feature-preview-card">
+          <div class="feature-icon ai-powered">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd"></path>
+            </svg>
+          </div>
+          <h3>Chat with your PRs</h3>
+          <p>Ask questions and get answers about your pull request changes</p>
+        </div>
+        
+        <div class="feature-preview-card">
+          <div class="feature-icon ai-powered">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+            </svg>
+          </div>
+          <h3>Privacy Protected</h3>
+          <p>We never store your code or your tokens on our servers. <a href="https://thinkreview.dev/privacy-faqs.html" target="_blank" rel="noopener noreferrer" class="privacy-notice-link">Check Privacy FAQs</a></p>
+        </div>
+        
+        <div class="feature-preview-card">
+          <div class="feature-icon ai-powered">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5V3zm4 8v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4h10zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v2H9z"></path>
+            </svg>
+          </div>
+          <h3>15+ frontier LLM models</h3>
+          <p>Choose from a wide range of leading AI models for your reviews</p>
+        </div>
+        
         <div class="feature-preview-card">
           <div class="feature-icon ai-powered">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -118,46 +161,28 @@
               <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"></path>
             </svg>
           </div>
-          <h3>GitLab, GitHub & Azure DevOps Integration</h3>
+          <h3>GitLab, GitHub, Bitbucket & Azure DevOps Integration</h3>
           <p>Seamlessly integrated into your workflow</p>
         </div>
         
         <div class="feature-preview-card">
           <div class="feature-icon ai-powered">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+              <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
             </svg>
           </div>
-          <h3>Privacy Protected</h3>
-          <p>Your code never stored on our servers</p>
+          <h3>Custom review rules</h3>
+          <p>Select and apply custom rules to tailor how your code is reviewed</p>
         </div>
-      </div>
-      
-      <!-- Sign-in CTA -->
-      <div class="signin-cta">
-        <p class="signin-message">Sign in to start generating AI reviews for your GitLab merge requests, GitHub pull requests and Azure DevOps pull requests</p>
-      </div>
-      
-      <!-- Privacy Policy Notice (Prominent) -->
-      <div id="privacy-policy-notice" class="privacy-policy-notice" style="display: none;">
-        <div class="privacy-notice-icon">🔒</div>
-        <div class="privacy-notice-content">
-          <p class="privacy-notice-text">
-            <strong>Your Privacy Matters</strong><br>
-            By using ThinkReview, you agree to our <a href="https://thinkreview.dev/privacy-policy" target="_blank" rel="noopener noreferrer" class="privacy-notice-link">Privacy Policy</a>. We protect your code and data.
-          </p>
-        </div>
-      </div>
-      
-      <!-- Zero Setup Preview -->
-      <div class="zero-setup-preview">
-        <div class="zero-setup-icon">
-          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-        </div>
-        <div class="zero-setup-text">
-          <strong>Zero Setup Required</strong> - No API keys, no tokens, works instantly!
+        
+        <div class="feature-preview-card">
+          <div class="feature-icon ai-powered">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+            </svg>
+          </div>
+          <h3>Open source</h3>
+          <p>The extension is open source — audit the code and contribute on <a href="https://github.com/Thinkode/thinkreview-browser-extension" target="_blank" rel="noopener noreferrer" class="privacy-notice-link">GitHub</a></p>
         </div>
       </div>
     </div>
@@ -279,7 +304,7 @@
         
         <div id="azure-domain-settings" class="domain-settings-section">
           <h3 class="settings-title">Azure DevOps Domains</h3>
-          <p class="settings-description">Add custom Azure DevOps domains (e.g. on-prem) where the extension should work</p>
+          <p class="settings-description">Add custom Azure DevOps domains (on-prem/self hosted) where the extension should work</p>
           
           <div class="domain-input-section">
             <input type="text" id="azure-domain-input" placeholder="e.g., devops.companyname.com" class="domain-input">
@@ -292,13 +317,43 @@
         </div>
       </div>
       
+      <!-- Bitbucket Settings Section -->
+      <div id="bitbucket-settings" class="bitbucket-settings-section">
+        <div class="bitbucket-header-row">
+          <h3 class="settings-title">Bitbucket Integration</h3>
+          <div id="bitbucket-allow-section" class="bitbucket-allow-section">
+            <div class="bitbucket-allow-button-row">
+              <button id="allow-bitbucket-btn" class="add-domain-btn">Allow Bitbucket</button>
+              <span id="bitbucket-status" class="bitbucket-status"></span>
+            </div>
+            <p class="help-text bitbucket-allow-hint">You must grant permission by pressing the button above to use ThinkReview on Bitbucket.</p>
+          </div>
+        </div>
+        <div id="bitbucket-enabled-message" class="github-info" style="display: none;">
+          <div class="github-info-icon thinkreview-tick-green">✓</div>
+          <div class="github-info-content">
+            <p class="github-info-text">
+              <strong>Bitbucket enabled.</strong> Reload Bitbucket pull request pages to use AI code reviews.
+            </p>
+          </div>
+        </div>
+        <div id="bitbucket-token-section" class="token-input-section bitbucket-token-section">
+          <input type="email" id="bitbucket-email-input" placeholder="Atlassian account email (for API token)" class="token-input bitbucket-email-input">
+          <input type="password" id="bitbucket-token-input" class="token-input" placeholder="Paste your Bitbucket API token or app password" aria-label="Bitbucket API token">
+          <button id="save-bitbucket-token-btn" class="save-token-btn">Save Token</button>
+        </div>
+        <div id="bitbucket-token-status" class="token-status bitbucket-token-status"></div>
+        <p class="help-text">For API tokens use your Atlassian account email + token. For app passwords use Bitbucket username + app password.</p>
+        <p class="help-text"><a href="https://thinkreview.dev/docs/bitbucket-integration" target="_blank" rel="noopener noreferrer">How to generate a Bitbucket token</a></p>
+      </div>
+      
       <!-- GitHub Settings Section -->
       <div id="github-settings" class="github-settings-section">
         <h3 class="settings-title">GitHub Integration</h3>
         <p class="settings-description">ThinkReview is ready to work on GitHub pull requests</p>
         
         <div class="github-info">
-          <div class="github-info-icon">✅</div>
+          <div class="github-info-icon thinkreview-tick-green">✓</div>
           <div class="github-info-content">
             <p class="github-info-text">
               <strong>No setup required!</strong> The extension automatically works on GitHub pull requests. Simply navigate to any GitHub PR page to start generating AI code reviews.

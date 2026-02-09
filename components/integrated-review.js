@@ -277,9 +277,12 @@ async function createIntegratedReviewPanel(patchUrl) {
           <span class="thinkreview-toggle-icon gl-ml-2" title="Minimize">▲</span>
         </div>
         <div class="thinkreview-header-actions">
-          <button id="regenerate-review-btn" class="thinkreview-regenerate-btn" title="Regenerate review">
-            ${refreshIconSvg}
-          </button>
+          <span class="thinkreview-regenerate-btn-wrapper">
+            <button id="regenerate-review-btn" class="thinkreview-regenerate-btn" aria-label="Regenerate review">
+              ${refreshIconSvg}
+            </button>
+            <span class="thinkreview-regenerate-tooltip" aria-hidden="true">Regenerate review</span>
+          </span>
           <select id="language-selector" class="thinkreview-language-dropdown" title="Select review language">
             <option value="English">English</option>
             <option value="Spanish">Español</option>
@@ -563,6 +566,22 @@ async function createIntegratedReviewPanel(patchUrl) {
     });
   }
   
+  // Fast tooltip for regenerate button (short delay vs native title)
+  const regenerateWrapper = container.querySelector('.thinkreview-regenerate-btn-wrapper');
+  if (regenerateWrapper) {
+    let tooltipTimeout;
+    const tooltipEl = regenerateWrapper.querySelector('.thinkreview-regenerate-tooltip');
+    regenerateWrapper.addEventListener('mouseenter', () => {
+      tooltipTimeout = setTimeout(() => {
+        if (tooltipEl) tooltipEl.classList.add('thinkreview-tooltip-visible');
+      }, 200);
+    });
+    regenerateWrapper.addEventListener('mouseleave', () => {
+      clearTimeout(tooltipTimeout);
+      if (tooltipEl) tooltipEl.classList.remove('thinkreview-tooltip-visible');
+    });
+  }
+
   // Add event listener for the regenerate review button
   const regenerateButton = document.getElementById('regenerate-review-btn');
   if (regenerateButton) {
@@ -1733,6 +1752,7 @@ function showIntegratedReviewError(message) {
   const reviewError = document.getElementById('review-error');
   const reviewErrorMessage = document.getElementById('review-error-message');
   const tokenError = document.getElementById('review-azure-token-error');
+  const bitbucketTokenError = document.getElementById('review-bitbucket-token-error');
   const loginPrompt = document.getElementById('review-login-prompt');
   
   // Hide loading indicator and content
@@ -1741,6 +1761,7 @@ function showIntegratedReviewError(message) {
   
   // Hide other error states
   if (tokenError) tokenError.classList.add('gl-hidden');
+  if (bitbucketTokenError) bitbucketTokenError.classList.add('gl-hidden');
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
   
   // Display error message (message is already user-friendly from content.js)
