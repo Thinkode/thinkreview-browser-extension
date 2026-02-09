@@ -918,11 +918,10 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
         chrome.runtime.sendMessage({ type: 'FETCH_BITBUCKET_PATCH', url: patchUrl }, resolve);
       });
       if (!bgResponse || !bgResponse.success) {
-        // 401/403 from Bitbucket API (e.g. GET .../repositories/.../pullrequests/1) or token missing: show token error with link to docs (takes 60 seconds)
-        const authRequired = bgResponse?.bitbucketAuthRequired === true;
+        // 401/403 from Bitbucket API (e.g. GET .../repositories/.../pullrequests/1) or token missing: show token prompt
         const errMsg = (bgResponse?.error || '').toLowerCase();
-        const isAuthError = authRequired || !errMsg || errMsg.includes('bitbucket') || errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('unauthorized') || errMsg.includes('forbidden');
-        if (isAuthError) {
+        const authRequired = bgResponse?.bitbucketAuthRequired === true || errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('unauthorized') || errMsg.includes('forbidden');
+        if (authRequired) {
           try {
             const bitbucketTokenErrorModule = await import(chrome.runtime.getURL('components/bitbucket-token-error.js'));
             bitbucketTokenErrorModule.showBitbucketTokenError(stopEnhancedLoader);
