@@ -1078,6 +1078,7 @@ async function removeAzureDevOpsDomain(domain) {
 
 // Bitbucket: Allow Bitbucket (request permission for page + API host, store bitbucketAllowed, trigger content script update)
 const BITBUCKET_ORIGINS = ['https://bitbucket.org/*', 'https://api.bitbucket.org/*'];
+const BITBUCKET_TOKEN_MASK = '••••••••••••••••••••••••••••••••••••••••••••••••••';
 
 function initializeBitbucketSettings() {
   loadBitbucketState();
@@ -1186,7 +1187,7 @@ async function loadBitbucketToken() {
         statusEl.className = 'token-status success';
       }
       if (tokenInput) {
-        tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
+        tokenInput.value = BITBUCKET_TOKEN_MASK;
         tokenInput.type = 'password';
       }
       if (emailInput) emailInput.value = (email != null && email !== undefined) ? String(email) : '';
@@ -1207,8 +1208,12 @@ async function saveBitbucketToken() {
   const emailInput = document.getElementById('bitbucket-email-input');
   const saveBtn = document.getElementById('save-bitbucket-token-btn');
   const statusEl = document.getElementById('bitbucket-token-status');
-  const token = tokenInput?.value?.trim() ?? '';
+  const tokenRaw = tokenInput?.value?.trim() ?? '';
   const email = emailInput?.value?.trim() ?? '';
+  // If field shows the mask, keep existing token (user is only updating email or re-saving)
+  const stored = await chrome.storage.local.get(['bitbucketToken', 'bitbucketEmail']);
+  const existingToken = stored.bitbucketToken && String(stored.bitbucketToken).trim() ? stored.bitbucketToken.trim() : '';
+  const token = (tokenRaw === BITBUCKET_TOKEN_MASK && existingToken) ? existingToken : tokenRaw;
   if (!token) {
     if (statusEl) {
       statusEl.textContent = 'Enter a token to save';
@@ -1224,7 +1229,7 @@ async function saveBitbucketToken() {
       statusEl.className = 'token-status success';
     }
     if (tokenInput) {
-      tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
+      tokenInput.value = BITBUCKET_TOKEN_MASK;
       tokenInput.type = 'password';
     }
     if (saveBtn) {
