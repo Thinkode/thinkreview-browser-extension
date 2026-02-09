@@ -1092,9 +1092,6 @@ function initializeBitbucketSettings() {
   if (saveTokenBtn) saveTokenBtn.addEventListener('click', saveBitbucketToken);
   if (tokenInput) {
     tokenInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') saveBitbucketToken(); });
-    tokenInput.addEventListener('input', () => {
-      saveTokenBtn.disabled = !tokenInput.value.trim();
-    });
   }
   if (emailInput) {
     emailInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') saveBitbucketToken(); });
@@ -1193,14 +1190,12 @@ async function loadBitbucketToken() {
         tokenInput.type = 'password';
       }
       if (emailInput && email) emailInput.value = email;
-      if (saveBtn) saveBtn.disabled = true;
     } else {
       if (statusEl) {
         statusEl.textContent = '';
         statusEl.className = 'token-status';
       }
       if (emailInput && email) emailInput.value = email;
-      if (saveBtn) saveBtn.disabled = true;
     }
   } catch (error) {
     dbgWarn('Error loading Bitbucket token:', error);
@@ -1222,10 +1217,7 @@ async function saveBitbucketToken() {
     return;
   }
   try {
-    if (saveBtn) {
-      saveBtn.textContent = 'Saving...';
-      saveBtn.disabled = true;
-    }
+    if (saveBtn) saveBtn.textContent = 'Saving...';
     await chrome.storage.local.set({ bitbucketToken: token, bitbucketEmail: email || null });
     if (statusEl) {
       statusEl.textContent = 'Token saved' + (email ? ' (with email for Basic auth)' : '');
@@ -1237,7 +1229,7 @@ async function saveBitbucketToken() {
     }
     if (saveBtn) {
       saveBtn.textContent = 'Save Token';
-      saveBtn.disabled = true;
+      saveBtn.disabled = false;
     }
   } catch (error) {
     dbgWarn('Error saving Bitbucket token:', error);
