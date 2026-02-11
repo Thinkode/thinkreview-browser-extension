@@ -108,6 +108,7 @@ export class AzureDevOpsDetector {
       const prInfo = {
         url: window.location.href,
         hostname: window.location.hostname,
+        protocol: window.location.protocol,
         prId: this.extractPRId(),
         title: this.extractPRTitle(),
         repository: this.extractRepositoryInfo(),

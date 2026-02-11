@@ -34,7 +34,8 @@ export class AzureDevOpsFetcher {
       prInfo.organization,
       prInfo.project,
       prInfo.repository.name,
-      prInfo.hostname
+      prInfo.hostname,
+      prInfo.protocol
     );
 
     this.isInitialized = true;

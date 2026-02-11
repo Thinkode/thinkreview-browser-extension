@@ -34,8 +34,9 @@ export class AzureDevOpsAPI {
    * @param {string} project - Project name
    * @param {string} repository - Repository name
    * @param {string} hostname - Hostname (optional, used to determine base URL for visualstudio.com domains)
+   * @param {string} protocol - Protocol (optional, e.g. 'http:' or 'https:'; used for custom/on-prem to match page)
    */
-  async init(token, organization, project, repository, hostname = null) {
+  async init(token, organization, project, repository, hostname = null, protocol = null) {
     if (!token) {
       throw new Error('Azure DevOps token is required');
     }
@@ -44,10 +45,11 @@ export class AzureDevOpsAPI {
     this.organization = organization;
     this.project = project;
     this.repository = repository;
-    
+    const scheme = (protocol && (protocol === 'http:' || protocol === 'https:')) ? protocol : 'https:';
+
     // Determine base URL based on hostname or organization
     // For visualstudio.com domains, use the hostname directly
-    // For custom/on-prem hostnames, use the hostname as origin
+    // For custom/on-prem hostnames, use the hostname and page protocol (http/https)
     // For dev.azure.com domains, construct the URL with organization
     if (hostname && hostname.includes('visualstudio.com')) {
       this.baseUrl = `https://${hostname}`;
@@ -55,8 +57,8 @@ export class AzureDevOpsAPI {
       // Fallback: if organization already includes the domain
       this.baseUrl = `https://${organization}`;
     } else if (hostname && !hostname.includes('dev.azure.com') && !hostname.includes('visualstudio.com')) {
-      // Custom/on-prem Azure DevOps (e.g. devops.companyname.com); API path is /{organization}/{project}/_apis/...
-      this.baseUrl = `https://${hostname}/${organization}`;
+      // Custom/on-prem Azure DevOps; use page protocol so HTTP sites get API calls over HTTP
+      this.baseUrl = `${scheme}//${hostname}/${organization}`;
     } else {
       this.baseUrl = `https://dev.azure.com/${organization}`;
     }
