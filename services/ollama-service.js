@@ -25,69 +25,98 @@ export class OllamaService {
     try {
       // Get Ollama config from storage
       const config = await chrome.storage.local.get(['ollamaConfig']);
-      const { url = 'http://localhost:11434', model = 'codellama' } = config.ollamaConfig || {};
+      const { url = 'http://localhost:11434', model = 'codellama', OllamaModelcontextLength: savedContextLength } = config.ollamaConfig || {};
       
       dbgLog(`Using Ollama at ${url} with model ${model}`);
       
-      // Construct the review prompt with metrics and questions
-      const prompt = `You are an expert code reviewer. Analyze this git patch and provide a comprehensive code review in ${language}.
-
-Please analyze the following git diff/patch and provide your review in this EXACT JSON format:
-
-{
-  "summary": "Brief overview of the changes",
-  "issues": [
+      // Construct the review prompt (split so we can truncate patch by context length)
+      const promptBeforePatch = `You are an expert code reviewer. Analyze this git patch and provide a comprehensive code review in ${language}.
+ You MUST provide a comprehensive code review with the following sections:
+    1. Summary: an explanatory high level, 1 up to 7 numbered bullet points with an extra line separator between each point - depending on the code's purpose and design, you mention and summarize every change in the patch.
+    2. Suggestions:An array of strings containing specific, actionable recommendations to directly improve the provided code. If none, this MUST be an empty array ([]).
+    3. Security Issues: An array of strings identifying potential security vulnerabilities (e.g., injection risks, hardcoded secrets, insecure dependencies). If none, this MUST be an empty array 
+    4. Suggested Follow-up Questions: : An array containing exactly 3 relevant, insightful follow-up questions a developer might ask to deepen their understanding of the underlying principles related to the review feedback.
+    5. Metrics: An object containing scores from 0-100.
+       - overallScoreL A holistic score based on all other factors.
+       - codeQuality: Assesses clarity, maintainability, and structure. High score for clean, well-organized, and readable code.
+       - securityScore:A score of 100 means no issues found. Deduct points for each identified vulnerability based on its potential severity.
+    You MUST format your response as VALID JSON with the following structure:
     {
-      "severity": "high|medium|low",
-      "description": "Description of the issue",
-      "file": "filename",
-      "line": "line number or range"
+      "summary": "Brief summary of the changes",
+      "suggestions": ["Suggestion 1", "Suggestion 2", ...],
+      "securityIssues": ["Security issue 1", "Security issue 2", ...],
+      "suggestedQuestions": ["Question 1?", "Question 2?", "Question 3?"],
+      "metrics": {
+        "overallScore": 85,
+        "codeQuality": 80,
+        "securityScore": 90,
+        "bestPracticesScore": 85
+      },
     }
-  ],
-  "security": [
-    {
-      "severity": "high|medium|low",
-      "description": "Security concern description",
-      "recommendation": "How to fix it"
-    }
-  ],
-  "suggestions": [
-    {
-      "type": "performance|style|best-practice|maintainability",
-      "description": "Suggestion description",
-      "file": "filename",
-      "line": "line number or range"
-    }
-  ],
-  "positives": [
-    "List of positive aspects of the code changes"
-  ],
-  "metrics": {
-    "overallScore": 85,
-    "codeQuality": 80,
-    "securityScore": 90,
-    "bestPracticesScore": 85
-  },
-  "suggestedQuestions": [
-    "Question 1 about the changes",
-    "Question 2 about implementation",
-    "Question 3 about impact"
-  ]
-}
 
-Note: 
+
+Import rules:
+- Return ONLY valid JSON, no markdown formatting, no code blocks, no explanations.
 - All metric scores should be 0-100
+- provide at least 3 code suggestions 
 - overallScore is a holistic score based on all other factors
 - codeQuality: Assesses clarity, maintainability, and structure
 - securityScore: A score of 100 means no issues found. Deduct points for each vulnerability based on severity
-- bestPracticesScore: Assesses adherence to coding standards and language-specific idioms
 - Provide exactly 3 relevant follow-up questions that are specific to this code review
 
 Here is the patch to review:
 
-${patchContent}
+`;
+      const promptAfterPatch = `
 
 Important: Respond ONLY with valid JSON. Do not include any explanatory text before or after the JSON.`;
+
+      // Truncate patch to fit model context when OllamaModelcontextLength is saved (Ollama only)
+      const CHARS_PER_TOKEN = 4;
+      const RESERVED_RESPONSE_TOKENS = 1024;
+      let patchToUse = patchContent;
+      if (savedContextLength != null && savedContextLength > 0) {
+        const promptTokens = Math.ceil((promptBeforePatch.length + promptAfterPatch.length) / CHARS_PER_TOKEN);
+        const maxPatchTokens = Math.max(0, savedContextLength - RESERVED_RESPONSE_TOKENS - promptTokens);
+        const maxPatchChars = maxPatchTokens * CHARS_PER_TOKEN;
+        if (patchContent.length > maxPatchChars) {
+          patchToUse = patchContent.substring(0, maxPatchChars) + '\n\n... (truncated for context limit)';
+          dbgLog('Patch truncated to fit context:', { savedContextLength, maxPatchChars, originalLength: patchContent.length });
+        }
+      }
+
+      const prompt = promptBeforePatch + patchToUse + promptAfterPatch;
+
+      // Structured output schema so Ollama returns valid JSON matching our review format
+      const reviewFormatSchema = {
+        type: 'object',
+        properties: {
+          summary: { type: 'string' },
+          suggestions: {
+            type: 'array',
+            items: { type: 'string' }
+          },
+          securityIssues: {
+            type: 'array',
+            items: { type: 'string' }
+          },
+          suggestedQuestions: {
+            type: 'array',
+            items: { type: 'string' }
+          },
+          metrics: {
+            type: 'object',
+            properties: {
+              overallScore: { type: 'integer' },
+              codeQuality: { type: 'integer' },
+              securityScore: { type: 'integer' },
+              bestPracticesScore: { type: 'integer' }
+            },
+            required: ['overallScore', 'codeQuality', 'securityScore', 'bestPracticesScore']
+          }
+        },
+        required: ['summary', 'suggestions', 'securityIssues', 'suggestedQuestions', 'metrics']
+      };
 
       // Send request to Ollama
       const response = await fetch(`${url}/api/generate`, {
@@ -97,11 +126,13 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
           model: model,
           prompt: prompt,
           stream: false,
+          format: reviewFormatSchema,
           options: {
             temperature: 0.3,
             num_predict: 4000,
-            top_p: 0.9,
-            top_k: 40
+            top_p: 0.4,
+            top_k: 90,
+            seed: 42
           }
         })
       });
@@ -129,30 +160,31 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
           const parsedReview = JSON.parse(jsonMatch[0]);
           dbgLog('Successfully parsed JSON review:', parsedReview);
           
-          // Map Ollama response to match the UI's expected format
-          // Convert issues array to suggestion strings
+          // Map Ollama response to match the UI's expected format (supports structured-output shape and legacy shape)
           const suggestions = [];
-          if (parsedReview.issues && Array.isArray(parsedReview.issues)) {
+          if (parsedReview.suggestions && Array.isArray(parsedReview.suggestions)) {
+            parsedReview.suggestions.forEach(s => {
+              if (typeof s === 'string') suggestions.push(s);
+              else if (s && typeof s === 'object' && s.description) suggestions.push(`[${s.type?.toUpperCase() || 'TIP'}] ${s.description} (${s.file || ''}:${s.line || ''})`);
+            });
+          }
+          if (suggestions.length === 0 && parsedReview.issues && Array.isArray(parsedReview.issues)) {
             parsedReview.issues.forEach(issue => {
               suggestions.push(`[${issue.severity?.toUpperCase() || 'INFO'}] ${issue.description} (${issue.file}:${issue.line})`);
             });
           }
-          if (parsedReview.suggestions && Array.isArray(parsedReview.suggestions)) {
-            parsedReview.suggestions.forEach(suggestion => {
-              suggestions.push(`[${suggestion.type?.toUpperCase() || 'TIP'}] ${suggestion.description} (${suggestion.file}:${suggestion.line})`);
-            });
-          }
-          
-          // Convert security array to security issue strings
+
           const securityIssues = [];
-          if (parsedReview.security && Array.isArray(parsedReview.security)) {
+          if (parsedReview.securityIssues && Array.isArray(parsedReview.securityIssues)) {
+            parsedReview.securityIssues.forEach(s => securityIssues.push(String(s)));
+          }
+          if (securityIssues.length === 0 && parsedReview.security && Array.isArray(parsedReview.security)) {
             parsedReview.security.forEach(sec => {
               securityIssues.push(`[${sec.severity?.toUpperCase() || 'WARNING'}] ${sec.description}\n**Recommendation:** ${sec.recommendation || 'Review and address this concern.'}`);
             });
           }
-          
-          // Use positives as best practices
-          const bestPractices = parsedReview.positives || [];
+
+          const bestPractices = Array.isArray(parsedReview.positives) ? parsedReview.positives : (Array.isArray(parsedReview.bestPractices) ? parsedReview.bestPractices : []);
           
           // Get metrics (with fallback to reasonable defaults matching Gemini format)
           const metrics = parsedReview.metrics || {
@@ -313,6 +345,7 @@ Your role is to answer questions about this code review in a helpful, concise ma
           model: model,
           prompt: fullPrompt,
           stream: false,
+          think: false, // disable thinking so tokens go to response
           options: {
             temperature: 0.2,
             num_predict: 800,
@@ -346,6 +379,56 @@ Your role is to answer questions about this code review in a helpful, concise ma
       } else {
         throw new Error(`Ollama error: ${error.message}`);
       }
+    }
+  }
+
+  /**
+   * Get model context length (max tokens) from Ollama POST /api/show.
+   * Parses model_info for *context_length or parameters for num_ctx.
+   * When url or model are omitted, reads from stored ollamaConfig (popup settings).
+   * @param {string} [url] - Ollama base URL (defaults to stored config or http://localhost:11434)
+   * @param {string} [model] - Model name (e.g. qwen3-coder:30b); defaults to stored config
+   * @returns {Promise<{contextLength: number|null, error: string|null}>}
+   */
+  static async getModelContextLength(url, model) {
+    if (url == null || url === '' || model == null || model === '') {
+      const config = await chrome.storage.local.get(['ollamaConfig']);
+      const stored = config.ollamaConfig || {};
+      url = url != null && url !== '' ? url : (stored.url || 'http://localhost:11434');
+      model = model != null && model !== '' ? model : (stored.model || '');
+    }
+    if (!model || !url) {
+      return { contextLength: null, error: 'URL and model are required' };
+    }
+    try {
+      const res = await fetch(`${url}/api/show`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model }),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!res.ok) {
+        return { contextLength: null, error: `Ollama show failed: ${res.status}` };
+      }
+      const data = await res.json();
+      let contextLength = null;
+      if (data.model_info && typeof data.model_info === 'object') {
+        const key = Object.keys(data.model_info).find(k => k.endsWith('context_length'));
+        if (key && typeof data.model_info[key] === 'number') {
+          contextLength = data.model_info[key];
+        }
+      }
+      if (contextLength == null && data.parameters && typeof data.parameters === 'string') {
+        const numCtxMatch = data.parameters.match(/\bnum_ctx\s+(\d+)/);
+        if (numCtxMatch) {
+          contextLength = parseInt(numCtxMatch[1], 10);
+        }
+      }
+      dbgLog('Ollama model context length:', { model, contextLength });
+      return { contextLength, error: null };
+    } catch (err) {
+      dbgWarn('Error fetching model context length:', err);
+      return { contextLength: null, error: err?.message || String(err) };
     }
   }
 
