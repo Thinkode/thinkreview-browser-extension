@@ -29,40 +29,33 @@ export class OllamaService {
       
       dbgLog(`Using Ollama at ${url} with model ${model}`);
       
-      // Construct the review prompt (split so we can truncate patch by context length)
+      // Single prompt: instructions + patch (split so we can truncate patch by context length)
       const promptBeforePatch = `You are an expert code reviewer. Analyze this git patch and provide a comprehensive code review in ${language}.
- You MUST provide a comprehensive code review with the following sections:
-    1. Summary: an explanatory high level, 1 up to 7 numbered bullet points with an extra line separator between each point - depending on the code's purpose and design, you mention and summarize every change in the patch.
-    2. Suggestions:An array of strings containing specific, actionable recommendations to directly improve the provided code. If none, this MUST be an empty array ([]).
-    3. Security Issues: An array of strings identifying potential security vulnerabilities (e.g., injection risks, hardcoded secrets, insecure dependencies). If none, this MUST be an empty array 
-    4. Suggested Follow-up Questions: : An array containing exactly 3 relevant, insightful follow-up questions a developer might ask to deepen their understanding of the underlying principles related to the review feedback.
-    5. Metrics: An object containing scores from 0-100.
-       - overallScoreL A holistic score based on all other factors.
-       - codeQuality: Assesses clarity, maintainability, and structure. High score for clean, well-organized, and readable code.
-       - securityScore:A score of 100 means no issues found. Deduct points for each identified vulnerability based on its potential severity.
-    You MUST format your response as VALID JSON with the following structure:
-    {
-      "summary": "Brief summary of the changes",
-      "suggestions": ["Suggestion 1", "Suggestion 2", ...],
-      "securityIssues": ["Security issue 1", "Security issue 2", ...],
-      "suggestedQuestions": ["Question 1?", "Question 2?", "Question 3?"],
-      "metrics": {
-        "overallScore": 85,
-        "codeQuality": 80,
-        "securityScore": 90,
-        "bestPracticesScore": 85
-      },
-    }
 
+You MUST provide a comprehensive code review with the following sections:
+1. Summary: an explanatory high level, 1 up to 7 numbered bullet points with an extra line separator between each point - depending on the code's purpose and design, you mention and summarize every change in the patch.
+2. Suggestions: An array of strings containing specific, actionable recommendations to directly improve the provided code. If none, this MUST be an empty array ([]).
+3. Security Issues: An array of strings identifying potential security vulnerabilities (e.g., injection risks, hardcoded secrets, insecure dependencies). If none, this MUST be an empty array.
+4. Suggested Follow-up Questions: An array containing exactly 3 relevant, insightful follow-up questions a developer might ask to deepen their understanding of the underlying principles related to the review feedback.
+5. Metrics: An object containing scores from 0-100 (overallScore, codeQuality, securityScore, bestPracticesScore).
+
+You MUST format your response as VALID JSON with this structure:
+{
+  "summary": "Brief summary of the changes",
+  "suggestions": ["Suggestion 1", "Suggestion 2", ...],
+  "securityIssues": ["Security issue 1", "Security issue 2", ...],
+  "suggestedQuestions": ["Question 1?", "Question 2?", "Question 3?"],
+  "metrics": {
+    "overallScore": 85,
+    "codeQuality": 80,
+    "securityScore": 90,
+    "bestPracticesScore": 85
+  }
+}
 
 Import rules:
 - Return ONLY valid JSON, no markdown formatting, no code blocks, no explanations.
-- All metric scores should be 0-100
-- provide at least 3 code suggestions 
-- overallScore is a holistic score based on all other factors
-- codeQuality: Assesses clarity, maintainability, and structure
-- securityScore: A score of 100 means no issues found. Deduct points for each vulnerability based on severity
-- Provide exactly 3 relevant follow-up questions that are specific to this code review
+- All metric scores should be 0-100. Provide at least 3 code suggestions. Provide exactly 3 follow-up questions.
 
 Here is the patch to review:
 
@@ -107,7 +100,7 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
           metrics: {
             type: 'object',
             properties: {
-              overallScore: { type: 'integer' },
+              overallScore: { type: 'integer' , min :'0' , max:'100' },
               codeQuality: { type: 'integer' },
               securityScore: { type: 'integer' },
               bestPracticesScore: { type: 'integer' }
@@ -118,7 +111,7 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
         required: ['summary', 'suggestions', 'securityIssues', 'suggestedQuestions', 'metrics']
       };
 
-      // Send request to Ollama
+      // Initial review: single-shot → use /api/generate (system + prompt)
       const response = await fetch(`${url}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -132,7 +125,6 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
             num_predict: 4000,
             top_p: 0.4,
             top_k: 90,
-            seed: 42
           }
         })
       });
@@ -143,14 +135,12 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
       }
 
       const data = await response.json();
-      // Log only metadata, not the actual review response content
       dbgLog('Ollama raw response received:', {
         hasResponse: !!data?.response,
         responseLength: data?.response?.length || 0
       });
-      
-      // Parse the response (Ollama returns text in 'response' field)
-      const reviewText = data.response;
+
+      const reviewText = data.response ?? '';
       
       // Try to parse as JSON
       try {
@@ -324,28 +314,27 @@ Your role is to answer questions about this code review in a helpful, concise ma
         throw new Error('The last message in the history must be from the user');
       }
       
-      // Build the full prompt with context and conversation history
-      let fullPrompt = systemContext + '\n\n';
-      
-      // Add conversation history (excluding the last user message)
-      for (let i = 0; i < truncatedHistory.length - 1; i++) {
-        const msg = truncatedHistory[i];
-        const role = msg.role === 'user' ? 'User' : 'Assistant';
-        fullPrompt += `${role}: ${msg.content}\n\n`;
-      }
-      
-      // Add the current user question with formatting instructions
-      fullPrompt += `User: ${lastUserMessage.content}\n\nKeep your response concise and well-formatted using Markdown.${languageInstruction}\n\nAssistant:`;
-      
-      // Send request to Ollama
-      const response = await fetch(`${url}/api/generate`, {
+      // Conversational: multi-turn → use /api/chat with messages (system + history + user)
+      const messages = [
+        { role: 'system', content: systemContext },
+        ...truncatedHistory.slice(0, -1).map(msg => ({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        })),
+        {
+          role: 'user',
+          content: lastUserMessage.content + (languageInstruction ? `\n\n${languageInstruction}` : '') + '\n\nKeep your response concise and well-formatted using Markdown.'
+        }
+      ];
+
+      const response = await fetch(`${url}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: model,
-          prompt: fullPrompt,
+          messages,
           stream: false,
-          think: false, // disable thinking so tokens go to response
+          think: false,
           options: {
             temperature: 0.2,
             num_predict: 800,
@@ -354,18 +343,18 @@ Your role is to answer questions about this code review in a helpful, concise ma
           }
         })
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Ollama API error (${response.status}): ${errorText}`);
       }
-      
+
       const data = await response.json();
       dbgLog('Ollama conversational response received');
-      
-      // Return in the format expected by the UI (matching Cloud API format)
+
+      const responseContent = data.message?.content ?? data.response ?? '';
       return {
-        response: data.response || 'No response generated',
+        response: responseContent || 'No response generated',
         provider: 'ollama',
         model: model
       };
