@@ -1635,9 +1635,15 @@ async function saveOllamaSettings() {
   
   try {
     const config = { url, model };
-    
+    const { OllamaService } = await import(chrome.runtime.getURL('services/ollama-service.js'));
+    const { contextLength, error: ctxError } = await OllamaService.getModelContextLength(url, model);
+    if (contextLength != null) {
+      config.OllamaModelcontextLength = contextLength;
+      dbgLog('Ollama model context length saved:', contextLength);
+    } else if (ctxError) {
+      dbgWarn('Could not fetch model context length (will not truncate patch):', ctxError);
+    }
     await chrome.storage.local.set({ ollamaConfig: config });
-    
     dbgLog('Ollama settings saved:', config);
     showOllamaStatus('✅ Settings saved successfully!', 'success');
     
