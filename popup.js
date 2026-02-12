@@ -6,6 +6,7 @@ import { subscriptionStatus } from './components/popup-modules/subscription-stat
 import { reviewCount } from './components/popup-modules/review-count.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
 
 // State management
 let isInitialized = false;
@@ -1426,7 +1427,10 @@ async function loadAIProviderSettings() {
     const provider = result.aiProvider || 'cloud';
     const config = result.ollamaConfig || {
       url: 'http://localhost:11434',
-      model: 'qwen3-coder:30b'
+      model: 'qwen3-coder:30b',
+      temperature: 0.3,
+      top_p: 0.4,
+      top_k: 90
     };
     
     // Set the selected provider
@@ -1444,8 +1448,14 @@ async function loadAIProviderSettings() {
     // Load Ollama config values
     const urlInput = document.getElementById('ollama-url');
     const modelSelect = document.getElementById('ollama-model');
+    const tempInput = document.getElementById('ollama-temperature');
+    const topPInput = document.getElementById('ollama-top-p');
+    const topKInput = document.getElementById('ollama-top-k');
     
     if (urlInput) urlInput.value = config.url;
+    if (tempInput) tempInput.value = clampTemperature(config.temperature);
+    if (topPInput) topPInput.value = clampTopP(config.top_p);
+    if (topKInput) topKInput.value = clampTopK(config.top_k);
     
     // If Ollama is the selected provider, fetch available models
     if (provider === 'ollama') {
@@ -1633,11 +1643,27 @@ async function saveOllamaSettings() {
     return;
   }
   
+  const tempInput = document.getElementById('ollama-temperature');
+  const topPInput = document.getElementById('ollama-top-p');
+  const topKInput = document.getElementById('ollama-top-k');
+  const temperature = clampTemperature(tempInput?.value);
+  const topP = clampTopP(topPInput?.value);
+  const topK = clampTopK(topKInput?.value);
+  if (tempInput) tempInput.value = temperature;
+  if (topPInput) topPInput.value = topP;
+  if (topKInput) topKInput.value = topK;
+
   try {
-    const config = { url, model };
-    
+    const config = { url, model, temperature, top_p: topP, top_k: topK };
+    const { OllamaService } = await import(chrome.runtime.getURL('services/ollama-service.js'));
+    const { contextLength, error: ctxError } = await OllamaService.getModelContextLength(url, model);
+    if (contextLength != null) {
+      config.OllamaModelcontextLength = contextLength;
+      dbgLog('Ollama model context length saved:', contextLength);
+    } else if (ctxError) {
+      dbgWarn('Could not fetch model context length (will not truncate patch):', ctxError);
+    }
     await chrome.storage.local.set({ ollamaConfig: config });
-    
     dbgLog('Ollama settings saved:', config);
     showOllamaStatus('✅ Settings saved successfully!', 'success');
     

@@ -32,16 +32,25 @@ Download the installer from [ollama.ai/download](https://ollama.ai/download)
 
 ### 2. Pull a Code Review Model
 
-**Tested Models:**
+**We recommend [Codestral](https://ollama.com/library/codestral:latest)** — it currently produces the best results for code review with ThinkReview (Mistral AI’s 22B code model, 32k context, 80+ languages).
+
+You can also try **[gpt-oss](https://ollama.com/library/gpt-oss)** (OpenAI’s open-weight models; 20B and 120B variants with strong reasoning and 128K context).
+
+**Tested models:**
+- `codestral` - **Recommended** — best results
 - `qwen2.5-coder:30b` - Tested and recommended
 - `qwen2.5:8b` - Tested and recommended
 
 ```bash
-# Tested models (recommended)
+# Recommended (best results)
+ollama pull codestral
+
+# Other tested models
 ollama pull qwen2.5-coder:30b
 ollama pull qwen2.5:8b
 
-# Other popular models
+# Also worth trying
+ollama pull gpt-oss:20b            # OpenAI open-weight, 128K context
 ollama pull codellama              # Fast, 4GB
 ollama pull qwen2.5-coder:7b       # Good balance, 5GB
 ollama pull deepseek-coder:6.7b    # Code-focused, 4GB
@@ -127,6 +136,8 @@ Once configured, ThinkReview will automatically use Ollama for all code reviews:
 
 | Model | Size | Status |
 |-------|------|--------|
+| [codestral](https://ollama.com/library/codestral:latest) | ~13GB | ✅ **Recommended** — best results |
+| [gpt-oss](https://ollama.com/library/gpt-oss) (20b / 120b) | 14GB / 65GB | ✅ Strong reasoning, 128K context |
 | qwen2.5-coder:30b | ~20GB | ✅ Tested & Recommended |
 | qwen2.5:8b | ~5GB | ✅ Tested & Recommended |
 
