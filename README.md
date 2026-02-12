@@ -71,7 +71,6 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 
 ### 🔧 Platform Support
 - ✅ **GitLab** (gitlab.com, GitLab Enterprise, Self-Hosted)
-- ✅ **Azure DevOps** (dev.azure.com, custom domains)
 - ✅ **Azure DevOps** (dev.azure.com, *.visualstudio.com, custom domains / on-premise)
 - ✅ **GitHub** (github.com)
 - ✅ **Bitbucket** (bitbucket.org, Bitbucket Server/Data Center)
