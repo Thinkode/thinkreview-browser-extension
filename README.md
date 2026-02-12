@@ -143,7 +143,8 @@ cd thinkreview-browser-extension
 **Cloud AI (Default)** - Works immediately, no setup required  
 **Local AI with Ollama** - For 100% private reviews:
 1. Follow the [Ollama Setup Guide](OLLAMA_SETUP.md) (30 seconds if model is downloaded)
-2. Open extension popup → Settings → Select "Local Ollama"
+2. We recommend **[Codestral](https://ollama.com/library/codestral:latest)** for best results; [gpt-oss](https://ollama.com/library/gpt-oss) is also supported.
+3. Open extension popup → Settings → Select "Local Ollama"
 3. That's it! Your reviews now run locally
 
 ---
