@@ -25,7 +25,10 @@ export class OllamaService {
     try {
       // Get Ollama config from storage
       const config = await chrome.storage.local.get(['ollamaConfig']);
-      const { url = 'http://localhost:11434', model = 'codellama', OllamaModelcontextLength: savedContextLength } = config.ollamaConfig || {};
+      const { url = 'http://localhost:11434', model = 'codellama', OllamaModelcontextLength: savedContextLength, temperature: temp = 0.3, top_p: topP = 0.4, top_k: topK = 90 } = config.ollamaConfig || {};
+      const tempClamped = Math.max(0, Math.min(2, Number(temp) || 0.3));
+      const topPClamped = Math.max(0, Math.min(1, Number(topP) || 0.4));
+      const topKClamped = Math.max(1, Math.min(200, parseInt(topK, 10) || 90));
       
       dbgLog(`Using Ollama at ${url} with model ${model}`);
       
@@ -121,10 +124,10 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
           stream: false,
           format: reviewFormatSchema,
           options: {
-            temperature: 0.3,
+            temperature: tempClamped,
             num_predict: 4000,
-            top_p: 0.4,
-            top_k: 90,
+            top_p: topPClamped,
+            top_k: topKClamped,
           }
         })
       });
@@ -271,7 +274,10 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
     try {
       // Get Ollama config from storage
       const config = await chrome.storage.local.get(['ollamaConfig']);
-      const { url = 'http://localhost:11434', model = 'codellama' } = config.ollamaConfig || {};
+      const { url = 'http://localhost:11434', model = 'codellama', temperature: temp = 0.3, top_p: topP = 0.4, top_k: topK = 90 } = config.ollamaConfig || {};
+      const tempClamped = Math.max(0, Math.min(2, Number(temp) || 0.3));
+      const topPClamped = Math.max(0, Math.min(1, Number(topP) || 0.4));
+      const topKClamped = Math.max(1, Math.min(200, parseInt(topK, 10) || 90));
       
       dbgLog(`Using Ollama at ${url} with model ${model} for conversation`);
       
@@ -336,10 +342,10 @@ Your role is to answer questions about this code review in a helpful, concise ma
           stream: false,
           think: false,
           options: {
-            temperature: 0.2,
+            temperature: tempClamped,
             num_predict: 800,
-            top_p: 0.8,
-            top_k: 20
+            top_p: topPClamped,
+            top_k: topKClamped
           }
         })
       });
