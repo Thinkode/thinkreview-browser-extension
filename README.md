@@ -2,7 +2,7 @@
 
 # 🚀 ThinkReview
 
-### AI Code Review for GitLab & Azure DevOps
+### AI Code Review for GitHub, Bitbucket, GitLab & Azure DevOps
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-blue?logo=google-chrome)](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
 [![Latest Release](https://img.shields.io/badge/Latest-Release-green.svg)](https://thinkreview.dev/release-notes)
@@ -22,7 +22,7 @@
 
 ## 🎉 Now Open Source!
 
-ThinkReview is a **production-ready browser extension** that brings AI-powered code reviews to GitLab and Azure DevOps. After months of development, we're excited to open source the extension!
+ThinkReview is a **production-ready browser extension** that brings AI-powered code reviews to GitHub, Bitbucket, GitLab and Azure DevOps. After months of development, we're excited to open source the extension!
 
 > ### 🆕 NEW: Local AI Support with Ollama!
 > Run code reviews **100% privately** on your own hardware with Ollama.  
@@ -72,6 +72,9 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 ### 🔧 Platform Support
 - ✅ **GitLab** (gitlab.com, GitLab Enterprise, Self-Hosted)
 - ✅ **Azure DevOps** (dev.azure.com, custom domains)
+- ✅ **Azure DevOps** (dev.azure.com, *.visualstudio.com, custom domains / on-premise)
+- ✅ **GitHub** (github.com)
+- ✅ **Bitbucket** (bitbucket.org, Bitbucket Server/Data Center)
 - ✅ Works with **any GitLab instance** on custom domains
 
 <div align="center">
@@ -122,7 +125,7 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 
 1. Visit the [Chrome Web Store listing](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
 2. Click "Add to Chrome"
-3. That's it! Navigate to any GitLab MR or Azure DevOps PR to start
+3. That's it! Navigate to any GitHub PR, Bitbucket PR, GitLab MR or Azure DevOps PR to start
 
 ### For Developers (Load Unpacked)
 
@@ -151,13 +154,15 @@ cd thinkreview-browser-extension
 
 ## 🎯 Usage
 
-1. **Navigate** to any GitLab merge request or Azure DevOps pull request
+1. **Navigate** to any GitHub pull request, Bitbucket pull request, GitLab merge request or Azure DevOps pull request
 2. **Wait** for automatic detection (usually instant)
 3. **View** AI-powered code review in integrated panel
 4. **Chat** with your PR using the AI copilot feature
 5. **Review** suggestions and security findings
 
 ### Supported URLs
+- `https://github.com/*/*/pull/*`
+- `https://bitbucket.org/*/*/pull-requests/*`
 - `https://gitlab.com/*/merge_requests/*`
 - `https://your-gitlab-instance.com/*/merge_requests/*`
 - `https://dev.azure.com/*/*/_git/*/pullrequest/*`
@@ -171,7 +176,7 @@ ThinkReview consists of two main components:
 
 ### 1. **Browser Extension** (This Repository)
 - Manifest V3 Chrome extension
-- Content scripts for GitLab & Azure DevOps
+- Content scripts for GitHub, Bitbucket, GitLab & Azure DevOps
 - UI components and integration
 - OAuth authentication flow
 
