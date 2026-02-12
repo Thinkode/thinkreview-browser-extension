@@ -67,7 +67,7 @@ Here is the patch to review:
 Important: Respond ONLY with valid JSON. Do not include any explanatory text before or after the JSON.`;
 
       // Truncate patch to fit model context when OllamaModelcontextLength is saved (Ollama only)
-      const CHARS_PER_TOKEN = 4;
+      const CHARS_PER_TOKEN = 2;
       const RESERVED_RESPONSE_TOKENS = 1024;
       let patchToUse = patchContent;
       if (savedContextLength != null && savedContextLength > 0) {
