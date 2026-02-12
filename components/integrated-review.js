@@ -261,8 +261,8 @@ function stopEnhancedLoader() {
  * @returns {Promise<HTMLElement>} - The injected review panel element
  */
 async function createIntegratedReviewPanel(patchUrl) {
-  // Load refresh icon from centralized icons.js
-  const iconsModule = await import('../assets/icons.js');
+  // Load refresh icon from centralized icons.js (use extension URL for content script context)
+  const iconsModule = await import(chrome.runtime.getURL('assets/icons.js'));
   const refreshIconSvg = iconsModule.REFRESH_ICON_SVG;
   // Get logo URL
   const logoUrl = chrome.runtime.getURL('images/icon16.png');
