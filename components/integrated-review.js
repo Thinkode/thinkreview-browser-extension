@@ -152,10 +152,15 @@ let currentPatchContent = '';
 /**
  * Clears the stored patch content and conversation history
  * This should be called when navigating to a new PR to free up memory
+ * Also clears the chat log DOM so previous messages are not shown in the new review
  */
 function clearPatchContentAndHistory() {
   currentPatchContent = '';
   conversationHistory = [];
+  const chatLog = document.getElementById('chat-log');
+  if (chatLog) {
+    chatLog.innerHTML = '';
+  }
   dbgLog('Cleared patch content and conversation history');
 }
 
