@@ -1,4 +1,5 @@
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
+import { clampOllamaOptions } from '../utils/ollama-options.js';
 
 
 /**
@@ -25,10 +26,8 @@ export class OllamaService {
     try {
       // Get Ollama config from storage
       const config = await chrome.storage.local.get(['ollamaConfig']);
-      const { url = 'http://localhost:11434', model = 'codellama', OllamaModelcontextLength: savedContextLength, temperature: temp = 0.3, top_p: topP = 0.4, top_k: topK = 90 } = config.ollamaConfig || {};
-      const tempClamped = Math.max(0, Math.min(2, Number(temp) || 0.3));
-      const topPClamped = Math.max(0, Math.min(1, Number(topP) || 0.4));
-      const topKClamped = Math.max(1, Math.min(200, parseInt(topK, 10) || 90));
+      const { url = 'http://localhost:11434', model = 'codellama', OllamaModelcontextLength: savedContextLength, temperature: temp, top_p: topP, top_k: topK } = config.ollamaConfig || {};
+      const { temperature: tempClamped, top_p: topPClamped, top_k: topKClamped } = clampOllamaOptions({ temperature: temp, top_p: topP, top_k: topK });
       
       dbgLog(`Using Ollama at ${url} with model ${model}`);
       
@@ -37,7 +36,7 @@ export class OllamaService {
 
 You MUST provide a comprehensive code review with the following sections:
 1. Summary: an explanatory high level, 1 up to 7 numbered bullet points with an extra line separator between each point - depending on the code's purpose and design, you mention and summarize every change in the patch.
-2. Suggestions: An array of strings containing specific, actionable recommendations to directly improve the provided code. If none, this MUST be an empty array ([]).
+2. Suggestions: An array of strings containing specific, actionable recommendations to directly improve the provided code , be well descriptive and focus on critical issues . If none, this MUST be an empty array ([]).
 3. Security Issues: An array of strings identifying potential security vulnerabilities (e.g., injection risks, hardcoded secrets, insecure dependencies). If none, this MUST be an empty array.
 4. Suggested Follow-up Questions: An array containing exactly 3 relevant, insightful follow-up questions a developer might ask to deepen their understanding of the underlying principles related to the review feedback.
 5. Metrics: An object containing scores from 0-100 (overallScore, codeQuality, securityScore, bestPracticesScore).
@@ -125,7 +124,6 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
           format: reviewFormatSchema,
           options: {
             temperature: tempClamped,
-            num_predict: 4000,
             top_p: topPClamped,
             top_k: topKClamped,
           }
@@ -274,10 +272,8 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
     try {
       // Get Ollama config from storage
       const config = await chrome.storage.local.get(['ollamaConfig']);
-      const { url = 'http://localhost:11434', model = 'codellama', temperature: temp = 0.3, top_p: topP = 0.4, top_k: topK = 90 } = config.ollamaConfig || {};
-      const tempClamped = Math.max(0, Math.min(2, Number(temp) || 0.3));
-      const topPClamped = Math.max(0, Math.min(1, Number(topP) || 0.4));
-      const topKClamped = Math.max(1, Math.min(200, parseInt(topK, 10) || 90));
+      const { url = 'http://localhost:11434', model = 'codellama', temperature: temp, top_p: topP, top_k: topK } = config.ollamaConfig || {};
+      const { temperature: tempClamped, top_p: topPClamped, top_k: topKClamped } = clampOllamaOptions({ temperature: temp, top_p: topP, top_k: topK });
       
       dbgLog(`Using Ollama at ${url} with model ${model} for conversation`);
       
@@ -343,7 +339,6 @@ Your role is to answer questions about this code review in a helpful, concise ma
           think: false,
           options: {
             temperature: tempClamped,
-            num_predict: 800,
             top_p: topPClamped,
             top_k: topKClamped
           }

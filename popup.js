@@ -6,6 +6,7 @@ import { subscriptionStatus } from './components/popup-modules/subscription-stat
 import { reviewCount } from './components/popup-modules/review-count.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
 
 // State management
 let isInitialized = false;
@@ -1451,22 +1452,10 @@ async function loadAIProviderSettings() {
     const topPInput = document.getElementById('ollama-top-p');
     const topKInput = document.getElementById('ollama-top-k');
     
-    const TEMP_MIN = 0, TEMP_MAX = 2;
-    const TOP_P_MIN = 0, TOP_P_MAX = 1;
-    const TOP_K_MIN = 1, TOP_K_MAX = 200;
     if (urlInput) urlInput.value = config.url;
-    if (tempInput) {
-      let t = config.temperature != null ? config.temperature : 0.3;
-      tempInput.value = Math.max(TEMP_MIN, Math.min(TEMP_MAX, Number(t) || 0.3));
-    }
-    if (topPInput) {
-      let p = config.top_p != null ? config.top_p : 0.4;
-      topPInput.value = Math.max(TOP_P_MIN, Math.min(TOP_P_MAX, Number(p) || 0.4));
-    }
-    if (topKInput) {
-      let k = config.top_k != null ? config.top_k : 90;
-      topKInput.value = Math.max(TOP_K_MIN, Math.min(TOP_K_MAX, parseInt(k, 10) || 90));
-    }
+    if (tempInput) tempInput.value = clampTemperature(config.temperature);
+    if (topPInput) topPInput.value = clampTopP(config.top_p);
+    if (topKInput) topKInput.value = clampTopK(config.top_k);
     
     // If Ollama is the selected provider, fetch available models
     if (provider === 'ollama') {
@@ -1657,15 +1646,9 @@ async function saveOllamaSettings() {
   const tempInput = document.getElementById('ollama-temperature');
   const topPInput = document.getElementById('ollama-top-p');
   const topKInput = document.getElementById('ollama-top-k');
-  const TEMP_MIN = 0, TEMP_MAX = 2;
-  const TOP_P_MIN = 0, TOP_P_MAX = 1;
-  const TOP_K_MIN = 1, TOP_K_MAX = 200;
-  let temperature = tempInput && tempInput.value !== '' ? parseFloat(tempInput.value) : 0.3;
-  let topP = topPInput && topPInput.value !== '' ? parseFloat(topPInput.value) : 0.4;
-  let topK = topKInput && topKInput.value !== '' ? parseInt(topKInput.value, 10) : 90;
-  temperature = Math.max(TEMP_MIN, Math.min(TEMP_MAX, Number.isFinite(temperature) ? temperature : 0.3));
-  topP = Math.max(TOP_P_MIN, Math.min(TOP_P_MAX, Number.isFinite(topP) ? topP : 0.4));
-  topK = Math.max(TOP_K_MIN, Math.min(TOP_K_MAX, Number.isFinite(topK) ? topK : 90));
+  const temperature = clampTemperature(tempInput?.value);
+  const topP = clampTopP(topPInput?.value);
+  const topK = clampTopK(topKInput?.value);
   if (tempInput) tempInput.value = temperature;
   if (topPInput) topPInput.value = topP;
   if (topKInput) topKInput.value = topK;
