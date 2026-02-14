@@ -551,28 +551,44 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up the portal buttons
   const dashboardBtn = document.getElementById('dashboard-btn');
   if (dashboardBtn) {
-    dashboardBtn.addEventListener('click', () => {
+    dashboardBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('dashboard_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/dashboard' });
     });
   }
   
   const analyticsBtn = document.getElementById('analytics-btn');
   if (analyticsBtn) {
-    analyticsBtn.addEventListener('click', () => {
+    analyticsBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('analytics_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/analytics' });
     });
   }
   
   const modelSelectionBtn = document.getElementById('model-selection-btn');
   if (modelSelectionBtn) {
-    modelSelectionBtn.addEventListener('click', () => {
+    modelSelectionBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('model_selection_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/model-selection' });
     });
   }
   
   const scoringMetricsBtn = document.getElementById('scoring-metrics-btn');
   if (scoringMetricsBtn) {
-    scoringMetricsBtn.addEventListener('click', () => {
+    scoringMetricsBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('scoring_metrics_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/scoring-metrics' });
     });
   }
@@ -580,7 +596,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up the signout button in portal buttons row
   const signoutBtn = document.getElementById('signout-btn');
   if (signoutBtn) {
-    signoutBtn.addEventListener('click', () => {
+    signoutBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('signout_clicked', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       // Find the google-signin component and trigger its signout
       const googleSignIn = document.querySelector('google-signin');
       if (googleSignIn && googleSignIn.shadowRoot) {
@@ -595,7 +615,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up the Documentation button
   const howItWorksBtn = document.getElementById('how-it-works-btn');
   if (howItWorksBtn) {
-    howItWorksBtn.addEventListener('click', () => {
+    howItWorksBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('documentation_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://thinkreview.dev/docs' });
     });
   }
@@ -603,7 +627,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up the Need Help button
   const needHelpBtn = document.getElementById('need-help-btn');
   if (needHelpBtn) {
-    needHelpBtn.addEventListener('click', () => {
+    needHelpBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('need_help_clicked', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       // Open the contact page in a new tab
       chrome.tabs.create({ url: 'https://thinkreview.dev/contact' });
     });
@@ -612,7 +640,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up the Report a Bug button
   const reportBugBtn = document.getElementById('report-bug-btn');
   if (reportBugBtn) {
-    reportBugBtn.addEventListener('click', () => {
+    reportBugBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('bug_report_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       // Open the bug report page in a new tab
       chrome.tabs.create({ url: 'https://thinkreview.dev/bug-report' });
     });
