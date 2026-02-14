@@ -375,6 +375,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up domain settings
   initializeDomainSettings();
   
+  // Set up auto-start review option
+  initializeAutoStartReviewSettings();
+  
   // Set up Azure DevOps settings
   initializeAzureSettings();
   
@@ -646,6 +649,64 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Domain Management Functionality
 const DEFAULT_DOMAINS = ['https://gitlab.com'];
+
+// Auto-start review option (default true)
+function initializeAutoStartReviewSettings() {
+  loadAutoStartReview();
+  const onRadio = document.getElementById('auto-start-review-on');
+  const offRadio = document.getElementById('auto-start-review-off');
+  if (onRadio) {
+    onRadio.addEventListener('change', () => {
+      if (onRadio.checked) chrome.storage.local.set({ autoStartReview: true });
+    });
+  }
+  if (offRadio) {
+    offRadio.addEventListener('change', () => {
+      if (offRadio.checked) chrome.storage.local.set({ autoStartReview: false });
+    });
+  }
+  setupAutoStartInfoTooltips();
+}
+
+function setupAutoStartInfoTooltips() {
+  const icons = document.querySelectorAll('.auto-start-info-icon');
+  if (icons.length === 0) return;
+  let tooltipEl = document.getElementById('auto-start-tooltip');
+  if (!tooltipEl) {
+    tooltipEl = document.createElement('div');
+    tooltipEl.id = 'auto-start-tooltip';
+    tooltipEl.className = 'auto-start-js-tooltip';
+    document.body.appendChild(tooltipEl);
+  }
+  icons.forEach(icon => {
+    icon.addEventListener('mouseenter', function showTooltip(e) {
+      const text = this.getAttribute('data-tooltip');
+      if (!text) return;
+      tooltipEl.textContent = text;
+      tooltipEl.classList.add('visible');
+      const rect = this.getBoundingClientRect();
+      tooltipEl.style.left = `${rect.left + rect.width / 2}px`;
+      tooltipEl.style.top = `${rect.top - 4}px`;
+      tooltipEl.style.transform = 'translate(-50%, -100%)';
+    });
+    icon.addEventListener('mouseleave', function hideTooltip() {
+      tooltipEl.classList.remove('visible');
+    });
+  });
+}
+
+async function loadAutoStartReview() {
+  try {
+    const result = await chrome.storage.local.get(['autoStartReview']);
+    const enabled = result.autoStartReview !== false;
+    const onRadio = document.getElementById('auto-start-review-on');
+    const offRadio = document.getElementById('auto-start-review-off');
+    if (onRadio) onRadio.checked = enabled;
+    if (offRadio) offRadio.checked = !enabled;
+  } catch (error) {
+    dbgWarn('Error loading auto-start review setting:', error);
+  }
+}
 
 function initializeDomainSettings() {
   loadDomains();
@@ -1450,6 +1511,11 @@ async function loadAIProviderSettings() {
     if (ollamaConfig) {
       ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
     }
+    // Show/hide "Start review automatically" only when Ollama is selected
+    const autoStartSection = document.getElementById('auto-start-review-section');
+    if (autoStartSection) {
+      autoStartSection.style.display = provider === 'ollama' ? 'flex' : 'none';
+    }
     
     // Load Ollama config values
     const urlInput = document.getElementById('ollama-url');
@@ -1484,6 +1550,10 @@ function handleProviderChange(event) {
   
   if (ollamaConfig) {
     ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
+  }
+  const autoStartSection = document.getElementById('auto-start-review-section');
+  if (autoStartSection) {
+    autoStartSection.style.display = provider === 'ollama' ? 'flex' : 'none';
   }
   
   // Auto-save provider selection

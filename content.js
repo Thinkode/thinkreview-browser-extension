@@ -475,12 +475,11 @@ async function checkAndTriggerReviewForNewPR() {
     
     isReviewInProgress = false;
     
-    // Trigger new review
-    setTimeout(() => {
-      if (isSupportedPage()) {
-        fetchAndDisplayCodeReview();
-      }
-    }, 500);
+    // Trigger new review only if auto-start is enabled
+    const autoStart = await getAutoStartReview();
+    if (autoStart && isSupportedPage()) {
+      setTimeout(() => fetchAndDisplayCodeReview(), 500);
+    }
   } else if (currentPRId === null && newPRId) {
     // First time detecting a PR - just track it
     currentPRId = newPRId;
@@ -488,9 +487,30 @@ async function checkAndTriggerReviewForNewPR() {
 }
 
 /**
- * Injects the integrated review panel into the GitLab MR page
+ * Gets whether to start the review automatically when opening a PR page (from extension options).
+ * @returns {Promise<boolean>}
  */
-async function injectIntegratedReviewPanel() {
+function getAutoStartReview() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['autoStartReview', 'aiProvider'], (result) => {
+      const provider = result.aiProvider || 'cloud';
+      // Cloud AI: always auto-start (setting is only shown for Ollama)
+      if (provider !== 'ollama') {
+        resolve(true);
+        return;
+      }
+      // Ollama: respect the "Start review automatically" option
+      resolve(result.autoStartReview !== false);
+    });
+  });
+}
+
+/**
+ * Injects the integrated review panel into the GitLab MR page.
+ * @param {Object} [opts] - Options
+ * @param {boolean} [opts.triggerReview] - If true, trigger the review after creating the panel (e.g. user clicked AI Review button). If false/undefined, trigger only when autoStartReview option is enabled.
+ */
+async function injectIntegratedReviewPanel(opts = {}) {
   const panel = document.getElementById('gitlab-mr-integrated-review');
   
   // Check if the panel already exists
@@ -517,9 +537,11 @@ async function injectIntegratedReviewPanel() {
   // Track current PR ID
   currentPRId = getCurrentPRId();
   
-  // Automatically trigger the code review after panel is created
-  // DOM elements are available after appendChild
-  fetchAndDisplayCodeReview();
+  // Trigger the code review only when: user explicitly requested (button click) or auto-start is enabled
+  const shouldTrigger = opts.triggerReview === true || await getAutoStartReview();
+  if (shouldTrigger) {
+    fetchAndDisplayCodeReview();
+  }
 }
 
 /**
@@ -1143,8 +1165,8 @@ async function toggleReviewPanel() {
   dbgLog('Panel exists:', !!panel);
   
   if (!panel) {
-    // If panel doesn't exist yet, create it (review will be triggered automatically)
-    injectIntegratedReviewPanel();
+    // If panel doesn't exist yet, create it and trigger review (user clicked AI Review button)
+    injectIntegratedReviewPanel({ triggerReview: true });
     return;
   }
   
