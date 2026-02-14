@@ -1304,6 +1304,43 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   text-decoration: none;
 }
 
+/* Summary section: header row with title + Generate PR description button */
+#gitlab-mr-integrated-review .thinkreview-section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+#gitlab-mr-integrated-review .thinkreview-section-header-row .thinkreview-section-title {
+  margin-bottom: 0;
+}
+
+#gitlab-mr-integrated-review .thinkreview-generate-pr-desc-btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8c6be8;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+#gitlab-mr-integrated-review .thinkreview-generate-pr-desc-btn:hover {
+  background: rgba(107, 79, 187, 0.25);
+  color: #b39eef;
+}
+
+#gitlab-mr-integrated-review .thinkreview-generate-pr-desc-btn:active {
+  background: rgba(107, 79, 187, 0.35);
+}
+
 #gitlab-mr-integrated-review #review-summary {
   padding: 8px 0;
   margin-bottom: 16px;
