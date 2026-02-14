@@ -89,11 +89,11 @@ async function initializePlatformDetection() {
       const origin = window.location.origin;
       apiModule.detectAndCacheServerVersion(origin, collection)
         .then((result) => {
-          if (result && result.fromCache === false) {
-            import(chrome.runtime.getURL('services/cloud-service.js'))
-              .then((m) => m.CloudService.trackAzureDevOpsVersion(origin, result.version, collection))
-              .catch((err) => dbgWarn('Azure DevOps version cloud log failed (non-critical):', err));
-          }
+          if (!result) return;
+          // Send to cloud: fresh detection includes apiVersion/azureVersion; from cache sends version only and cloud parses it
+          import(chrome.runtime.getURL('services/cloud-service.js'))
+            .then((m) => m.CloudService.trackAzureDevOpsVersion(origin, result.version, collection, result.apiVersion ?? null, result.azureVersion ?? null))
+            .catch((err) => dbgWarn('Azure DevOps version cloud log failed (non-critical):', err));
         })
         .catch((err) => {
           dbgWarn('Azure DevOps server version detection failed (non-critical):', err);

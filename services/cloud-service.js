@@ -1133,12 +1133,14 @@ export class CloudService {
    * Log Azure DevOps (on-prem) server version check to the user's Settings/azure-info in the cloud.
    * Call after a fresh version detection (not from cache).
    * @param {string} origin - e.g. window.location.origin
-   * @param {string} version - Detected version label
+   * @param {string} version - Detected version display string
    * @param {string} [collection] - Collection/organization path segment
+   * @param {string|null} [apiVersion] - API version (e.g. '7.0')
+   * @param {string|null} [azureVersion] - Azure DevOps server version label (e.g. 'Azure DevOps Server 2022')
    * @returns {Promise<Object>} Response from the backend
    */
-  static async trackAzureDevOpsVersion(origin, version, collection = null) {
-    dbgLog('Tracking Azure DevOps version:', { origin, version, collection });
+  static async trackAzureDevOpsVersion(origin, version, collection = null, apiVersion = null, azureVersion = null) {
+    dbgLog('Tracking Azure DevOps version:', { origin, version, collection, apiVersion, azureVersion });
     try {
       const storageData = await new Promise((resolve) => {
         chrome.storage.local.get(['userData', 'user'], (result) => resolve(result));
@@ -1156,10 +1158,13 @@ export class CloudService {
         dbgWarn('Cannot log Azure DevOps version: No user data in storage');
         return null;
       }
+      const payload = { email, origin, version, collection };
+      if (apiVersion != null) payload.apiVersion = apiVersion;
+      if (azureVersion != null) payload.azureVersion = azureVersion;
       const response = await fetch(LOG_AZURE_DEVOPS_VERSION_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, origin, version, collection })
+        body: JSON.stringify(payload)
       });
       if (!response.ok) {
         const errorText = await response.text();

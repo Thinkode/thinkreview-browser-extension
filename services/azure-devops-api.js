@@ -669,6 +669,8 @@ export async function detectAndCacheServerVersion(origin, collection) {
 
   const baseUrl = `${origin}/${collection}/_apis/projects`;
   let detectedVersion = 'Unknown / Could not connect';
+  let detectedApiVersion = null;
+  let detectedAzureVersion = null;
 
   for (const v of VERSIONS_TO_CHECK) {
     try {
@@ -680,6 +682,8 @@ export async function detectAndCacheServerVersion(origin, collection) {
       });
       if (response.ok) {
         detectedVersion = `${v.label} (Supports API ${v.api})`;
+        detectedApiVersion = v.api;
+        detectedAzureVersion = v.label;
         break;
       }
       if (response.status === 401) {
@@ -702,5 +706,10 @@ export async function detectAndCacheServerVersion(origin, collection) {
   });
 
   dbgLog('Azure DevOps Server version detected and cached:', { origin, version: detectedVersion });
-  return { version: detectedVersion, fromCache: false };
+  return {
+    version: detectedVersion,
+    fromCache: false,
+    apiVersion: detectedApiVersion,
+    azureVersion: detectedAzureVersion
+  };
 }
