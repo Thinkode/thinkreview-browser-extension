@@ -1129,6 +1129,13 @@ export class CloudService {
   }
 
   /**
+   * Call after a fresh version detection (not from cache).
+   * @param {string} origin - e.g. window.location.origin
+   * @param {string} version - Detected version label
+   * @param {string} [collection] - Collection/organization path segment
+   * @returns {Promise<Object>} Response from the backend
+   */
+  /**
    * Track Ollama configuration
    * @param {boolean} enabled - Whether Ollama is enabled
    * @param {Object} config - Ollama configuration (url, model)

@@ -650,20 +650,21 @@ export function getCachedServerVersion(origin) {
  * Call from content script when on an Azure DevOps page (uses same origin as the page).
  * @param {string} origin - e.g. window.location.origin
  * @param {string} collection - First path segment (e.g. DefaultCollection or org name)
- * @returns {Promise<string>} Detected or cached version label
+ * @returns {Promise<{ version: string, fromCache: boolean }>} Version label and whether it was from cache
  */
 export async function detectAndCacheServerVersion(origin, collection) {
+  const fallback = { version: 'Unknown (storage not available)', fromCache: false };
   if (!origin || !collection) {
-    return 'Unknown (missing origin or collection)';
+    return { version: 'Unknown (missing origin or collection)', fromCache: false };
   }
   if (typeof chrome === 'undefined' || !chrome.storage?.local) {
-    return 'Unknown (storage not available)';
+    return fallback;
   }
 
   const cached = await getCachedServerVersion(origin);
   if (cached) {
     dbgLog('Azure DevOps Server version (cached):', { origin, version: cached });
-    return cached;
+    return { version: cached, fromCache: true };
   }
 
   const baseUrl = `${origin}/${collection}/_apis/projects`;
@@ -701,5 +702,5 @@ export async function detectAndCacheServerVersion(origin, collection) {
   });
 
   dbgLog('Azure DevOps Server version detected and cached:', { origin, version: detectedVersion });
-  return detectedVersion;
+  return { version: detectedVersion, fromCache: false };
 }

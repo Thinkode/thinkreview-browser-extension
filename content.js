@@ -86,9 +86,18 @@ async function initializePlatformDetection() {
     ) {
       const pathParts = window.location.pathname.split('/').filter(Boolean);
       const collection = pathParts.length > 0 ? pathParts[0] : '';
-      apiModule.detectAndCacheServerVersion(window.location.origin, collection).catch((err) => {
-        dbgWarn('Azure DevOps server version detection failed (non-critical):', err);
-      });
+      const origin = window.location.origin;
+      apiModule.detectAndCacheServerVersion(origin, collection)
+        .then((result) => {
+          if (result && result.fromCache === false) {
+            import(chrome.runtime.getURL('services/cloud-service.js'))
+              .then((m) => m.CloudService.trackAzureDevOpsVersion(origin, result.version, collection))
+              .catch((err) => dbgWarn('Azure DevOps version cloud log failed (non-critical):', err));
+          }
+        })
+        .catch((err) => {
+          dbgWarn('Azure DevOps server version detection failed (non-critical):', err);
+        });
     }
     
     // Dynamically import Azure DevOps token error module
