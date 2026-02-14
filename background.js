@@ -710,6 +710,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep message channel open for async response
   }
   
+  // Handle Azure DevOps (on-prem) version log request from content script (avoids content script fetch to external API / CSP)
+  if (message.type === 'LOG_AZURE_DEVOPS_VERSION') {
+    const { origin, version, collection, azureOnPremiseApiVersion, azureOnPremiseVersion } = message;
+    (async () => {
+      try {
+        await CloudService.trackAzureDevOpsVersion(origin, version, collection, azureOnPremiseApiVersion ?? null, azureOnPremiseVersion ?? null);
+        sendResponse({ success: true });
+      } catch (err) {
+        dbgWarn('Azure DevOps version cloud log failed (non-critical):', err);
+        sendResponse({ success: false, error: err.message });
+      }
+    })();
+    return true; // Keep channel open for async response
+  }
+
   // Handle feedback submission request
   if (message.type === 'SUBMIT_REVIEW_FEEDBACK') {
     const { email, feedbackType, aiResponse, mrUrl, rating, additionalFeedback } = message;

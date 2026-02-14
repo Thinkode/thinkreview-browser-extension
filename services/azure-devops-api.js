@@ -610,3 +610,164 @@ export class AzureDevOpsAPI {
 
 // Create and export a singleton instance
 export const azureDevOpsAPI = new AzureDevOpsAPI();
+
+// ---------------------------------------------------------------------------
+// Server version detection (run from content script, cached in extension storage)
+// ---------------------------------------------------------------------------
+
+const AZURE_DEVOPS_SERVER_VERSIONS_KEY = 'azureDevOpsServerVersions';
+
+const VERSIONS_TO_CHECK = [
+  { api: '7.2', label: 'Azure DevOps Server 2022 Update 2' },
+  { api: '7.1', label: 'Azure DevOps Server 2022 Update 1' },
+  { api: '7.0', label: 'Azure DevOps Server 2022' },
+  { api: '6.0', label: 'Azure DevOps Server 2020' },
+  { api: '5.0', label: 'Azure DevOps Server 2019' },
+  { api: '4.1', label: 'TFS 2018 Update 2+' },
+  { api: '3.0', label: 'TFS 2017' }
+];
+
+/**
+ * Get cached server version display string for an origin (if any).
+ * Handles both legacy string cache and object cache { version, azureOnPremiseVersion, azureOnPremiseApiVersion }.
+ * @param {string} origin - e.g. window.location.origin
+ * @returns {Promise<string|null>} Cached version string or null
+ */
+export function getCachedServerVersion(origin) {
+  if (!origin || typeof chrome === 'undefined' || !chrome.storage?.local) {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    chrome.storage.local.get([AZURE_DEVOPS_SERVER_VERSIONS_KEY], (result) => {
+      const map = result[AZURE_DEVOPS_SERVER_VERSIONS_KEY] || {};
+      const raw = map[origin];
+      if (raw == null) {
+        resolve(null);
+        return;
+      }
+      if (typeof raw === 'object' && raw.version) {
+        resolve(raw.version);
+        return;
+      }
+      if (typeof raw === 'string') resolve(raw);
+      else resolve(null);
+    });
+  });
+}
+
+/**
+ * Check if we have valid azureOnPremiseVersion and azureOnPremiseApiVersion for this origin in storage.
+ * Used to decide whether to run detection and send to cloud (only when missing or invalid).
+ * @param {string} origin
+ * @returns {Promise<boolean>} true if both fields are stored and non-empty
+ */
+export function hasValidAzureOnPremiseFields(origin) {
+  if (!origin || typeof chrome === 'undefined' || !chrome.storage?.local) {
+    return Promise.resolve(false);
+  }
+  return new Promise((resolve) => {
+    chrome.storage.local.get([AZURE_DEVOPS_SERVER_VERSIONS_KEY], (result) => {
+      const map = result[AZURE_DEVOPS_SERVER_VERSIONS_KEY] || {};
+      const raw = map[origin];
+      if (raw == null || typeof raw !== 'object') {
+        resolve(false);
+        return;
+      }
+      const a = raw.azureOnPremiseVersion;
+      const b = raw.azureOnPremiseApiVersion;
+      resolve(
+        typeof a === 'string' && a.trim() !== '' &&
+        typeof b === 'string' && b.trim() !== ''
+      );
+    });
+  });
+}
+
+/**
+ * Detect Azure DevOps Server version by probing _apis/projects with different api-version values.
+ * Only runs (and sends to cloud) when the two fields azureOnPremiseVersion and azureOnPremiseApiVersion
+ * were never stored or were null/invalid; otherwise returns cached.
+ * Call from content script when on an Azure DevOps page (uses same origin as the page).
+ * @param {string} origin - e.g. window.location.origin
+ * @param {string} collection - First path segment (e.g. DefaultCollection or org name)
+ * @returns {Promise<{ version: string, fromCache: boolean, azureOnPremiseVersion?: string|null, azureOnPremiseApiVersion?: string|null }>}
+ */
+export async function detectAndCacheServerVersion(origin, collection) {
+  const fallback = { version: 'Unknown (storage not available)', fromCache: false, azureOnPremiseVersion: null, azureOnPremiseApiVersion: null };
+  if (!origin || !collection) {
+    return { version: 'Unknown (missing origin or collection)', fromCache: false, azureOnPremiseVersion: null, azureOnPremiseApiVersion: null };
+  }
+  if (typeof chrome === 'undefined' || !chrome.storage?.local) {
+    return fallback;
+  }
+
+  const hasValid = await hasValidAzureOnPremiseFields(origin);
+  if (hasValid) {
+    const map = await new Promise((resolve) => {
+      chrome.storage.local.get([AZURE_DEVOPS_SERVER_VERSIONS_KEY], (result) => {
+        resolve(result[AZURE_DEVOPS_SERVER_VERSIONS_KEY] || {});
+      });
+    });
+    const raw = map[origin];
+    const versionStr = typeof raw === 'object' && raw?.version ? raw.version : (typeof raw === 'string' ? raw : null);
+    if (versionStr) {
+      dbgLog('Azure DevOps Server version (cached, valid fields):', { origin, version: versionStr });
+      return {
+        version: versionStr,
+        fromCache: true,
+        azureOnPremiseVersion: raw.azureOnPremiseVersion ?? null,
+        azureOnPremiseApiVersion: raw.azureOnPremiseApiVersion ?? null
+      };
+    }
+  }
+
+  const baseUrl = `${origin}/${collection}/_apis/projects`;
+  let detectedVersion = 'Unknown / Could not connect';
+  let azureOnPremiseApiVersion = null;
+  let azureOnPremiseVersion = null;
+
+  for (const v of VERSIONS_TO_CHECK) {
+    try {
+      const testUrl = `${baseUrl}?api-version=${v.api}`;
+      const response = await fetch(testUrl, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' }
+      });
+      if (response.ok) {
+        detectedVersion = `${v.label} (Supports API ${v.api})`;
+        azureOnPremiseApiVersion = v.api;
+        azureOnPremiseVersion = v.label;
+        break;
+      }
+      if (response.status === 401) {
+        detectedVersion = '401 Unauthorized (Auth works, but version check blocked)';
+        break;
+      }
+    } catch (e) {
+      // Continue to next version
+    }
+  }
+
+  const map = await new Promise((resolve) => {
+    chrome.storage.local.get([AZURE_DEVOPS_SERVER_VERSIONS_KEY], (result) => {
+      resolve(result[AZURE_DEVOPS_SERVER_VERSIONS_KEY] || {});
+    });
+  });
+  map[origin] = {
+    version: detectedVersion,
+    azureOnPremiseVersion: azureOnPremiseVersion,
+    azureOnPremiseApiVersion: azureOnPremiseApiVersion
+  };
+  await new Promise((resolve) => {
+    chrome.storage.local.set({ [AZURE_DEVOPS_SERVER_VERSIONS_KEY]: map }, resolve);
+  });
+
+  dbgLog('Azure DevOps Server version detected and cached:', { origin, version: detectedVersion, azureOnPremiseVersion, azureOnPremiseApiVersion });
+  return {
+    version: detectedVersion,
+    fromCache: false,
+    azureOnPremiseVersion,
+    azureOnPremiseApiVersion
+  };
+}

@@ -16,6 +16,7 @@ const CANCEL_SUBSCRIPTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/cancelSubscriptionT
 const CONVERSATIONAL_REVIEW_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview`;
 const CONVERSATIONAL_REVIEW_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview_1_1`;
 const TRACK_CUSTOM_DOMAINS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackCustomDomainsThinkReview`;
+const LOG_AZURE_DEVOPS_VERSION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/logAzureDevOpsVersionThinkReview`;
 const SUBMIT_REVIEW_FEEDBACK_URL = `${CLOUD_FUNCTIONS_BASE_URL}/submitReviewFeedback`;
 
 /**
@@ -1125,6 +1126,56 @@ export class CloudService {
     } catch (error) {
       dbgWarn('Error tracking custom domain:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Log Azure DevOps (on-prem) server version check to the user's Settings/azure-info in the cloud.
+   * Call only after a fresh version detection (when local storage had no valid azureOnPremise* fields).
+   * @param {string} origin - e.g. window.location.origin
+   * @param {string} version - Detected version display string
+   * @param {string} [collection] - Collection/organization path segment
+   * @param {string|null} [azureOnPremiseApiVersion] - API version (e.g. '7.1')
+   * @param {string|null} [azureOnPremiseVersion] - Azure DevOps server version label (e.g. 'Azure DevOps Server 2022 Update 1')
+   * @returns {Promise<Object>} Response from the backend
+   */
+  static async trackAzureDevOpsVersion(origin, version, collection = null, azureOnPremiseApiVersion = null, azureOnPremiseVersion = null) {
+    dbgLog('Tracking Azure DevOps version:', { origin, version, collection, azureOnPremiseApiVersion, azureOnPremiseVersion });
+    try {
+      const storageData = await new Promise((resolve) => {
+        chrome.storage.local.get(['userData', 'user'], (result) => resolve(result));
+      });
+      let email = null;
+      if (storageData.userData && storageData.userData.email) {
+        email = storageData.userData.email;
+      } else if (storageData.user) {
+        try {
+          const parsed = JSON.parse(storageData.user);
+          if (parsed && parsed.email) email = parsed.email;
+        } catch (_) {}
+      }
+      if (!email) {
+        dbgWarn('Cannot log Azure DevOps version: No user data in storage');
+        return null;
+      }
+      const payload = { email, origin, version, collection };
+      if (azureOnPremiseApiVersion != null) payload.azureOnPremiseApiVersion = azureOnPremiseApiVersion;
+      if (azureOnPremiseVersion != null) payload.azureOnPremiseVersion = azureOnPremiseVersion;
+      const response = await fetch(LOG_AZURE_DEVOPS_VERSION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
+      const data = await response.json();
+      dbgLog('Azure DevOps version logged to cloud:', data);
+      return data;
+    } catch (err) {
+      dbgWarn('Error logging Azure DevOps version to cloud (non-critical):', err);
+      return null;
     }
   }
 

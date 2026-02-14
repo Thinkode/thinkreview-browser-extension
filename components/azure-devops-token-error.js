@@ -92,7 +92,7 @@ function createMessageContainer() {
   description.style.color = '#b3b3b3';
   description.style.lineHeight = '1.4';
   description.style.textShadow = '0 1px 2px rgba(0, 0, 0, 0.2)';
-  description.textContent = 'Your Azure DevOps Personal Access Token is incorrect, missing, or does not have access to this organization/project.';
+  description.textContent = 'Your Azure DevOps Personal Access Token is incorrect, missing, expired, or does not have access to this organization/project.';
   messageContainer.appendChild(description);
   
   // Optional debug details placeholder

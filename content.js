@@ -75,6 +75,37 @@ async function initializePlatformDetection() {
     // Dynamically import Azure DevOps API module for error handling
     const apiModule = await import(chrome.runtime.getURL('services/azure-devops-api.js'));
     AzureDevOpsAuthError = apiModule.AzureDevOpsAuthError;
+
+    // Run server version detection only for on-prem/custom domains (skip dev.azure.com and visualstudio.com)
+    const hostname = window.location.hostname || '';
+    const isAzureCloud = hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
+    if (
+      !isAzureCloud &&
+      platformDetector.isAzureDevOpsSite() &&
+      typeof apiModule.detectAndCacheServerVersion === 'function'
+    ) {
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      const collection = pathParts.length > 0 ? pathParts[0] : '';
+      const origin = window.location.origin;
+      apiModule.detectAndCacheServerVersion(origin, collection)
+        .then((result) => {
+          if (!result || result.fromCache !== false) return;
+          // Send to cloud via background script (avoids content script fetch to external API / CSP)
+          chrome.runtime.sendMessage({
+            type: 'LOG_AZURE_DEVOPS_VERSION',
+            origin,
+            version: result.version,
+            collection,
+            azureOnPremiseApiVersion: result.azureOnPremiseApiVersion ?? null,
+            azureOnPremiseVersion: result.azureOnPremiseVersion ?? null
+          }, (response) => {
+            if (chrome.runtime.lastError) dbgWarn('Azure DevOps version cloud log failed (non-critical):', chrome.runtime.lastError);
+          });
+        })
+        .catch((err) => {
+          dbgWarn('Azure DevOps server version detection failed (non-critical):', err);
+        });
+    }
     
     // Dynamically import Azure DevOps token error module
     const tokenErrorModule = await import(chrome.runtime.getURL('components/azure-devops-token-error.js'));

@@ -589,11 +589,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
   
-  // Set up the How it works button
+  // Set up the Documentation button
   const howItWorksBtn = document.getElementById('how-it-works-btn');
   if (howItWorksBtn) {
     howItWorksBtn.addEventListener('click', () => {
-      // Open the docs portal in a new tab
       chrome.tabs.create({ url: 'https://thinkreview.dev/docs' });
     });
   }
@@ -613,6 +612,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     reportBugBtn.addEventListener('click', () => {
       // Open the bug report page in a new tab
       chrome.tabs.create({ url: 'https://thinkreview.dev/bug-report' });
+    });
+  }
+
+  const privacyFaqBtn = document.getElementById('privacy-faq-btn');
+  if (privacyFaqBtn) {
+    privacyFaqBtn.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://thinkreview.dev/privacy-faqs.html' });
     });
   }
   
