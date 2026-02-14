@@ -1257,6 +1257,86 @@ footer {
   line-height: 1.4;
 }
 
+.auto-start-review-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  margin-bottom: 4px;
+}
+
+.auto-start-label {
+  font-size: 12px;
+  color: #333;
+  flex-shrink: 0;
+}
+
+.auto-start-options {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.auto-start-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #666;
+  cursor: pointer;
+}
+
+.auto-start-option input[type="radio"] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #6b4fbb;
+}
+
+.auto-start-info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b4fbb;
+  cursor: help;
+  margin-left: 2px;
+  border-radius: 50%;
+  background: rgba(107, 79, 187, 0.12);
+  line-height: 1;
+  position: relative;
+}
+
+/* JS-driven hover tooltip (reliable in extension popup) */
+.auto-start-js-tooltip {
+  position: fixed;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: normal;
+  max-width: 200px;
+  text-align: center;
+  background: #333;
+  color: #fff;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 10000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.auto-start-js-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
 .domain-input-section {
   display: flex;
   gap: 8px;

@@ -277,6 +277,21 @@
         </div>
       </div>
       
+      <!-- Review behavior: auto-start or manual (shown only when Ollama is selected) -->
+      <div id="auto-start-review-section" class="auto-start-review-row" style="display: none;">
+        <span class="auto-start-label">Start review automatically</span>
+        <div class="auto-start-options">
+          <div class="auto-start-option">
+            <label><input type="radio" name="auto-start-review" value="on" id="auto-start-review-on" checked><span> On</span></label>
+            <span class="auto-start-info-icon" data-tooltip="Recommended for Cloud AI to speed up PR code review." aria-label="Info">ⓘ</span>
+          </div>
+          <div class="auto-start-option">
+            <label><input type="radio" name="auto-start-review" value="off" id="auto-start-review-off"><span> Off</span></label>
+            <span class="auto-start-info-icon" data-tooltip="Recommended when using Ollama to save GPU resources." aria-label="Info">ⓘ</span>
+          </div>
+        </div>
+      </div>
+      
       <!-- Domain Settings Section -->
       <div id="domain-settings" class="domain-settings-section">
         <h3 class="settings-title">GitLab Domains</h3>
