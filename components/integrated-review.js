@@ -362,7 +362,10 @@ async function createIntegratedReviewPanel(patchUrl) {
             <div id="review-patch-size-banner" class="gl-mb-4 gl-hidden"></div>
             <div id="review-metrics-container" class="gl-mb-4"></div>
             <div id="review-summary-container" class="gl-mb-4">
-              <h5 class="gl-font-weight-bold thinkreview-section-title">Summary</h5>
+              <div class="thinkreview-section-header-row">
+                <h5 class="gl-font-weight-bold thinkreview-section-title">Summary</h5>
+                <button type="button" id="generate-pr-description-btn" class="thinkreview-generate-pr-desc-btn" title="Generate a PR/MR description from this review">Generate PR description</button>
+              </div>
               <div class="thinkreview-item-wrapper">
                 <p id="review-summary" class="thinkreview-section-content"></p>
               </div>
@@ -1455,6 +1458,15 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   const summaryWrapper = reviewSummary.parentElement;
   if (summaryWrapper && summaryWrapper.classList.contains('thinkreview-item-wrapper') && attachCopyButtonToItem) {
     attachCopyButtonToItem(reviewSummary, summaryWrapper);
+  }
+
+  // Generate PR description button: send a dedicated prompt and show result in chat (attach once)
+  const generatePrDescBtn = document.getElementById('generate-pr-description-btn');
+  if (generatePrDescBtn && !generatePrDescBtn.dataset.prDescBound) {
+    generatePrDescBtn.dataset.prDescBound = '1';
+    generatePrDescBtn.addEventListener('click', () => {
+      handleSendMessage('Write a concise PR/MR description suitable for the merge request description field. Output only the description text, ready to paste.');
+    });
   }
 
   const populateList = (element, items, category) => {
