@@ -5,7 +5,6 @@
 import { CloudService } from './services/cloud-service.js';
 import { OllamaService } from './services/ollama-service.js';
 import { isValidOrigin } from './utils/origin-validator.js';
-import { AnalyticsService } from './utils/analytics-service.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { fetchPatchContent } from './services/bitbucket-api.js';
@@ -491,23 +490,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse(result);
     })();
     return true; // Keep channel open
-  }
-
-  // Handle analytics events from content scripts (to avoid CORS)
-  if (message.type === 'SEND_ANALYTICS_EVENT') {
-    const { eventName, eventParams } = message;
-    (async () => {
-      try {
-        // Use the analytics service to send the event (background script has no CORS restrictions)
-        // sendEvent will get the clientId itself
-        await AnalyticsService.sendEvent(eventName, eventParams);
-        sendResponse({ success: true });
-      } catch (error) {
-        dbgWarn('Error sending analytics event:', error);
-        sendResponse({ success: false, error: error.message });
-      }
-    })();
-    return true; // Keep channel open for async response
   }
 
   // Handle request to open extension page in a new tab
