@@ -615,6 +615,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       chrome.tabs.create({ url: 'https://thinkreview.dev/bug-report' });
     });
   }
+
+  const extensionNotWorkingBtn = document.getElementById('extension-not-working-btn');
+  if (extensionNotWorkingBtn) {
+    extensionNotWorkingBtn.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://thinkreview.dev/docs/troubleshooting' });
+    });
+  }
   
   // Set up the Manage Subscription button
   const cancelSubscriptionBtn = document.getElementById('cancel-subscription-btn');
