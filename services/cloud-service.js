@@ -1131,16 +1131,16 @@ export class CloudService {
 
   /**
    * Log Azure DevOps (on-prem) server version check to the user's Settings/azure-info in the cloud.
-   * Call after a fresh version detection (not from cache).
+   * Call only after a fresh version detection (when local storage had no valid azureOnPremise* fields).
    * @param {string} origin - e.g. window.location.origin
    * @param {string} version - Detected version display string
    * @param {string} [collection] - Collection/organization path segment
-   * @param {string|null} [apiVersion] - API version (e.g. '7.0')
-   * @param {string|null} [azureVersion] - Azure DevOps server version label (e.g. 'Azure DevOps Server 2022')
+   * @param {string|null} [azureOnPremiseApiVersion] - API version (e.g. '7.1')
+   * @param {string|null} [azureOnPremiseVersion] - Azure DevOps server version label (e.g. 'Azure DevOps Server 2022 Update 1')
    * @returns {Promise<Object>} Response from the backend
    */
-  static async trackAzureDevOpsVersion(origin, version, collection = null, apiVersion = null, azureVersion = null) {
-    dbgLog('Tracking Azure DevOps version:', { origin, version, collection, apiVersion, azureVersion });
+  static async trackAzureDevOpsVersion(origin, version, collection = null, azureOnPremiseApiVersion = null, azureOnPremiseVersion = null) {
+    dbgLog('Tracking Azure DevOps version:', { origin, version, collection, azureOnPremiseApiVersion, azureOnPremiseVersion });
     try {
       const storageData = await new Promise((resolve) => {
         chrome.storage.local.get(['userData', 'user'], (result) => resolve(result));
@@ -1159,8 +1159,8 @@ export class CloudService {
         return null;
       }
       const payload = { email, origin, version, collection };
-      if (apiVersion != null) payload.apiVersion = apiVersion;
-      if (azureVersion != null) payload.azureVersion = azureVersion;
+      if (azureOnPremiseApiVersion != null) payload.azureOnPremiseApiVersion = azureOnPremiseApiVersion;
+      if (azureOnPremiseVersion != null) payload.azureOnPremiseVersion = azureOnPremiseVersion;
       const response = await fetch(LOG_AZURE_DEVOPS_VERSION_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
