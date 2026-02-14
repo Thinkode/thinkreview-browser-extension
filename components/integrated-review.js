@@ -567,9 +567,19 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Add event listener for the bug report button first
   const bugReportButton = document.getElementById('bug-report-btn');
   if (bugReportButton) {
-    bugReportButton.addEventListener('click', (e) => {
+    bugReportButton.addEventListener('click', async (e) => {
       e.stopPropagation(); // Prevent triggering the header click event
       dbgLog('Bug report button clicked');
+      
+      // Track bug report button click
+      try {
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule.trackUserAction('bug_report_clicked', {
+          context: 'integrated_review_panel',
+          location: 'header'
+        }).catch(() => {});
+      } catch (error) { /* silent */ }
+      
       window.open('https://thinkreview.dev/bug-report', '_blank');
     });
   }
@@ -675,9 +685,19 @@ async function createIntegratedReviewPanel(patchUrl) {
     languageSelector.addEventListener('touchend', blockEvent, true);
     
     // Save language preference when changed
-    languageSelector.addEventListener('change', (e) => {
+    languageSelector.addEventListener('change', async (e) => {
       e.stopPropagation(); // Prevent triggering the header click event
       const selectedLanguage = e.target.value;
+      
+      // Track language change
+      try {
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule.trackUserAction('language_changed', {
+          context: 'integrated_review_panel',
+          language: selectedLanguage
+        }).catch(() => {});
+      } catch (error) { /* silent */ }
+      
       setLanguagePreference(selectedLanguage);
       dbgLog('Language preference updated to:', selectedLanguage);
     });
@@ -1464,7 +1484,15 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   const generatePrDescBtn = document.getElementById('generate-pr-description-btn');
   if (generatePrDescBtn && !generatePrDescBtn.dataset.prDescBound) {
     generatePrDescBtn.dataset.prDescBound = '1';
-    generatePrDescBtn.addEventListener('click', () => {
+    generatePrDescBtn.addEventListener('click', async () => {
+      // Track PR description generation
+      try {
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule.trackUserAction('generate_pr_description_clicked', {
+          context: 'integrated_review_panel'
+        }).catch(() => {});
+      } catch (error) { /* silent */ }
+      
       handleSendMessage('Write a concise PR/MR description suitable for the merge request description field. Output only the description text, ready to paste.');
     });
   }
@@ -1492,7 +1520,16 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
         contentDiv.style.cursor = 'pointer';
         
         // Add click handler for content
-        contentDiv.addEventListener('click', () => {
+        contentDiv.addEventListener('click', async () => {
+          // Track review item click
+          try {
+            const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+            analyticsModule.trackUserAction('review_item_clicked', {
+              context: 'integrated_review_panel',
+              category: category
+            }).catch(() => {});
+          } catch (error) { /* silent */ }
+          
           // Extract plain text from the item
           const itemText = extractPlainText(itemHtml).trim();
           
@@ -1637,9 +1674,18 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   chatInput.parentNode.replaceChild(newChatInput, chatInput);
   chatInput = newChatInput;
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const messageText = chatInput.value.trim();
     if (messageText !== '' && messageText.length <= 2000) {
+      // Track chat message sent
+      try {
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule.trackUserAction('chat_message_sent', {
+          context: 'integrated_review_panel',
+          message_length: messageText.length
+        }).catch(() => {});
+      } catch (error) { /* silent */ }
+      
       handleSendMessage(messageText);
       chatInput.value = '';
     } else if (messageText.length > 2000) {
@@ -1701,9 +1747,19 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   // Add click handlers for suggested questions
   const suggestedQuestionButtons = document.querySelectorAll('.thinkreview-suggested-question-btn');
   suggestedQuestionButtons.forEach(button => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       const question = button.getAttribute('data-question');
       if (question) {
+        // Track suggested question click
+        try {
+          const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+          const isStaticQuestion = button.classList.contains('static-question');
+          analyticsModule.trackUserAction('suggested_question_clicked', {
+            context: 'integrated_review_panel',
+            question_type: isStaticQuestion ? 'static' : 'dynamic'
+          }).catch(() => {});
+        } catch (error) { /* silent */ }
+        
         // Set the question in the input field
         chatInput.value = question;
         updateCharCounter();
