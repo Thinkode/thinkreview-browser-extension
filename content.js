@@ -476,11 +476,10 @@ async function checkAndTriggerReviewForNewPR() {
     isReviewInProgress = false;
     
     // Trigger new review only if auto-start is enabled
-    getAutoStartReview().then((autoStart) => {
-      if (autoStart && isSupportedPage()) {
-        setTimeout(() => fetchAndDisplayCodeReview(), 500);
-      }
-    });
+    const autoStart = await getAutoStartReview();
+    if (autoStart && isSupportedPage()) {
+      setTimeout(() => fetchAndDisplayCodeReview(), 500);
+    }
   } else if (currentPRId === null && newPRId) {
     // First time detecting a PR - just track it
     currentPRId = newPRId;
@@ -539,7 +538,7 @@ async function injectIntegratedReviewPanel(opts = {}) {
   currentPRId = getCurrentPRId();
   
   // Trigger the code review only when: user explicitly requested (button click) or auto-start is enabled
-  const shouldTrigger = opts.triggerReview === true || (opts.triggerReview !== true && await getAutoStartReview());
+  const shouldTrigger = opts.triggerReview === true || await getAutoStartReview();
   if (shouldTrigger) {
     fetchAndDisplayCodeReview();
   }
