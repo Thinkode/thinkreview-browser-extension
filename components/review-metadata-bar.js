@@ -317,4 +317,122 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
   container.classList.remove('gl-hidden');
 }
 
+/**
+ * Format character count as human-readable size (treat 1 char ≈ 1 byte for display).
+ * @param {number} chars - Character count
+ * @returns {string}
+ */
+function formatCharsAsSize(chars) {
+  if (typeof chars !== 'number' || Number.isNaN(chars) || chars < 0) return '';
+  if (chars < 1024) return `${chars} B`;
+  if (chars < 1024 * 1024) return `${(chars / 1024).toFixed(1)} KB`;
+  return `${(chars / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * Render the Ollama-specific metadata bar (patch size, truncation, Switch to Cloud, model dropdown).
+ * @param {HTMLElement} container - The container element for the banner
+ * @param {Object|null} ollamaMeta - { patchSizeChars, patchSentChars, wasTruncated, model }
+ * @param {Object} callbacks - { onSwitchToCloud(), getModels?(): Promise<Array<{name:string}>>, onModelChange?(modelName: string) }
+ */
+export function renderOllamaMetadataBar(container, ollamaMeta, callbacks = {}) {
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  if (!ollamaMeta || typeof ollamaMeta.patchSizeChars !== 'number') {
+    container.classList.add('gl-hidden');
+    return;
+  }
+
+  const { patchSizeChars, patchSentChars, wasTruncated, model } = ollamaMeta;
+  const onSwitchToCloud = typeof callbacks.onSwitchToCloud === 'function' ? callbacks.onSwitchToCloud : () => {};
+  const getModels = typeof callbacks.getModels === 'function' ? callbacks.getModels : () => Promise.resolve([]);
+  const onModelChange = typeof callbacks.onModelChange === 'function' ? callbacks.onModelChange : () => {};
+
+  const banner = document.createElement('div');
+  banner.className = 'thinkreview-patch-size-banner thinkreview-ollama-metadata-banner';
+
+  const topRow = document.createElement('div');
+  topRow.className = 'thinkreview-patch-size-top-row';
+
+  const content = document.createElement('div');
+  content.className = 'thinkreview-patch-size-content';
+  const patchSizeStr = formatCharsAsSize(patchSizeChars);
+  const truncatedSizeStr = formatCharsAsSize(patchSentChars);
+  const parts = [`Original patch: ${patchSizeStr}`];
+  if (wasTruncated && truncatedSizeStr) {
+    parts.push(`Truncated patch: ${truncatedSizeStr}`);
+  }
+  content.textContent = parts.join(' • ');
+
+  topRow.appendChild(content);
+
+  const switchToCloudBtn = document.createElement('button');
+  switchToCloudBtn.type = 'button';
+  switchToCloudBtn.className = 'thinkreview-ollama-switch-to-cloud-btn';
+  switchToCloudBtn.textContent = 'Switch to Cloud AI';
+  switchToCloudBtn.setAttribute('aria-label', 'Switch to Cloud AI and regenerate review');
+  switchToCloudBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    onSwitchToCloud();
+  });
+  topRow.appendChild(switchToCloudBtn);
+
+  const modelSelectWrap = document.createElement('div');
+  modelSelectWrap.className = 'thinkreview-ollama-model-wrap';
+  const modelLabel = document.createElement('span');
+  modelLabel.className = 'thinkreview-ollama-model-label';
+  modelLabel.textContent = 'Model: ';
+  const modelSelect = document.createElement('select');
+  modelSelect.className = 'thinkreview-ollama-model-select';
+  modelSelect.setAttribute('aria-label', 'Change Ollama model');
+  modelSelectWrap.appendChild(modelLabel);
+  modelSelectWrap.appendChild(modelSelect);
+  topRow.appendChild(modelSelectWrap);
+
+  const currentModel = model || '';
+  modelSelect.innerHTML = '';
+  const placeholderOpt = document.createElement('option');
+  placeholderOpt.value = '';
+  placeholderOpt.textContent = currentModel || 'Loading…';
+  placeholderOpt.disabled = true;
+  modelSelect.appendChild(placeholderOpt);
+
+  getModels()
+    .then((models) => {
+      modelSelect.innerHTML = '';
+      const options = Array.isArray(models) ? models : [];
+      if (options.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = currentModel;
+        opt.textContent = currentModel || 'No models';
+        modelSelect.appendChild(opt);
+        return;
+      }
+      options.forEach((m) => {
+        const name = m.name || m;
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        if (name === currentModel) opt.selected = true;
+        modelSelect.appendChild(opt);
+      });
+      modelSelect.addEventListener('change', (e) => {
+        const selected = e.target.value;
+        if (selected) onModelChange(selected);
+      });
+    })
+    .catch(() => {
+      const opt = document.createElement('option');
+      opt.value = currentModel;
+      opt.textContent = currentModel || 'Check Ollama';
+      modelSelect.appendChild(opt);
+    });
+
+  banner.appendChild(topRow);
+  container.appendChild(banner);
+  container.classList.remove('gl-hidden');
+}
+
 

@@ -48,6 +48,25 @@ let isReviewInProgress = false;
 // Track current PR ID for detecting navigation to new PRs
 let currentPRId = null;
 
+// Listen for Ollama metadata bar actions (switch to cloud, change model)
+document.addEventListener('thinkreview-switch-to-cloud', async () => {
+  await chrome.storage.local.set({ aiProvider: 'cloud' });
+  if (typeof fetchAndDisplayCodeReview === 'function') {
+    fetchAndDisplayCodeReview(true);
+  }
+});
+
+document.addEventListener('thinkreview-ollama-model-changed', async (e) => {
+  const model = e.detail?.model;
+  if (!model) return;
+  const { ollamaConfig } = await chrome.storage.local.get(['ollamaConfig']);
+  const config = ollamaConfig || { url: 'http://localhost:11434', model: '' };
+  await chrome.storage.local.set({ ollamaConfig: { ...config, model } });
+  if (typeof fetchAndDisplayCodeReview === 'function') {
+    fetchAndDisplayCodeReview(true);
+  }
+});
+
 // Import platform detection services
 let platformDetector = null;
 let azureDevOpsFetcher = null;
@@ -1098,8 +1117,8 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       data.review.summary = (data.review.summary || '') + '\n\n' + filterSummaryText;
     }
     
-    // Display the review results with patchSize, subscriptionType, modelUsed, and cached status if available
-    displayIntegratedReview(data.review, codeContent, data.patchSize, data.subscriptionType, data.modelUsed, data.cached);
+    // Display the review results with patchSize, subscriptionType, modelUsed, cached status, provider, and ollamaMeta if available
+    displayIntegratedReview(data.review, codeContent, data.patchSize, data.subscriptionType, data.modelUsed, data.cached, bgResponse.provider, data.ollamaMeta);
   } catch (error) {
     dbgWarn('Error during code review:', error);
     

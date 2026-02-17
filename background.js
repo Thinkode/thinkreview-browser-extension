@@ -481,6 +481,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // Return list of available Ollama models for the metadata bar dropdown
+  if (message.type === 'GET_OLLAMA_MODELS') {
+    (async () => {
+      try {
+        const { ollamaConfig } = await chrome.storage.local.get(['ollamaConfig']);
+        const url = ollamaConfig?.url || 'http://localhost:11434';
+        const result = await OllamaService.getAvailableModels(url);
+        if (result.error) {
+          sendResponse({ models: [], error: result.error });
+          return;
+        }
+        sendResponse({ models: result.models || [] });
+      } catch (error) {
+        dbgWarn('GET_OLLAMA_MODELS error:', error);
+        sendResponse({ models: [], error: error?.message || String(error) });
+      }
+    })();
+    return true;
+  }
+
   // Bitbucket patch/diff fetch (avoids page CSP blocking connect-src). Logic in services/bitbucket-api.js.
   if (message.type === 'FETCH_BITBUCKET_PATCH') {
     const { url } = message;
