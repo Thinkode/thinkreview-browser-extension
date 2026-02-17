@@ -82,6 +82,12 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
 
       const prompt = promptBeforePatch + patchToUse + promptAfterPatch;
 
+      // Metadata for integrated review panel (patch size, truncation, model)
+      const patchSizeChars = patchContent.length;
+      const patchSentChars = patchToUse.length;
+      const wasTruncated = patchContent.length > patchToUse.length;
+      const ollamaMeta = { patchSizeChars, patchSentChars, wasTruncated, model };
+
       // Structured output schema so Ollama returns valid JSON matching our review format
       const reviewFormatSchema = {
         type: 'object',
@@ -205,7 +211,8 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
               provider: 'ollama',
               model: model
             },
-            raw: parsedReview // Keep original for debugging
+            raw: parsedReview, // Keep original for debugging
+            ollamaMeta
           };
         } else {
           throw new Error('No JSON found in response');
@@ -236,7 +243,8 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
             model: model,
             note: 'Model did not return structured JSON. See raw response below.'
           },
-          rawResponse: reviewText
+          rawResponse: reviewText,
+          ollamaMeta
         };
       }
     } catch (error) {

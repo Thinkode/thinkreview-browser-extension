@@ -1302,7 +1302,7 @@ async function handleSendMessage(messageText) {
   }
 }
 
-async function displayIntegratedReview(review, patchContent, patchSize = null, subscriptionType = null, modelUsed = null, isCached = false) {
+async function displayIntegratedReview(review, patchContent, patchSize = null, subscriptionType = null, modelUsed = null, isCached = false, provider = null, ollamaMeta = null) {
   // Ensure copy button utils are loaded
   if (!attachCopyButtonToItem) {
     await initCopyButtonUtils();
@@ -1351,14 +1351,35 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
   reviewContent.classList.remove('gl-hidden');
 
-  // Render patch size banner if patchSize data is available
+  // Render patch size / metadata banner (Ollama-specific bar vs cloud bar)
   if (patchSizeBanner) {
     try {
       const metadataModule = await import('./review-metadata-bar.js');
-      metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionType, modelUsed, isCached);
+      if (provider === 'ollama' && ollamaMeta) {
+        metadataModule.renderOllamaMetadataBar(patchSizeBanner, ollamaMeta, {
+          onSwitchToCloud() {
+            document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
+          },
+          getModels() {
+            return new Promise((resolve) => {
+              chrome.runtime.sendMessage({ type: 'GET_OLLAMA_MODELS' }, (response) => {
+                if (chrome.runtime.lastError || !response) {
+                  resolve([]);
+                  return;
+                }
+                resolve(response.models || []);
+              });
+            });
+          },
+          onModelChange(modelName) {
+            document.dispatchEvent(new CustomEvent('thinkreview-ollama-model-changed', { detail: { model: modelName } }));
+          }
+        });
+      } else {
+        metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionType, modelUsed, isCached);
+      }
     } catch (error) {
       dbgWarn('Failed to load review metadata bar:', error);
-      // Best-effort: hide banner container on failure
       patchSizeBanner.classList.add('gl-hidden');
     }
   }
