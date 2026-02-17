@@ -1424,31 +1424,26 @@ async function saveAzureToken() {
   const saveButton = document.getElementById('save-token-btn');
   const token = tokenInput.value.trim();
   
+  const originalButtonText = saveButton.textContent;
   try {
-    // Show loading state
-    const originalButtonText = saveButton.textContent;
     saveButton.textContent = 'Saving...';
-    
-    // Save token to storage
+    saveButton.disabled = true;
+
     await chrome.storage.local.set({ azureDevOpsToken: token });
-    
-    // Update UI and hide message after 5 seconds
+
     updateTokenStatus('Token saved successfully', 'success');
     setTimeout(clearTokenStatus, 5000);
-    
-    // Mask the token in the input field
+
     tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
     tokenInput.type = 'password';
-    
-    // Reset button
-    saveButton.textContent = originalButtonText;
-    
+
     dbgLog('Azure DevOps token saved successfully');
-    
   } catch (error) {
     dbgWarn('Error saving Azure token:', error);
     updateTokenStatus('Error saving token. Please try again.', 'error');
-    saveButton.textContent = 'Save Token';
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = originalButtonText;
   }
 }
 
