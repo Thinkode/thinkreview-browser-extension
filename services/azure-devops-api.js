@@ -1,6 +1,7 @@
 // azure-devops-api.js
 // Azure DevOps API service for fetching pull request data and code changes
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
+import { getRequestApiVersion, DEFAULT_API_VERSION } from './azure-api-versions/index.js';
 
 
 
@@ -24,6 +25,7 @@ export class AzureDevOpsAPI {
   constructor() {
     this.baseUrl = null;
     this.token = null;
+    this.apiVersion = DEFAULT_API_VERSION;
     this.isInitialized = false;
   }
 
@@ -35,8 +37,9 @@ export class AzureDevOpsAPI {
    * @param {string} repository - Repository name
    * @param {string} hostname - Hostname (optional, used to determine base URL for visualstudio.com domains)
    * @param {string} protocol - Protocol (optional, e.g. 'http:' or 'https:'; used for custom/on-prem to match page)
+   * @param {string|null} apiVersion - API version (optional, e.g. '4.1' for on-prem; default 7.1)
    */
-  async init(token, organization, project, repository, hostname = null, protocol = null) {
+  async init(token, organization, project, repository, hostname = null, protocol = null, apiVersion = null) {
     if (!token) {
       throw new Error('Azure DevOps token is required');
     }
@@ -65,6 +68,7 @@ export class AzureDevOpsAPI {
 
     // Initialize with repository name first, then resolve ID asynchronously
     this.repositoryId = repository;
+    this.apiVersion = apiVersion != null ? getRequestApiVersion(apiVersion) : DEFAULT_API_VERSION;
     this.isInitialized = true;
     
     // Get repository ID for more reliable API calls (async, non-blocking)
@@ -103,7 +107,7 @@ export class AzureDevOpsAPI {
 
     // Handle query parameters properly
     const separator = endpoint.includes('?') ? '&' : '?';
-    const url = `${this.baseUrl}/${this.project}/_apis/${endpoint}${separator}api-version=7.1`;
+    const url = `${this.baseUrl}/${this.project}/_apis/${endpoint}${separator}api-version=${this.apiVersion}`;
     
     const defaultOptions = {
       headers: {
@@ -679,6 +683,29 @@ export function hasValidAzureOnPremiseFields(origin) {
         typeof a === 'string' && a.trim() !== '' &&
         typeof b === 'string' && b.trim() !== ''
       );
+    });
+  });
+}
+
+/**
+ * Get cached API version string for an origin (for use in API request query param).
+ * @param {string} origin - e.g. window.location.origin
+ * @returns {Promise<string|null>} Cached azureOnPremiseApiVersion or null
+ */
+export function getCachedAzureApiVersion(origin) {
+  if (!origin || typeof chrome === 'undefined' || !chrome.storage?.local) {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    chrome.storage.local.get([AZURE_DEVOPS_SERVER_VERSIONS_KEY], (result) => {
+      const map = result[AZURE_DEVOPS_SERVER_VERSIONS_KEY] || {};
+      const raw = map[origin];
+      if (raw == null || typeof raw !== 'object' || typeof raw.azureOnPremiseApiVersion !== 'string') {
+        resolve(null);
+        return;
+      }
+      const v = raw.azureOnPremiseApiVersion.trim();
+      resolve(v !== '' ? v : null);
     });
   });
 }

@@ -3,8 +3,8 @@
 
 
 
-import { azureDevOpsAPI } from './azure-devops-api.js';
-
+import { azureDevOpsAPI, getCachedAzureApiVersion } from './azure-devops-api.js';
+import { getRequestApiVersion, DEFAULT_API_VERSION } from './azure-api-versions/index.js';
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 /**
  * Azure DevOps Code Fetcher
@@ -27,7 +27,16 @@ export class AzureDevOpsFetcher {
     }
 
     this.prInfo = prInfo;
-    
+
+    const origin = `${prInfo.protocol}//${prInfo.hostname}`;
+    const isCloud = prInfo.hostname?.includes('dev.azure.com') || prInfo.hostname?.includes('visualstudio.com');
+    let apiVersion = DEFAULT_API_VERSION;
+    if (!isCloud) {
+      const cached = await getCachedAzureApiVersion(origin);
+      apiVersion = getRequestApiVersion(cached);
+      dbgLog('Azure DevOps on-prem API version:', { origin, cached, apiVersion });
+    }
+
     // Initialize the API service
     await azureDevOpsAPI.init(
       token,
@@ -35,7 +44,8 @@ export class AzureDevOpsFetcher {
       prInfo.project,
       prInfo.repository.name,
       prInfo.hostname,
-      prInfo.protocol
+      prInfo.protocol,
+      apiVersion
     );
 
     this.isInitialized = true;
