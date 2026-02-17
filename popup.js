@@ -1396,19 +1396,6 @@ function setupAzureEventListeners() {
       saveAzureToken();
     }
   });
-  
-  // Input validation
-  tokenInput.addEventListener('input', () => {
-    const isValid = validateTokenInput(tokenInput.value.trim());
-    saveButton.disabled = !isValid;
-  });
-}
-
-function validateTokenInput(token) {
-  if (!token) return false;
-  // Azure DevOps PATs: allow typical base64-style characters, no length requirement
-  const tokenRegex = /^[A-Za-z0-9+/=_-]+$/;
-  return tokenRegex.test(token);
 }
 
 async function loadAzureToken() {
@@ -1417,10 +1404,7 @@ async function loadAzureToken() {
     const token = result.azureDevOpsToken;
     
     if (token) {
-      // Show that token is saved (but don't display the actual token)
-      updateTokenStatus('Token saved successfully', 'success');
-      
-      // Pre-fill the input with masked token for user reference
+      clearTokenStatus();
       const tokenInput = document.getElementById('azure-token-input');
       if (tokenInput) {
         tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
@@ -1440,40 +1424,26 @@ async function saveAzureToken() {
   const saveButton = document.getElementById('save-token-btn');
   const token = tokenInput.value.trim();
   
-  if (!validateTokenInput(token)) {
-    updateTokenStatus('Please enter a valid Azure DevOps Personal Access Token', 'error');
-    return;
-  }
-  
+  const originalButtonText = saveButton.textContent;
   try {
-    // Show loading state
-    const originalButtonText = saveButton.textContent;
     saveButton.textContent = 'Saving...';
     saveButton.disabled = true;
-    
-    // Save token to storage
+
     await chrome.storage.local.set({ azureDevOpsToken: token });
-    
-    // Update UI
+
     updateTokenStatus('Token saved successfully', 'success');
-    
-    // Mask the token in the input field
+    setTimeout(clearTokenStatus, 5000);
+
     tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
     tokenInput.type = 'password';
-    
-    // Reset button
-    saveButton.textContent = originalButtonText;
-    saveButton.disabled = true;
-    
+
     dbgLog('Azure DevOps token saved successfully');
-    
   } catch (error) {
     dbgWarn('Error saving Azure token:', error);
     updateTokenStatus('Error saving token. Please try again.', 'error');
-    
-    // Reset button
-    saveButton.textContent = 'Save Token';
+  } finally {
     saveButton.disabled = false;
+    saveButton.textContent = originalButtonText;
   }
 }
 
@@ -1482,6 +1452,14 @@ function updateTokenStatus(message, type) {
   if (statusDiv) {
     statusDiv.textContent = message;
     statusDiv.className = `token-status ${type}`;
+  }
+}
+
+function clearTokenStatus() {
+  const statusDiv = document.getElementById('token-status');
+  if (statusDiv) {
+    statusDiv.textContent = '';
+    statusDiv.className = 'token-status';
   }
 }
 
