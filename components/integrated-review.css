@@ -1312,6 +1312,68 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   outline: none;
 }
 
+/* Ollama truncated-patch: info button + custom tooltip */
+#gitlab-mr-integrated-review .thinkreview-ollama-truncated-tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-truncated-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid rgba(107, 79, 187, 0.6);
+  border-radius: 50%;
+  background: rgba(107, 79, 187, 0.25);
+  color: #c5b3ff;
+  font-size: 11px;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-truncated-info-btn:hover,
+#gitlab-mr-integrated-review .thinkreview-ollama-truncated-info-btn:focus {
+  background: rgba(107, 79, 187, 0.4);
+  border-color: rgba(107, 79, 187, 0.8);
+  color: #d4c5ff;
+  outline: none;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-truncated-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  transform: translateY(4px);
+  margin-top: 2px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+  max-width: 260px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e1e4e8;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1000;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-truncated-tooltip.thinkreview-tooltip-visible {
+  opacity: 1;
+}
+
 /* Upgrade message for forced truncation on free tier */
 #gitlab-mr-integrated-review .thinkreview-upgrade-message {
   width: 100%;

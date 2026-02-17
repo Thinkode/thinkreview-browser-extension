@@ -360,11 +360,45 @@ export function renderOllamaMetadataBar(container, ollamaMeta, callbacks = {}) {
   content.className = 'thinkreview-patch-size-content';
   const patchSizeStr = formatCharsAsSize(patchSizeChars);
   const truncatedSizeStr = formatCharsAsSize(patchSentChars);
-  const parts = [`Original patch: ${patchSizeStr}`];
+  content.appendChild(document.createTextNode(`Original patch: ${patchSizeStr}`));
   if (wasTruncated && truncatedSizeStr) {
-    parts.push(`Truncated patch: ${truncatedSizeStr}`);
+    content.appendChild(document.createTextNode(' • '));
+    const tooltipMsg = "The patch was truncated to respect this model's context length. Switch to Cloud AI to get full review.";
+    const truncatedWrapper = document.createElement('span');
+    truncatedWrapper.className = 'thinkreview-ollama-truncated-tooltip-wrapper';
+    const truncatedSpan = document.createElement('span');
+    truncatedSpan.className = 'thinkreview-ollama-truncated-label';
+    truncatedSpan.textContent = `Truncated patch: ${truncatedSizeStr}`;
+    const infoBtn = document.createElement('button');
+    infoBtn.type = 'button';
+    infoBtn.className = 'thinkreview-ollama-truncated-info-btn';
+    infoBtn.textContent = 'i';
+    infoBtn.setAttribute('aria-label', 'Why was the patch truncated?');
+    const tooltipEl = document.createElement('span');
+    tooltipEl.className = 'thinkreview-ollama-truncated-tooltip';
+    tooltipEl.setAttribute('aria-hidden', 'true');
+    tooltipEl.textContent = tooltipMsg;
+    truncatedWrapper.appendChild(truncatedSpan);
+    truncatedWrapper.appendChild(infoBtn);
+    truncatedWrapper.appendChild(tooltipEl);
+    let tooltipTimeout;
+    const showTooltip = () => {
+      tooltipTimeout = setTimeout(() => tooltipEl.classList.add('thinkreview-tooltip-visible'), 200);
+    };
+    const hideTooltip = () => {
+      clearTimeout(tooltipTimeout);
+      tooltipEl.classList.remove('thinkreview-tooltip-visible');
+    };
+    infoBtn.addEventListener('mouseenter', showTooltip);
+    infoBtn.addEventListener('mouseleave', hideTooltip);
+    infoBtn.addEventListener('focus', showTooltip);
+    infoBtn.addEventListener('blur', hideTooltip);
+    infoBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      tooltipEl.classList.toggle('thinkreview-tooltip-visible');
+    });
+    content.appendChild(truncatedWrapper);
   }
-  content.textContent = parts.join(' • ');
 
   topRow.appendChild(content);
 
