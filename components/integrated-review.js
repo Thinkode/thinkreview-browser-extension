@@ -905,15 +905,10 @@ function appendToChatLog(sender, message, aiResponseText = null) {
     messageWrapper.setAttribute('data-ai-response', aiResponseText);
   }
 
-  // Check if this is a typing indicator (spinner message) - skip copy button for those
-  // Typing indicators contain HTML with gl-spinner class or specific thinking messages
-  const isTypingIndicator = message.includes('gl-spinner') || 
-                            message.includes('Thinking about') || 
-                            message.includes('Analyzing') || 
-                            message.includes('Crafting') || 
-                            message.includes('Reviewing') || 
-                            message.includes('Processing') || 
-                            message.includes('Working on');
+  // Check if this is a typing indicator (spinner message) - skip copy button only for those
+  // Typing indicators are the ones we create with gl-spinner; don't use generic words like
+  // "Reviewing" or "Processing" or real AI responses would incorrectly skip the copy button
+  const isTypingIndicator = message.includes('gl-spinner');
 
   // Create wrapper for message bubble to support copy button
   const messageBubbleWrapper = document.createElement('div');
@@ -1251,7 +1246,11 @@ async function handleSendMessage(messageText) {
     
     // Store raw response text for feedback querying (use original response before markdown processing)
     const rawResponseText = responseText;
-    
+
+    // Ensure copy button utils are loaded so the response has a copy button (e.g. for Generate PR description)
+    if (!attachCopyButtonToItem) {
+      await initCopyButtonUtils();
+    }
     appendToChatLog('ai', responseText, rawResponseText);
     conversationHistory.push({ role: 'model', content: responseText });
 
