@@ -892,8 +892,9 @@ function initializeResizeHandle(container) {
  * @param {string} sender - 'user' or 'ai'.
  * @param {string} message - The message content (can be HTML or Markdown).
  * @param {string} [aiResponseText] - Optional raw AI response text for feedback tracking (conversations only).
+ * @param {boolean} [isTypingIndicator=false] - If true, treat as typing indicator (no copy button). Use instead of parsing content.
  */
-function appendToChatLog(sender, message, aiResponseText = null) {
+function appendToChatLog(sender, message, aiResponseText = null, isTypingIndicator = false) {
   const chatLog = document.getElementById('chat-log');
   if (!chatLog) return;
 
@@ -904,11 +905,6 @@ function appendToChatLog(sender, message, aiResponseText = null) {
   if (aiResponseText && sender === 'ai') {
     messageWrapper.setAttribute('data-ai-response', aiResponseText);
   }
-
-  // Check if this is a typing indicator (spinner message) - skip copy button only for those
-  // Typing indicators are the ones we create with gl-spinner; don't use generic words like
-  // "Reviewing" or "Processing" or real AI responses would incorrectly skip the copy button
-  const isTypingIndicator = message.includes('gl-spinner');
 
   // Create wrapper for message bubble to support copy button
   const messageBubbleWrapper = document.createElement('div');
@@ -1212,7 +1208,7 @@ async function handleSendMessage(messageText) {
   ];
   const randomMessage = thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)];
   
-  appendToChatLog('ai', `<span class="gl-spinner gl-spinner-sm"></span> ${randomMessage}`);
+  appendToChatLog('ai', `<span class="gl-spinner gl-spinner-sm"></span> ${randomMessage}`, null, true);
 
   try {
     // Get the user's language preference
