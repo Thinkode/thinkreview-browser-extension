@@ -5,6 +5,17 @@ import { dbgLog, dbgWarn, dbgError } from '../../utils/logger.js';
 let CloudService = null;
 
 // Dynamically import the CloudService
+/** Escapes a string for safe insertion into HTML text and attributes. Escapes &, <, >, ", ' to prevent XSS and attribute injection. */
+function escapeHtml(str) {
+  if (str == null || typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function loadCloudService() {
   try {
     const module = await import('../../services/cloud-service.js');
@@ -108,6 +119,14 @@ class GoogleSignIn extends HTMLElement {
   }
 
   async render() {
+    const displayName = this.user
+      ? (this.user.name || this.user.displayName || this.user.email || 'Signed in')
+      : '';
+    const avatarUrl = this.user ? (this.user.picture || this.user.photoURL) : '';
+    const initial = displayName ? displayName.charAt(0).toUpperCase() : '?';
+    const safeName = escapeHtml(displayName);
+    const safeInitial = escapeHtml(initial);
+
     this.shadowRoot.innerHTML = `
       <style>
         :host {
@@ -164,10 +183,25 @@ class GoogleSignIn extends HTMLElement {
           color: #3c4043;
           font-size: 14px;
         }
-        .user-avatar {
+        .user-avatar,
+        .user-avatar-initials {
           width: 24px;
           height: 24px;
           border-radius: 50%;
+          flex-shrink: 0;
+        }
+        .user-avatar-initials {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #5f6368;
+          color: white;
+          font-size: 12px;
+          font-weight: 500;
+        }
+        .user-avatar.hidden,
+        .user-avatar-initials.hidden {
+          display: none !important;
         }
         .signout-button {
           padding: 0 16px;
@@ -191,8 +225,12 @@ class GoogleSignIn extends HTMLElement {
       ${this.user ? `
         <div class="user-container">
           <div class="user-info">
-            <img src="${this.user.picture}" alt="${this.user.name}" class="user-avatar">
-            <span>${this.user.name}</span>
+            ${avatarUrl
+              ? `<img src="${avatarUrl.replace(/"/g, '&quot;')}" alt="${safeName}" class="user-avatar" data-avatar-img>
+             <span class="user-avatar-initials hidden">${safeInitial}</span>`
+              : `<span class="user-avatar-initials">${safeInitial}</span>`
+            }
+            <span>${safeName}</span>
           </div>
           <button class="gitlab-mr-btn signout-button" id="signout" style="display: none;">Sign out</button>
         </div>
@@ -219,6 +257,14 @@ class GoogleSignIn extends HTMLElement {
 
     if (this.user) {
       this.shadowRoot.querySelector('#signout').addEventListener('click', () => this.signOut());
+      const avatarImg = this.shadowRoot.querySelector('.user-avatar[data-avatar-img]');
+      if (avatarImg) {
+        avatarImg.addEventListener('error', () => {
+          avatarImg.classList.add('hidden');
+          const initials = avatarImg.nextElementSibling;
+          if (initials) initials.classList.remove('hidden');
+        });
+      }
     } else {
       this.shadowRoot.querySelector('#signin').addEventListener('click', () => this.signIn());
     }
