@@ -443,13 +443,13 @@ export class AzureDevOpsAPI {
    * @param {string} baseCommit - Base commit ID
    * @param {string} targetCommit - Target commit ID
    * @param {string} filePath - File path
+   * @param {string} [changeType] - 'add' | 'edit' | 'delete'; for 'add' we skip base fetch (file didn't exist)
    * @returns {Promise<string>} File diff content
    */
-  async getGitFileDiff(baseCommit, targetCommit, filePath) {
+  async getGitFileDiff(baseCommit, targetCommit, filePath, changeType = null) {
     try {
-      dbgLog('Fetching Git file diff:', { baseCommit, targetCommit, filePath });
+      dbgLog('Fetching Git file diff:', { baseCommit, targetCommit, filePath, changeType });
       
-      // Try the Git compare endpoint
       const endpoint = `git/repositories/${this.repositoryId}/items`;
       const params = new URLSearchParams({
         path: filePath,
@@ -461,27 +461,26 @@ export class AzureDevOpsAPI {
       const response = await this.makeRequest(`${endpoint}?${params}`);
       const data = await response.json();
       
-      // Get the file content from the target commit
       const targetContent = data.content || '';
       
-      // Now get the file content from the base commit
+      // For 'add' the file didn't exist in base commit - don't request it (would 404)
       let baseContent = '';
-      try {
-        const baseResponse = await this.makeRequest(`${endpoint}?${new URLSearchParams({
-          path: filePath,
-          version: baseCommit,
-          versionType: 'commit',
-          includeContent: 'true'
-        })}`);
-        const baseData = await baseResponse.json();
-        baseContent = baseData.content || '';
-      } catch (baseError) {
-        baseContent = '';
+      if (changeType !== 'add') {
+        try {
+          const baseResponse = await this.makeRequest(`${endpoint}?${new URLSearchParams({
+            path: filePath,
+            version: baseCommit,
+            versionType: 'commit',
+            includeContent: 'true'
+          })}`);
+          const baseData = await baseResponse.json();
+          baseContent = baseData.content || '';
+        } catch (baseError) {
+          baseContent = '';
+        }
       }
       
-      // Create diff from the two file contents
       const diff = this.createSimpleDiff(filePath, baseContent, targetContent);
-      
       return diff;
     } catch (error) {
       dbgWarn('Failed to get Git file diff:', error);

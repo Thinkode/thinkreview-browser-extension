@@ -232,7 +232,7 @@ export class AzureDevOpsFetcher {
           
           if (sourceCommit && targetCommit) {
             dbgLog('Fetching individual file diff for:', filePath);
-            diffContent = await azureDevOpsAPI.getGitFileDiff(targetCommit, sourceCommit, filePath);
+            diffContent = await azureDevOpsAPI.getGitFileDiff(targetCommit, sourceCommit, filePath, change.changeType);
           }
         } catch (error) {
           dbgWarn('Failed to fetch Git-based diff for:', filePath, error);
