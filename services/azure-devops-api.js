@@ -268,9 +268,8 @@ export class AzureDevOpsAPI {
   }
 
   /**
-   * Get pull request diff between source and target branches
-   * @param {Object} prDetails - Pull request details
-   * @returns {Promise<Object>} Pull request diff data
+   * Get pull request diff between source and target branches.
+   * Uses documented format: diffs/commits with baseVersion, targetVersion, baseVersionType, targetVersionType (no includeFileDiff).
    */
   async getPullRequestDiff(prDetails) {
     const sourceBranch = prDetails.sourceRefName?.replace('refs/heads/', '');
@@ -283,9 +282,11 @@ export class AzureDevOpsAPI {
     const endpoint = `git/repositories/${this.repositoryId}/diffs/commits`;
     const params = new URLSearchParams({
       baseVersion: targetBranch,
+      baseVersionType: 'branch',
       targetVersion: sourceBranch,
+      targetVersionType: 'branch',
       diffCommonCommit: 'true',
-      includeFileDiff: 'true'
+      $top: '1000'
     });
 
     const response = await this.makeRequest(`${endpoint}?${params}`);
@@ -401,10 +402,8 @@ export class AzureDevOpsAPI {
   }
 
   /**
-   * Get Git diff between two commits using Git API
-   * @param {string} baseCommit - Base commit ID
-   * @param {string} targetCommit - Target commit ID
-   * @returns {Promise<Object>} Git diff data
+   * Get Git diff between two commits using Git API.
+   * Uses documented format: diffs/commits with baseVersion, targetVersion, baseVersionType, targetVersionType (no includeFileDiff).
    */
   async getGitDiff(baseCommit, targetCommit) {
     try {
@@ -413,10 +412,11 @@ export class AzureDevOpsAPI {
       const endpoint = `git/repositories/${this.repositoryId}/diffs/commits`;
       const params = new URLSearchParams({
         baseVersion: baseCommit,
+        baseVersionType: 'commit',
         targetVersion: targetCommit,
+        targetVersionType: 'commit',
         diffCommonCommit: 'true',
-        includeFileDiff: 'true',
-        top: '1000' // Get more files
+        $top: '1000'
       });
 
       const response = await this.makeRequest(`${endpoint}?${params}`);

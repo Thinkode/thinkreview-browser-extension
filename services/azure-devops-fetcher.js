@@ -139,9 +139,14 @@ export class AzureDevOpsFetcher {
       }
     };
 
-    // Process each changed file
-    for (const change of changes.changeEntries || []) {
+    // Process each changed file (diffs/commits returns "changes", iterations/changes returns "changeEntries")
+    const entries = changes.changeEntries || changes.changes || [];
+    for (const change of entries) {
       try {
+        // Skip folder entries; only files get per-file diff requests
+        if (change.item?.isFolder) {
+          continue;
+        }
         const fileChange = await this.processFileChange(change, commits, prDetails);
         if (fileChange) {
           formattedPatch.files.push(fileChange);
@@ -252,6 +257,10 @@ export class AzureDevOpsFetcher {
    * @returns {boolean} True if file should be skipped
    */
   shouldSkipFile(change) {
+    // Skip folders (diffs/commits returns tree entries with isFolder: true)
+    if (change.item?.isFolder) {
+      return true;
+    }
     const filePath = change.item?.path?.toLowerCase() || '';
     
     // Skip binary file extensions
