@@ -892,8 +892,9 @@ function initializeResizeHandle(container) {
  * @param {string} sender - 'user' or 'ai'.
  * @param {string} message - The message content (can be HTML or Markdown).
  * @param {string} [aiResponseText] - Optional raw AI response text for feedback tracking (conversations only).
+ * @param {boolean} [isTypingIndicator=false] - If true, treat as typing indicator (no copy button). Use instead of parsing content.
  */
-function appendToChatLog(sender, message, aiResponseText = null) {
+function appendToChatLog(sender, message, aiResponseText = null, isTypingIndicator = false) {
   const chatLog = document.getElementById('chat-log');
   if (!chatLog) return;
 
@@ -904,16 +905,6 @@ function appendToChatLog(sender, message, aiResponseText = null) {
   if (aiResponseText && sender === 'ai') {
     messageWrapper.setAttribute('data-ai-response', aiResponseText);
   }
-
-  // Check if this is a typing indicator (spinner message) - skip copy button for those
-  // Typing indicators contain HTML with gl-spinner class or specific thinking messages
-  const isTypingIndicator = message.includes('gl-spinner') || 
-                            message.includes('Thinking about') || 
-                            message.includes('Analyzing') || 
-                            message.includes('Crafting') || 
-                            message.includes('Reviewing') || 
-                            message.includes('Processing') || 
-                            message.includes('Working on');
 
   // Create wrapper for message bubble to support copy button
   const messageBubbleWrapper = document.createElement('div');
@@ -1217,7 +1208,7 @@ async function handleSendMessage(messageText) {
   ];
   const randomMessage = thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)];
   
-  appendToChatLog('ai', `<span class="gl-spinner gl-spinner-sm"></span> ${randomMessage}`);
+  appendToChatLog('ai', `<span class="gl-spinner gl-spinner-sm"></span> ${randomMessage}`, null, true);
 
   try {
     // Get the user's language preference
@@ -1251,7 +1242,11 @@ async function handleSendMessage(messageText) {
     
     // Store raw response text for feedback querying (use original response before markdown processing)
     const rawResponseText = responseText;
-    
+
+    // Ensure copy button utils are loaded so the response has a copy button (e.g. for Generate PR description)
+    if (!attachCopyButtonToItem) {
+      await initCopyButtonUtils();
+    }
     appendToChatLog('ai', responseText, rawResponseText);
     conversationHistory.push({ role: 'model', content: responseText });
 

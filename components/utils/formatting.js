@@ -241,10 +241,9 @@ export function applySimpleSyntaxHighlighting(rootElement) {
       s = s.replace(/\b([a-zA-Z_$][\w$]*)\s*(?=\()/g, (match, funcName) => 
         createPlaceholder(`<span class="token function">${funcName}<\/span>`) + match.substring(funcName.length)
       );
-      
-      placeholders.forEach((html, id) => {
-        s = s.replace(new RegExp(`${PLACEHOLDER_PREFIX}${id}${PLACEHOLDER_SUFFIX}`, 'g'), html);
-      });
+
+      const restoreRegex = new RegExp(`${PLACEHOLDER_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`, 'g');
+      s = s.replace(restoreRegex, (match, id) => placeholders[Number(id)] ?? match);
       return s;
     };
 
@@ -259,10 +258,27 @@ export function applySimpleSyntaxHighlighting(rootElement) {
 
     const bash = () => {
       let s = esc(code);
-      s = s.replace(/(#[^\n]*)/g, (m) => `<span class="token comment">${m}<\/span>`);
-      s = s.replace(/\b(echo|cd|ls|cat|grep|awk|sed|export|source|sudo|rm|cp|mv|chmod|chown|tar|curl|wget|npm|yarn|pnpm|git)\b/g, '<span class="token builtin">$1<\/span>');
-      s = s.replace(/\$[A-Za-z_][\w_]*/g, '<span class="token variable">$&<\/span>');
-      s = s.replace(/(['"])((?:\\.|(?!\1).)*)\1/g, '<span class="token string">$1$2$1<\/span>');
+      const PLACEHOLDER_PREFIX = '\x00THINKR';
+      const PLACEHOLDER_SUFFIX = 'THINKR\x00';
+      const placeholders = [];
+      const createPlaceholder = (html) => {
+        const id = placeholders.length;
+        placeholders.push(html);
+        return `${PLACEHOLDER_PREFIX}${id}${PLACEHOLDER_SUFFIX}`;
+      };
+
+      // Comments and strings MUST come first so that builtins/variables
+      // inside them are never pre-placeholderized. If builtins ran first,
+      // their placeholder tokens would get swallowed inside the string
+      // placeholder's stored HTML and then fail to restore, leaving raw
+      // "THINKRxTHINKR" text visible in the rendered snippet.
+      s = s.replace(/(#[^\n]*)/g, (m) => createPlaceholder(`<span class="token comment">${m}<\/span>`));
+      s = s.replace(/(['"])((?:\\.|(?!\1).)*)\1/g, (m) => createPlaceholder(`<span class="token string">${m}<\/span>`));
+      s = s.replace(/\$\{?[A-Za-z_][\w_]*\}?/g, (m) => createPlaceholder(`<span class="token variable">${m}<\/span>`));
+      s = s.replace(/\b(echo|cd|ls|cat|grep|awk|sed|export|source|sudo|rm|cp|mv|chmod|chown|tar|curl|wget|npm|yarn|pnpm|git|find|head|tail|sort|uniq|wc|xargs|touch|mkdir|printf|read|exit|return|shift|set|unset|test)\b/g, (m) => createPlaceholder(`<span class="token builtin">${m}<\/span>`));
+
+      const restoreRegex = new RegExp(`${PLACEHOLDER_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`, 'g');
+      s = s.replace(restoreRegex, (match, id) => placeholders[Number(id)] ?? match);
       return s;
     };
 
@@ -301,10 +317,9 @@ export function applySimpleSyntaxHighlighting(rootElement) {
       s = s.replace(/(['"])[^\1]*?\1/gm, (m) => createPlaceholder(`<span class="token string">${m}<\/span>`));
       s = s.replace(/\b(def|class|import|from|as|if|elif|else|for|while|try|except|finally|return|with|yield|lambda|True|False|None|and|or|not|in|is)\b/g, (m) => createPlaceholder(`<span class="token keyword">${m}<\/span>`));
       s = s.replace(/\b(\d+\.?\d*)\b/g, (m) => createPlaceholder(`<span class="token number">${m}<\/span>`));
-      
-      placeholders.forEach((html, id) => {
-        s = s.replace(new RegExp(`${PLACEHOLDER_PREFIX}${id}${PLACEHOLDER_SUFFIX}`, 'g'), html);
-      });
+
+      const restoreRegex = new RegExp(`${PLACEHOLDER_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`, 'g');
+      s = s.replace(restoreRegex, (match, id) => placeholders[Number(id)] ?? match);
       return s;
     };
 
