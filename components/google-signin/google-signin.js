@@ -5,12 +5,15 @@ import { dbgLog, dbgWarn, dbgError } from '../../utils/logger.js';
 let CloudService = null;
 
 // Dynamically import the CloudService
-/** Escapes a string for safe insertion into HTML (e.g. user name/email) to avoid XSS when rendering via innerHTML. */
+/** Escapes a string for safe insertion into HTML text and attributes. Escapes &, <, >, ", ' to prevent XSS and attribute injection. */
 function escapeHtml(str) {
   if (str == null || typeof str !== 'string') return '';
-  const el = document.createElement('span');
-  el.textContent = str;
-  return el.innerHTML;
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 async function loadCloudService() {
