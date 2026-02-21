@@ -223,7 +223,7 @@ class GoogleSignIn extends HTMLElement {
         <div class="user-container">
           <div class="user-info">
             ${avatarUrl
-              ? `<img src="${avatarUrl.replace(/"/g, '&quot;')}" alt="${safeName}" class="user-avatar" onerror="this.classList.add('hidden'); var s=this.nextElementSibling; if(s) s.classList.remove('hidden');">
+              ? `<img src="${avatarUrl.replace(/"/g, '&quot;')}" alt="${safeName}" class="user-avatar" data-avatar-img>
              <span class="user-avatar-initials hidden">${safeInitial}</span>`
               : `<span class="user-avatar-initials">${safeInitial}</span>`
             }
@@ -254,6 +254,14 @@ class GoogleSignIn extends HTMLElement {
 
     if (this.user) {
       this.shadowRoot.querySelector('#signout').addEventListener('click', () => this.signOut());
+      const avatarImg = this.shadowRoot.querySelector('.user-avatar[data-avatar-img]');
+      if (avatarImg) {
+        avatarImg.addEventListener('error', () => {
+          avatarImg.classList.add('hidden');
+          const initials = avatarImg.nextElementSibling;
+          if (initials) initials.classList.remove('hidden');
+        });
+      }
     } else {
       this.shadowRoot.querySelector('#signin').addEventListener('click', () => this.signIn());
     }
