@@ -3,6 +3,9 @@
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 import { getRequestApiVersion, DEFAULT_API_VERSION } from './azure-api-versions/index.js';
 
+// jsdiff (vendor/diff.min.js) exposes global Diff when loaded before this script; used for memory-efficient line diff
+const Diff = (typeof self !== 'undefined' && self.Diff) || (typeof globalThis !== 'undefined' && globalThis.Diff) || null;
+
 
 
 /**
@@ -268,9 +271,8 @@ export class AzureDevOpsAPI {
   }
 
   /**
-   * Get pull request diff between source and target branches
-   * @param {Object} prDetails - Pull request details
-   * @returns {Promise<Object>} Pull request diff data
+   * Get pull request diff between source and target branches.
+   * Uses documented format: diffs/commits with baseVersion, targetVersion, baseVersionType, targetVersionType (no includeFileDiff).
    */
   async getPullRequestDiff(prDetails) {
     const sourceBranch = prDetails.sourceRefName?.replace('refs/heads/', '');
@@ -283,9 +285,11 @@ export class AzureDevOpsAPI {
     const endpoint = `git/repositories/${this.repositoryId}/diffs/commits`;
     const params = new URLSearchParams({
       baseVersion: targetBranch,
+      baseVersionType: 'branch',
       targetVersion: sourceBranch,
+      targetVersionType: 'branch',
       diffCommonCommit: 'true',
-      includeFileDiff: 'true'
+      $top: '1000'
     });
 
     const response = await this.makeRequest(`${endpoint}?${params}`);
@@ -340,71 +344,34 @@ export class AzureDevOpsAPI {
 
 
   /**
-   * Create a simple diff between two file contents
+   * Create a unified diff for LLM/backend using jsdiff (vendor/diff.min.js).
+   * Returns empty string if jsdiff is not loaded or createTwoFilesPatch throws.
    * @param {string} filePath - File path
    * @param {string} oldContent - Old file content
    * @param {string} newContent - New file content
-   * @returns {string} Simple diff format
+   * @returns {string} Unified diff (---/+++ and hunks) or ''
    */
   createSimpleDiff(filePath, oldContent, newContent) {
-    const oldLines = oldContent.split('\n');
-    const newLines = newContent.split('\n');
-    
-    let diff = `--- a/${filePath}\n+++ b/${filePath}\n`;
-    
-    // Handle new files (oldContent is empty)
-    if (!oldContent && newContent) {
-      diff += `@@ -0,0 +1,${newLines.length} @@\n`;
-      for (const line of newLines) {
-        diff += `+${line}\n`;
-      }
-      return diff;
+    const oldStr = oldContent ?? '';
+    const newStr = newContent ?? '';
+
+    if (!Diff || typeof Diff.createTwoFilesPatch !== 'function') {
+      dbgWarn('createSimpleDiff: jsdiff not loaded (vendor/diff.min.js); cannot compute diff');
+      return '';
     }
-    
-    // Handle deleted files (newContent is empty)
-    if (oldContent && !newContent) {
-      diff += `@@ -1,${oldLines.length} +0,0 @@\n`;
-      for (const line of oldLines) {
-        diff += `-${line}\n`;
-      }
-      return diff;
+    try {
+      const opts = Diff.FILE_HEADERS_ONLY ? { headerOptions: Diff.FILE_HEADERS_ONLY } : {};
+      const patch = Diff.createTwoFilesPatch(`a/${filePath}`, `b/${filePath}`, oldStr, newStr, '', '', opts);
+      return patch || '';
+    } catch (e) {
+      dbgWarn('createSimpleDiff: createTwoFilesPatch failed', e);
+      return '';
     }
-    
-    // Handle modified files - simple line-by-line comparison
-    const maxLines = Math.max(oldLines.length, newLines.length);
-    let hasChanges = false;
-    
-    for (let i = 0; i < maxLines; i++) {
-      const oldLine = oldLines[i] || '';
-      const newLine = newLines[i] || '';
-      
-      if (oldLine === newLine) {
-        if (hasChanges) {
-          diff += ` ${oldLine}\n`;
-        }
-      } else {
-        if (!hasChanges) {
-          diff += `@@ -${i + 1},${oldLines.length - i} +${i + 1},${newLines.length - i} @@\n`;
-          hasChanges = true;
-        }
-        
-        if (oldLine) {
-          diff += `-${oldLine}\n`;
-        }
-        if (newLine) {
-          diff += `+${newLine}\n`;
-        }
-      }
-    }
-    
-    return diff;
   }
 
   /**
-   * Get Git diff between two commits using Git API
-   * @param {string} baseCommit - Base commit ID
-   * @param {string} targetCommit - Target commit ID
-   * @returns {Promise<Object>} Git diff data
+   * Get Git diff between two commits using Git API.
+   * Uses documented format: diffs/commits with baseVersion, targetVersion, baseVersionType, targetVersionType (no includeFileDiff).
    */
   async getGitDiff(baseCommit, targetCommit) {
     try {
@@ -413,10 +380,11 @@ export class AzureDevOpsAPI {
       const endpoint = `git/repositories/${this.repositoryId}/diffs/commits`;
       const params = new URLSearchParams({
         baseVersion: baseCommit,
+        baseVersionType: 'commit',
         targetVersion: targetCommit,
+        targetVersionType: 'commit',
         diffCommonCommit: 'true',
-        includeFileDiff: 'true',
-        top: '1000' // Get more files
+        $top: '1000'
       });
 
       const response = await this.makeRequest(`${endpoint}?${params}`);
@@ -443,13 +411,13 @@ export class AzureDevOpsAPI {
    * @param {string} baseCommit - Base commit ID
    * @param {string} targetCommit - Target commit ID
    * @param {string} filePath - File path
+   * @param {string} [changeType] - 'add' | 'edit' | 'delete'; for 'add' we skip base fetch (file didn't exist)
    * @returns {Promise<string>} File diff content
    */
-  async getGitFileDiff(baseCommit, targetCommit, filePath) {
+  async getGitFileDiff(baseCommit, targetCommit, filePath, changeType = null) {
     try {
-      dbgLog('Fetching Git file diff:', { baseCommit, targetCommit, filePath });
+      dbgLog('Fetching Git file diff:', { baseCommit, targetCommit, filePath, changeType });
       
-      // Try the Git compare endpoint
       const endpoint = `git/repositories/${this.repositoryId}/items`;
       const params = new URLSearchParams({
         path: filePath,
@@ -461,27 +429,26 @@ export class AzureDevOpsAPI {
       const response = await this.makeRequest(`${endpoint}?${params}`);
       const data = await response.json();
       
-      // Get the file content from the target commit
       const targetContent = data.content || '';
       
-      // Now get the file content from the base commit
+      // For 'add' the file didn't exist in base commit - don't request it (would 404)
       let baseContent = '';
-      try {
-        const baseResponse = await this.makeRequest(`${endpoint}?${new URLSearchParams({
-          path: filePath,
-          version: baseCommit,
-          versionType: 'commit',
-          includeContent: 'true'
-        })}`);
-        const baseData = await baseResponse.json();
-        baseContent = baseData.content || '';
-      } catch (baseError) {
-        baseContent = '';
+      if (changeType !== 'add') {
+        try {
+          const baseResponse = await this.makeRequest(`${endpoint}?${new URLSearchParams({
+            path: filePath,
+            version: baseCommit,
+            versionType: 'commit',
+            includeContent: 'true'
+          })}`);
+          const baseData = await baseResponse.json();
+          baseContent = baseData.content || '';
+        } catch (baseError) {
+          baseContent = '';
+        }
       }
       
-      // Create diff from the two file contents
       const diff = this.createSimpleDiff(filePath, baseContent, targetContent);
-      
       return diff;
     } catch (error) {
       dbgWarn('Failed to get Git file diff:', error);

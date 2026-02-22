@@ -139,9 +139,14 @@ export class AzureDevOpsFetcher {
       }
     };
 
-    // Process each changed file
-    for (const change of changes.changeEntries || []) {
+    // Process each changed file (diffs/commits returns "changes", iterations/changes returns "changeEntries")
+    const entries = changes.changeEntries || changes.changes || [];
+    for (const change of entries) {
       try {
+        // Skip folder entries; only files get per-file diff requests
+        if (change.item?.isFolder) {
+          continue;
+        }
         const fileChange = await this.processFileChange(change, commits, prDetails);
         if (fileChange) {
           formattedPatch.files.push(fileChange);
@@ -227,7 +232,7 @@ export class AzureDevOpsFetcher {
           
           if (sourceCommit && targetCommit) {
             dbgLog('Fetching individual file diff for:', filePath);
-            diffContent = await azureDevOpsAPI.getGitFileDiff(targetCommit, sourceCommit, filePath);
+            diffContent = await azureDevOpsAPI.getGitFileDiff(targetCommit, sourceCommit, filePath, change.changeType);
           }
         } catch (error) {
           dbgWarn('Failed to fetch Git-based diff for:', filePath, error);
@@ -252,6 +257,10 @@ export class AzureDevOpsFetcher {
    * @returns {boolean} True if file should be skipped
    */
   shouldSkipFile(change) {
+    // Skip folders (diffs/commits returns tree entries with isFolder: true)
+    if (change.item?.isFolder) {
+      return true;
+    }
     const filePath = change.item?.path?.toLowerCase() || '';
     
     // Skip binary file extensions
@@ -309,12 +318,13 @@ export class AzureDevOpsFetcher {
     for (const file of formattedChanges.files) {
       patchLines.push(`diff --git a/${file.path} b/${file.path}`);
       patchLines.push(`index 0000000..1111111 100644`);
-      patchLines.push(`--- a/${file.path}`);
-      patchLines.push(`+++ b/${file.path}`);
-      
+
       if (file.diff) {
+        // createSimpleDiff returns full unified diff (---/+++ and hunks); use as-is
         patchLines.push(file.diff);
       } else if (file.content) {
+        patchLines.push(`--- a/${file.path}`);
+        patchLines.push(`+++ b/${file.path}`);
         // If no diff available, show the full file content
         const contentLines = file.content.split('\n');
         for (const line of contentLines) {
