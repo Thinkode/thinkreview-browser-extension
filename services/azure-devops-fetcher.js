@@ -322,7 +322,9 @@ export class AzureDevOpsFetcher {
       patchLines.push(`+++ b/${file.path}`);
       
       if (file.diff) {
-        patchLines.push(file.diff);
+        // file.diff from createSimpleDiff already has ---/+++; avoid duplicating
+        const diffBody = file.diff.replace(/^--- a\/.*\n\+\+\+ b\/.*\n?/, '');
+        patchLines.push(diffBody);
       } else if (file.content) {
         // If no diff available, show the full file content
         const contentLines = file.content.split('\n');

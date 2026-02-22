@@ -341,64 +341,114 @@ export class AzureDevOpsAPI {
 
 
   /**
-   * Create a simple diff between two file contents
+   * Create a unified diff with correct @@ line numbers for LLM/backend.
+   * Uses LCS-based line diff so insertions/deletions produce correct new-file line numbers.
    * @param {string} filePath - File path
    * @param {string} oldContent - Old file content
    * @param {string} newContent - New file content
-   * @returns {string} Simple diff format
+   * @returns {string} Unified diff format
    */
   createSimpleDiff(filePath, oldContent, newContent) {
     const oldLines = oldContent.split('\n');
     const newLines = newContent.split('\n');
-    
-    let diff = `--- a/${filePath}\n+++ b/${filePath}\n`;
-    
-    // Handle new files (oldContent is empty)
+    const header = `--- a/${filePath}\n+++ b/${filePath}\n`;
+
     if (!oldContent && newContent) {
-      diff += `@@ -0,0 +1,${newLines.length} @@\n`;
-      for (const line of newLines) {
-        diff += `+${line}\n`;
-      }
-      return diff;
+      return header + this._hunkNewFile(newLines);
     }
-    
-    // Handle deleted files (newContent is empty)
     if (oldContent && !newContent) {
-      diff += `@@ -1,${oldLines.length} +0,0 @@\n`;
-      for (const line of oldLines) {
-        diff += `-${line}\n`;
-      }
-      return diff;
+      return header + this._hunkDeletedFile(oldLines);
     }
-    
-    // Handle modified files - simple line-by-line comparison
-    const maxLines = Math.max(oldLines.length, newLines.length);
-    let hasChanges = false;
-    
-    for (let i = 0; i < maxLines; i++) {
-      const oldLine = oldLines[i] || '';
-      const newLine = newLines[i] || '';
-      
-      if (oldLine === newLine) {
-        if (hasChanges) {
-          diff += ` ${oldLine}\n`;
+    return header + this._unifiedDiffFromLines(oldLines, newLines);
+  }
+
+  _hunkNewFile(newLines) {
+    return `@@ -0,0 +1,${newLines.length} @@\n` + newLines.map((l) => `+${l}`).join('\n') + '\n';
+  }
+
+  _hunkDeletedFile(oldLines) {
+    return `@@ -1,${oldLines.length} +0,0 @@\n` + oldLines.map((l) => `-${l}`).join('\n') + '\n';
+  }
+
+  /**
+   * Line-level diff with correct @@ ranges. Uses LCS to find matches then emits hunks.
+   */
+  _unifiedDiffFromLines(oldLines, newLines) {
+    const ops = this._lineDiffOps(oldLines, newLines);
+    if (ops.length === 0) return '';
+    const CONTEXT = 3;
+    const hunks = [];
+    let i = 0;
+    while (i < ops.length) {
+      while (i < ops.length && ops[i].op === '=') i++;
+      if (i >= ops.length) break;
+      const hunkStart = Math.max(0, i - CONTEXT);
+      let j = i;
+      let contextAfter = 0;
+      while (j < ops.length) {
+        if (ops[j].op === '=') {
+          contextAfter++;
+          if (contextAfter > CONTEXT) {
+            j = j - contextAfter + CONTEXT;
+            break;
+          }
+        } else {
+          contextAfter = 0;
         }
+        j++;
+      }
+      if (j > ops.length) j = ops.length;
+      const hunkOps = ops.slice(hunkStart, j);
+      const firstOld = hunkOps.find((o) => o.oldNum != null);
+      const firstNew = hunkOps.find((o) => o.newNum != null);
+      const oldStart = firstOld?.oldNum ?? firstNew?.newNum ?? 1;
+      const newStart = firstNew?.newNum ?? firstOld?.oldNum ?? 1;
+      let oldCount = 0;
+      let newCount = 0;
+      for (const o of hunkOps) {
+        if (o.op === '=' || o.op === '-') oldCount++;
+        if (o.op === '=' || o.op === '+') newCount++;
+      }
+      hunks.push(`@@ -${oldStart},${oldCount} +${newStart},${newCount} @@\n` +
+        hunkOps.map((o) => (o.op === '=' ? ' ' : o.op) + (o.line ?? '')).join('\n') + '\n');
+      i = j;
+    }
+    return hunks.join('');
+  }
+
+  /**
+   * LCS-based line diff. Returns list of { op: '='|'-'|'+', oldNum, newNum, line }.
+   */
+  _lineDiffOps(oldLines, newLines) {
+    const m = oldLines.length;
+    const n = newLines.length;
+    const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (oldLines[i - 1] === newLines[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1] + 1;
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+      }
+    }
+    const ops = [];
+    let i = m;
+    let j = n;
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+        ops.unshift({ op: '=', oldNum: i, newNum: j, line: oldLines[i - 1] });
+        i--;
+        j--;
+      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+        ops.unshift({ op: '+', oldNum: null, newNum: j, line: newLines[j - 1] });
+        j--;
       } else {
-        if (!hasChanges) {
-          diff += `@@ -${i + 1},${oldLines.length - i} +${i + 1},${newLines.length - i} @@\n`;
-          hasChanges = true;
-        }
-        
-        if (oldLine) {
-          diff += `-${oldLine}\n`;
-        }
-        if (newLine) {
-          diff += `+${newLine}\n`;
-        }
+        ops.unshift({ op: '-', oldNum: i, newNum: null, line: oldLines[i - 1] });
+        i--;
       }
     }
-    
-    return diff;
+    return ops;
   }
 
   /**
