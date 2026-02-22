@@ -3,6 +3,9 @@
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 import { getRequestApiVersion, DEFAULT_API_VERSION } from './azure-api-versions/index.js';
 
+// jsdiff (vendor/diff.min.js) exposes global Diff when loaded before this script; used for memory-efficient line diff
+const Diff = (typeof self !== 'undefined' && self.Diff) || (typeof globalThis !== 'undefined' && globalThis.Diff) || null;
+
 
 
 /**
@@ -349,16 +352,24 @@ export class AzureDevOpsAPI {
    * @returns {string} Unified diff format
    */
   createSimpleDiff(filePath, oldContent, newContent) {
-    const oldLines = oldContent.split('\n');
-    const newLines = newContent.split('\n');
+    const oldStr = oldContent ?? '';
+    const newStr = newContent ?? '';
     const header = `--- a/${filePath}\n+++ b/${filePath}\n`;
 
-    if (!oldContent && newContent) {
-      return header + this._hunkNewFile(newLines);
+    if (Diff && Diff.createTwoFilesPatch) {
+      try {
+        const opts = Diff.FILE_HEADERS_ONLY ? { headerOptions: Diff.FILE_HEADERS_ONLY } : {};
+        const patch = Diff.createTwoFilesPatch(`a/${filePath}`, `b/${filePath}`, oldStr, newStr, '', '', opts);
+        if (patch) return patch;
+      } catch (e) {
+        dbgWarn('createTwoFilesPatch failed, using fallback diff:', e);
+      }
     }
-    if (oldContent && !newContent) {
-      return header + this._hunkDeletedFile(oldLines);
-    }
+
+    const oldLines = oldStr.split('\n');
+    const newLines = newStr.split('\n');
+    if (!oldStr && newStr) return header + this._hunkNewFile(newLines);
+    if (oldStr && !newStr) return header + this._hunkDeletedFile(oldLines);
     return header + this._unifiedDiffFromLines(oldLines, newLines);
   }
 

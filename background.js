@@ -1137,7 +1137,7 @@ async function updateContentScripts() {
         const scriptConfig = {
           id: scriptId,
           matches: [matchPattern],
-          js: ['vendor/honeybadger.ext.min.js', 'components/integrated-review.js', 'content.js'],
+          js: ['vendor/honeybadger.ext.min.js', 'vendor/diff.min.js', 'components/integrated-review.js', 'content.js'],
           runAt: 'document_idle'
         };
         
