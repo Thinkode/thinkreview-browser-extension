@@ -318,14 +318,13 @@ export class AzureDevOpsFetcher {
     for (const file of formattedChanges.files) {
       patchLines.push(`diff --git a/${file.path} b/${file.path}`);
       patchLines.push(`index 0000000..1111111 100644`);
-      patchLines.push(`--- a/${file.path}`);
-      patchLines.push(`+++ b/${file.path}`);
-      
+
       if (file.diff) {
-        // file.diff from createSimpleDiff already has ---/+++; avoid duplicating
-        const diffBody = file.diff.replace(/^--- a\/.*\n\+\+\+ b\/.*\n?/, '');
-        patchLines.push(diffBody);
+        // createSimpleDiff returns full unified diff (---/+++ and hunks); use as-is
+        patchLines.push(file.diff);
       } else if (file.content) {
+        patchLines.push(`--- a/${file.path}`);
+        patchLines.push(`+++ b/${file.path}`);
         // If no diff available, show the full file content
         const contentLines = file.content.split('\n');
         for (const line of contentLines) {
