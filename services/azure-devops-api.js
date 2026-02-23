@@ -49,7 +49,7 @@ export class AzureDevOpsAPI {
 
     this.token = token;
     this.organization = organization;
-    this.project = project;
+    this.project = project || null;
     this.repository = repository;
     const scheme = (protocol && (protocol === 'http:' || protocol === 'https:')) ? protocol : 'https:';
 
@@ -69,15 +69,57 @@ export class AzureDevOpsAPI {
       this.baseUrl = `https://dev.azure.com/${organization}`;
     }
 
-    // Initialize with repository name first, then resolve ID asynchronously
     this.repositoryId = repository;
     this.apiVersion = apiVersion != null ? getRequestApiVersion(apiVersion) : DEFAULT_API_VERSION;
     this.isInitialized = true;
-    
+
+    // On-prem URL can be /{collection}/_git/{repo} with no project segment; resolve project from API
+    const isOnPrem = hostname && !hostname.includes('dev.azure.com') && !hostname.includes('visualstudio.com');
+    if (isOnPrem && (this.project == null || this.project === '')) {
+      await this.resolveProjectForRepository();
+    }
+
     // Get repository ID for more reliable API calls (async, non-blocking)
     this.resolveRepositoryId().catch(error => {
       dbgWarn('Could not resolve repository ID, using repository name:', error);
     });
+  }
+
+  /**
+   * Resolve project when URL is on-prem /{collection}/_git/{repo} (no project in path).
+   * Calls collection-level _apis/projects, then finds which project contains this repository.
+   */
+  async resolveProjectForRepository() {
+    const resp = await this.makeRequest('projects');
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`Could not list projects (${resp.status}): ${text}`);
+    }
+    const data = await resp.json();
+    const projectList = data.value || [];
+    let resolvedProject = null;
+    for (const p of projectList) {
+      const prevProject = this.project;
+      this.project = p.name;
+      try {
+        const repoResp = await this.makeRequest(`git/repositories/${this.repository}`);
+        if (repoResp.ok) {
+          resolvedProject = p.name;
+          dbgLog('Resolved project for repository (on-prem no project in URL):', {
+            repository: this.repository,
+            project: resolvedProject
+          });
+          break;
+        }
+      } catch {
+        this.project = prevProject;
+      }
+    }
+    if (!resolvedProject) {
+      this.project = null;
+      throw new Error(`Could not find project for repository: ${this.repository}. Ensure the repo exists and the PAT has access.`);
+    }
+    this.project = resolvedProject;
   }
 
   /**
@@ -99,6 +141,7 @@ export class AzureDevOpsAPI {
 
   /**
    * Make authenticated request to Azure DevOps API
+   * When project is null (on-prem /{org}/_git/{repo}), uses collection-level URL to avoid duplicate org in path.
    * @param {string} endpoint - API endpoint
    * @param {Object} options - Fetch options
    * @returns {Promise<Response>} API response
@@ -110,7 +153,9 @@ export class AzureDevOpsAPI {
 
     // Handle query parameters properly
     const separator = endpoint.includes('?') ? '&' : '?';
-    const url = `${this.baseUrl}/${this.project}/_apis/${endpoint}${separator}api-version=${this.apiVersion}`;
+    // On-prem URL without project segment: use collection-level path to avoid .../DefaultCollection/DefaultCollection/...
+    const pathSegment = (this.project != null && this.project !== '') ? `/${this.project}` : '';
+    const url = `${this.baseUrl}${pathSegment}/_apis/${endpoint}${separator}api-version=${this.apiVersion}`;
     
     const defaultOptions = {
       headers: {
