@@ -30,6 +30,8 @@ export class AzureDevOpsAPI {
     this.token = null;
     this.apiVersion = DEFAULT_API_VERSION;
     this.isInitialized = false;
+    /** @type {Promise<void>|null} One-time promise for lazy project resolution (on-prem when project not in URL) */
+    this._projectResolutionPromise = null;
   }
 
   /**
@@ -73,11 +75,7 @@ export class AzureDevOpsAPI {
     this.apiVersion = apiVersion != null ? getRequestApiVersion(apiVersion) : DEFAULT_API_VERSION;
     this.isInitialized = true;
 
-    // On-prem URL can be /{collection}/_git/{repo} with no project segment; resolve project from API
-    const isOnPrem = hostname && !hostname.includes('dev.azure.com') && !hostname.includes('visualstudio.com');
-    if (isOnPrem && (this.project == null || this.project === '')) {
-      await this.resolveProjectForRepository();
-    }
+    // On-prem URL can be /{collection}/_git/{repo} with no project segment; resolve project lazily in makeRequest (no await in init)
 
     // Get repository ID for more reliable API calls (async, non-blocking)
     this.resolveRepositoryId().catch(error => {
@@ -86,11 +84,41 @@ export class AzureDevOpsAPI {
   }
 
   /**
+   * Internal: request to collection-level _apis (no project in path). Used only during project resolution to avoid re-entry into makeRequest.
+   */
+  async _makeCollectionRequest(endpoint) {
+    const separator = endpoint.includes('?') ? '&' : '?';
+    const url = `${this.baseUrl}/_apis/${endpoint}${separator}api-version=${this.apiVersion}`;
+    return fetch(url, {
+      headers: {
+        'Authorization': `Basic ${btoa(':' + this.token)}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    });
+  }
+
+  /**
+   * Internal: request with explicit project in path. Used only during project resolution to avoid re-entry into makeRequest.
+   */
+  async _makeProjectRequest(projectName, endpoint) {
+    const separator = endpoint.includes('?') ? '&' : '?';
+    const url = `${this.baseUrl}/${projectName}/_apis/${endpoint}${separator}api-version=${this.apiVersion}`;
+    return fetch(url, {
+      headers: {
+        'Authorization': `Basic ${btoa(':' + this.token)}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    });
+  }
+
+  /**
    * Resolve project when URL is on-prem /{collection}/_git/{repo} (no project in path).
-   * Calls collection-level _apis/projects, then finds which project contains this repository.
+   * Uses _makeCollectionRequest / _makeProjectRequest only to avoid re-entering makeRequest (deadlock).
    */
   async resolveProjectForRepository() {
-    const resp = await this.makeRequest('projects');
+    const resp = await this._makeCollectionRequest('projects');
     if (!resp.ok) {
       const text = await resp.text();
       throw new Error(`Could not list projects (${resp.status}): ${text}`);
@@ -99,10 +127,8 @@ export class AzureDevOpsAPI {
     const projectList = data.value || [];
     let resolvedProject = null;
     for (const p of projectList) {
-      const prevProject = this.project;
-      this.project = p.name;
       try {
-        const repoResp = await this.makeRequest(`git/repositories/${this.repository}`);
+        const repoResp = await this._makeProjectRequest(p.name, `git/repositories/${this.repository}`);
         if (repoResp.ok) {
           resolvedProject = p.name;
           dbgLog('Resolved project for repository (on-prem no project in URL):', {
@@ -112,7 +138,7 @@ export class AzureDevOpsAPI {
           break;
         }
       } catch {
-        this.project = prevProject;
+        // continue to next project
       }
     }
     if (!resolvedProject) {
@@ -149,6 +175,15 @@ export class AzureDevOpsAPI {
   async makeRequest(endpoint, options = {}) {
     if (!this.isInitialized) {
       throw new Error('Azure DevOps API not initialized');
+    }
+
+    // Lazy project resolution for on-prem /{collection}/_git/{repo} (no project in URL)
+    const isOnPrem = this.baseUrl && !this.baseUrl.includes('dev.azure.com') && !this.baseUrl.includes('visualstudio.com');
+    if (isOnPrem && (this.project == null || this.project === '') && !this._projectResolutionPromise) {
+      this._projectResolutionPromise = this.resolveProjectForRepository();
+    }
+    if (this._projectResolutionPromise) {
+      await this._projectResolutionPromise;
     }
 
     // Handle query parameters properly
