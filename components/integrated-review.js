@@ -87,7 +87,7 @@ async function initFormattingUtils() {
     preprocessAIResponse = module.preprocessAIResponse;
     applySimpleSyntaxHighlighting = module.applySimpleSyntaxHighlighting;
     setupCopyHandler = module.setupCopyHandler;
-    setupCopyHandler();
+    // Copy handler is attached to panel root when panel is created (avoids document-level listener and improves perf on diff pages)
     dbgLog('Formatting utils loaded');
   } catch (e) {
     dbgWarn('Failed to load formatting utils', e);
@@ -109,7 +109,7 @@ async function initCopyButtonUtils() {
 // Badge utils are initialized via cached promise above
 // The promise is already being resolved, we just need to wait for it when needed
 
-initFormattingUtils();
+const formattingReady = initFormattingUtils();
 initCopyButtonUtils();
 // Badge utils loading is handled by the cached promise, no separate init needed
 
@@ -471,7 +471,11 @@ async function createIntegratedReviewPanel(patchUrl) {
   
   // Initialize resize functionality
   initializeResizeHandle(container);
-  
+
+  // Delegate copy handler to panel only (avoids document-level listener; improves perf when interacting with GitLab diff)
+  await formattingReady;
+  if (setupCopyHandler) setupCopyHandler(container);
+
   // Add event listener for minimizing the panel
   const cardHeader = container.querySelector('.thinkreview-card-header');
   if (cardHeader) {
@@ -819,7 +823,7 @@ function detectAzureDevOpsTheme() {
 function initializeResizeHandle(container) {
   const resizeHandle = container.querySelector('.thinkreview-resize-handle');
   if (!resizeHandle) return;
-  
+
   let isResizing = false;
   let startX = 0;
   let startWidth = 0;
@@ -830,56 +834,40 @@ function initializeResizeHandle(container) {
     container.style.width = savedWidth + 'px';
   }
   
-  const startResize = (e) => {
-    // Don't allow resizing when minimized
-    if (container.classList.contains('minimized') || container.classList.contains('minimized-to-button')) {
-      return;
-    }
-    
-    isResizing = true;
-    startX = e.clientX;
-    startWidth = parseInt(getComputedStyle(container).width, 10);
-    
-    // Add resizing class for visual feedback
-    container.classList.add('resizing');
-    
-    // Prevent text selection during resize
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'ew-resize';
-    
-    e.preventDefault();
-  };
-  
   const doResize = (e) => {
-    if (!isResizing) return;
-    
     const deltaX = startX - e.clientX;
     const newWidth = Math.max(300, Math.min(800, startWidth + deltaX)); // Min 300px, Max 800px
-    
     container.style.width = newWidth + 'px';
   };
-  
+
   const stopResize = () => {
     if (!isResizing) return;
-    
     isResizing = false;
+    document.removeEventListener('mousemove', doResize);
+    document.removeEventListener('mouseup', stopResize);
     container.classList.remove('resizing');
-    
-    // Restore normal cursor and text selection
     document.body.style.userSelect = '';
     document.body.style.cursor = '';
-    
-    // Save the new width to localStorage
     const currentWidth = parseInt(getComputedStyle(container).width, 10);
     localStorage.setItem('gitlab-mr-review-width', currentWidth);
   };
-  
-  // Add event listeners
+
+  const startResize = (e) => {
+    if (container.classList.contains('minimized') || container.classList.contains('minimized-to-button')) {
+      return;
+    }
+    isResizing = true;
+    startX = e.clientX;
+    startWidth = parseInt(getComputedStyle(container).width, 10);
+    container.classList.add('resizing');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ew-resize';
+    document.addEventListener('mousemove', doResize);
+    document.addEventListener('mouseup', stopResize);
+    e.preventDefault();
+  };
+
   resizeHandle.addEventListener('mousedown', startResize);
-  document.addEventListener('mousemove', doResize);
-  document.addEventListener('mouseup', stopResize);
-  
-  // Prevent drag ghost image
   resizeHandle.addEventListener('dragstart', (e) => e.preventDefault());
 }
 

@@ -696,31 +696,32 @@ export function applySimpleSyntaxHighlighting(rootElement) {
   });
 }
 
-export function setupCopyHandler() {
-  document.addEventListener('click', (event) => {
+/**
+ * Set up click-to-copy for ThinkReview code blocks.
+ * @param {Element} [root] - Root element to delegate from (e.g. panel). If provided, only clicks inside root are handled, avoiding work on page (e.g. GitLab diff) and improving performance.
+ */
+export function setupCopyHandler(root = null) {
+  const el = root || document;
+  el.addEventListener('click', (event) => {
     const btn = event.target && event.target.closest && event.target.closest('.thinkreview-copy-btn');
     if (!btn) return;
     const container = btn.closest('.thinkreview-code-block');
     if (!container) return;
     const codeEl = container.querySelector('pre code');
     if (!codeEl) return;
-    
-    // Extract the code text
+
     const codeText = codeEl.textContent || '';
-    
-    // Extract the language from the code element's class
     const classList = codeEl.className || '';
     const langMatch = classList.match(/language-([\w-]+)/);
     const language = langMatch ? langMatch[1] : '';
-    
-    // Format as markdown code block
+
     let formattedText;
     if (language && language !== 'text' && language !== 'plaintext') {
       formattedText = '```' + language + '\n' + codeText + '\n```';
     } else {
       formattedText = '```\n' + codeText + '\n```';
     }
-    
+
     try {
       navigator.clipboard.writeText(formattedText);
       const original = btn.textContent;
@@ -735,7 +736,7 @@ export function setupCopyHandler() {
       document.execCommand('copy');
       document.body.removeChild(textarea);
     }
-  });
+  }, { passive: true });
 }
 
 
