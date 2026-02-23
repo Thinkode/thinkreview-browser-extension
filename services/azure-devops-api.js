@@ -113,36 +113,28 @@ export class AzureDevOpsAPI {
 
   /**
    * Resolve project when URL is on-prem /{collection}/_git/{repo} (no project in path).
-   * Uses _fetchApi with explicit projectOverride per candidate; only assigns this.project once at the end.
+   * Uses collection-level Git List (one request); requires server to support GET {collection}/_apis/git/repositories.
    */
   async resolveProjectForRepository() {
-    const resp = await this._fetchApi('projects', null);
-    if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error(`Could not list projects (${resp.status}): ${text}`);
+    const repoName = this.repository;
+
+    const listResp = await this._fetchApi('git/repositories', null);
+    if (!listResp.ok) {
+      const text = await listResp.text();
+      throw new Error(`Could not list repositories (${listResp.status}). Collection-level git/repositories may not be supported: ${text}`);
     }
-    const data = await resp.json();
-    const projectList = data.value || [];
-    let resolvedProject = null;
-    for (const p of projectList) {
-      try {
-        const repoResp = await this._fetchApi(`git/repositories/${this.repository}`, p.name);
-        if (repoResp.ok) {
-          resolvedProject = p.name;
-          dbgLog('Resolved project for repository (on-prem no project in URL):', {
-            repository: this.repository,
-            project: resolvedProject
-          });
-          break;
-        }
-      } catch {
-        // continue to next project
-      }
+    const listData = await listResp.json();
+    const repos = listData.value || [];
+    const match = repos.find(r => (r.name && r.name.toLowerCase() === repoName.toLowerCase()) || r.id === repoName);
+    if (match && match.project && match.project.name) {
+      this.project = match.project.name;
+      dbgLog('Resolved project via collection-level git/repositories:', {
+        repository: repoName,
+        project: this.project
+      });
+      return;
     }
-    if (!resolvedProject) {
-      throw new Error(`Could not find project for repository: ${this.repository}. Ensure the repo exists and the PAT has access.`);
-    }
-    this.project = resolvedProject;
+    throw new Error(`Could not find project for repository: ${repoName}. Ensure the repo exists and the PAT has access.`);
   }
 
   /**
