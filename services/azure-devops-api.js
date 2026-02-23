@@ -84,41 +84,39 @@ export class AzureDevOpsAPI {
   }
 
   /**
-   * Internal: request to collection-level _apis (no project in path). Used only during project resolution to avoid re-entry into makeRequest.
+   * Low-level API request: builds URL from baseUrl + optional project + _apis/endpoint and fetches.
+   * @param {string} endpoint - API endpoint (e.g. 'projects', 'git/repositories/foo')
+   * @param {string|null|undefined} projectOverride - If string, use that project in path; if null, collection-level (no project); if undefined, use this.project
+   * @param {Object} options - Fetch options (method, body, etc.)
+   * @returns {Promise<Response>}
    */
-  async _makeCollectionRequest(endpoint) {
+  async _fetchApi(endpoint, projectOverride, options = {}) {
     const separator = endpoint.includes('?') ? '&' : '?';
-    const url = `${this.baseUrl}/_apis/${endpoint}${separator}api-version=${this.apiVersion}`;
-    return fetch(url, {
+    const pathSegment = projectOverride === null
+      ? ''
+      : (projectOverride !== undefined ? `/${projectOverride}` : (this.project != null && this.project !== '' ? `/${this.project}` : ''));
+    const url = `${this.baseUrl}${pathSegment}/_apis/${endpoint}${separator}api-version=${this.apiVersion}`;
+    const defaultOptions = {
       headers: {
         'Authorization': `Basic ${btoa(':' + this.token)}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       }
-    });
-  }
-
-  /**
-   * Internal: request with explicit project in path. Used only during project resolution to avoid re-entry into makeRequest.
-   */
-  async _makeProjectRequest(projectName, endpoint) {
-    const separator = endpoint.includes('?') ? '&' : '?';
-    const url = `${this.baseUrl}/${projectName}/_apis/${endpoint}${separator}api-version=${this.apiVersion}`;
-    return fetch(url, {
-      headers: {
-        'Authorization': `Basic ${btoa(':' + this.token)}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
+    };
+    const requestOptions = {
+      ...defaultOptions,
+      ...options,
+      headers: { ...defaultOptions.headers, ...options.headers }
+    };
+    return fetch(url, requestOptions);
   }
 
   /**
    * Resolve project when URL is on-prem /{collection}/_git/{repo} (no project in path).
-   * Uses _makeCollectionRequest / _makeProjectRequest only to avoid re-entering makeRequest (deadlock).
+   * Uses _fetchApi with explicit projectOverride per candidate; only assigns this.project once at the end.
    */
   async resolveProjectForRepository() {
-    const resp = await this._makeCollectionRequest('projects');
+    const resp = await this._fetchApi('projects', null);
     if (!resp.ok) {
       const text = await resp.text();
       throw new Error(`Could not list projects (${resp.status}): ${text}`);
@@ -128,7 +126,7 @@ export class AzureDevOpsAPI {
     let resolvedProject = null;
     for (const p of projectList) {
       try {
-        const repoResp = await this._makeProjectRequest(p.name, `git/repositories/${this.repository}`);
+        const repoResp = await this._fetchApi(`git/repositories/${this.repository}`, p.name);
         if (repoResp.ok) {
           resolvedProject = p.name;
           dbgLog('Resolved project for repository (on-prem no project in URL):', {
@@ -142,7 +140,6 @@ export class AzureDevOpsAPI {
       }
     }
     if (!resolvedProject) {
-      this.project = null;
       throw new Error(`Could not find project for repository: ${this.repository}. Ensure the repo exists and the PAT has access.`);
     }
     this.project = resolvedProject;
@@ -166,8 +163,8 @@ export class AzureDevOpsAPI {
   }
 
   /**
-   * Make authenticated request to Azure DevOps API
-   * When project is null (on-prem /{org}/_git/{repo}), uses collection-level URL to avoid duplicate org in path.
+   * Make authenticated request to Azure DevOps API.
+   * Uses instance project (after lazy resolution when needed); for explicit project use _fetchApi(endpoint, project).
    * @param {string} endpoint - API endpoint
    * @param {Object} options - Fetch options
    * @returns {Promise<Response>} API response
@@ -186,39 +183,15 @@ export class AzureDevOpsAPI {
       await this._projectResolutionPromise;
     }
 
-    // Handle query parameters properly
-    const separator = endpoint.includes('?') ? '&' : '?';
-    // On-prem URL without project segment: use collection-level path to avoid .../DefaultCollection/DefaultCollection/...
-    const pathSegment = (this.project != null && this.project !== '') ? `/${this.project}` : '';
-    const url = `${this.baseUrl}${pathSegment}/_apis/${endpoint}${separator}api-version=${this.apiVersion}`;
-    
-    const defaultOptions = {
-      headers: {
-        'Authorization': `Basic ${btoa(':' + this.token)}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    };
-
-    const requestOptions = {
-      ...defaultOptions,
-      ...options,
-      headers: {
-        ...defaultOptions.headers,
-        ...options.headers
-      }
-    };
-
     dbgLog('Making Azure DevOps API request:', {
-      url: url.substring(0, 150) + '...',
-      method: requestOptions.method || 'GET',
-      endpoint: endpoint,
+      endpoint,
+      project: this.project,
       repositoryId: this.repositoryId,
       repository: this.repository
     });
 
     try {
-      const response = await fetch(url, requestOptions);
+      const response = await this._fetchApi(endpoint, undefined, options);
       
         if (!response.ok) {
           const errorText = await response.text();
