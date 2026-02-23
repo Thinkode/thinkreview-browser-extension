@@ -261,18 +261,24 @@ export class AzureDevOpsDetector {
 
   /**
    * Extract project name from URL
-   * @returns {string} Project name
+   * Project is always the first segment after the org: /{org}/{project}/... or /{org}/{project}/{team}/_git/...
+   * Returns null only when path is /{org}/_git/{repo} (no project segment).
+   * @returns {string|null} Project name, or null when URL is /{org}/_git/{repo}
    */
   extractProject() {
-    const url = window.location.href;
+    const pathname = window.location.pathname;
+    const pathParts = pathname.split('/').filter(Boolean);
 
-    // Extract from URL pattern: /{organization}/{project}/_git (works for both cloud and on-prem)
-    const projectMatch = url.match(/\/[^\/]+\/([^\/]+)\/_git/);
-    if (projectMatch) {
-      return projectMatch[1];
+    // Must have at least org and something before or at _git
+    if (pathParts.length < 2) return null;
+
+    // First segment is org/collection; second is project when present
+    // URL shapes: /{org}/_git/{repo} or /{org}/{project}/_git/{repo} or /{org}/{project}/{team}/_git/{repo}
+    const segmentAfterOrg = pathParts[1];
+    if (segmentAfterOrg === '_git') {
+      return null;
     }
-
-    return 'Unknown Project';
+    return segmentAfterOrg;
   }
 
   /**

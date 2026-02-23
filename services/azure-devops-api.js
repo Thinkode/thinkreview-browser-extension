@@ -30,6 +30,8 @@ export class AzureDevOpsAPI {
     this.token = null;
     this.apiVersion = DEFAULT_API_VERSION;
     this.isInitialized = false;
+    /** @type {Promise<void>|null} One-time promise for lazy project resolution (on-prem when project not in URL) */
+    this._projectResolutionPromise = null;
   }
 
   /**
@@ -49,7 +51,7 @@ export class AzureDevOpsAPI {
 
     this.token = token;
     this.organization = organization;
-    this.project = project;
+    this.project = project || null;
     this.repository = repository;
     const scheme = (protocol && (protocol === 'http:' || protocol === 'https:')) ? protocol : 'https:';
 
@@ -69,15 +71,86 @@ export class AzureDevOpsAPI {
       this.baseUrl = `https://dev.azure.com/${organization}`;
     }
 
-    // Initialize with repository name first, then resolve ID asynchronously
     this.repositoryId = repository;
     this.apiVersion = apiVersion != null ? getRequestApiVersion(apiVersion) : DEFAULT_API_VERSION;
     this.isInitialized = true;
-    
+
+    // On-prem URL can be /{collection}/_git/{repo} with no project segment; resolve project lazily in makeRequest (no await in init)
+
     // Get repository ID for more reliable API calls (async, non-blocking)
     this.resolveRepositoryId().catch(error => {
       dbgWarn('Could not resolve repository ID, using repository name:', error);
     });
+  }
+
+  /**
+   * Low-level API request: builds URL from baseUrl + optional project + _apis/endpoint and fetches.
+   * @param {string} endpoint - API endpoint (e.g. 'projects', 'git/repositories/foo')
+   * @param {string|null|undefined} projectOverride - If string, use that project in path; if null, collection-level (no project); if undefined, use this.project
+   * @param {Object} options - Fetch options (method, body, etc.)
+   * @returns {Promise<Response>}
+   */
+  async _fetchApi(endpoint, projectOverride, options = {}) {
+    const separator = endpoint.includes('?') ? '&' : '?';
+    const pathSegment = projectOverride === null
+      ? ''
+      : (projectOverride !== undefined ? `/${projectOverride}` : (this.project != null && this.project !== '' ? `/${this.project}` : ''));
+    const url = `${this.baseUrl}${pathSegment}/_apis/${endpoint}${separator}api-version=${this.apiVersion}`;
+    const defaultOptions = {
+      headers: {
+        'Authorization': `Basic ${btoa(':' + this.token)}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    };
+    const requestOptions = {
+      ...defaultOptions,
+      ...options,
+      headers: { ...defaultOptions.headers, ...options.headers }
+    };
+    return fetch(url, requestOptions);
+  }
+
+  /**
+   * Resolve project when URL is on-prem /{collection}/_git/{repo} (no project in path).
+   * Uses collection-level Git List (one request). When multiple repos share the same name,
+   * prefers the one whose remoteUrl matches the page (/{org}/_git/{repo} with no project segment).
+   */
+  async resolveProjectForRepository() {
+    const repoName = this.repository;
+    const org = this.organization;
+
+    const listResp = await this._fetchApi('git/repositories', null);
+    if (!listResp.ok) {
+      const text = await listResp.text();
+      throw new Error(`Could not list repositories (${listResp.status}). Collection-level git/repositories may not be supported: ${text}`);
+    }
+    const listData = await listResp.json();
+    const repos = listData.value || [];
+    const byName = repos.filter(r => (r.name && r.name.toLowerCase() === repoName.toLowerCase()) || r.id === repoName);
+
+    const match =
+      byName.find(r => {
+        if (!r.remoteUrl) return false;
+        try {
+          const pathname = new URL(r.remoteUrl).pathname.replace(/\/+$/, '');
+          const collectionLevelPath = `/${org}/_git/${repoName}`;
+          return pathname === collectionLevelPath || pathname === `${collectionLevelPath}/`;
+        } catch {
+          return false;
+        }
+      }) ||
+      byName[0];
+
+    if (match && match.project && match.project.name) {
+      this.project = match.project.name;
+      dbgLog('Resolved project via collection-level git/repositories:', {
+        repository: repoName,
+        project: this.project
+      });
+      return;
+    }
+    throw new Error(`Could not find project for repository: ${repoName}. Ensure the repo exists and the PAT has access.`);
   }
 
   /**
@@ -98,7 +171,8 @@ export class AzureDevOpsAPI {
   }
 
   /**
-   * Make authenticated request to Azure DevOps API
+   * Make authenticated request to Azure DevOps API.
+   * Uses instance project (after lazy resolution when needed); for explicit project use _fetchApi(endpoint, project).
    * @param {string} endpoint - API endpoint
    * @param {Object} options - Fetch options
    * @returns {Promise<Response>} API response
@@ -108,37 +182,24 @@ export class AzureDevOpsAPI {
       throw new Error('Azure DevOps API not initialized');
     }
 
-    // Handle query parameters properly
-    const separator = endpoint.includes('?') ? '&' : '?';
-    const url = `${this.baseUrl}/${this.project}/_apis/${endpoint}${separator}api-version=${this.apiVersion}`;
-    
-    const defaultOptions = {
-      headers: {
-        'Authorization': `Basic ${btoa(':' + this.token)}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    };
-
-    const requestOptions = {
-      ...defaultOptions,
-      ...options,
-      headers: {
-        ...defaultOptions.headers,
-        ...options.headers
-      }
-    };
+    // Lazy project resolution for on-prem /{collection}/_git/{repo} (no project in URL)
+    const isOnPrem = this.baseUrl && !this.baseUrl.includes('dev.azure.com') && !this.baseUrl.includes('visualstudio.com');
+    if (isOnPrem && (this.project == null || this.project === '') && !this._projectResolutionPromise) {
+      this._projectResolutionPromise = this.resolveProjectForRepository();
+    }
+    if (this._projectResolutionPromise) {
+      await this._projectResolutionPromise;
+    }
 
     dbgLog('Making Azure DevOps API request:', {
-      url: url.substring(0, 150) + '...',
-      method: requestOptions.method || 'GET',
-      endpoint: endpoint,
+      endpoint,
+      project: this.project,
       repositoryId: this.repositoryId,
       repository: this.repository
     });
 
     try {
-      const response = await fetch(url, requestOptions);
+      const response = await this._fetchApi(endpoint, undefined, options);
       
         if (!response.ok) {
           const errorText = await response.text();
