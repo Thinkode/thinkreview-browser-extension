@@ -113,10 +113,12 @@ export class AzureDevOpsAPI {
 
   /**
    * Resolve project when URL is on-prem /{collection}/_git/{repo} (no project in path).
-   * Uses collection-level Git List (one request); requires server to support GET {collection}/_apis/git/repositories.
+   * Uses collection-level Git List (one request). When multiple repos share the same name,
+   * prefers the one whose remoteUrl matches the page (/{org}/_git/{repo} with no project segment).
    */
   async resolveProjectForRepository() {
     const repoName = this.repository;
+    const org = this.organization;
 
     const listResp = await this._fetchApi('git/repositories', null);
     if (!listResp.ok) {
@@ -125,7 +127,21 @@ export class AzureDevOpsAPI {
     }
     const listData = await listResp.json();
     const repos = listData.value || [];
-    const match = repos.find(r => (r.name && r.name.toLowerCase() === repoName.toLowerCase()) || r.id === repoName);
+    const byName = repos.filter(r => (r.name && r.name.toLowerCase() === repoName.toLowerCase()) || r.id === repoName);
+
+    const match =
+      byName.find(r => {
+        if (!r.remoteUrl) return false;
+        try {
+          const pathname = new URL(r.remoteUrl).pathname.replace(/\/+$/, '');
+          const collectionLevelPath = `/${org}/_git/${repoName}`;
+          return pathname === collectionLevelPath || pathname === `${collectionLevelPath}/`;
+        } catch {
+          return false;
+        }
+      }) ||
+      byName[0];
+
     if (match && match.project && match.project.name) {
       this.project = match.project.name;
       dbgLog('Resolved project via collection-level git/repositories:', {
