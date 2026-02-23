@@ -114,7 +114,7 @@ export class AzureDevOpsAPI {
   /**
    * Resolve project when URL is on-prem /{collection}/_git/{repo} (no project in path).
    * Uses collection-level Git List (one request). When multiple repos share the same name,
-   * prefers the one whose remoteUrl matches the page (/{org}/_git/{repo} with no project segment).
+   * uses only the one whose remoteUrl matches the page (/{org}/_git/{repo}); otherwise reports to Honeybadger and throws.
    */
   async resolveProjectForRepository() {
     const repoName = this.repository;
@@ -129,27 +129,47 @@ export class AzureDevOpsAPI {
     const repos = listData.value || [];
     const byName = repos.filter(r => (r.name && r.name.toLowerCase() === repoName.toLowerCase()) || r.id === repoName);
 
-    const match =
-      byName.find(r => {
-        if (!r.remoteUrl) return false;
-        try {
-          const pathname = new URL(r.remoteUrl).pathname.replace(/\/+$/, '');
-          const collectionLevelPath = `/${org}/_git/${repoName}`;
-          return pathname === collectionLevelPath || pathname === `${collectionLevelPath}/`;
-        } catch {
-          return false;
-        }
-      }) ||
-      byName[0];
+    const preciseMatch = byName.find(r => {
+      if (!r.remoteUrl) return false;
+      try {
+        const pathname = new URL(r.remoteUrl).pathname.replace(/\/+$/, '');
+        const collectionLevelPath = `/${org}/_git/${repoName}`;
+        return pathname === collectionLevelPath || pathname === `${collectionLevelPath}/`;
+      } catch {
+        return false;
+      }
+    });
 
-    if (match && match.project && match.project.name) {
-      this.project = match.project.name;
+    if (preciseMatch && preciseMatch.project && preciseMatch.project.name) {
+      this.project = preciseMatch.project.name;
       dbgLog('Resolved project via collection-level git/repositories:', {
         repository: repoName,
         project: this.project
       });
       return;
     }
+
+    if (byName.length > 1) {
+      const errorMessage = `Azure DevOps on-prem: multiple projects contain a repository named "${repoName}" but none have a remoteUrl matching /${org}/_git/${repoName}. Cannot safely pick a project.`;
+      dbgError(errorMessage, {
+        source: 'resolveProjectForRepository',
+        repository: repoName,
+        organization: org,
+        candidateProjects: byName.map(r => r.project?.name).filter(Boolean),
+        candidateRemoteUrls: byName.map(r => r.remoteUrl || null)
+      });
+      throw new Error(`${errorMessage} Use a URL that includes the project (e.g. /${org}/{project}/_git/${repoName}).`);
+    }
+
+    if (byName.length === 1 && byName[0].project && byName[0].project.name) {
+      this.project = byName[0].project.name;
+      dbgLog('Resolved project via collection-level git/repositories (single match):', {
+        repository: repoName,
+        project: this.project
+      });
+      return;
+    }
+
     throw new Error(`Could not find project for repository: ${repoName}. Ensure the repo exists and the PAT has access.`);
   }
 
