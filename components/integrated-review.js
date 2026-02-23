@@ -87,7 +87,7 @@ async function initFormattingUtils() {
     preprocessAIResponse = module.preprocessAIResponse;
     applySimpleSyntaxHighlighting = module.applySimpleSyntaxHighlighting;
     setupCopyHandler = module.setupCopyHandler;
-    setupCopyHandler();
+    // Copy handler is attached to panel root when panel is created (avoids document-level listener and improves perf on diff pages)
     dbgLog('Formatting utils loaded');
   } catch (e) {
     dbgWarn('Failed to load formatting utils', e);
@@ -109,7 +109,7 @@ async function initCopyButtonUtils() {
 // Badge utils are initialized via cached promise above
 // The promise is already being resolved, we just need to wait for it when needed
 
-initFormattingUtils();
+const formattingReady = initFormattingUtils();
 initCopyButtonUtils();
 // Badge utils loading is handled by the cached promise, no separate init needed
 
@@ -471,7 +471,11 @@ async function createIntegratedReviewPanel(patchUrl) {
   
   // Initialize resize functionality
   initializeResizeHandle(container);
-  
+
+  // Delegate copy handler to panel only (avoids document-level listener; improves perf when interacting with GitLab diff)
+  await formattingReady;
+  if (setupCopyHandler) setupCopyHandler(container);
+
   // Add event listener for minimizing the panel
   const cardHeader = container.querySelector('.thinkreview-card-header');
   if (cardHeader) {
