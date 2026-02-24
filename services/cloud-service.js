@@ -9,6 +9,7 @@ const REVIEW_CODE_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode_1_1`;
 const SYNC_REVIEWS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/syncCodeReviews`;
 const GET_REVIEW_COUNT_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getReviewCount`;
 const GET_USER_DATA_URL = `${CLOUD_FUNCTIONS_BASE_URL}/ThinkReviewGetUserData`;
+const GET_USER_SUBSCRIPTION_DATA_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getUserSubscriptionDataThinkReview`;
 const TRACK_REVIEW_PROMPT_INTERACTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackReviewPromptInteractionHTTP`;
 const GET_REVIEW_PROMPT_MESSAGES_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getReviewPromptMessagesThinkReview`;
 const CREATE_CHECKOUT_SESSION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/createCheckoutSessionThinkReview`;
@@ -720,6 +721,53 @@ export class CloudService {
         planInterval: null,
         stripeCanceledDate: null
       };
+    }
+  }
+
+  /**
+   * Get user subscription data from the backend (getUserSubscriptionDataThinkReview).
+   * @param {string} email - User email
+   * @returns {Promise<Object>} - Subscription payload: isUserOnInitialTrial, userSubscriptionType, initialTrialEndDate?, userSubscriptionStatus?, currentPlanValidTo, cancellationRequestedActivePlan
+   */
+  static async getUserSubscriptionData(email) {
+    dbgLog('Getting user subscription data for:', email ? `${email.slice(0, 3)}...` : 'none');
+
+    if (!email) {
+      dbgWarn('Cannot get subscription data: Missing email');
+      return null;
+    }
+
+    try {
+      const response = await fetch(GET_USER_SUBSCRIPTION_DATA_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      dbgLog('Subscription data retrieved:', data?.status);
+
+      if (data.status === 'success') {
+        return {
+          isUserOnInitialTrial: data.isUserOnInitialTrial ?? false,
+          userSubscriptionType: data.userSubscriptionType ?? 'Free',
+          initialTrialEndDate: data.initialTrialEndDate ?? null,
+          userSubscriptionStatus: data.userSubscriptionStatus ?? null,
+          currentPlanValidTo: data.currentPlanValidTo ?? null,
+          cancellationRequestedActivePlan: data.cancellationRequestedActivePlan ?? false
+        };
+      }
+
+      dbgWarn('Invalid response from getUserSubscriptionData:', data);
+      return null;
+    } catch (error) {
+      dbgWarn('Error getting subscription data:', error);
+      return null;
     }
   }
 
