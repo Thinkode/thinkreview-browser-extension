@@ -679,21 +679,7 @@ export class CloudService {
       const data = await response.json();
       dbgLog('User data retrieved successfully:', data);
       
-      if (data.status === 'success') {
-        return {
-          userExists: data.userExists || false,
-          reviewCount: data.reviewCount || 0,
-          todayReviewCount: data.todayReviewCount || 0,
-          subscriptionType: data.subscriptionType || 'Free', // Consolidated field: Professional, Teams, or Free
-          stripeSubscriptionType: data.stripeSubscriptionType || null, // Legacy support
-          currentPlanValidTo: data.currentPlanValidTo || null, // Single source of truth for period end
-          cancellationRequested: data.cancellationRequested || false, // Cancellation status
-          planInterval: data.planInterval || null, // 'month' or 'year'
-          stripeCanceledDate: data.stripeCanceledDate || null,
-          lastFeedbackPromptInteraction: data.lastFeedbackPromptInteraction || null,
-          lastReviewDate: data.lastReviewDate || null
-        };
-      } else {
+      if (data.status !== 'success') {
         dbgWarn('Invalid response from getUserDataWithSubscription:', data);
         return {
           userExists: false,
@@ -708,6 +694,60 @@ export class CloudService {
           lastFeedbackPromptInteraction: null
         };
       }
+
+      // At this point ThinkReviewGetUserData succeeded. Optionally enrich with
+      // getUserSubscriptionDataThinkReview so Current Plan / Valid To match the
+      // new subscription endpoint exactly.
+      let subscriptionData = null;
+      try {
+        subscriptionData = await CloudService.getUserSubscriptionData(email);
+        dbgLog('Subscription data retrieved for popup:', {
+          hasData: !!subscriptionData,
+          type: subscriptionData?.userSubscriptionType,
+          validTo: subscriptionData?.currentPlanValidTo
+        });
+      } catch (subError) {
+        dbgWarn('Error getting subscription data in getUserDataWithSubscription:', subError);
+      }
+
+      // Effective values for popup display:
+      // - subscriptionType: prefer subscriptionData.userSubscriptionType
+      //   (Professional/Teams/Lite/Free), else fall back to ThinkReviewGetUserData.
+      // - currentPlanValidTo: prefer subscriptionData.currentPlanValidTo, else raw.
+      const effectiveSubscriptionType =
+        (subscriptionData && subscriptionData.userSubscriptionType) ||
+        data.subscriptionType ||
+        'Free';
+
+      const effectiveCurrentPlanValidTo =
+        (subscriptionData && subscriptionData.currentPlanValidTo) ||
+        data.currentPlanValidTo ||
+        null;
+
+      return {
+        userExists: data.userExists || false,
+        reviewCount: data.reviewCount || 0,
+        todayReviewCount: data.todayReviewCount || 0,
+
+        // Current plan / period end for popup (driven by getUserSubscriptionDataThinkReview when available)
+        subscriptionType: effectiveSubscriptionType,
+        currentPlanValidTo: effectiveCurrentPlanValidTo,
+
+        // Legacy / additional fields from ThinkReviewGetUserData
+        stripeSubscriptionType: data.stripeSubscriptionType || null,
+        cancellationRequested: data.cancellationRequested || false,
+        planInterval: data.planInterval || null,
+        stripeCanceledDate: data.stripeCanceledDate || null,
+        lastFeedbackPromptInteraction: data.lastFeedbackPromptInteraction || null,
+        lastReviewDate: data.lastReviewDate || null,
+
+        // Expose subscription payload in case callers need the extra flags
+        userSubscriptionData: subscriptionData || null,
+        isUserOnInitialTrial: subscriptionData?.isUserOnInitialTrial ?? false,
+        initialTrialEndDate: subscriptionData?.initialTrialEndDate || null,
+        cancellationRequestedActivePlan: subscriptionData?.cancellationRequestedActivePlan ?? false,
+        userSubscriptionStatus: subscriptionData?.userSubscriptionStatus || null
+      };
     } catch (error) {
       dbgWarn('Error getting user data:', error);
       return {

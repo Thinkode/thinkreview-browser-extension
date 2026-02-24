@@ -120,33 +120,10 @@ async function forceRefreshUserData() {
 async function updateSubscriptionStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate) {
   await subscriptionStatus.updateStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate);
   
-  // Show or hide cancel button based on subscription type, plan validity, and cancellation status
-  dbgLog(`Updating cancel button visibility for subscriptionType: '${subscriptionType}', currentPlanValidTo: '${currentPlanValidTo}', cancellationRequested: '${cancellationRequested}'`);
+  // Always show Manage Subscription button so users can upgrade or manage regardless of plan
   const cancelContainer = document.getElementById('cancel-subscription-container');
   if (cancelContainer) {
-    // Check if plan is free, expired, or already cancelled
-    // subscriptionType is case-insensitive: 'Professional', 'Teams', or 'Free'
-    const normalizedType = (subscriptionType || '').toLowerCase();
-    const isFreePlan = normalizedType === 'free' || normalizedType.includes('free');
-    // Use date utility to check if expired
-    let isExpired = false;
-    if (currentPlanValidTo) {
-      try {
-        const dateUtils = await import(chrome.runtime.getURL('utils/date-utils.js'));
-        isExpired = dateUtils.isPast(currentPlanValidTo);
-      } catch (error) {
-        // Fallback to simple comparison if import fails
-        dbgWarn('Error importing date utils, using fallback:', error);
-        isExpired = new Date(currentPlanValidTo) < new Date();
-      }
-    }
-    const isCancelled = cancellationRequested === true;
-    
-    if (!isFreePlan && !isExpired && !isCancelled) {
-      cancelContainer.style.display = 'block';
-    } else {
-      cancelContainer.style.display = 'none';
-    }
+    cancelContainer.style.display = 'block';
   }
 }
 
