@@ -127,7 +127,7 @@ export class SubscriptionStatusModule {
       const formattedDate = await this._formatPaymentDate(currentPlanValidTo);
       
       if (formattedDate) {
-        paymentDateElement.textContent = `Previous Plan Expired on ${formattedDate}`;
+        paymentDateElement.textContent = formattedDate;
         paymentInfoElement.style.display = 'block';
         dbgLog('Displayed expired subscription status with expired date:', formattedDate);
       } else {
