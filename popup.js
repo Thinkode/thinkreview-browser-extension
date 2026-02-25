@@ -117,8 +117,8 @@ async function forceRefreshUserData() {
 
 // Function to update subscription status display
 // Uses consolidated fields: subscriptionType (Professional, Teams, or Free) and currentPlanValidTo
-async function updateSubscriptionStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate) {
-  await subscriptionStatus.updateStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate);
+async function updateSubscriptionStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate, initialTrialEndDate = null) {
+  await subscriptionStatus.updateStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate, initialTrialEndDate);
   
   // Always show Manage Subscription button so users can upgrade or manage regardless of plan
   const cancelContainer = document.getElementById('cancel-subscription-container');
@@ -194,7 +194,8 @@ async function fetchAndDisplayUserData(retryCount = 0) {
     // Use consolidated fields: subscriptionType and cancellationRequested
     const subscriptionType = userData.subscriptionType || userData.stripeSubscriptionType || 'Free';
     const cancellationRequested = userData.cancellationRequested || false;
-    await updateSubscriptionStatus(subscriptionType, userData.currentPlanValidTo, cancellationRequested, userData.stripeCanceledDate);
+    const initialTrialEndDate = userData.initialTrialEndDate || null;
+    await updateSubscriptionStatus(subscriptionType, userData.currentPlanValidTo, cancellationRequested, userData.stripeCanceledDate, initialTrialEndDate);
     dbgLog('User data updated:', userData);
     
     // Show success state if we got valid data
