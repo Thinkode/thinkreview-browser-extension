@@ -275,11 +275,14 @@ async function createIntegratedReviewPanel(patchUrl) {
   container.innerHTML = `
     <div class="thinkreview-card gl-border-1 gl-border-gray-100">
       <div class="thinkreview-card-header gl-display-flex gl-justify-content-space-between gl-align-items-center">
-        <div class="gl-display-flex gl-align-items-center thinkreview-card-title">
-          <img src="${logoUrl}" alt="ThinkReview" class="thinkreview-header-logo">
-          <span class="gl-font-weight-bold">ThinkReview</span>
-          <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
-          <span class="thinkreview-toggle-icon gl-ml-2" title="Minimize">▲</span>
+        <div class="thinkreview-card-title">
+          <div class="thinkreview-card-title-row">
+            <img src="${logoUrl}" alt="ThinkReview" class="thinkreview-header-logo">
+            <span class="gl-font-weight-bold">ThinkReview</span>
+            <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
+            <span class="thinkreview-toggle-icon gl-ml-2" title="Minimize">▲</span>
+          </div>
+          <span id="review-subscription-label" class="thinkreview-header-subscription" aria-label="Current plan"></span>
         </div>
         <div class="thinkreview-header-actions">
           <span class="thinkreview-regenerate-btn-wrapper">
@@ -1333,6 +1336,21 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   if (tokenError) tokenError.classList.add('gl-hidden');
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
   reviewContent.classList.remove('gl-hidden');
+
+  // Update subscription type in header (Free, Lite, Premium, Teams)
+  const subscriptionLabel = document.getElementById('review-subscription-label');
+  if (subscriptionLabel) {
+    const raw = (subscriptionType ?? '').toString().trim().toLowerCase();
+    let displayName = 'Free';
+    if (raw && !raw.includes('free')) {
+      if (raw === 'lite') displayName = 'Lite';
+      else if (raw === 'teams') displayName = 'Teams';
+      else if (raw === 'professional') displayName = 'Professional';
+    }
+    subscriptionLabel.textContent = displayName;
+    const slug = displayName.toLowerCase();
+    subscriptionLabel.className = 'thinkreview-header-subscription thinkreview-header-subscription-' + slug;
+  }
 
   // Render patch size / metadata banner (Ollama-specific bar vs cloud bar)
   if (patchSizeBanner) {

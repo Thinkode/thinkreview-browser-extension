@@ -20,6 +20,7 @@ export class SubscriptionStatusModule {
     this.statusElementId = options.statusElementId || 'subscription-status';
     this.paymentInfoElementId = options.paymentInfoElementId || 'next-payment-info';
     this.paymentDateElementId = options.paymentDateElementId || 'next-payment-date';
+    this.trialExpiredMessageElementId = options.trialExpiredMessageElementId || 'trial-expired-message';
     
     dbgLog('SubscriptionStatusModule initialized with options:', options);
   }
@@ -30,15 +31,23 @@ export class SubscriptionStatusModule {
    * @param {string|number|Date} currentPlanValidTo - The date when the current plan is valid until (single source of truth)
    * @param {boolean} cancellationRequested - Whether cancellation has been requested
    * @param {string} stripeCanceledDate - The date when subscription was cancelled
+   * @param {string|number|Date|null} initialTrialEndDate - When the initial trial ended (optional)
    */
-  async updateStatus(subscriptionType, currentPlanValidTo, cancellationRequested = false, stripeCanceledDate = null) {
+  async updateStatus(subscriptionType, currentPlanValidTo, cancellationRequested = false, stripeCanceledDate = null, initialTrialEndDate = null) {
     const subscriptionStatusElement = document.getElementById(this.statusElementId);
     const nextPaymentInfoElement = document.getElementById(this.paymentInfoElementId);
     const nextPaymentDateElement = document.getElementById(this.paymentDateElementId);
+    const trialExpiredMessageElement = document.getElementById(this.trialExpiredMessageElementId);
     
     if (!subscriptionStatusElement) {
       dbgWarn('Subscription status element not found:', this.statusElementId);
       return;
+    }
+
+    // Show/hide trial-expired message: only when Free and initialTrialEndDate is in the past 30 days
+    const showTrialExpiredMessage = await this._shouldShowTrialExpiredMessage(subscriptionType, initialTrialEndDate);
+    if (trialExpiredMessageElement) {
+      trialExpiredMessageElement.style.display = showTrialExpiredMessage ? 'block' : 'none';
     }
 
     // Check if subscription is Free (case-insensitive)
@@ -74,6 +83,34 @@ export class SubscriptionStatusModule {
           currentPlanValidTo
         );
       }
+    }
+  }
+
+  /**
+   * Whether to show "Your free trial has expired. Upgrade to continue..." message.
+   * Only when plan is Free and initialTrialEndDate is in the past and within the last 30 days.
+   * @private
+   * @param {string} subscriptionType - Current plan type
+   * @param {string|number|Date|null} initialTrialEndDate - When the initial trial ended
+   * @returns {Promise<boolean>}
+   */
+  async _shouldShowTrialExpiredMessage(subscriptionType, initialTrialEndDate) {
+    const normalizedType = (subscriptionType || '').toLowerCase();
+    if (normalizedType !== 'free' && !normalizedType.includes('free')) {
+      return false;
+    }
+    if (!initialTrialEndDate) return false;
+    try {
+      const dateUtils = await import(chrome.runtime.getURL('utils/date-utils.js'));
+      const endDate = dateUtils.toDate(initialTrialEndDate);
+      if (isNaN(endDate.getTime())) return false;
+      const now = new Date();
+      if (endDate >= now) return false; // trial not expired yet
+      const daysSinceExpiry = (now - endDate) / (24 * 60 * 60 * 1000);
+      return daysSinceExpiry <= 30;
+    } catch (e) {
+      dbgWarn('Error checking trial expired message:', e);
+      return false;
     }
   }
 
@@ -127,7 +164,7 @@ export class SubscriptionStatusModule {
       const formattedDate = await this._formatPaymentDate(currentPlanValidTo);
       
       if (formattedDate) {
-        paymentDateElement.textContent = `Previous Plan Expired on ${formattedDate}`;
+        paymentDateElement.textContent = formattedDate;
         paymentInfoElement.style.display = 'block';
         dbgLog('Displayed expired subscription status with expired date:', formattedDate);
       } else {
@@ -258,6 +295,6 @@ export class SubscriptionStatusModule {
 export const subscriptionStatus = new SubscriptionStatusModule();
 
 // For backward compatibility, also export the update function directly
-export async function updateSubscriptionStatus(subscriptionType, currentPlanValidTo, cancellationRequested = false, stripeCanceledDate = null) {
-  await subscriptionStatus.updateStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate);
+export async function updateSubscriptionStatus(subscriptionType, currentPlanValidTo, cancellationRequested = false, stripeCanceledDate = null, initialTrialEndDate = null) {
+  await subscriptionStatus.updateStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate, initialTrialEndDate);
 }

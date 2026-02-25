@@ -561,8 +561,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle request to get user data with subscription info
   if (message.type === 'GET_USER_DATA_WITH_SUBSCRIPTION') {
     dbgLog('Getting user data with subscription');
-    CloudService.getUserDataWithSubscription()
-      .then(userData => {
+    chrome.storage.local.get(['userData', 'user'], async (storageResult) => {
+      let email = null;
+      if (storageResult.userData?.email) email = storageResult.userData.email;
+      else if (storageResult.user) {
+        try {
+          const parsed = JSON.parse(storageResult.user);
+          if (parsed?.email) email = parsed.email;
+        } catch (_) {}
+      }
+      try {
+        const [userData, subscriptionData] = await Promise.all([
+          CloudService.getUserDataWithSubscription(),
+          email ? CloudService.getUserSubscriptionData(email) : Promise.resolve(null)
+        ]);
         // Log only metadata, not full user data which may contain email
         dbgLog('User data retrieved:', {
           hasEmail: !!userData?.email,
@@ -575,68 +587,79 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         dbgLog('Subscription type:', subscriptionType);
         dbgLog('Is free plan:', subscriptionType === 'Free' || subscriptionType === 'Free plan' || !subscriptionType);
         dbgLog('Is over limit:', userData.todayReviewCount > 10);
-        
-        // Store todayReviewCount and lastFeedbackPromptInteraction in chrome.storage for review prompt to use
-        chrome.storage.local.set({ 
+
+        // Store subscription data and review prompt fields in chrome.storage
+        const toStore = {
           todayReviewCount: userData.todayReviewCount || 0,
           lastFeedbackPromptInteraction: userData.lastFeedbackPromptInteraction || null
-        }, () => {
+        };
+        if (subscriptionData) toStore.userSubscriptionData = subscriptionData;
+        chrome.storage.local.set(toStore, () => {
           dbgLog('Stored todayReviewCount:', userData.todayReviewCount);
           dbgLog('Stored lastFeedbackPromptInteraction:', userData.lastFeedbackPromptInteraction);
+          if (subscriptionData) dbgLog('Stored userSubscriptionData');
         });
-        
-        // Make sure we're sending the complete userData object
-        sendResponse({ status: 'success', userData: {
+
+        const responseUserData = {
           userExists: userData.userExists,
           reviewCount: userData.reviewCount,
           todayReviewCount: userData.todayReviewCount || 0,
-          subscriptionType: subscriptionType, // Use consolidated field
-          stripeSubscriptionType: userData.stripeSubscriptionType || null, // Keep for legacy support
-          currentPlanValidTo: userData.currentPlanValidTo, // Single source of truth for period end
+          subscriptionType: subscriptionType,
+          stripeSubscriptionType: userData.stripeSubscriptionType || null,
+          currentPlanValidTo: userData.currentPlanValidTo,
           cancellationRequested: userData.cancellationRequested || false,
           planInterval: userData.planInterval || null,
           lastFeedbackPromptInteraction: userData.lastFeedbackPromptInteraction || null,
           lastReviewDate: userData.lastReviewDate || null
-        }});
-      })
-      .catch(error => {
+        };
+        if (subscriptionData) responseUserData.userSubscriptionData = subscriptionData;
+        sendResponse({ status: 'success', userData: responseUserData });
+      } catch (error) {
         dbgWarn('Error getting user data:', error);
         sendResponse({ status: 'error', error: error.message });
-      });
+      }
+    });
     return true; // Keep the message channel open for async response
   }
-  
+
   // Handle request to refresh user data and update local storage
+  // Called after every review (e.g. from integrated-review) - fetches ThinkReviewGetUserData and getUserSubscriptionDataThinkReview
   if (message.type === 'REFRESH_USER_DATA_STORAGE') {
     dbgLog('Refreshing user data and updating local storage');
-    
-    CloudService.refreshUserData()
-      .then(userData => {
-        // Log only metadata, not full user data which may contain email
+    chrome.storage.local.get(['userData', 'user'], async (storageResult) => {
+      let email = null;
+      if (storageResult.userData?.email) email = storageResult.userData.email;
+      else if (storageResult.user) {
+        try {
+          const parsed = JSON.parse(storageResult.user);
+          if (parsed?.email) email = parsed.email;
+        } catch (_) {}
+      }
+      try {
+        const [userData, subscriptionData] = await Promise.all([
+          CloudService.refreshUserData(),
+          email ? CloudService.getUserSubscriptionData(email) : Promise.resolve(null)
+        ]);
         dbgLog('User data refreshed from CloudService:', {
-          hasEmail: !!userData?.email,
           todayReviewCount: userData?.todayReviewCount,
-          hasSubscription: !!userData?.subscription
+          hasSubscriptionData: !!subscriptionData
         });
-        
-        // Update chrome.storage.local with the data from CloudService
-        chrome.storage.local.set(userData, () => {
-          dbgLog('Local storage updated:', userData);
-          sendResponse({ 
-            status: 'success', 
+        const toStore = { ...userData };
+        if (subscriptionData) toStore.userSubscriptionData = subscriptionData;
+        chrome.storage.local.set(toStore, () => {
+          dbgLog('Local storage updated with user data and subscription data');
+          sendResponse({
+            status: 'success',
             data: userData,
-            message: 'User data refreshed successfully' 
+            userSubscriptionData: subscriptionData || null,
+            message: 'User data refreshed successfully'
           });
         });
-      })
-      .catch(error => {
+      } catch (error) {
         dbgWarn('Error refreshing user data:', error);
-        sendResponse({ 
-          status: 'error', 
-          error: error.message 
-        });
-      });
-    
+        sendResponse({ status: 'error', error: error.message });
+      }
+    });
     return true; // Keep the message channel open for async response
   }
   

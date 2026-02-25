@@ -477,6 +477,17 @@ h1 {
   background-color: #1d4ed8;
 }
 
+.trial-expired-message {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background-color: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  line-height: 1.4;
+  border-radius: 4px;
+  border-left: 3px solid #f59e0b;
+}
+
 /* Subscription Section Styles */
 .subscription-section {
   background-color: #f8f9fa;
