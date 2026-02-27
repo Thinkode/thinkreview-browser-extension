@@ -470,3 +470,71 @@ export function renderOllamaMetadataBar(container, ollamaMeta, callbacks = {}) {
 }
 
 
+/**
+ * Render a metadata bar for OpenAI-compatible API reviews.
+ * Shows patch size, truncation info, model name (static), and a "Switch to Cloud AI" button.
+ * @param {HTMLElement} container
+ * @param {{ patchSizeChars: number, patchSentChars: number, wasTruncated: boolean, model: string }} meta
+ * @param {{ onSwitchToCloud?: Function }} callbacks
+ */
+export function renderOpenAIMetadataBar(container, meta, callbacks = {}) {
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  if (!meta || typeof meta.patchSizeChars !== 'number') {
+    container.classList.add('gl-hidden');
+    return;
+  }
+
+  const { patchSizeChars, patchSentChars, wasTruncated, model } = meta;
+  const onSwitchToCloud = typeof callbacks.onSwitchToCloud === 'function' ? callbacks.onSwitchToCloud : () => {};
+
+  const banner = document.createElement('div');
+  banner.className = 'thinkreview-patch-size-banner thinkreview-ollama-metadata-banner';
+
+  const topRow = document.createElement('div');
+  topRow.className = 'thinkreview-patch-size-top-row';
+
+  const content = document.createElement('div');
+  content.className = 'thinkreview-patch-size-content';
+  const patchSizeStr = formatCharsAsSize(patchSizeChars);
+  const truncatedSizeStr = formatCharsAsSize(patchSentChars);
+  content.appendChild(document.createTextNode(`Original patch: ${patchSizeStr}`));
+  if (wasTruncated && truncatedSizeStr) {
+    content.appendChild(document.createTextNode(' \u2022 '));
+    const truncatedWrapper = document.createElement('span');
+    truncatedWrapper.className = 'thinkreview-ollama-truncated-tooltip-wrapper';
+    const truncatedSpan = document.createElement('span');
+    truncatedSpan.className = 'thinkreview-ollama-truncated-label';
+    truncatedSpan.textContent = `Truncated patch: ${truncatedSizeStr}`;
+    truncatedWrapper.appendChild(truncatedSpan);
+    content.appendChild(truncatedWrapper);
+  }
+
+  topRow.appendChild(content);
+
+  const switchToCloudBtn = document.createElement('button');
+  switchToCloudBtn.type = 'button';
+  switchToCloudBtn.className = 'thinkreview-ollama-switch-to-cloud-btn';
+  switchToCloudBtn.textContent = 'Switch to Cloud AI';
+  switchToCloudBtn.setAttribute('aria-label', 'Switch to Cloud AI and regenerate review');
+  switchToCloudBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    onSwitchToCloud();
+  });
+  topRow.appendChild(switchToCloudBtn);
+
+  // Model label (static text, no dropdown)
+  const modelWrap = document.createElement('div');
+  modelWrap.className = 'thinkreview-ollama-model-wrap';
+  const modelLabel = document.createElement('span');
+  modelLabel.className = 'thinkreview-ollama-model-label';
+  modelLabel.textContent = `Model: ${model || 'unknown'}`;
+  modelWrap.appendChild(modelLabel);
+  topRow.appendChild(modelWrap);
+
+  banner.appendChild(topRow);
+  container.appendChild(banner);
+  container.classList.remove('gl-hidden');
+}

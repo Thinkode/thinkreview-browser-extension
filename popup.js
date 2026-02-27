@@ -1474,11 +1474,22 @@ function setupAIProviderEventListeners() {
   if (refreshModelsButton) {
     refreshModelsButton.addEventListener('click', refreshOllamaModels);
   }
+
+  // OpenAI-compatible API buttons
+  const testOpenAIButton = document.getElementById('test-openai-btn');
+  const saveOpenAIButton = document.getElementById('save-openai-btn');
+
+  if (testOpenAIButton) {
+    testOpenAIButton.addEventListener('click', testOpenAIConnection);
+  }
+  if (saveOpenAIButton) {
+    saveOpenAIButton.addEventListener('click', saveOpenAISettings);
+  }
 }
 
 async function loadAIProviderSettings() {
   try {
-    const result = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+    const result = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openaiConfig']);
     const provider = result.aiProvider || 'cloud';
     const config = result.ollamaConfig || {
       url: 'http://localhost:11434',
@@ -1487,36 +1498,50 @@ async function loadAIProviderSettings() {
       top_p: 0.4,
       top_k: 90
     };
-    
+    const openaiConfigData = result.openaiConfig || {
+      url: 'https://api.openai.com',
+      apiKey: '',
+      model: 'gpt-4o-mini',
+      contextLength: 128000,
+      temperature: 0.3,
+      top_p: 0.4,
+      top_k: 90
+    };
+
     // Set the selected provider
     const providerRadio = document.getElementById(`provider-${provider}`);
     if (providerRadio) {
       providerRadio.checked = true;
     }
-    
+
     // Show/hide Ollama config based on provider
     const ollamaConfig = document.getElementById('ollama-config');
     if (ollamaConfig) {
       ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
     }
-    // Show/hide "Start review automatically" only when Ollama is selected
+    // Show/hide OpenAI config based on provider
+    const openaiConfig = document.getElementById('openai-config');
+    if (openaiConfig) {
+      openaiConfig.style.display = provider === 'openai' ? 'block' : 'none';
+    }
+    // Show/hide "Start review automatically" for Ollama or OpenAI
     const autoStartSection = document.getElementById('auto-start-review-section');
     if (autoStartSection) {
-      autoStartSection.style.display = provider === 'ollama' ? 'flex' : 'none';
+      autoStartSection.style.display = (provider === 'ollama' || provider === 'openai') ? 'flex' : 'none';
     }
-    
+
     // Load Ollama config values
     const urlInput = document.getElementById('ollama-url');
     const modelSelect = document.getElementById('ollama-model');
     const tempInput = document.getElementById('ollama-temperature');
     const topPInput = document.getElementById('ollama-top-p');
     const topKInput = document.getElementById('ollama-top-k');
-    
+
     if (urlInput) urlInput.value = config.url;
     if (tempInput) tempInput.value = clampTemperature(config.temperature);
     if (topPInput) topPInput.value = clampTopP(config.top_p);
     if (topKInput) topKInput.value = clampTopK(config.top_k);
-    
+
     // If Ollama is the selected provider, fetch available models
     if (provider === 'ollama') {
       dbgLog('Ollama is selected provider, fetching available models...');
@@ -1525,8 +1550,25 @@ async function loadAIProviderSettings() {
       // If not Ollama, just set the saved model value
       modelSelect.value = config.model;
     }
-    
-    dbgLog('AI Provider settings loaded:', { provider, config });
+
+    // Load OpenAI config values
+    const openaiUrlInput = document.getElementById('openai-url');
+    const openaiKeyInput = document.getElementById('openai-api-key');
+    const openaiModelInput = document.getElementById('openai-model');
+    const openaiContextInput = document.getElementById('openai-context-length');
+    const openaiTempInput = document.getElementById('openai-temperature');
+    const openaiTopPInput = document.getElementById('openai-top-p');
+    const openaiTopKInput = document.getElementById('openai-top-k');
+
+    if (openaiUrlInput) openaiUrlInput.value = openaiConfigData.url;
+    if (openaiKeyInput && openaiConfigData.apiKey) openaiKeyInput.value = '********';
+    if (openaiModelInput) openaiModelInput.value = openaiConfigData.model;
+    if (openaiContextInput) openaiContextInput.value = openaiConfigData.contextLength;
+    if (openaiTempInput) openaiTempInput.value = clampTemperature(openaiConfigData.temperature);
+    if (openaiTopPInput) openaiTopPInput.value = clampTopP(openaiConfigData.top_p);
+    if (openaiTopKInput) openaiTopKInput.value = clampTopK(openaiConfigData.top_k);
+
+    dbgLog('AI Provider settings loaded:', { provider, ollamaConfig: config, openaiConfig: openaiConfigData });
   } catch (error) {
     dbgWarn('Error loading AI Provider settings:', error);
   }
@@ -1535,36 +1577,41 @@ async function loadAIProviderSettings() {
 function handleProviderChange(event) {
   const provider = event.target.value;
   const ollamaConfig = document.getElementById('ollama-config');
-  
+  const openaiConfig = document.getElementById('openai-config');
+
   if (ollamaConfig) {
     ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
   }
+  if (openaiConfig) {
+    openaiConfig.style.display = provider === 'openai' ? 'block' : 'none';
+  }
   const autoStartSection = document.getElementById('auto-start-review-section');
   if (autoStartSection) {
-    autoStartSection.style.display = provider === 'ollama' ? 'flex' : 'none';
+    autoStartSection.style.display = (provider === 'ollama' || provider === 'openai') ? 'flex' : 'none';
   }
-  
+
   // Auto-save provider selection
   chrome.storage.local.set({ aiProvider: provider }, () => {
     dbgLog('AI Provider changed to:', provider);
-    showOllamaStatus(
-      provider === 'cloud' 
-        ? '☁️ Using Cloud AI (Advanced Models)' 
-        : '🖥️ Local Ollama selected - configure and test below',
-      provider === 'cloud' ? 'success' : 'info'
-    );
-    
+    if (provider === 'cloud') {
+      showOllamaStatus('☁️ Using Cloud AI (Advanced Models)', 'success');
+    } else if (provider === 'ollama') {
+      showOllamaStatus('🖥️ Local Ollama selected - configure and test below', 'info');
+    } else if (provider === 'openai') {
+      showOpenAIStatus('🔌 OpenAI-compatible API selected - configure and test below', 'info');
+    }
+
     // Automatically fetch models when Ollama is selected
     if (provider === 'ollama') {
       const urlInput = document.getElementById('ollama-url');
       const url = urlInput ? urlInput.value.trim() : 'http://localhost:11434';
-      
+
       dbgLog('Ollama selected, fetching available models...');
       fetchAndPopulateModels(url).catch(err => {
         dbgWarn('Error auto-fetching models (non-critical):', err);
       });
     }
-    
+
     // Track provider change in cloud asynchronously (fire-and-forget)
     isUserLoggedIn().then(isLoggedIn => {
       if (isLoggedIn && window.CloudService) {
@@ -1575,7 +1622,7 @@ function handleProviderChange(event) {
             .then(() => dbgLog('Ollama disabled tracked successfully in cloud'))
             .catch(trackError => dbgWarn('Error tracking provider change in cloud (non-critical):', trackError));
         }
-        // If switching to Ollama, it will be tracked when user saves the config
+        // If switching to Ollama or OpenAI, it will be tracked when user saves the config
       } else {
         dbgLog('User not logged in or CloudService not available, skipping cloud tracking');
       }
@@ -1824,6 +1871,137 @@ function showOllamaStatus(message, type = 'info') {
     setTimeout(() => {
       statusDiv.classList.remove('show');
     }, 5000);
+  }
+}
+
+function showOpenAIStatus(message, type = 'info') {
+  const statusDiv = document.getElementById('openai-status');
+  if (!statusDiv) return;
+
+  statusDiv.textContent = message;
+  statusDiv.className = `ollama-status show ${type}`;
+
+  // Auto-hide after 5 seconds for success messages
+  if (type === 'success') {
+    setTimeout(() => {
+      statusDiv.classList.remove('show');
+    }, 5000);
+  }
+}
+
+async function testOpenAIConnection() {
+  const urlInput = document.getElementById('openai-url');
+  const apiKeyInput = document.getElementById('openai-api-key');
+  const url = urlInput ? urlInput.value.trim() : '';
+  const apiKeyValue = apiKeyInput ? apiKeyInput.value.trim() : '';
+
+  if (!url) {
+    showOpenAIStatus('❌ Please enter a base URL', 'error');
+    return;
+  }
+
+  // If the key field shows the mask, use the stored key
+  let apiKey = apiKeyValue;
+  if (apiKey === '********') {
+    const stored = await chrome.storage.local.get(['openaiConfig']);
+    apiKey = stored.openaiConfig?.apiKey || '';
+  }
+
+  if (!apiKey) {
+    showOpenAIStatus('❌ Please enter an API key', 'error');
+    return;
+  }
+
+  showOpenAIStatus('🔄 Testing connection...', 'info');
+
+  try {
+    const { OpenAIService } = await import(chrome.runtime.getURL('services/openai-service.js'));
+    const result = await OpenAIService.checkConnection(url, apiKey);
+
+    if (result.connected) {
+      showOpenAIStatus('✅ Connection successful!', 'success');
+    } else {
+      showOpenAIStatus(`❌ ${result.error || 'Connection failed'}`, 'error');
+    }
+  } catch (error) {
+    dbgWarn('OpenAI connection test error:', error);
+    showOpenAIStatus(`❌ Connection test failed: ${error.message}`, 'error');
+  }
+}
+
+async function saveOpenAISettings() {
+  const urlInput = document.getElementById('openai-url');
+  const apiKeyInput = document.getElementById('openai-api-key');
+  const modelInput = document.getElementById('openai-model');
+  const contextLengthInput = document.getElementById('openai-context-length');
+  const tempInput = document.getElementById('openai-temperature');
+  const topPInput = document.getElementById('openai-top-p');
+  const topKInput = document.getElementById('openai-top-k');
+
+  const url = urlInput ? urlInput.value.trim() : '';
+  const apiKeyValue = apiKeyInput ? apiKeyInput.value.trim() : '';
+  const model = modelInput ? modelInput.value.trim() : '';
+  const contextLength = contextLengthInput ? parseInt(contextLengthInput.value, 10) : 128000;
+
+  if (!url) {
+    showOpenAIStatus('❌ Base URL is required', 'error');
+    return;
+  }
+
+  try {
+    new URL(url);
+  } catch (e) {
+    showOpenAIStatus('❌ Invalid URL format', 'error');
+    return;
+  }
+
+  if (!model) {
+    showOpenAIStatus('❌ Model name is required', 'error');
+    return;
+  }
+
+  // Resolve API key: if masked, keep stored value
+  let apiKey = apiKeyValue;
+  if (apiKey === '********') {
+    const stored = await chrome.storage.local.get(['openaiConfig']);
+    apiKey = stored.openaiConfig?.apiKey || '';
+  }
+
+  if (!apiKey) {
+    showOpenAIStatus('❌ API key is required', 'error');
+    return;
+  }
+
+  const openaiConfig = {
+    url: url,
+    apiKey: apiKey,
+    model: model,
+    contextLength: Number.isFinite(contextLength) && contextLength > 0 ? contextLength : 128000,
+    temperature: clampTemperature(tempInput ? tempInput.value : 0.3),
+    top_p: clampTopP(topPInput ? topPInput.value : 0.4),
+    top_k: clampTopK(topKInput ? topKInput.value : 90)
+  };
+
+  try {
+    // Request host permission for the configured URL
+    const parsedUrl = new URL(url);
+    const originPattern = `${parsedUrl.protocol}//${parsedUrl.host}/*`;
+    try {
+      await chrome.permissions.request({ origins: [originPattern] });
+    } catch (permErr) {
+      dbgWarn('Host permission request failed (non-critical):', permErr);
+    }
+
+    await chrome.storage.local.set({ openaiConfig });
+    dbgLog('OpenAI settings saved:', { url, model, contextLength: openaiConfig.contextLength });
+
+    // Mask the API key in the input after save
+    if (apiKeyInput) apiKeyInput.value = '********';
+
+    showOpenAIStatus('✅ Settings saved successfully!', 'success');
+  } catch (error) {
+    dbgWarn('Error saving OpenAI settings:', error);
+    showOpenAIStatus(`❌ Failed to save settings: ${error.message}`, 'error');
   }
 }
 

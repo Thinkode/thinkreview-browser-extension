@@ -513,12 +513,12 @@ function getAutoStartReview() {
   return new Promise((resolve) => {
     chrome.storage.local.get(['autoStartReview', 'aiProvider'], (result) => {
       const provider = result.aiProvider || 'cloud';
-      // Cloud AI: always auto-start (setting is only shown for Ollama)
-      if (provider !== 'ollama') {
+      // Cloud AI: always auto-start (setting is only shown for Ollama and OpenAI)
+      if (provider !== 'ollama' && provider !== 'openai') {
         resolve(true);
         return;
       }
-      // Ollama: respect the "Start review automatically" option
+      // Ollama / OpenAI: respect the "Start review automatically" option
       resolve(result.autoStartReview !== false);
     });
   });

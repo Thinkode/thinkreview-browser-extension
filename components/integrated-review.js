@@ -1376,6 +1376,12 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
             document.dispatchEvent(new CustomEvent('thinkreview-ollama-model-changed', { detail: { model: modelName } }));
           }
         });
+      } else if (provider === 'openai' && ollamaMeta) {
+        metadataModule.renderOpenAIMetadataBar(patchSizeBanner, ollamaMeta, {
+          onSwitchToCloud() {
+            document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
+          }
+        });
       } else {
         metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionType, modelUsed, isCached);
       }
