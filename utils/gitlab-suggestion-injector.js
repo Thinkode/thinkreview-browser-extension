@@ -10,6 +10,13 @@ const DEBUG = true;
 function dbgLog(...args) { if (DEBUG) console.log('[GitLabSuggestionInjector]', ...args); }
 function dbgWarn(...args) { if (DEBUG) console.warn('[GitLabSuggestionInjector]', ...args); }
 
+// Store for re-injection when DOM is replaced (e.g. Cmd+F search in GitLab)
+let lastInjectedSuggestions = null;
+let lastPatchContent = null;
+let reinjectObserver = null;
+let reinjectTimeoutId = null;
+let isReinjecting = false;
+
 // Import copy button utility
 let copyButtonUtils = null;
 async function loadCopyButtonUtils() {
@@ -1120,6 +1127,62 @@ function waitForGitLabDiffView() {
 }
 
 /**
+ * Check if any removed nodes contain our suggestion elements
+ */
+function containsOurSuggestions(node) {
+  if (!node || node.nodeType !== 1) return false; // Element nodes only
+  return node.classList?.contains('thinkreview-suggestion-area') ||
+    !!node.querySelector?.('.thinkreview-suggestion-area');
+}
+
+/**
+ * Schedule re-injection when our elements are removed (e.g. Cmd+F triggers GitLab DOM replacement)
+ */
+function scheduleReinject() {
+  if (reinjectTimeoutId) clearTimeout(reinjectTimeoutId);
+  reinjectTimeoutId = setTimeout(async () => {
+    reinjectTimeoutId = null;
+    if (!lastInjectedSuggestions?.length || isReinjecting) return;
+
+    const count = document.querySelectorAll('.thinkreview-suggestion-area').length;
+    if (count > 0) return; // Still present, no need to re-inject
+
+    dbgLog('Suggestions removed from DOM (e.g. Cmd+F search), re-injecting...');
+    isReinjecting = true;
+    try {
+      await injectCodeSuggestions(lastInjectedSuggestions, lastPatchContent || '');
+    } finally {
+      isReinjecting = false;
+    }
+  }, 400);
+}
+
+/**
+ * Set up observer to detect when our suggestions are removed and re-inject.
+ * Uses document.body so we catch replacements of the entire diff container (e.g. Cmd+F search).
+ */
+function setupReinjectObserver() {
+  if (reinjectObserver) {
+    reinjectObserver.disconnect();
+    reinjectObserver = null;
+  }
+
+  reinjectObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.removedNodes || []) {
+        if (containsOurSuggestions(node)) {
+          scheduleReinject();
+          return;
+        }
+      }
+    }
+  });
+
+  reinjectObserver.observe(document.body, { childList: true, subtree: true });
+  dbgLog('Re-inject observer active (will restore suggestions if DOM is replaced)');
+}
+
+/**
  * Main function to inject code suggestions into GitLab's diff view
  * @param {Array<Object>} suggestions - Array of code suggestion objects
  * @param {string} patchContent - The patch content for line mapping
@@ -1161,6 +1224,12 @@ export async function injectCodeSuggestions(suggestions, patchContent) {
     } else {
       failedCount++;
     }
+  }
+
+  if (successCount > 0) {
+    lastInjectedSuggestions = suggestions;
+    lastPatchContent = patchContent || '';
+    setupReinjectObserver();
   }
 
   dbgLog(`Injection complete: ${successCount} successful, ${failedCount} failed`);
