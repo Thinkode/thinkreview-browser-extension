@@ -1377,16 +1377,16 @@ async function handleSendMessage(messageText) {
 function buildReviewMarkdown(review) {
   if (!review) return '';
 
-  const sections = ['# AI Code Review'];
+  const sections = [];
 
-  // Quality Score
+  // Metrics
   if (review.metrics) {
     const m = review.metrics;
     const lines = ['## Quality Score', ''];
-    if (m.overallScore != null) lines.push(`**Overall:** ${m.overallScore}`, '');
-    if (m.codeQuality != null) lines.push(`- **Code Quality:** ${m.codeQuality}`);
-    if (m.securityScore != null) lines.push(`- **Security:** ${m.securityScore}`);
-    if (m.bestPracticesScore != null) lines.push(`- **Best Practices:** ${m.bestPracticesScore}`);
+    if (m.overallScore != null) lines.push(`- **Overall Score:** ${m.overallScore}/100`);
+    if (m.codeQuality != null) lines.push(`- **Code Quality:** ${m.codeQuality}/100`);
+    if (m.securityScore != null) lines.push(`- **Security:** ${m.securityScore}/100`);
+    if (m.bestPracticesScore != null) lines.push(`- **Best Practices:** ${m.bestPracticesScore}/100`);
     sections.push(lines.join('\n'));
   }
 
