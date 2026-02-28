@@ -1382,11 +1382,11 @@ function buildReviewMarkdown(review) {
   // Metrics
   if (review.metrics) {
     const m = review.metrics;
-    const lines = ['## Quality Score', ''];
-    if (m.overallScore != null) lines.push(`- **Overall Score:** ${m.overallScore}/100`);
-    if (m.codeQuality != null) lines.push(`- **Code Quality:** ${m.codeQuality}/100`);
-    if (m.securityScore != null) lines.push(`- **Security:** ${m.securityScore}/100`);
-    if (m.bestPracticesScore != null) lines.push(`- **Best Practices:** ${m.bestPracticesScore}/100`);
+    const lines = ['## Metrics', ''];
+    if (m.overallScore != null) lines.push(`- **Overall Score:** ${m.overallScore}/10`);
+    if (m.codeQualityScore != null) lines.push(`- **Code Quality:** ${m.codeQualityScore}/10`);
+    if (m.securityScore != null) lines.push(`- **Security:** ${m.securityScore}/10`);
+    if (m.bestPracticesScore != null) lines.push(`- **Best Practices:** ${m.bestPracticesScore}/10`);
     sections.push(lines.join('\n'));
   }
 
