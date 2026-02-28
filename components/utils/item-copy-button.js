@@ -628,7 +628,7 @@ export async function copyItemContent(element, button) {
  * Shows success feedback on the copy button (checkmark icon)
  * @param {HTMLElement} button - The copy button element
  */
-function showCopySuccessFeedback(button) {
+export function showCopySuccessFeedback(button) {
   const originalHTML = button.innerHTML;
   button.innerHTML = `
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -647,7 +647,7 @@ function showCopySuccessFeedback(button) {
  * Shows error feedback on the copy button (error icon)
  * @param {HTMLElement} button - The copy button element
  */
-function showCopyErrorFeedback(button) {
+export function showCopyErrorFeedback(button) {
   const originalHTML = button.innerHTML;
   button.innerHTML = `
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
