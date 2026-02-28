@@ -65,6 +65,9 @@ let createCopyButton = null;
 let copyItemContent = null;
 let attachCopyButtonToItem = null;
 
+// Store current review data for copy-all functionality
+let currentReviewData = null;
+
 // Badge utils
 let createNewBadge = null;
 // Cache the badge module loading promise to avoid repeated imports
@@ -285,6 +288,14 @@ async function createIntegratedReviewPanel(patchUrl) {
           <span id="review-subscription-label" class="thinkreview-header-subscription" aria-label="Current plan"></span>
         </div>
         <div class="thinkreview-header-actions">
+          <span class="thinkreview-copy-all-btn-wrapper">
+            <button id="copy-all-review-btn" class="thinkreview-copy-all-btn" aria-label="Copy all">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="currentColor"/>
+              </svg>
+            </button>
+            <span class="thinkreview-copy-all-tooltip" aria-hidden="true">Copy all</span>
+          </span>
           <span class="thinkreview-regenerate-btn-wrapper">
             <button id="regenerate-review-btn" class="thinkreview-regenerate-btn" aria-label="Regenerate review">
               ${refreshIconSvg}
@@ -591,6 +602,75 @@ async function createIntegratedReviewPanel(patchUrl) {
     });
   }
   
+  // Fast tooltip for copy-all button
+  const copyAllWrapper = container.querySelector('.thinkreview-copy-all-btn-wrapper');
+  if (copyAllWrapper) {
+    let copyAllTooltipTimeout;
+    const copyAllTooltipEl = copyAllWrapper.querySelector('.thinkreview-copy-all-tooltip');
+    copyAllWrapper.addEventListener('mouseenter', () => {
+      copyAllTooltipTimeout = setTimeout(() => {
+        if (copyAllTooltipEl) copyAllTooltipEl.classList.add('thinkreview-tooltip-visible');
+      }, 200);
+    });
+    copyAllWrapper.addEventListener('mouseleave', () => {
+      clearTimeout(copyAllTooltipTimeout);
+      if (copyAllTooltipEl) copyAllTooltipEl.classList.remove('thinkreview-tooltip-visible');
+    });
+  }
+
+  // Add event listener for the copy-all button
+  const copyAllButton = document.getElementById('copy-all-review-btn');
+  if (copyAllButton) {
+    copyAllButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+
+      if (!currentReviewData) return;
+
+      const markdown = buildReviewMarkdown(currentReviewData);
+      if (!markdown.trim()) return;
+
+      try {
+        await navigator.clipboard.writeText(markdown);
+
+        // Show success feedback (green checkmark)
+        const originalHTML = copyAllButton.innerHTML;
+        copyAllButton.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
+          </svg>
+        `;
+        copyAllButton.style.color = '#4ade80';
+        setTimeout(() => {
+          copyAllButton.innerHTML = originalHTML;
+          copyAllButton.style.color = '';
+        }, 2000);
+
+        // Track copy-all action
+        try {
+          const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+          analyticsModule.trackUserAction('copy_all_review', {
+            context: 'integrated_review_panel'
+          }).catch(() => {});
+        } catch (error) { /* silent */ }
+      } catch (error) {
+        dbgWarn('Failed to copy all review content:', error);
+
+        // Show error feedback
+        const originalHTML = copyAllButton.innerHTML;
+        copyAllButton.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
+          </svg>
+        `;
+        copyAllButton.style.color = '#ef4444';
+        setTimeout(() => {
+          copyAllButton.innerHTML = originalHTML;
+          copyAllButton.style.color = '';
+        }, 2000);
+      }
+    });
+  }
+
   // Fast tooltip for regenerate button (short delay vs native title)
   const regenerateWrapper = container.querySelector('.thinkreview-regenerate-btn-wrapper');
   if (regenerateWrapper) {
@@ -651,11 +731,13 @@ async function createIntegratedReviewPanel(patchUrl) {
   const headerActions = container.querySelector('.thinkreview-header-actions');
   if (headerActions) {
     const blockEvent = (e) => {
-      // Allow clicks on bug report button, regenerate button, and language selector
-      if (e.target.id === 'bug-report-btn' || 
+      // Allow clicks on bug report button, regenerate button, copy-all button, and language selector
+      if (e.target.id === 'bug-report-btn' ||
           e.target.closest('#bug-report-btn') ||
-          e.target.id === 'regenerate-review-btn' || 
+          e.target.id === 'regenerate-review-btn' ||
           e.target.closest('#regenerate-review-btn') ||
+          e.target.id === 'copy-all-review-btn' ||
+          e.target.closest('#copy-all-review-btn') ||
           e.target.id === 'language-selector' ||
           e.target.closest('#language-selector')) {
         return; // Don't block these events
@@ -1288,12 +1370,62 @@ async function handleSendMessage(messageText) {
   }
 }
 
+/**
+ * Builds a Markdown string from the review data for copy-all
+ * @param {Object} review - The review data object
+ * @returns {string} Formatted Markdown text
+ */
+function buildReviewMarkdown(review) {
+  if (!review) return '';
+
+  const sections = [];
+
+  // Metrics
+  if (review.metrics) {
+    const m = review.metrics;
+    const lines = ['## Metrics', ''];
+    if (m.overallScore != null) lines.push(`- **Overall Score:** ${m.overallScore}/10`);
+    if (m.codeQualityScore != null) lines.push(`- **Code Quality:** ${m.codeQualityScore}/10`);
+    if (m.securityScore != null) lines.push(`- **Security:** ${m.securityScore}/10`);
+    if (m.bestPracticesScore != null) lines.push(`- **Best Practices:** ${m.bestPracticesScore}/10`);
+    sections.push(lines.join('\n'));
+  }
+
+  // Summary
+  if (review.summary) {
+    sections.push(`## Summary\n\n${review.summary}`);
+  }
+
+  // Suggestions
+  if (review.suggestions && review.suggestions.length > 0) {
+    const items = review.suggestions.map(s => `- ${String(s || '').trim()}`).join('\n');
+    sections.push(`## Suggestions\n\n${items}`);
+  }
+
+  // Security Issues
+  if (review.securityIssues && review.securityIssues.length > 0) {
+    const items = review.securityIssues.map(s => `- ${String(s || '').trim()}`).join('\n');
+    sections.push(`## Security Issues\n\n${items}`);
+  }
+
+  // Best Practices
+  if (review.bestPractices && review.bestPractices.length > 0) {
+    const items = review.bestPractices.map(s => `- ${String(s || '').trim()}`).join('\n');
+    sections.push(`## Best Practices\n\n${items}`);
+  }
+
+  return sections.join('\n\n');
+}
+
 async function displayIntegratedReview(review, patchContent, patchSize = null, subscriptionType = null, modelUsed = null, isCached = false, provider = null, ollamaMeta = null) {
+  // Store review data for copy-all functionality
+  currentReviewData = review;
+
   // Ensure copy button utils are loaded
   if (!attachCopyButtonToItem) {
     await initCopyButtonUtils();
   }
-  
+
   // Check if there was a JSON parsing error (safety check)
   if (review.parsingError === true) {
     dbgWarn('JSON parsing error detected in review object');
