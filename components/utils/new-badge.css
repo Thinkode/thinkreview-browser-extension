@@ -28,3 +28,8 @@ button:disabled .thinkreview-new-badge {
   opacity: 0.6;
   animation: none;
 }
+
+/* Badge inside tab button - add spacing */
+#gitlab-mr-integrated-review .thinkreview-tab-btn .thinkreview-new-badge {
+  margin-left: 6px;
+}

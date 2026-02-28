@@ -191,6 +191,7 @@
 
 #review-scroll-container {
   flex-grow: 1;
+  min-height: 0; /* Allow flex shrink so overflow/scroll works */
   overflow-y: auto;
   padding: 16px;
 }
@@ -1099,6 +1100,66 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
 @keyframes gl-spinner-rotate {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Review tabs - Review | Code Suggestions */
+#gitlab-mr-integrated-review .thinkreview-tabs-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+#gitlab-mr-integrated-review .thinkreview-tab-buttons {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+#gitlab-mr-integrated-review .thinkreview-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+  transition: color 0.2s, background 0.2s;
+}
+#gitlab-mr-integrated-review .thinkreview-tab-btn:hover {
+  color: #e0e0e0;
+  background: rgba(255, 255, 255, 0.05);
+}
+#gitlab-mr-integrated-review .thinkreview-tab-btn.active {
+  color: #e0e0e0;
+  border-bottom-color: #6b4fbb;
+}
+#gitlab-mr-integrated-review .thinkreview-tab-panels {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+#gitlab-mr-integrated-review .thinkreview-tab-panel {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+#gitlab-mr-integrated-review .thinkreview-tab-panel.active {
+  display: flex;
+}
+#gitlab-mr-integrated-review .thinkreview-code-suggestions-scroll {
+  overflow-y: auto;
+  padding: 12px;
+  flex: 1;
+  min-height: 0; /* Allow flex shrink so overflow/scroll works */
 }
 
 #gitlab-mr-integrated-review .gl-hidden {
