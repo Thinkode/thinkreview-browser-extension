@@ -1446,10 +1446,10 @@ function clearTokenStatus() {
 // AI Provider Management Functionality
 
 const OPENAI_PROVIDERS = {
-  openai:     { label: 'OpenAI',      url: 'https://api.openai.com',   contextLength: 128000 },
-  togetherai: { label: 'Together AI', url: 'https://api.together.xyz', contextLength: 131072 },
-  grok:       { label: 'Grok (xAI)',  url: 'https://api.x.ai',        contextLength: 131072 },
-  other:      { label: 'Other',       url: '',                          contextLength: 128000 }
+  openai:     { label: 'OpenAI',           url: 'https://api.openai.com',                                    contextLength: 128000  },
+  openrouter: { label: 'OpenRouter',        url: 'https://openrouter.ai/api/v1',                              contextLength: 128000  },
+  google:     { label: 'Google (Gemini)',   url: 'https://generativelanguage.googleapis.com/v1beta/openai',  contextLength: 1000000 },
+  other:      { label: 'Other',             url: '',                                                          contextLength: 128000  }
 };
 
 function initializeAIProviderSettings() {
