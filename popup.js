@@ -1444,6 +1444,14 @@ function clearTokenStatus() {
 // Subscription upgrade functionality has been moved to content.js and removed from popup
 
 // AI Provider Management Functionality
+
+const OPENAI_PROVIDERS = {
+  openai:     { label: 'OpenAI',      url: 'https://api.openai.com',   contextLength: 128000 },
+  togetherai: { label: 'Together AI', url: 'https://api.together.xyz', contextLength: 131072 },
+  grok:       { label: 'Grok (xAI)',  url: 'https://api.x.ai',        contextLength: 131072 },
+  other:      { label: 'Other',       url: '',                          contextLength: 128000 }
+};
+
 function initializeAIProviderSettings() {
   loadAIProviderSettings();
   setupAIProviderEventListeners();
@@ -1485,6 +1493,24 @@ function setupAIProviderEventListeners() {
   if (saveOpenAIButton) {
     saveOpenAIButton.addEventListener('click', saveOpenAISettings);
   }
+
+  // OpenAI provider dropdown change
+  const openaiProviderSelect = document.getElementById('openai-provider');
+  if (openaiProviderSelect) {
+    openaiProviderSelect.addEventListener('change', handleOpenAIProviderChange);
+  }
+
+  // OpenAI model dropdown change (to detect "Enter manually" selection)
+  const openaiModelSelect = document.getElementById('openai-model');
+  if (openaiModelSelect) {
+    openaiModelSelect.addEventListener('change', handleOpenAIModelChange);
+  }
+
+  // Refresh OpenAI models button
+  const refreshOpenAIModelsButton = document.getElementById('refresh-openai-models-btn');
+  if (refreshOpenAIModelsButton) {
+    refreshOpenAIModelsButton.addEventListener('click', refreshOpenAIModels);
+  }
 }
 
 async function loadAIProviderSettings() {
@@ -1499,6 +1525,7 @@ async function loadAIProviderSettings() {
       top_k: 90
     };
     const openaiConfigData = result.openaiConfig || {
+      provider: 'openai',
       url: 'https://api.openai.com',
       apiKey: '',
       model: 'gpt-4o-mini',
@@ -1552,21 +1579,72 @@ async function loadAIProviderSettings() {
     }
 
     // Load OpenAI config values
+    const openaiProviderSelect = document.getElementById('openai-provider');
+    const customUrlRow = document.getElementById('openai-custom-url-row');
     const openaiUrlInput = document.getElementById('openai-url');
     const openaiKeyInput = document.getElementById('openai-api-key');
-    const openaiModelInput = document.getElementById('openai-model');
+    const openaiModelSelect = document.getElementById('openai-model');
     const openaiContextInput = document.getElementById('openai-context-length');
     const openaiTempInput = document.getElementById('openai-temperature');
     const openaiTopPInput = document.getElementById('openai-top-p');
     const openaiTopKInput = document.getElementById('openai-top-k');
+    const customModelRow = document.getElementById('openai-custom-model-row');
 
-    if (openaiUrlInput) openaiUrlInput.value = openaiConfigData.url;
+    // Set provider dropdown
+    const savedOpenAIProvider = openaiConfigData.provider || 'openai';
+    if (openaiProviderSelect) {
+      openaiProviderSelect.value = savedOpenAIProvider;
+    }
+
+    // Show/hide custom URL row
+    if (customUrlRow) {
+      customUrlRow.style.display = savedOpenAIProvider === 'other' ? 'block' : 'none';
+    }
+
+    // Populate URL input
+    if (openaiUrlInput) {
+      openaiUrlInput.value = savedOpenAIProvider === 'other'
+        ? openaiConfigData.url
+        : (OPENAI_PROVIDERS[savedOpenAIProvider]?.url || openaiConfigData.url);
+    }
+
     if (openaiKeyInput && openaiConfigData.apiKey) openaiKeyInput.value = '********';
-    if (openaiModelInput) openaiModelInput.value = openaiConfigData.model;
     if (openaiContextInput) openaiContextInput.value = openaiConfigData.contextLength;
     if (openaiTempInput) openaiTempInput.value = clampTemperature(openaiConfigData.temperature);
     if (openaiTopPInput) openaiTopPInput.value = clampTopP(openaiConfigData.top_p);
     if (openaiTopKInput) openaiTopKInput.value = clampTopK(openaiConfigData.top_k);
+
+    // Populate model dropdown: try to auto-fetch models if API key exists and OpenAI provider is selected
+    if (openaiConfigData.apiKey && provider === 'openai') {
+      const baseUrl = savedOpenAIProvider === 'other'
+        ? openaiConfigData.url
+        : (OPENAI_PROVIDERS[savedOpenAIProvider]?.url || openaiConfigData.url);
+      try {
+        const { OpenAIService } = await import(chrome.runtime.getURL('services/openai-service.js'));
+        const modelsResult = await OpenAIService.getAvailableModels(baseUrl, openaiConfigData.apiKey);
+        if (modelsResult.models && modelsResult.models.length > 0) {
+          updateOpenAIModelSelect(modelsResult.models, openaiConfigData.model);
+        } else {
+          // Models could not be fetched; show the saved model as a fallback
+          if (openaiModelSelect && openaiConfigData.model) {
+            openaiModelSelect.innerHTML = `<option value="${openaiConfigData.model}">${openaiConfigData.model}</option><option value="__other__">── Enter manually ──</option>`;
+          }
+        }
+      } catch (err) {
+        dbgWarn('Failed to auto-load OpenAI models on popup open (non-critical):', err);
+        if (openaiModelSelect && openaiConfigData.model) {
+          openaiModelSelect.innerHTML = `<option value="${openaiConfigData.model}">${openaiConfigData.model}</option><option value="__other__">── Enter manually ──</option>`;
+        }
+      }
+    } else if (openaiModelSelect && openaiConfigData.model) {
+      // No API key stored yet; show saved model as a placeholder
+      openaiModelSelect.innerHTML = `<option value="${openaiConfigData.model}">${openaiConfigData.model}</option><option value="__other__">── Enter manually ──</option>`;
+    }
+
+    // Hide custom model row on load (it will only show if user picks "Enter manually")
+    if (customModelRow) {
+      customModelRow.style.display = 'none';
+    }
 
     dbgLog('AI Provider settings loaded:', { provider, ollamaConfig: config, openaiConfig: openaiConfigData });
   } catch (error) {
@@ -1889,14 +1967,194 @@ function showOpenAIStatus(message, type = 'info') {
   }
 }
 
-async function testOpenAIConnection() {
+// --- OpenAI Provider & Model Dropdown Helpers ---
+
+function getEffectiveOpenAIUrl() {
+  const providerSelect = document.getElementById('openai-provider');
+  const providerKey = providerSelect ? providerSelect.value : 'openai';
+
+  if (providerKey === 'other') {
+    const urlInput = document.getElementById('openai-url');
+    return urlInput ? urlInput.value.trim() : '';
+  }
+
+  return OPENAI_PROVIDERS[providerKey]?.url || '';
+}
+
+function getEffectiveOpenAIModel() {
+  const modelSelect = document.getElementById('openai-model');
+  const selectedValue = modelSelect ? modelSelect.value : '';
+
+  if (selectedValue === '__other__') {
+    const customModelInput = document.getElementById('openai-custom-model');
+    return customModelInput ? customModelInput.value.trim() : '';
+  }
+
+  return selectedValue;
+}
+
+function handleOpenAIProviderChange() {
+  const providerSelect = document.getElementById('openai-provider');
+  const customUrlRow = document.getElementById('openai-custom-url-row');
   const urlInput = document.getElementById('openai-url');
+  const contextLengthInput = document.getElementById('openai-context-length');
+  const modelSelect = document.getElementById('openai-model');
+  const customModelRow = document.getElementById('openai-custom-model-row');
+
+  const providerKey = providerSelect ? providerSelect.value : 'openai';
+  const providerConfig = OPENAI_PROVIDERS[providerKey];
+
+  // Show/hide custom URL row
+  if (customUrlRow) {
+    customUrlRow.style.display = providerKey === 'other' ? 'block' : 'none';
+  }
+
+  // Set the base URL for known providers
+  if (urlInput && providerKey !== 'other') {
+    urlInput.value = providerConfig.url;
+  }
+
+  // Update default context length
+  if (contextLengthInput && providerConfig) {
+    contextLengthInput.value = providerConfig.contextLength;
+  }
+
+  // Reset model dropdown since models are provider-specific
+  if (modelSelect) {
+    modelSelect.innerHTML = '<option value="">Enter API key and refresh</option>';
+  }
+
+  // Hide custom model row
+  if (customModelRow) {
+    customModelRow.style.display = 'none';
+  }
+}
+
+function handleOpenAIModelChange() {
+  const modelSelect = document.getElementById('openai-model');
+  const customModelRow = document.getElementById('openai-custom-model-row');
+
+  if (modelSelect && customModelRow) {
+    customModelRow.style.display = modelSelect.value === '__other__' ? 'block' : 'none';
+  }
+}
+
+async function refreshOpenAIModels() {
+  const refreshButton = document.getElementById('refresh-openai-models-btn');
+  const modelSelect = document.getElementById('openai-model');
   const apiKeyInput = document.getElementById('openai-api-key');
-  const url = urlInput ? urlInput.value.trim() : '';
+
+  const baseUrl = getEffectiveOpenAIUrl();
+  const apiKeyValue = apiKeyInput ? apiKeyInput.value.trim() : '';
+
+  if (!baseUrl) {
+    showOpenAIStatus('❌ Please select a provider or enter a custom URL', 'error');
+    return;
+  }
+
+  // Resolve API key (if masked, read from storage)
+  let apiKey = apiKeyValue;
+  if (apiKey === '********') {
+    const stored = await chrome.storage.local.get(['openaiConfig']);
+    apiKey = stored.openaiConfig?.apiKey || '';
+  }
+
+  if (!apiKey) {
+    showOpenAIStatus('❌ Please enter an API key first', 'error');
+    return;
+  }
+
+  // Show loading state
+  if (refreshButton) {
+    refreshButton.disabled = true;
+  }
+  if (modelSelect) {
+    modelSelect.innerHTML = '<option value="">Loading models...</option>';
+  }
+  showOpenAIStatus('🔄 Fetching available models...', 'info');
+
+  try {
+    const { OpenAIService } = await import(chrome.runtime.getURL('services/openai-service.js'));
+    const result = await OpenAIService.getAvailableModels(baseUrl, apiKey);
+
+    if (result.error) {
+      showOpenAIStatus(`❌ ${result.error}`, 'error');
+      if (modelSelect) {
+        modelSelect.innerHTML = '<option value="">❌ Error loading models</option>';
+      }
+      return;
+    }
+
+    if (result.models.length > 0) {
+      updateOpenAIModelSelect(result.models);
+      showOpenAIStatus(`✅ Found ${result.models.length} model(s)`, 'success');
+    } else {
+      if (modelSelect) {
+        modelSelect.innerHTML = '<option value="">⚠️ No models found</option>';
+      }
+      showOpenAIStatus('⚠️ No models returned by the API', 'error');
+    }
+  } catch (error) {
+    dbgWarn('Error fetching OpenAI models:', error);
+    if (modelSelect) {
+      modelSelect.innerHTML = '<option value="">❌ Error loading models</option>';
+    }
+    showOpenAIStatus(`❌ Failed to fetch models: ${error.message}`, 'error');
+  } finally {
+    if (refreshButton) {
+      refreshButton.disabled = false;
+    }
+  }
+}
+
+function updateOpenAIModelSelect(models, savedModel = null) {
+  const modelSelect = document.getElementById('openai-model');
+  if (!modelSelect) return;
+
+  // Clear existing options
+  modelSelect.innerHTML = '';
+
+  // Sort models alphabetically by id
+  const sorted = [...models].sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+
+  // Add model options
+  sorted.forEach(model => {
+    const option = document.createElement('option');
+    option.value = model.id;
+    option.textContent = model.id;
+    modelSelect.appendChild(option);
+  });
+
+  // Add "Enter manually" option at the end
+  const otherOption = document.createElement('option');
+  otherOption.value = '__other__';
+  otherOption.textContent = '── Enter manually ──';
+  modelSelect.appendChild(otherOption);
+
+  // Restore saved model if it exists in the list
+  if (savedModel && savedModel !== '__other__') {
+    const exists = Array.from(modelSelect.options).some(opt => opt.value === savedModel);
+    if (exists) {
+      modelSelect.value = savedModel;
+    }
+  }
+
+  // Hide custom model row since a fetched model is selected
+  const customModelRow = document.getElementById('openai-custom-model-row');
+  if (customModelRow) {
+    customModelRow.style.display = 'none';
+  }
+
+  dbgLog('Updated OpenAI model select with', sorted.length, 'models');
+}
+
+async function testOpenAIConnection() {
+  const apiKeyInput = document.getElementById('openai-api-key');
+  const url = getEffectiveOpenAIUrl();
   const apiKeyValue = apiKeyInput ? apiKeyInput.value.trim() : '';
 
   if (!url) {
-    showOpenAIStatus('❌ Please enter a base URL', 'error');
+    showOpenAIStatus('❌ Please select a provider or enter a base URL', 'error');
     return;
   }
 
@@ -1930,17 +2188,17 @@ async function testOpenAIConnection() {
 }
 
 async function saveOpenAISettings() {
-  const urlInput = document.getElementById('openai-url');
+  const providerSelect = document.getElementById('openai-provider');
   const apiKeyInput = document.getElementById('openai-api-key');
-  const modelInput = document.getElementById('openai-model');
   const contextLengthInput = document.getElementById('openai-context-length');
   const tempInput = document.getElementById('openai-temperature');
   const topPInput = document.getElementById('openai-top-p');
   const topKInput = document.getElementById('openai-top-k');
 
-  const url = urlInput ? urlInput.value.trim() : '';
+  const selectedProvider = providerSelect ? providerSelect.value : 'openai';
+  const url = getEffectiveOpenAIUrl();
   const apiKeyValue = apiKeyInput ? apiKeyInput.value.trim() : '';
-  const model = modelInput ? modelInput.value.trim() : '';
+  const model = getEffectiveOpenAIModel();
   const contextLength = contextLengthInput ? parseInt(contextLengthInput.value, 10) : 128000;
 
   if (!url) {
@@ -1973,6 +2231,7 @@ async function saveOpenAISettings() {
   }
 
   const openaiConfig = {
+    provider: selectedProvider,
     url: url,
     apiKey: apiKey,
     model: model,
