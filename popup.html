@@ -290,8 +290,18 @@
         <!-- OpenAI-Compatible API Configuration (hidden by default) -->
         <div id="openai-config" class="ollama-config" style="display: none;">
           <div class="ollama-config-row">
-            <label for="openai-url" class="config-label">API Base URL:</label>
-            <input type="text" id="openai-url" class="config-input" value="https://api.openai.com" placeholder="https://api.openai.com">
+            <label for="openai-provider" class="config-label">API Provider:</label>
+            <select id="openai-provider" class="config-select">
+              <option value="openai">OpenAI</option>
+              <option value="togetherai">Together AI</option>
+              <option value="grok">Grok (xAI)</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div id="openai-custom-url-row" class="ollama-config-row" style="display: none;">
+            <label for="openai-url" class="config-label">Custom API Base URL:</label>
+            <input type="text" id="openai-url" class="config-input" value="" placeholder="https://your-api.example.com">
           </div>
 
           <div class="ollama-config-row">
@@ -301,7 +311,17 @@
 
           <div class="ollama-config-row">
             <label for="openai-model" class="config-label">Model:</label>
-            <input type="text" id="openai-model" class="config-input" value="gpt-4o-mini" placeholder="gpt-4o-mini">
+            <div class="model-select-wrapper">
+              <select id="openai-model" class="config-select">
+                <option value="">Enter API key and refresh</option>
+              </select>
+              <button id="refresh-openai-models-btn" class="refresh-models-btn" title="Refresh available models">🔄</button>
+            </div>
+          </div>
+
+          <div id="openai-custom-model-row" class="ollama-config-row" style="display: none;">
+            <label for="openai-custom-model" class="config-label">Custom Model Name:</label>
+            <input type="text" id="openai-custom-model" class="config-input" value="" placeholder="my-custom-model">
           </div>
 
           <div class="ollama-config-row">
@@ -331,8 +351,8 @@
 
           <div class="ollama-help">
             <p class="help-text">
-              Works with any OpenAI-compatible API: OpenAI, Azure OpenAI, Groq, Together AI, LM Studio, vLLM, and more.
-              Enter the base URL without the /v1/chat/completions path.
+              Select a provider above or choose "Other" to enter a custom OpenAI-compatible API URL.
+              Enter your API key, then click the refresh button to load available models.
             </p>
           </div>
         </div>
