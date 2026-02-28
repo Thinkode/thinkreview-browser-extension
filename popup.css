@@ -1247,6 +1247,67 @@ footer {
   text-decoration: underline;
 }
 
+/* --- New Grouping Styles --- */
+.config-section {
+  background-color: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.config-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.config-section-title {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 8px;
+}
+
+.config-section-title .icon {
+  font-size: 14px;
+}
+
+.config-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.config-grid-2col .ollama-config-row {
+  margin-bottom: 0;
+}
+
+.info-icon {
+  font-size: 12px;
+  color: #888;
+  cursor: help;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+details.config-section summary.config-section-title {
+  cursor: pointer;
+  margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+  user-select: none;
+}
+
+details.config-section[open] summary.config-section-title {
+  margin-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 8px;
+}
+
 /* Domain Settings Styles */
 .domain-settings-section {
   margin-top: 20px;
