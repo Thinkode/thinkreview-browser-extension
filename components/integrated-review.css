@@ -727,65 +727,6 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   transform: scale(0.95);
 }
 
-/* Wrapper for copy-all button + fast tooltip */
-#gitlab-mr-integrated-review .thinkreview-copy-all-btn-wrapper {
-  position: relative;
-  display: inline-flex;
-  margin-right: 8px;
-}
-
-#gitlab-mr-integrated-review .thinkreview-copy-all-tooltip {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%) translateY(2px);
-  margin-top: 4px;
-  padding: 4px 8px;
-  background: #fff;
-  color: #333;
-  font-size: 12px;
-  white-space: nowrap;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  border: 1px solid #e1e4e8;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.1s ease;
-  z-index: 1000;
-}
-
-#gitlab-mr-integrated-review .thinkreview-copy-all-tooltip.thinkreview-tooltip-visible {
-  opacity: 1;
-}
-
-#gitlab-mr-integrated-review .thinkreview-copy-all-btn {
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.7;
-  width: 28px;
-  height: 28px;
-}
-
-#gitlab-mr-integrated-review .thinkreview-copy-all-btn:hover {
-  background-color: rgba(107, 79, 187, 0.2);
-  color: white;
-  opacity: 1;
-  transform: scale(1.1);
-}
-
-#gitlab-mr-integrated-review .thinkreview-copy-all-btn:active {
-  transform: scale(0.95);
-  background-color: rgba(107, 79, 187, 0.3);
-}
-
 /* Wrapper for regenerate button + fast tooltip */
 #gitlab-mr-integrated-review .thinkreview-regenerate-btn-wrapper {
   position: relative;
