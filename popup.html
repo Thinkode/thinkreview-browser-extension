@@ -238,7 +238,7 @@
             <input type="radio" name="ai-provider" value="openai" id="provider-openai">
             <div class="provider-info">
               <span class="provider-name">🔌 OpenAI-Compatible API</span>
-              <span class="provider-desc">OpenAI, Groq, LM Studio, vLLM, etc.</span>
+              <span class="provider-desc">OpenAI, OpenRouter, Google, LM Studio, vLLM, etc.</span>
             </div>
           </label>
         </div>
@@ -289,68 +289,60 @@
 
         <!-- OpenAI-Compatible API Configuration (hidden by default) -->
         <div id="openai-config" class="ollama-config" style="display: none;">
-          <div class="config-section">
-            <h4 class="config-section-title"><span class="icon">🔌</span> Connection & Model</h4>
-            <div class="ollama-config-row">
-              <label for="openai-provider" class="config-label">API Provider:</label>
-              <select id="openai-provider" class="config-select">
-                <option value="openai">OpenAI</option>
-                <option value="togetherai">Together AI</option>
-                <option value="grok">Grok (xAI)</option>
-                <option value="other">Other</option>
+          <div class="ollama-config-row">
+            <label for="openai-provider" class="config-label">API Provider:</label>
+            <select id="openai-provider" class="config-select">
+              <option value="openai">OpenAI</option>
+              <option value="openrouter">OpenRouter</option>
+              <option value="google">Google (Gemini)</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div id="openai-custom-url-row" class="ollama-config-row" style="display: none;">
+            <label for="openai-url" class="config-label">Custom API Base URL:</label>
+            <input type="url" id="openai-url" class="config-input" value="" placeholder="https://your-api.example.com">
+          </div>
+
+          <div class="ollama-config-row">
+            <label for="openai-api-key" class="config-label">API Key:</label>
+            <input type="password" id="openai-api-key" class="config-input" placeholder="sk-...">
+          </div>
+
+          <div class="ollama-config-row">
+            <label for="openai-model" class="config-label">Model:</label>
+            <div class="model-select-wrapper">
+              <select id="openai-model" class="config-select">
+                <option value="">Enter API key and refresh</option>
               </select>
-            </div>
-
-            <div id="openai-custom-url-row" class="ollama-config-row" style="display: none;">
-              <label for="openai-url" class="config-label">Custom API Base URL:</label>
-              <input type="url" id="openai-url" class="config-input" value="" placeholder="https://your-api.example.com">
-            </div>
-
-            <div class="ollama-config-row">
-              <label for="openai-api-key" class="config-label">API Key:</label>
-              <input type="password" id="openai-api-key" class="config-input" placeholder="sk-...">
-            </div>
-
-            <div class="ollama-config-row">
-              <label for="openai-model" class="config-label">Model:</label>
-              <div class="model-select-wrapper">
-                <select id="openai-model" class="config-select">
-                  <option value="">Enter API key and refresh</option>
-                </select>
-                <button id="refresh-openai-models-btn" class="refresh-models-btn" title="Refresh available models">🔄</button>
-              </div>
-            </div>
-
-            <div id="openai-custom-model-row" class="ollama-config-row" style="display: none;">
-              <label for="openai-custom-model" class="config-label">Custom Model Name:</label>
-              <input type="text" id="openai-custom-model" class="config-input" value="" placeholder="my-custom-model">
+              <button id="refresh-openai-models-btn" class="refresh-models-btn" title="Refresh available models">🔄</button>
             </div>
           </div>
 
-          <details class="config-section">
-            <summary class="config-section-title"><span class="icon">⚙️</span> Advanced Parameters</summary>
-            <div class="config-grid-2col">
-              <div class="ollama-config-row">
-                <label for="openai-context-length" class="config-label" title="Max context window size in tokens. Default: 128000">Context Length: <span class="info-icon">ⓘ</span></label>
-                <input type="number" id="openai-context-length" class="config-input" min="1024" max="2000000" step="1024" value="128000" placeholder="128000">
-              </div>
+          <div id="openai-custom-model-row" class="ollama-config-row" style="display: none;">
+            <label for="openai-custom-model" class="config-label">Custom Model Name:</label>
+            <input type="text" id="openai-custom-model" class="config-input" value="" placeholder="my-custom-model">
+          </div>
 
-              <div class="ollama-config-row">
-                <label for="openai-temperature" class="config-label" title="Lower = more deterministic. Allowed: 0-2">Temperature: <span class="info-icon">ⓘ</span></label>
-                <input type="number" id="openai-temperature" class="config-input" min="0" max="2" step="0.1" value="0.3" placeholder="0.3">
-              </div>
+          <div class="ollama-config-row">
+            <label for="openai-context-length" class="config-label">Context Length (tokens):</label>
+            <input type="number" id="openai-context-length" class="config-input" min="1024" max="2000000" step="1024" value="128000" placeholder="128000" title="Max context window size in tokens. Default: 128000">
+          </div>
 
-              <div class="ollama-config-row">
-                <label for="openai-top-p" class="config-label" title="Nucleus sampling. Allowed: 0-1">Top P: <span class="info-icon">ⓘ</span></label>
-                <input type="number" id="openai-top-p" class="config-input" min="0" max="1" step="0.05" value="0.4" placeholder="0.4">
-              </div>
+          <div class="ollama-config-row">
+            <label for="openai-temperature" class="config-label">Temperature (min 0, max 2):</label>
+            <input type="number" id="openai-temperature" class="config-input" min="0" max="2" step="0.1" value="0.3" placeholder="0.3" title="Lower = more deterministic. Allowed: 0-2">
+          </div>
 
-              <div class="ollama-config-row">
-                <label for="openai-top-k" class="config-label" title="Limit top tokens considered. Not supported by all endpoints. Allowed: 1-200">Top K: <span class="info-icon">ⓘ</span></label>
-                <input type="number" id="openai-top-k" class="config-input" min="1" max="200" step="1" value="90" placeholder="90">
-              </div>
-            </div>
-          </details>
+          <div class="ollama-config-row">
+            <label for="openai-top-p" class="config-label">Top P (min 0, max 1):</label>
+            <input type="number" id="openai-top-p" class="config-input" min="0" max="1" step="0.05" value="0.4" placeholder="0.4" title="Nucleus sampling. Allowed: 0-1">
+          </div>
+
+          <div class="ollama-config-row">
+            <label for="openai-top-k" class="config-label">Top K (min 1, max 200):</label>
+            <input type="number" id="openai-top-k" class="config-input" min="1" max="200" step="1" value="90" placeholder="90" title="Limit top tokens considered. Not supported by all endpoints. Allowed: 1-200">
+          </div>
 
           <div class="ollama-actions">
             <button id="test-openai-btn" class="test-ollama-btn">Test Connection</button>
