@@ -1117,9 +1117,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       data.review.summary = (data.review.summary || '') + '\n\n' + filterSummaryText;
     }
     
-<<<<<<< HEAD
-    // Display the review results with patchSize, subscriptionType, modelUsed, and cached status if available
-    displayIntegratedReview(data.review, codeContent, data.patchSize, data.subscriptionType, data.modelUsed, data.cached);
+
+    // Display the review results with patchSize, subscriptionType, modelUsed, cached status, provider, and ollamaMeta if available
+    displayIntegratedReview(data.review, codeContent, data.patchSize, data.subscriptionType, data.modelUsed, data.cached, bgResponse.provider, data.ollamaMeta);
     
     // Handle code suggestions injection for GitLab
     if (Array.isArray(data.review.codeSuggestions) && data.review.codeSuggestions.length > 0) {
@@ -1155,10 +1155,6 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
         dbgLog('[Code Review Extension] Code suggestions found but not on GitLab, skipping injection');
       }
     }
-=======
-    // Display the review results with patchSize, subscriptionType, modelUsed, cached status, provider, and ollamaMeta if available
-    displayIntegratedReview(data.review, codeContent, data.patchSize, data.subscriptionType, data.modelUsed, data.cached, bgResponse.provider, data.ollamaMeta);
->>>>>>> main
   } catch (error) {
     dbgWarn('Error during code review:', error);
     
