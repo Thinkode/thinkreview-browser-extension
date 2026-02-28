@@ -1,21 +1,71 @@
 // content.js
 // Detects GitLab MR and Azure DevOps PR pages, fetches code changes, injects UI, and displays integrated code review
 // Debug toggle: set to false to disable console logs in production
+// Check if DEBUG already exists to avoid conflicts
+if (typeof DEBUG === 'undefined') {
+  var DEBUG = false;
+}
 
-// Debug toggle: set to false to disable console logs in production
-var DEBUG = true;
-function dbgLog(...args) { if (DEBUG) console.log(...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
+// Logger functions - loaded dynamically to avoid module import issues in content scripts
+// Provide fallback functions immediately, then upgrade when logger loads
+// Check if variables already exist to avoid redeclaration errors
+if (typeof dbgLog === 'undefined') {
+  var dbgLog = (...args) => { if (DEBUG) console.log('[ThinkReview Extension]', ...args); };
+}
+if (typeof dbgWarn === 'undefined') {
+  var dbgWarn = (...args) => { if (DEBUG) console.warn('[ThinkReview Extension]', ...args); };
+}
+if (typeof dbgError === 'undefined') {
+  var dbgError = (...args) => { if (DEBUG) console.error('[ThinkReview Extension]', ...args); };
+}
 
-// Configuration constants
+// Initialize logger functions with dynamic import
+(async () => {
+    try {
+      // Use chrome.runtime.getURL for content scripts (same pattern as other dynamic imports)
+      const loggerModule = await import(chrome.runtime.getURL('utils/logger.js'));
+      // Upgrade to use the real logger functions
+      dbgLog = loggerModule.dbgLog;
+      dbgWarn = loggerModule.dbgWarn;
+      dbgError = loggerModule.dbgError;
+      dbgLog('Logger module loaded successfully');
+    } catch (error) {
+      // Keep using fallback functions if logger fails to load
+      dbgWarn('Failed to load logger module, using console fallback:', error);
+    }
+  })();
+
+  // Configuration constants
 // Note: Daily review limit is now handled server-side via Firebase Remote Config
-dbgLog('[Code Review Extension] Content script loaded on:', window.location.href);
+// Delay initial log until logger is loaded
+setTimeout(() => {
+  dbgLog('Content script loaded on:', window.location.href);
+}, 100);
 
 // Track if a review request is in progress to prevent duplicates
 let isReviewInProgress = false;
 
 // Track current PR ID for detecting navigation to new PRs
 let currentPRId = null;
+
+// Listen for Ollama metadata bar actions (switch to cloud, change model)
+document.addEventListener('thinkreview-switch-to-cloud', async () => {
+  await chrome.storage.local.set({ aiProvider: 'cloud' });
+  if (typeof fetchAndDisplayCodeReview === 'function') {
+    fetchAndDisplayCodeReview(true);
+  }
+});
+
+document.addEventListener('thinkreview-ollama-model-changed', async (e) => {
+  const model = e.detail?.model;
+  if (!model) return;
+  const { ollamaConfig } = await chrome.storage.local.get(['ollamaConfig']);
+  const config = ollamaConfig || { url: 'http://localhost:11434', model: '' };
+  await chrome.storage.local.set({ ollamaConfig: { ...config, model } });
+  if (typeof fetchAndDisplayCodeReview === 'function') {
+    fetchAndDisplayCodeReview(true);
+  }
+});
 
 // Import platform detection services
 let platformDetector = null;
@@ -32,6 +82,10 @@ async function initializePlatformDetection() {
     const platformModule = await import(chrome.runtime.getURL('services/platform-detector.js'));
     platformDetector = platformModule.platformDetector;
     platformDetector.init();
+
+    // Load custom Azure DevOps domains so on-prem URLs are detected
+    const storage = await chrome.storage.local.get(['azureDevOpsDomains']);
+    platformDetector.setAzureDevOpsCustomDomains(storage.azureDevOpsDomains || []);
     
     // Dynamically import Azure DevOps fetcher if needed
     const fetcherModule = await import(chrome.runtime.getURL('services/azure-devops-fetcher.js'));
@@ -40,14 +94,45 @@ async function initializePlatformDetection() {
     // Dynamically import Azure DevOps API module for error handling
     const apiModule = await import(chrome.runtime.getURL('services/azure-devops-api.js'));
     AzureDevOpsAuthError = apiModule.AzureDevOpsAuthError;
+
+    // Run server version detection only for on-prem/custom domains (skip dev.azure.com and visualstudio.com)
+    const hostname = window.location.hostname || '';
+    const isAzureCloud = hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
+    if (
+      !isAzureCloud &&
+      platformDetector.isAzureDevOpsSite() &&
+      typeof apiModule.detectAndCacheServerVersion === 'function'
+    ) {
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      const collection = pathParts.length > 0 ? pathParts[0] : '';
+      const origin = window.location.origin;
+      apiModule.detectAndCacheServerVersion(origin, collection)
+        .then((result) => {
+          if (!result || result.fromCache !== false) return;
+          // Send to cloud via background script (avoids content script fetch to external API / CSP)
+          chrome.runtime.sendMessage({
+            type: 'LOG_AZURE_DEVOPS_VERSION',
+            origin,
+            version: result.version,
+            collection,
+            azureOnPremiseApiVersion: result.azureOnPremiseApiVersion ?? null,
+            azureOnPremiseVersion: result.azureOnPremiseVersion ?? null
+          }, (response) => {
+            if (chrome.runtime.lastError) dbgWarn('Azure DevOps version cloud log failed (non-critical):', chrome.runtime.lastError);
+          });
+        })
+        .catch((err) => {
+          dbgWarn('Azure DevOps server version detection failed (non-critical):', err);
+        });
+    }
     
     // Dynamically import Azure DevOps token error module
     const tokenErrorModule = await import(chrome.runtime.getURL('components/azure-devops-token-error.js'));
     azureDevOpsTokenError = tokenErrorModule;
     
-    dbgLog('[Code Review Extension] Platform detection initialized');
+    dbgLog('Platform detection initialized');
   } catch (error) {
-    dbgWarn('[Code Review Extension] Error initializing platform detection:', error);
+    dbgWarn('Error initializing platform detection:', error);
   }
 }
 
@@ -71,7 +156,7 @@ if (DEBUG) {
       prTitle: !!document.querySelector('[data-testid="pull-request-title"]')
     }
   };
-  console.log('[Code Review Extension] Page information:', pageInfo);
+  dbgLog('Page information:', pageInfo);
 }
 // The integrated review component functions (createIntegratedReviewPanel, displayIntegratedReview, showIntegratedReviewError)
 // are loaded from integrated-review.js which is included in the manifest.json
@@ -115,6 +200,11 @@ function shouldShowButton() {
   
   // Always show button on GitHub sites (SPA)
   if (platformDetector.isGitHubSite()) {
+    return true;
+  }
+
+  // Always show button on Bitbucket sites (SPA; content script only runs when user allowed Bitbucket)
+  if (platformDetector.isBitbucketSite()) {
     return true;
   }
   
@@ -161,6 +251,14 @@ function getPatchUrl() {
     return legacyUrl;
   }
 
+  // Bitbucket: API 2.0 patch endpoint (cookie auth from content script)
+  if (platformDetector && platformDetector.isOnBitbucketPRPage()) {
+    const bitbucketPatchUrl = platformDetector.getBitbucketPatchApiUrl && platformDetector.getBitbucketPatchApiUrl();
+    if (bitbucketPatchUrl) {
+      return bitbucketPatchUrl;
+    }
+  }
+
   // GitLab and others: keep existing .patch behavior
   let url = window.location.href.replace(/[#?].*$/, '');
   const extension = '.patch';
@@ -183,11 +281,11 @@ function getGitHubPRId() {
 
 function injectButtons() {
   if (document.getElementById('code-review-btns')) {
-    dbgLog('[Code Review Extension] Buttons already injected');
+    dbgLog('Buttons already injected');
     return;
   }
   
-  dbgLog('[Code Review Extension] Injecting buttons');
+  dbgLog('Injecting buttons');
   const container = document.createElement('div');
   container.id = 'code-review-btns';
   container.style.position = 'fixed';
@@ -214,8 +312,20 @@ function injectButtons() {
   reviewBtn.innerHTML = '<span style="margin-right: 5px;">AI Review</span><span style="font-size: 10px;">▼</span>';
   
   // Add click handler with debugging
-  reviewBtn.onclick = function(event) {
-    dbgLog('[Code Review Extension] AI Review button clicked!');
+  reviewBtn.onclick = async function(event) {
+    dbgLog('AI Review button clicked!');
+    
+    // Track AI review button click
+    try {
+      const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+      trackUserAction('ai_review_clicked', {
+        context: 'main_button',
+        location: 'pr_page'
+      }).catch(() => {}); // Silently fail
+    } catch (error) {
+      // Silently fail - analytics shouldn't break the extension
+    }
+    
     event.preventDefault();
     event.stopPropagation();
     toggleReviewPanel();
@@ -224,7 +334,7 @@ function injectButtons() {
   container.appendChild(reviewBtn);
   document.body.appendChild(container);
   
-  dbgLog('[Code Review Extension] Buttons injected successfully');
+  dbgLog('Buttons injected successfully');
 }
 
 /**
@@ -241,7 +351,7 @@ function isGitLabMRPage() {
                          pathname.includes('/-/merge_requests/') ||
                          pathname.includes('/merge_requests');
   
-  dbgLog('[GitLab MR Reviews] Page detection:', { 
+  dbgLog('Page detection:', { 
     isMRPathPattern, 
     pathname: pathname 
   });
@@ -309,6 +419,9 @@ function getCurrentPRId() {
   } else if (platformDetector.isOnAzureDevOpsPRPage()) {
     const prInfo = platformDetector.detectPlatform().pageInfo;
     return prInfo?.prId || null;
+  } else if (platformDetector.isOnBitbucketPRPage()) {
+    const prInfo = platformDetector.detectPlatform().pageInfo;
+    return prInfo?.prId || null;
   }
   
   return null;
@@ -354,7 +467,7 @@ async function checkAndTriggerReviewForNewPR() {
   
   // Check if we've navigated to a different PR
   if (newPRId && newPRId !== currentPRId) {
-    dbgLog('[Code Review Extension] Detected new PR page:', {
+    dbgLog('Detected new PR page:', {
       oldId: currentPRId,
       newId: newPRId
     });
@@ -381,12 +494,11 @@ async function checkAndTriggerReviewForNewPR() {
     
     isReviewInProgress = false;
     
-    // Trigger new review
-    setTimeout(() => {
-      if (isSupportedPage()) {
-        fetchAndDisplayCodeReview();
-      }
-    }, 500);
+    // Trigger new review only if auto-start is enabled
+    const autoStart = await getAutoStartReview();
+    if (autoStart && isSupportedPage()) {
+      setTimeout(() => fetchAndDisplayCodeReview(), 500);
+    }
   } else if (currentPRId === null && newPRId) {
     // First time detecting a PR - just track it
     currentPRId = newPRId;
@@ -394,14 +506,35 @@ async function checkAndTriggerReviewForNewPR() {
 }
 
 /**
- * Injects the integrated review panel into the GitLab MR page
+ * Gets whether to start the review automatically when opening a PR page (from extension options).
+ * @returns {Promise<boolean>}
  */
-async function injectIntegratedReviewPanel() {
+function getAutoStartReview() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['autoStartReview', 'aiProvider'], (result) => {
+      const provider = result.aiProvider || 'cloud';
+      // Cloud AI: always auto-start (setting is only shown for Ollama)
+      if (provider !== 'ollama') {
+        resolve(true);
+        return;
+      }
+      // Ollama: respect the "Start review automatically" option
+      resolve(result.autoStartReview !== false);
+    });
+  });
+}
+
+/**
+ * Injects the integrated review panel into the GitLab MR page.
+ * @param {Object} [opts] - Options
+ * @param {boolean} [opts.triggerReview] - If true, trigger the review after creating the panel (e.g. user clicked AI Review button). If false/undefined, trigger only when autoStartReview option is enabled.
+ */
+async function injectIntegratedReviewPanel(opts = {}) {
   const panel = document.getElementById('gitlab-mr-integrated-review');
   
   // Check if the panel already exists
   if (panel) {
-    dbgLog('[Code Review Extension] Integrated review panel already exists');
+    dbgLog('Integrated review panel already exists');
     // Check if we've navigated to a new PR
     checkAndTriggerReviewForNewPR();
     return;
@@ -409,23 +542,25 @@ async function injectIntegratedReviewPanel() {
   
   // Check if we're on a supported page first
   if (!isSupportedPage()) {
-    dbgLog('[Code Review Extension] Not on a supported page, skipping panel injection');
+    dbgLog('Not on a supported page, skipping panel injection');
     return;
   }
   
-  dbgLog('[Code Review Extension] Creating integrated review panel');
+  dbgLog('Creating integrated review panel');
   // Create the review panel with the patch URL
   const patchUrl = getPatchUrl();
   await createIntegratedReviewPanel(patchUrl);
   
-  dbgLog('[Code Review Extension] Integrated review panel created');
+  dbgLog('Integrated review panel created');
   
   // Track current PR ID
   currentPRId = getCurrentPRId();
   
-  // Automatically trigger the code review after panel is created
-  // DOM elements are available after appendChild
-  fetchAndDisplayCodeReview();
+  // Trigger the code review only when: user explicitly requested (button click) or auto-start is enabled
+  const shouldTrigger = opts.triggerReview === true || await getAutoStartReview();
+  if (shouldTrigger) {
+    fetchAndDisplayCodeReview();
+  }
 }
 
 /**
@@ -439,7 +574,7 @@ function isUserLoggedIn() {
       // userData is the new field used by the updated authentication flow
       // Supports both extension OAuth and webapp Firebase auth
       if (result.userData) {
-        dbgLog('[content] User logged in via:', result.authSource || 'extension');
+        dbgLog('User logged in via:', result.authSource || 'extension');
         resolve(true);
       } else if (result.user) {
         try {
@@ -538,12 +673,12 @@ function showLoginPrompt() {
     
     // Add click event to open extension page for sign-in
     signInButton.addEventListener('click', () => {
-      dbgLog('[Content] Requesting background to open extension page for sign-in');
+      dbgLog('Requesting background to open extension page for sign-in');
       
       // Ask background script to open the extension page (content scripts can't do this directly)
       chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_PAGE' }, (response) => {
         if (chrome.runtime.lastError) {
-          dbgWarn('[Content] Error opening extension page:', chrome.runtime.lastError);
+          dbgWarn('Error opening extension page:', chrome.runtime.lastError);
           return;
         }
         
@@ -639,10 +774,15 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
       document.head.appendChild(linkEl);
     }
     
-    // Load subscription section HTML
-    fetch(chrome.runtime.getURL('components/subscription-section.html'))
-      .then(response => response.text())
-      .then(html => {
+    // Load subscription section HTML via background (avoids page CSP blocking fetch to chrome-extension://)
+    chrome.runtime.sendMessage(
+      { type: 'GET_EXTENSION_RESOURCE', path: 'components/subscription-section.html' },
+      (response) => {
+        if (chrome.runtime.lastError || !response?.success) {
+          dbgWarn('Error loading subscription section:', response?.error || chrome.runtime.lastError?.message);
+          return;
+        }
+        const html = response.content;
         reviewSummary.innerHTML = `
           <div class="gl-alert gl-alert-warning">
             <div class="gl-alert-content">
@@ -658,16 +798,27 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
         // Add direct event listener to the upgrade button (simple redirect)
         const upgradeBtn = document.getElementById('upgrade-btn');
         if (upgradeBtn) {
-          upgradeBtn.addEventListener('click', (e) => {
+          upgradeBtn.addEventListener('click', async (e) => {
             e.preventDefault();
+            
+            // Track upgrade button click
+            try {
+              const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+              trackUserAction('upgrade_button_clicked', {
+                context: 'subscription_section',
+                location: 'integrated_panel',
+                source: 'daily_limit'
+              }).catch(() => {}); // Silently fail
+            } catch (error) {
+              // Silently fail - analytics shouldn't break the extension
+            }
+            
             const subscriptionPortalUrl = 'https://portal.thinkreview.dev/subscription';
             window.open(subscriptionPortalUrl, '_blank');
           });
         }
-      })
-      .catch(error => {
-        dbgWarn('[Content] Error loading subscription section:', error);
-      });
+      }
+    );
     
     // Event listeners are now handled within the fetch promise
   }
@@ -682,19 +833,23 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
   if (reviewPractices) reviewPractices.innerHTML = '';
 }
 
+/** Dummy Azure DevOps token used when none is set in storage (>25 chars to satisfy length checks). */
+const DUMMY_AZURE_DEVOPS_TOKEN = 'thinkreview-azure-no-token-placeholder';
+
 /**
  * Get Azure DevOps token from storage
- * @returns {Promise<string|null>} Azure DevOps token or null if not set
+ * @returns {Promise<string>} Azure DevOps token, or a dummy placeholder if not set
  */
 async function getAzureDevOpsToken() {
   return new Promise((resolve) => {
     chrome.storage.local.get(['azureDevOpsToken'], (result) => {
       if (chrome.runtime.lastError) {
-        dbgWarn('[Code Review Extension] Error accessing Azure DevOps token storage:', chrome.runtime.lastError);
-        resolve(null);
+        dbgWarn('Error accessing Azure DevOps token storage:', chrome.runtime.lastError);
+        resolve(DUMMY_AZURE_DEVOPS_TOKEN);
         return;
       }
-      resolve(result.azureDevOpsToken || null);
+      const token = result.azureDevOpsToken;
+      resolve(token && String(token).trim() ? token : DUMMY_AZURE_DEVOPS_TOKEN);
     });
   });
 }
@@ -722,14 +877,14 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     }
   } catch (error) {
     // Silently fail if module not available
-    dbgLog('[Code Review Extension] Failed to show loading indicator:', error);
+    dbgLog('Failed to show loading indicator:', error);
   }
   
   try {
     // Check if the user is logged in first
     const loggedIn = await isUserLoggedIn();
     if (!loggedIn) {
-      dbgLog('[Code Review Extension] User not logged in, showing login prompt');
+      dbgLog('User not logged in, showing login prompt');
       // Hide loading indicator if showing login prompt
       try {
         const loadingModule = await import(chrome.runtime.getURL('components/popup-modules/button-loading-indicator.js'));
@@ -759,7 +914,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     } else if (platformDetector && platformDetector.isOnGitHubPRPage()) {
       // GitHub: fetch diff file through background script (to avoid CORS)
       const patchUrl = getPatchUrl();
-      dbgLog('[Code Review Extension] Fetching GitHub diff through background script:', patchUrl);
+      dbgLog('Fetching GitHub diff through background script:', patchUrl);
       
       const bgResponse = await new Promise((resolve) => {
         chrome.runtime.sendMessage({ 
@@ -777,7 +932,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       
     } else if (platformDetector && platformDetector.isOnAzureDevOpsPRPage()) {
       // Azure DevOps: fetch via API
-        dbgLog('[Code Review Extension] Starting Azure DevOps code fetch');
+        dbgLog('Starting Azure DevOps code fetch');
         const azureToken = await getAzureDevOpsToken();
         if (!azureToken) {
           if (azureDevOpsTokenError) {
@@ -789,27 +944,31 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
           return;
         }
 
-        dbgLog('[Code Review Extension] Azure token found, getting PR info');
+        dbgLog('Azure token found, getting PR info');
         const prInfo = platformDetector.detectPlatform().pageInfo;
-        dbgLog('[Code Review Extension] PR info:', prInfo);
+        // Log only metadata, not full PR info which may contain sensitive details
+        dbgLog('PR info retrieved:', {
+          hasPrId: !!prInfo?.prId,
+          hasPrUrl: !!prInfo?.prUrl
+        });
         
         try {
-          dbgLog('[Code Review Extension] Initializing Azure DevOps fetcher');
+          dbgLog('Initializing Azure DevOps fetcher');
           await azureDevOpsFetcher.init(prInfo, azureToken);
           
-          dbgLog('[Code Review Extension] Fetching code changes');
+          dbgLog('Fetching code changes');
           const changes = await azureDevOpsFetcher.fetchCodeChanges();
           codeContent = azureDevOpsFetcher.toPatchString(changes);
           reviewId = prInfo.prId;
           
-          dbgLog('[Code Review Extension] Azure DevOps changes fetched:', {
+          dbgLog('Azure DevOps changes fetched:', {
             fileCount: changes.files.length,
             totalLines: changes.totalLines
           });
         } catch (error) {
           // Check if it's an authentication/access error
           if (AzureDevOpsAuthError && error instanceof AzureDevOpsAuthError) {
-            dbgLog('[Code Review Extension] Azure DevOps token authentication/access failed, showing token error UI');
+            dbgLog('Azure DevOps token authentication/access failed, showing token error UI');
             if (azureDevOpsTokenError) {
               const detailMessage = error.details?.userMessage || error.details?.rawMessage || error.message;
               azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader, detailMessage);
@@ -823,6 +982,32 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
           throw error;
         }
       
+    } else if (platformDetector && platformDetector.isOnBitbucketPRPage()) {
+      // Bitbucket: fetch patch via background script to avoid page CSP blocking connect-src
+      const patchUrl = getPatchUrl();
+      dbgLog('Fetching Bitbucket patch through background script:', patchUrl);
+      const bgResponse = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: 'FETCH_BITBUCKET_PATCH', url: patchUrl }, resolve);
+      });
+      if (!bgResponse || !bgResponse.success) {
+        // 401/403 from Bitbucket API (e.g. GET .../repositories/.../pullrequests/1) or token missing: show token prompt
+        const errMsg = (bgResponse?.error || '').toLowerCase();
+        const authRequired = bgResponse?.bitbucketAuthRequired === true || errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('unauthorized') || errMsg.includes('forbidden');
+        if (authRequired) {
+          try {
+            const bitbucketTokenErrorModule = await import(chrome.runtime.getURL('components/bitbucket-token-error.js'));
+            bitbucketTokenErrorModule.showBitbucketTokenError(stopEnhancedLoader);
+          } catch (e) {
+            dbgWarn('Failed to show Bitbucket token error UI:', e);
+            throw new Error('Generate a Bitbucket API token for ThinkReview (takes about 60 seconds): https://thinkreview.dev/docs/bitbucket-integration');
+          }
+          return;
+        }
+        throw new Error(bgResponse?.error || `Not a pull request page or there are no code changes yet in this PR. If you think this is a bug, please report it here: https://thinkreview.dev/bug-report`);
+      }
+      codeContent = bgResponse.content;
+      const prInfo = platformDetector.detectPlatform().pageInfo;
+      reviewId = prInfo?.prId || null;
     } else {
       throw new Error('Unsupported platform');
     }
@@ -838,17 +1023,21 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     if (reviewContent) reviewContent.classList.add('gl-hidden');
     if (reviewError) reviewError.classList.add('gl-hidden');
     if (loginPrompt) loginPrompt.classList.add('gl-hidden');
+    const azureTokenErr = document.getElementById('review-azure-token-error');
+    const bitbucketTokenErr = document.getElementById('review-bitbucket-token-error');
+    if (azureTokenErr) azureTokenErr.classList.add('gl-hidden');
+    if (bitbucketTokenErr) bitbucketTokenErr.classList.add('gl-hidden');
     
     // Start the enhanced loader if available
     if (typeof startEnhancedLoader === 'function') {
       startEnhancedLoader();
     }
     
-    // Apply filtering for GitLab and GitHub patches (Azure DevOps changes are already filtered)
+    // Apply filtering for GitLab, GitHub, and Bitbucket patches (Azure DevOps changes are already filtered)
     let filteredCodeContent = codeContent;
     let filterSummaryText = null;
     
-    if (platformDetector && (platformDetector.isOnGitLabMRPage() || platformDetector.isOnGitHubPRPage())) {
+    if (platformDetector && (platformDetector.isOnGitLabMRPage() || platformDetector.isOnGitHubPRPage() || platformDetector.isOnBitbucketPRPage())) {
       // Dynamically import patch filtering utilities for GitLab and GitHub
       const patchFilterModule = await import(chrome.runtime.getURL('utils/patch-filter.js'));
       const { filterPatch, getFilterSummary } = patchFilterModule;
@@ -862,7 +1051,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       
       // Log filtering statistics if any files were removed
       if (filterResult.removedFileCount > 0) {
-        dbgLog('[Code Review Extension] Filtered out', filterResult.removedFileCount, 'media/binary files:', filterResult.removedFiles);
+        dbgLog('Filtered out', filterResult.removedFileCount, 'media/binary files:', filterResult.removedFiles);
       }
     }
     
@@ -891,7 +1080,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     if (!bgResponse || !bgResponse.success) {
       // Check if it's a daily limit exceeded error
       if (bgResponse?.isLimitExceeded) {
-        dbgLog('[Code Review Extension] Daily review limit exceeded');
+        dbgLog('Daily review limit exceeded');
         showUpgradeMessage(
           bgResponse.currentCount || bgResponse.dailyLimit, 
           bgResponse.dailyLimit || 15
@@ -902,7 +1091,12 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     }
 
     const data = bgResponse.data;
-    dbgLog('[Code Review Extension] Code review completed successfully:', data);
+    // Log only metadata, not the actual review content
+    dbgLog('Code review completed successfully:', {
+      status: data?.status,
+      hasReview: !!data?.review,
+      reviewLength: data?.review?.response?.length || 0
+    });
     
     if (!data || data.status !== 'success' || !data.review) {
       throw new Error('Invalid response from code review service');
@@ -910,7 +1104,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     
     // Check if there was a JSON parsing error from the AI response
     if (data.review.parsingError === true) {
-      dbgWarn('[Code Review Extension] JSON parsing error detected in review response');
+      dbgWarn('JSON parsing error detected in review response');
       const errorMessage = data.review.errorMessage 
         ? `Unable to parse AI response: ${data.review.errorMessage}. Please try regenerating the review.`
         : 'The AI generated a response that could not be parsed. Please try regenerating the review or report this issue at https://thinkreview.dev/bug-report';
@@ -923,6 +1117,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       data.review.summary = (data.review.summary || '') + '\n\n' + filterSummaryText;
     }
     
+<<<<<<< HEAD
     // Display the review results with patchSize, subscriptionType, modelUsed, and cached status if available
     displayIntegratedReview(data.review, codeContent, data.patchSize, data.subscriptionType, data.modelUsed, data.cached);
     
@@ -960,8 +1155,12 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
         dbgLog('[Code Review Extension] Code suggestions found but not on GitLab, skipping injection');
       }
     }
+=======
+    // Display the review results with patchSize, subscriptionType, modelUsed, cached status, provider, and ollamaMeta if available
+    displayIntegratedReview(data.review, codeContent, data.patchSize, data.subscriptionType, data.modelUsed, data.cached, bgResponse.provider, data.ollamaMeta);
+>>>>>>> main
   } catch (error) {
-    dbgWarn('[Code Review Extension] Error during code review:', error);
+    dbgWarn('Error during code review:', error);
     
     // Parse error message to provide user-friendly messages
     const noCodeChangesMessage = 'There are no code changes yet in this merge request. If you think this is a bug, please report it here: https://thinkreview.dev/bug-report';
@@ -1009,12 +1208,12 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
  * The arrow down button in the panel header can also be used to minimize the panel
  */
 async function toggleReviewPanel() {
-  dbgLog('[Code Review Extension] toggleReviewPanel called');
+  dbgLog('toggleReviewPanel called');
   
   // Check if we're on a supported page first (before creating/opening panel)
   // For Azure DevOps and GitHub (SPAs), this ensures we're on a PR page
   if (!isSupportedPage()) {
-    dbgLog('[Code Review Extension] Not on a supported page, showing alert');
+    dbgLog('Not on a supported page, showing alert');
     alert('Please navigate to a Pull Request page to generate an AI code review.');
     return;
   }
@@ -1022,11 +1221,11 @@ async function toggleReviewPanel() {
   const panel = document.getElementById('gitlab-mr-integrated-review');
   const reviewBtn = document.getElementById('code-review-btn');
   
-  dbgLog('[Code Review Extension] Panel exists:', !!panel);
+  dbgLog('Panel exists:', !!panel);
   
   if (!panel) {
-    // If panel doesn't exist yet, create it (review will be triggered automatically)
-    injectIntegratedReviewPanel();
+    // If panel doesn't exist yet, create it and trigger review (user clicked AI Review button)
+    injectIntegratedReviewPanel({ triggerReview: true });
     return;
   }
   
@@ -1188,7 +1387,7 @@ function startSPANavigationMonitoring() {
     }
   }, 1000);
   
-  dbgLog('[Code Review Extension] Started SPA navigation monitoring');
+  dbgLog('Started SPA navigation monitoring');
 }
 
 // Initialize when the page is loaded
@@ -1199,13 +1398,13 @@ async function initializeExtension() {
   // Check if we should show the button (always true for Azure DevOps and GitHub, only on MR pages for GitLab)
   if (shouldShowButton()) {
     const platform = getCurrentPlatform();
-    dbgLog('[Code Review Extension] Initializing for platform:', platform);
+    dbgLog('Initializing for platform:', platform);
     
     injectButtons();
     
-    // Start SPA navigation monitoring for GitHub and Azure DevOps sites
+    // Start SPA navigation monitoring for GitHub, Azure DevOps, and Bitbucket (SPAs)
     // Check by site (domain) rather than platform, because platform is null on non-PR pages
-    if (platformDetector && (platformDetector.isGitHubSite() || platformDetector.isAzureDevOpsSite())) {
+    if (platformDetector && (platformDetector.isGitHubSite() || platformDetector.isAzureDevOpsSite() || platformDetector.isBitbucketSite())) {
       startSPANavigationMonitoring();
     }
     
@@ -1226,7 +1425,7 @@ async function initializeExtension() {
       localStorage.setItem('code-review-minimized-to-button', 'true');
     }, 1000);
   } else {
-    dbgLog('[Code Review Extension] Current page does not need the button');
+    dbgLog('Current page does not need the button');
   }
 }
 

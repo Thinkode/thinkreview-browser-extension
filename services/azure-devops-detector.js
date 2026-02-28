@@ -1,10 +1,8 @@
 // azure-devops-detector.js
 // Detects Azure DevOps pull request pages and extracts relevant information
+import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[Azure DevOps Detector]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[Azure DevOps Detector]', ...args); }
+
 
 /**
  * Azure DevOps Detector Service
@@ -14,6 +12,8 @@ export class AzureDevOpsDetector {
   constructor() {
     this.isInitialized = false;
     this.currentPageInfo = null;
+    /** @type {string[]} Normalized hostnames for custom/on-prem Azure DevOps domains */
+    this.customDomains = [];
   }
 
   /**
@@ -27,34 +27,72 @@ export class AzureDevOpsDetector {
   }
 
   /**
+   * Set custom Azure DevOps domains (on-prem URLs). Stores normalized hostnames for comparison.
+   * @param {string[]} domains - Array of full URLs or hostnames (e.g. https://devops.companyname.com or devops.companyname.com)
+   */
+  setCustomDomains(domains) {
+    this.customDomains = (domains || []).map(d => this._normalizeDomainToHostname(d)).filter(Boolean);
+    dbgLog('Azure DevOps custom domains set:', this.customDomains);
+  }
+
+  /**
+   * Normalize a stored domain (URL or hostname) to hostname for comparison.
+   * Uses URL parsing for validation; logs errors for invalid input.
+   * @param {string} input - User-provided domain or URL (e.g. https://devops.company.com or user:pass@host:8080)
+   * @returns {string} Normalized hostname or '' if invalid
+   */
+  _normalizeDomainToHostname(input) {
+    if (!input || typeof input !== 'string') return '';
+    const s = input.trim().toLowerCase().replace(/\/+$/, '');
+    if (!s) return '';
+
+    let urlStr = s;
+    if (!s.startsWith('http://') && !s.startsWith('https://')) {
+      urlStr = 'https://' + s;
+    }
+
+    try {
+      const url = new URL(urlStr);
+      const hostname = url.hostname || '';
+      if (!hostname) {
+        dbgError('_normalizeDomainToHostname: URL produced empty hostname', { input });
+        return '';
+      }
+      return hostname;
+    } catch (err) {
+      dbgError('_normalizeDomainToHostname: invalid domain/URL', { input, error: err?.message });
+      return '';
+    }
+  }
+
+  /**
+   * Check if the current page is on an Azure DevOps domain (built-in or custom).
+   * @returns {boolean}
+   */
+  isAzureDevOpsDomain() {
+    const hostname = window.location.hostname;
+    if (hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com')) {
+      return true;
+    }
+    return this.customDomains.includes(hostname);
+  }
+
+  /**
    * Check if the current page is an Azure DevOps pull request page
    * @returns {boolean} True if the current page is an Azure DevOps PR page
    */
   isAzureDevOpsPRPage() {
     const url = window.location.href;
-    const hostname = window.location.hostname;
-    
-    // Check if we're on Azure DevOps domains
-    const isAzureDevOpsDomain = hostname.includes('dev.azure.com') || 
-                               hostname.includes('visualstudio.com');
-    
-    if (!isAzureDevOpsDomain) {
+    if (!this.isAzureDevOpsDomain()) {
       return false;
     }
-    
-    // Check if URL contains pull request path patterns
-    // This is sufficient and more reliable than DOM checks
-    // URL patterns are consistent and available immediately in SPAs
-    const isPRPath = url.includes('/pullrequest/') || 
-                    url.includes('/pullRequest/');
-    
+    const isPRPath = url.includes('/pullrequest/') || url.includes('/pullRequest/');
     dbgLog('Azure DevOps PR detection:', {
-      isAzureDevOpsDomain,
+      isAzureDevOpsDomain: true,
       isPRPath,
       url: url.substring(0, 100) + '...'
     });
-    
-    return isAzureDevOpsDomain && isPRPath;
+    return isPRPath;
   }
 
   /**
@@ -70,6 +108,7 @@ export class AzureDevOpsDetector {
       const prInfo = {
         url: window.location.href,
         hostname: window.location.hostname,
+        protocol: window.location.protocol,
         prId: this.extractPRId(),
         title: this.extractPRTitle(),
         repository: this.extractRepositoryInfo(),
@@ -195,7 +234,8 @@ export class AzureDevOpsDetector {
    */
   extractOrganization() {
     const url = window.location.href;
-    
+    const hostname = window.location.hostname;
+
     // For dev.azure.com: https://dev.azure.com/{organization}
     const devAzureMatch = url.match(/dev\.azure\.com\/([^\/]+)/);
     if (devAzureMatch) {
@@ -208,23 +248,37 @@ export class AzureDevOpsDetector {
       return vsMatch[1];
     }
 
+    // For custom/on-prem: path is /{organization}/{project}/_git/...
+    if (this.customDomains.includes(hostname)) {
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      if (pathParts.length >= 1) {
+        return pathParts[0];
+      }
+    }
+
     return 'Unknown Organization';
   }
 
   /**
    * Extract project name from URL
-   * @returns {string} Project name
+   * Project is always the first segment after the org: /{org}/{project}/... or /{org}/{project}/{team}/_git/...
+   * Returns null only when path is /{org}/_git/{repo} (no project segment).
+   * @returns {string|null} Project name, or null when URL is /{org}/_git/{repo}
    */
   extractProject() {
-    const url = window.location.href;
-    
-    // Extract from URL pattern: /{organization}/{project}/_git
-    const projectMatch = url.match(/\/[^\/]+\/([^\/]+)\/_git/);
-    if (projectMatch) {
-      return projectMatch[1];
-    }
+    const pathname = window.location.pathname;
+    const pathParts = pathname.split('/').filter(Boolean);
 
-    return 'Unknown Project';
+    // Must have at least org and something before or at _git
+    if (pathParts.length < 2) return null;
+
+    // First segment is org/collection; second is project when present
+    // URL shapes: /{org}/_git/{repo} or /{org}/{project}/_git/{repo} or /{org}/{project}/{team}/_git/{repo}
+    const segmentAfterOrg = pathParts[1];
+    if (segmentAfterOrg === '_git') {
+      return null;
+    }
+    return segmentAfterOrg;
   }
 
   /**

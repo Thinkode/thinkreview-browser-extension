@@ -1,17 +1,16 @@
 // platform-detector.js
 // Unified platform detector for GitLab, GitHub, and Azure DevOps
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[Platform Detector]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[Platform Detector]', ...args); }
+
 
 import { azureDevOpsDetector } from './azure-devops-detector.js';
 import { githubDetector } from './github-detector.js';
+import { bitbucketDetector } from './bitbucket-detector.js';
 
+import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 /**
  * Platform Detector Service
- * Detects whether the current page is GitLab MR, GitHub PR, or Azure DevOps PR
+ * Detects whether the current page is GitLab MR, GitHub PR, Azure DevOps PR, or Bitbucket PR
  */
 export class PlatformDetector {
   constructor() {
@@ -30,6 +29,7 @@ export class PlatformDetector {
     // Initialize all platform detectors
     azureDevOpsDetector.init();
     githubDetector.init();
+    bitbucketDetector.init();
     this.isInitialized = true;
   }
 
@@ -53,6 +53,17 @@ export class PlatformDetector {
       result.pageInfo = azureDevOpsDetector.extractPRInfo();
       
       dbgLog('Detected Azure DevOps pull request page:', result.pageInfo);
+      return result;
+    }
+
+    // Check for Bitbucket
+    if (bitbucketDetector.isBitbucketPRPage()) {
+      result.platform = 'bitbucket';
+      result.pageType = 'pull-request';
+      result.isSupported = true;
+      result.pageInfo = bitbucketDetector.extractPRInfo();
+      
+      dbgLog('Detected Bitbucket pull request page:', result.pageInfo);
       return result;
     }
 
@@ -304,12 +315,19 @@ export class PlatformDetector {
   }
 
   /**
+   * Set custom Azure DevOps domains (on-prem). Call after init so detection includes custom hostnames.
+   * @param {string[]} domains - Array of URLs or hostnames from storage (azureDevOpsDomains)
+   */
+  setAzureDevOpsCustomDomains(domains) {
+    azureDevOpsDetector.setCustomDomains(domains || []);
+  }
+
+  /**
    * Check if we're on an Azure DevOps site (regardless of being on a PR page)
-   * @returns {boolean} True if on Azure DevOps domain
+   * @returns {boolean} True if on Azure DevOps domain (built-in or custom)
    */
   isAzureDevOpsSite() {
-    const hostname = window.location.hostname;
-    return hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
+    return azureDevOpsDetector.isAzureDevOpsDomain();
   }
 
   /**
@@ -355,6 +373,31 @@ export class PlatformDetector {
   isOnGitLabMRPage() {
     const detection = this.detectPlatform();
     return detection.platform === 'gitlab';
+  }
+
+  /**
+   * Check if we're on Bitbucket Cloud (bitbucket.org)
+   * @returns {boolean} True if on Bitbucket domain
+   */
+  isBitbucketSite() {
+    return bitbucketDetector.isBitbucketDomain();
+  }
+
+  /**
+   * Check if we're currently on a Bitbucket PR page
+   * @returns {boolean} True if on a Bitbucket PR page
+   */
+  isOnBitbucketPRPage() {
+    const detection = this.detectPlatform();
+    return detection.platform === 'bitbucket';
+  }
+
+  /**
+   * Get Bitbucket API 2.0 patch URL for current PR (only valid on Bitbucket PR pages)
+   * @returns {string|null} Patch API URL or null
+   */
+  getBitbucketPatchApiUrl() {
+    return bitbucketDetector.getPatchApiUrl();
   }
 
   /**

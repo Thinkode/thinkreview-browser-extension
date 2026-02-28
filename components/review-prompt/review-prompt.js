@@ -1,10 +1,8 @@
+import { dbgLog, dbgWarn, dbgError } from '../../utils/logger.js';
 /**
  * Review Prompt Component
  * Modular component for handling user feedback prompts after generating reviews
  */
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[popup]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[popup]', ...args); }
 // Configuration
 const REVIEW_PROMPT_CONFIG = {
   threshold: 5, // Show prompt after 5 daily reviews
@@ -34,14 +32,14 @@ class ReviewPrompt {
    */
   init(containerId = 'gitlab-mr-integrated-review') {
     if (this.isInitialized) {
-      dbgWarn('[ReviewPrompt] Already initialized');
+      dbgWarn('Already initialized');
       return;
     }
 
     this.containerId = containerId;
     this.isInitialized = true;
     
-    dbgLog('[ReviewPrompt] Initialized with config:', this.config);
+    dbgLog('Initialized with config:', this.config);
   }
 
   /**
@@ -53,11 +51,11 @@ class ReviewPrompt {
   shouldShow(reviewCount, lastFeedbackPromptInteraction = null) {
     // Check lastFeedbackPromptInteraction from Firestore (source of truth)
     if (lastFeedbackPromptInteraction && lastFeedbackPromptInteraction.action) {
-      dbgLog('[ReviewPrompt] Last feedback prompt interaction from Firestore:', lastFeedbackPromptInteraction);
+      dbgLog('Last feedback prompt interaction from Firestore:', lastFeedbackPromptInteraction);
       
       // If action was "submit", never show the prompt
       if (lastFeedbackPromptInteraction.action === 'submit') {
-        dbgLog('[ReviewPrompt] Not showing prompt: User already submitted feedback (action: submit)');
+        dbgLog('Not showing prompt: User already submitted feedback (action: submit)');
         return false;
       }
       
@@ -67,26 +65,26 @@ class ReviewPrompt {
         const today = new Date();
         const daysSinceLastInteraction = Math.floor((today - lastInteractionDate) / (1000 * 60 * 60 * 24));
         
-        dbgLog('[ReviewPrompt] Days since last "later" interaction:', daysSinceLastInteraction);
+        dbgLog('Days since last "later" interaction:', daysSinceLastInteraction);
         
         if (daysSinceLastInteraction <= 7) {
-          dbgLog('[ReviewPrompt] Not showing prompt: Less than 7 days since "later" (', daysSinceLastInteraction, 'days)');
+          dbgLog('Not showing prompt: Less than 7 days since "later" (', daysSinceLastInteraction, 'days)');
           return false;
         } else {
-          dbgLog('[ReviewPrompt] More than 7 days since "later", will check other conditions');
+          dbgLog('More than 7 days since "later", will check other conditions');
         }
       }
       
       // If action was "never", never show the prompt
       if (lastFeedbackPromptInteraction.action === 'never') {
-        dbgLog('[ReviewPrompt] Not showing prompt: User selected "never ask again" in Firestore');
+        dbgLog('Not showing prompt: User selected "never ask again" in Firestore');
         return false;
       }
     }
     
     // Show prompt when review count reaches the threshold
     const shouldShow = reviewCount >= this.config.threshold;
-    dbgLog('[ReviewPrompt] Should show prompt:', shouldShow, '(count:', reviewCount, '>=', this.config.threshold, ')');
+    dbgLog('Should show prompt:', shouldShow, '(count:', reviewCount, '>=', this.config.threshold, ')');
     return shouldShow;
   }
 
@@ -100,7 +98,7 @@ class ReviewPrompt {
       // This is kept up-to-date by the background service and incremented after each review
       chrome.storage.local.get([this.config.storageKeys.todayReviewCount], (result) => {
         const count = result[this.config.storageKeys.todayReviewCount] || 0;
-        dbgLog('[ReviewPrompt] Got todayReviewCount from storage:', count);
+        dbgLog('Got todayReviewCount from storage:', count);
         resolve(count);
       });
     });
@@ -113,7 +111,7 @@ class ReviewPrompt {
   async checkAndShow() {
     try {
       const reviewCount = await this.getCurrentReviewCount();
-      dbgLog('[ReviewPrompt] Current review count:', reviewCount, '| Threshold:', this.config.threshold);
+      dbgLog('Current review count:', reviewCount, '| Threshold:', this.config.threshold);
       
       // Get lastFeedbackPromptInteraction from storage
       const lastFeedbackPromptInteraction = await new Promise((resolve) => {
@@ -121,19 +119,19 @@ class ReviewPrompt {
           resolve(result.lastFeedbackPromptInteraction || null);
         });
       });
-      dbgLog('[ReviewPrompt] Last feedback prompt interaction from storage:', lastFeedbackPromptInteraction);
+      dbgLog('Last feedback prompt interaction from storage:', lastFeedbackPromptInteraction);
       
       if (this.shouldShow(reviewCount, lastFeedbackPromptInteraction)) {
-        dbgLog('[ReviewPrompt] Conditions met, showing prompt');
+        dbgLog('Conditions met, showing prompt');
         await this.show(reviewCount);
         return true;
       } else {
-        dbgLog('[ReviewPrompt] Conditions not met, not showing prompt');
+        dbgLog('Conditions not met, not showing prompt');
       }
       
       return false;
     } catch (error) {
-      dbgWarn('[ReviewPrompt] Error checking review prompt:', error);
+      dbgWarn('Error checking review prompt:', error);
       return false;
     }
   }
@@ -145,7 +143,7 @@ class ReviewPrompt {
   async show(reviewCount = this.config.threshold) {
     const container = document.getElementById(this.containerId);
     if (!container) {
-      dbgWarn('[ReviewPrompt] Container not found:', this.containerId);
+      dbgWarn('Container not found:', this.containerId);
       return;
     }
 
@@ -154,7 +152,7 @@ class ReviewPrompt {
     try {
       await this.fetchMessages();
     } catch (error) {
-      dbgWarn('[ReviewPrompt] Failed to fetch messages, using fallbacks:', error);
+      dbgWarn('Failed to fetch messages, using fallbacks:', error);
       // Continue with fallback messages
     }
 
@@ -173,7 +171,7 @@ class ReviewPrompt {
     // Add event listeners
     this.addEventListeners(promptElement);
     
-    dbgLog('[ReviewPrompt] Prompt shown');
+    dbgLog('Prompt shown');
   }
 
   /**
@@ -397,7 +395,7 @@ class ReviewPrompt {
    * @param {number} rating - User's rating (1-5 stars)
    */
   async handleRating(rating) {
-    dbgLog('[ReviewPrompt] User rated extension:', rating, 'stars');
+    dbgLog('User rated extension:', rating, 'stars');
     
     // Hide the prompt immediately
     this.hide();
@@ -413,7 +411,7 @@ class ReviewPrompt {
       this.trackReviewPromptInteraction('submit', rating, redirectUrl)
         .catch(error => {
           // Silently handle errors to avoid affecting user experience
-          dbgWarn('[ReviewPrompt] Background tracking failed:', error);
+          dbgWarn('Background tracking failed:', error);
         });
     } else {
       // 1-3 stars: Direct to feedback form with email parameter
@@ -430,7 +428,7 @@ class ReviewPrompt {
       this.trackReviewPromptInteraction('submit', rating, feedbackUrl)
         .catch(error => {
           // Silently handle errors to avoid affecting user experience
-          dbgWarn('[ReviewPrompt] Background tracking failed:', error);
+          dbgWarn('Background tracking failed:', error);
         });
     }
     
@@ -447,7 +445,7 @@ class ReviewPrompt {
    */
   dismiss() {
     this.hide();
-    dbgLog('[ReviewPrompt] Prompt dismissed - tracking "later" action in Firestore');
+    dbgLog('Prompt dismissed - tracking "later" action in Firestore');
     
     // Emit custom event
     this.emit('dismissed', { permanent: false });
@@ -458,7 +456,7 @@ class ReviewPrompt {
     this.trackReviewPromptInteraction('later')
       .catch(error => {
         // Silently handle errors to avoid affecting user experience
-        dbgWarn('[ReviewPrompt] Background tracking failed:', error);
+        dbgWarn('Background tracking failed:', error);
       });
   }
 
@@ -467,7 +465,7 @@ class ReviewPrompt {
    */
   dismissPermanently() {
     this.hide();
-    dbgLog('[ReviewPrompt] Prompt dismissed permanently - tracking "never" action in Firestore');
+    dbgLog('Prompt dismissed permanently - tracking "never" action in Firestore');
     
     // Emit custom event
     this.emit('dismissed', { permanent: true });
@@ -478,7 +476,7 @@ class ReviewPrompt {
     this.trackReviewPromptInteraction('never')
       .catch(error => {
         // Silently handle errors to avoid affecting user experience
-        dbgWarn('[ReviewPrompt] Background tracking failed:', error);
+        dbgWarn('Background tracking failed:', error);
       });
   }
 
@@ -528,7 +526,7 @@ class ReviewPrompt {
    */
   resetPreferences() {
     chrome.storage.local.remove(['lastFeedbackPromptInteraction'], () => {
-      dbgLog('[ReviewPrompt] Local cache cleared - will be refreshed on next user data fetch');
+      dbgLog('Local cache cleared - will be refreshed on next user data fetch');
     });
   }
 
@@ -536,7 +534,7 @@ class ReviewPrompt {
    * Force show the prompt (for testing)
    */
   forceShow() {
-    dbgLog('[ReviewPrompt] Force showing prompt');
+    dbgLog('Force showing prompt');
     this.show();
   }
 
@@ -639,7 +637,7 @@ class ReviewPrompt {
    */
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
-    dbgLog('[ReviewPrompt] Configuration updated:', this.config);
+    dbgLog('Configuration updated:', this.config);
   }
 
   /**
@@ -663,13 +661,13 @@ class ReviewPrompt {
    */
   async trackReviewPromptInteraction(action, rating = null, redirectUrl = null) {
     try {
-      dbgLog('[ReviewPrompt] Tracking interaction:', { action, rating, redirectUrl });
+      dbgLog('Tracking interaction:', { action, rating, redirectUrl });
       
       // Get user email from storage
       const email = await this.getUserEmail();
       
       if (!email) {
-        dbgWarn('[ReviewPrompt] Cannot track interaction: No user email available');
+        dbgWarn('Cannot track interaction: No user email available');
         return;
       }
       
@@ -679,19 +677,19 @@ class ReviewPrompt {
           // Try to import CloudService dynamically
           const module = await import(chrome.runtime.getURL('services/cloud-service.js'));
           window.CloudService = module.CloudService;
-          dbgLog('[ReviewPrompt] CloudService loaded dynamically');
+          dbgLog('CloudService loaded dynamically');
         } catch (importError) {
-          dbgWarn('[ReviewPrompt] Failed to load CloudService:', importError);
+          dbgWarn('Failed to load CloudService:', importError);
           throw new Error('CloudService not available');
         }
       }
       
       // Use CloudService to track the interaction (follows architecture pattern)
       const data = await window.CloudService.trackReviewPromptInteraction(email, action, rating, redirectUrl);
-      dbgLog('[ReviewPrompt] Interaction tracked successfully via CloudService:', data);
+      dbgLog('Interaction tracked successfully via CloudService:', data);
       
     } catch (error) {
-      dbgWarn('[ReviewPrompt] Error tracking interaction:', error);
+      dbgWarn('Error tracking interaction:', error);
       // Don't throw the error to avoid disrupting the user experience
     }
   }
@@ -703,25 +701,25 @@ class ReviewPrompt {
   async fetchMessages() {
     // Return cached messages if available
     if (this.messages) {
-      dbgLog('[ReviewPrompt] Using cached messages');
+      dbgLog('Using cached messages');
       return this.messages;
     }
 
     // If already fetching, return the existing promise
     if (this.messagesFetchPromise) {
-      dbgLog('[ReviewPrompt] Already fetching messages, waiting...');
+      dbgLog('Already fetching messages, waiting...');
       return this.messagesFetchPromise;
     }
 
     // Create new fetch promise
     this.messagesFetchPromise = (async () => {
       try {
-        dbgLog('[ReviewPrompt] Fetching messages from cloud function');
+        dbgLog('Fetching messages from cloud function');
         
         // Get user email
         const email = await this.getUserEmail();
         if (!email) {
-          dbgWarn('[ReviewPrompt] Cannot fetch messages: No user email available');
+          dbgWarn('Cannot fetch messages: No user email available');
           return null;
         }
 
@@ -730,9 +728,9 @@ class ReviewPrompt {
           try {
             const module = await import(chrome.runtime.getURL('services/cloud-service.js'));
             window.CloudService = module.CloudService;
-            dbgLog('[ReviewPrompt] CloudService loaded dynamically');
+            dbgLog('CloudService loaded dynamically');
           } catch (importError) {
-            dbgWarn('[ReviewPrompt] Failed to load CloudService:', importError);
+            dbgWarn('Failed to load CloudService:', importError);
             return null;
           }
         }
@@ -742,14 +740,14 @@ class ReviewPrompt {
         
         if (messages && messages.subtitle && messages.question) {
           this.messages = messages;
-          dbgLog('[ReviewPrompt] Messages fetched successfully:', messages);
+          dbgLog('Messages fetched successfully:', messages);
           return messages;
         } else {
-          dbgWarn('[ReviewPrompt] Invalid messages format received');
+          dbgWarn('Invalid messages format received');
           return null;
         }
       } catch (error) {
-        dbgWarn('[ReviewPrompt] Error fetching messages:', error);
+        dbgWarn('Error fetching messages:', error);
         return null;
       } finally {
         // Clear the fetch promise
@@ -786,7 +784,7 @@ class ReviewPrompt {
             return parsedUser.email;
           }
         } catch (parseError) {
-          dbgWarn('[ReviewPrompt] Failed to parse user data:', parseError);
+          dbgWarn('Failed to parse user data:', parseError);
         }
       }
       
@@ -804,7 +802,7 @@ class ReviewPrompt {
       return userInfo?.email || null;
       
     } catch (error) {
-      dbgWarn('[ReviewPrompt] Error getting user email:', error);
+      dbgWarn('Error getting user email:', error);
       return null;
     }
   }
@@ -817,7 +815,7 @@ class ReviewPrompt {
     this.removeEventListeners(document.getElementById('review-prompt'));
     this.eventListeners.clear();
     this.isInitialized = false;
-    dbgLog('[ReviewPrompt] Component destroyed');
+    dbgLog('Component destroyed');
   }
 }
 

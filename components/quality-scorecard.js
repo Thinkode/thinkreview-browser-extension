@@ -5,6 +5,17 @@
 
 import { CONFIGURE_ICON_SVG } from '../assets/icons.js';
 
+// Track user actions (dynamically imported to avoid module issues)
+let trackUserAction = null;
+(async () => {
+  try {
+    const analyticsModule = await import('../utils/analytics-service.js');
+    trackUserAction = analyticsModule.trackUserAction;
+  } catch (error) {
+    // Silently fail - analytics shouldn't break the extension
+  }
+})();
+
 /**
  * Gets the color class based on score value
  * @param {number} score - Score value (0-100)
@@ -166,6 +177,16 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
   settingsIcons.forEach(iconLink => {
     const handleSettingsClick = (e) => {
       e.stopPropagation(); // Prevent the metric click handler from triggering
+      
+      // Track configure metrics icon click
+      if (trackUserAction) {
+        const metricName = iconLink.closest('.thinkreview-metric-item')?.getAttribute('data-metric') || 'unknown';
+        trackUserAction('configure_score_metrics', {
+          context: 'metric_settings_icon',
+          location: 'quality_scorecard',
+          metric: metricName
+        }).catch(() => {}); // Silently fail
+      }
     };
     
     iconLink.addEventListener('click', handleSettingsClick);
@@ -178,6 +199,33 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
       ]
     });
   });
+  
+  // Add tracking to overall score configure icon
+  const overallScoreConfigure = container.querySelector('.thinkreview-overall-score-configure');
+  if (overallScoreConfigure) {
+    const handleOverallConfigureClick = (e) => {
+      e.stopPropagation();
+      
+      // Track overall score configure icon click
+      if (trackUserAction) {
+        trackUserAction('configure_score_metrics', {
+          context: 'overall_score_configure',
+          location: 'quality_scorecard',
+          metric: 'overall'
+        }).catch(() => {}); // Silently fail
+      }
+    };
+    
+    overallScoreConfigure.addEventListener('click', handleOverallConfigureClick);
+    
+    // Store reference for cleanup
+    eventListeners.push({
+      element: overallScoreConfigure,
+      handlers: [
+        { event: 'click', handler: handleOverallConfigureClick }
+      ]
+    });
+  }
 
   // Add click handlers if callback is provided
   if (onMetricClick) {

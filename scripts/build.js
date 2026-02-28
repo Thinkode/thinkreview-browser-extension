@@ -6,6 +6,34 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Load .env from project root if present (for local builds)
+function loadEnv () {
+  const envPath = path.join(process.cwd(), '.env')
+  if (!fs.existsSync(envPath)) return
+  const content = fs.readFileSync(envPath, 'utf8')
+  for (const line of content.split('\n')) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/)
+    if (m) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '').trim()
+  }
+}
+
+function writeEnvConfig (buildDir) {
+  loadEnv()
+  // Trim to strip any trailing \r\n / whitespace from GitHub vars/secrets
+  const GA_MEASUREMENT_ID = (process.env.GA_MEASUREMENT_ID || '').trim()
+  const GA_API_SECRET = (process.env.GA_API_SECRET || '').trim()
+  const HONEYBADGER_API_KEY = (process.env.HONEYBADGER_API_KEY || '').trim()
+  const outPath = path.join(buildDir, 'utils', 'env-config.js')
+  const content = `// Injected at build from .env or CI
+export const GA_MEASUREMENT_ID = ${JSON.stringify(GA_MEASUREMENT_ID)};
+export const GA_API_SECRET = ${JSON.stringify(GA_API_SECRET)};
+export const HONEYBADGER_API_KEY = ${JSON.stringify(HONEYBADGER_API_KEY)};
+`
+  fs.mkdirSync(path.dirname(outPath), { recursive: true })
+  fs.writeFileSync(outPath, content)
+  console.log('📝 Injected env into utils/env-config.js')
+}
+
 function createBuildDirectory () {
   const buildDir = path.join(process.cwd(), 'build')
   
@@ -68,9 +96,10 @@ function build () {
   try {
     console.log('🚀 Building extension...')
     
-    const buildDir = createBuildDirectory()
+const buildDir = createBuildDirectory()
     copyProjectFiles(buildDir)
-    
+    writeEnvConfig(buildDir)
+
     console.log('✅ Build completed successfully!')
     console.log(`📦 Extension files ready in: ${buildDir}`)
     

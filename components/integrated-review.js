@@ -1,13 +1,38 @@
 // integrated-review.js
 // Component for displaying code review results directly in GitLab MR page
 // Debug toggle: set to false to disable console logs in production
+// Check if DEBUG already exists to avoid conflicts
+if (typeof DEBUG === 'undefined') {
+  var DEBUG = false;
+}
 
-// Debug toggle: set to false to disable console logs in production
-var DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log(...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn(...args); }
+// Logger functions - loaded dynamically to avoid module import issues in content scripts
+// Provide fallback functions immediately, then upgrade when logger loads
+// Check if variables already exist to avoid redeclaration errors
+if (typeof dbgLog === 'undefined') {
+  var dbgLog = (...args) => { if (DEBUG) console.log('[IntegratedReview]', ...args); };
+}
+if (typeof dbgWarn === 'undefined') {
+  var dbgWarn = (...args) => { if (DEBUG) console.warn('[IntegratedReview]', ...args); };
+}
+if (typeof dbgError === 'undefined') {
+  var dbgError = (...args) => { if (DEBUG) console.error('[IntegratedReview]', ...args); };
+}
 
-
+// Initialize logger functions with dynamic import
+(async () => {
+  try {
+    // Use chrome.runtime.getURL for content scripts (same pattern as other dynamic imports)
+    const loggerModule = await import(chrome.runtime.getURL('utils/logger.js'));
+    // Upgrade to use the real logger functions
+    dbgLog = loggerModule.dbgLog;
+    dbgWarn = loggerModule.dbgWarn;
+    dbgError = loggerModule.dbgError;
+  } catch (error) {
+    // Keep using fallback functions if logger fails to load
+    dbgWarn('Failed to load logger module, using console fallback:', error);
+  }
+})();
 // Import the CSS for the integrated review panel
 const cssURL = chrome.runtime.getURL('components/integrated-review.css');
 const linkElement = document.createElement('link');
@@ -47,10 +72,10 @@ const badgeModulePromise = (async () => {
   try {
     const module = await import('./utils/new-badge.js');
     createNewBadge = module.createNewBadge;
-    dbgLog('[IntegratedReview] Badge utils loaded');
+    dbgLog('Badge utils loaded');
     return module;
   } catch (e) {
-    dbgWarn('[IntegratedReview] Failed to load badge utils', e);
+    dbgWarn('Failed to load badge utils', e);
     return null;
   }
 })();
@@ -62,10 +87,10 @@ async function initFormattingUtils() {
     preprocessAIResponse = module.preprocessAIResponse;
     applySimpleSyntaxHighlighting = module.applySimpleSyntaxHighlighting;
     setupCopyHandler = module.setupCopyHandler;
-    setupCopyHandler();
-    dbgLog('[IntegratedReview] Formatting utils loaded');
+    // Copy handler is attached to panel root when panel is created (avoids document-level listener and improves perf on diff pages)
+    dbgLog('Formatting utils loaded');
   } catch (e) {
-    dbgWarn('[IntegratedReview] Failed to load formatting utils', e);
+    dbgWarn('Failed to load formatting utils', e);
   }
 }
 
@@ -75,16 +100,16 @@ async function initCopyButtonUtils() {
     createCopyButton = module.createCopyButton;
     copyItemContent = module.copyItemContent;
     attachCopyButtonToItem = module.attachCopyButtonToItem;
-    dbgLog('[IntegratedReview] Copy button utils loaded');
+    dbgLog('Copy button utils loaded');
   } catch (e) {
-    dbgWarn('[IntegratedReview] Failed to load copy button utils', e);
+    dbgWarn('Failed to load copy button utils', e);
   }
 }
 
 // Badge utils are initialized via cached promise above
 // The promise is already being resolved, we just need to wait for it when needed
 
-initFormattingUtils();
+const formattingReady = initFormattingUtils();
 initCopyButtonUtils();
 // Badge utils loading is handled by the cached promise, no separate init needed
 
@@ -111,9 +136,9 @@ async function initReviewPromptComponent() {
     });
     reviewPrompt.init('review-prompt-container');
     window.reviewPrompt = reviewPrompt; // Make accessible globally
-    dbgLog('[IntegratedReview] Review prompt component initialized with daily threshold of 5');
+    dbgLog('Review prompt component initialized with daily threshold of 5');
   } catch (error) {
-    dbgWarn('[IntegratedReview] Failed to initialize review prompt component:', error);
+    dbgWarn('Failed to initialize review prompt component:', error);
   }
 }
 
@@ -127,11 +152,16 @@ let currentPatchContent = '';
 /**
  * Clears the stored patch content and conversation history
  * This should be called when navigating to a new PR to free up memory
+ * Also clears the chat log DOM so previous messages are not shown in the new review
  */
 function clearPatchContentAndHistory() {
   currentPatchContent = '';
   conversationHistory = [];
-  dbgLog('[IntegratedReview] Cleared patch content and conversation history');
+  const chatLog = document.getElementById('chat-log');
+  if (chatLog) {
+    chatLog.innerHTML = '';
+  }
+  dbgLog('Cleared patch content and conversation history');
 }
 
 // Expose function for content.js to call when navigating to new PR
@@ -231,8 +261,8 @@ function stopEnhancedLoader() {
  * @returns {Promise<HTMLElement>} - The injected review panel element
  */
 async function createIntegratedReviewPanel(patchUrl) {
-  // Load refresh icon from centralized icons.js
-  const iconsModule = await import('../assets/icons.js');
+  // Load refresh icon from centralized icons.js (use extension URL for content script context)
+  const iconsModule = await import(chrome.runtime.getURL('assets/icons.js'));
   const refreshIconSvg = iconsModule.REFRESH_ICON_SVG;
   // Get logo URL
   const logoUrl = chrome.runtime.getURL('images/icon16.png');
@@ -245,16 +275,22 @@ async function createIntegratedReviewPanel(patchUrl) {
   container.innerHTML = `
     <div class="thinkreview-card gl-border-1 gl-border-gray-100">
       <div class="thinkreview-card-header gl-display-flex gl-justify-content-space-between gl-align-items-center">
-        <div class="gl-display-flex gl-align-items-center thinkreview-card-title">
-          <img src="${logoUrl}" alt="ThinkReview" class="thinkreview-header-logo">
-          <span class="gl-font-weight-bold">ThinkReview</span>
-          <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
-          <span class="thinkreview-toggle-icon gl-ml-2" title="Minimize">▲</span>
+        <div class="thinkreview-card-title">
+          <div class="thinkreview-card-title-row">
+            <img src="${logoUrl}" alt="ThinkReview" class="thinkreview-header-logo">
+            <span class="gl-font-weight-bold">ThinkReview</span>
+            <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
+            <span class="thinkreview-toggle-icon gl-ml-2" title="Minimize">▲</span>
+          </div>
+          <span id="review-subscription-label" class="thinkreview-header-subscription" aria-label="Current plan"></span>
         </div>
         <div class="thinkreview-header-actions">
-          <button id="regenerate-review-btn" class="thinkreview-regenerate-btn" title="Regenerate review">
-            ${refreshIconSvg}
-          </button>
+          <span class="thinkreview-regenerate-btn-wrapper">
+            <button id="regenerate-review-btn" class="thinkreview-regenerate-btn" aria-label="Regenerate review">
+              ${refreshIconSvg}
+            </button>
+            <span class="thinkreview-regenerate-tooltip" aria-hidden="true">Regenerate review</span>
+          </span>
           <select id="language-selector" class="thinkreview-language-dropdown" title="Select review language">
             <option value="English">English</option>
             <option value="Spanish">Español</option>
@@ -329,7 +365,10 @@ async function createIntegratedReviewPanel(patchUrl) {
             <div id="review-patch-size-banner" class="gl-mb-4 gl-hidden"></div>
             <div id="review-metrics-container" class="gl-mb-4"></div>
             <div id="review-summary-container" class="gl-mb-4">
-              <h5 class="gl-font-weight-bold thinkreview-section-title">Summary</h5>
+              <div class="thinkreview-section-header-row">
+                <h5 class="gl-font-weight-bold thinkreview-section-title">Summary</h5>
+                <button type="button" id="generate-pr-description-btn" class="thinkreview-generate-pr-desc-btn" title="Generate a PR/MR description from this review">Generate PR description</button>
+              </div>
               <div class="thinkreview-item-wrapper">
                 <p id="review-summary" class="thinkreview-section-content"></p>
               </div>
@@ -400,6 +439,24 @@ async function createIntegratedReviewPanel(patchUrl) {
     if (versionText && manifest.version) {
       versionText.textContent = manifest.version;
     }
+    
+    // Add tracking to version link click
+    const versionLink = container.querySelector('#extension-version-link');
+    if (versionLink) {
+      versionLink.addEventListener('click', async (e) => {
+        // Track version link click
+        try {
+          const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+          analyticsModule.trackUserAction('version_link_clicked', {
+            context: 'header',
+            location: 'integrated_panel',
+            version: manifest.version || 'unknown'
+          }).catch(() => {}); // Silently fail
+        } catch (error) {
+          // Silently fail - analytics shouldn't break the extension
+        }
+      });
+    }
   } catch (error) {
     dbgWarn('Failed to get extension version:', error);
     const versionText = container.querySelector('#extension-version-text');
@@ -417,7 +474,11 @@ async function createIntegratedReviewPanel(patchUrl) {
   
   // Initialize resize functionality
   initializeResizeHandle(container);
-  
+
+  // Delegate copy handler to panel only (avoids document-level listener; improves perf when interacting with GitLab diff)
+  await formattingReady;
+  if (setupCopyHandler) setupCopyHandler(container);
+
   // Add event listener for minimizing the panel
   const cardHeader = container.querySelector('.thinkreview-card-header');
   if (cardHeader) {
@@ -513,19 +574,56 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Add event listener for the bug report button first
   const bugReportButton = document.getElementById('bug-report-btn');
   if (bugReportButton) {
-    bugReportButton.addEventListener('click', (e) => {
+    bugReportButton.addEventListener('click', async (e) => {
       e.stopPropagation(); // Prevent triggering the header click event
-      dbgLog('[IntegratedReview] Bug report button clicked');
+      dbgLog('Bug report button clicked');
+      
+      // Track bug report button click
+      try {
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule.trackUserAction('bug_report_clicked', {
+          context: 'integrated_review_panel',
+          location: 'header'
+        }).catch(() => {});
+      } catch (error) { /* silent */ }
+      
       window.open('https://thinkreview.dev/bug-report', '_blank');
     });
   }
   
+  // Fast tooltip for regenerate button (short delay vs native title)
+  const regenerateWrapper = container.querySelector('.thinkreview-regenerate-btn-wrapper');
+  if (regenerateWrapper) {
+    let tooltipTimeout;
+    const tooltipEl = regenerateWrapper.querySelector('.thinkreview-regenerate-tooltip');
+    regenerateWrapper.addEventListener('mouseenter', () => {
+      tooltipTimeout = setTimeout(() => {
+        if (tooltipEl) tooltipEl.classList.add('thinkreview-tooltip-visible');
+      }, 200);
+    });
+    regenerateWrapper.addEventListener('mouseleave', () => {
+      clearTimeout(tooltipTimeout);
+      if (tooltipEl) tooltipEl.classList.remove('thinkreview-tooltip-visible');
+    });
+  }
+
   // Add event listener for the regenerate review button
   const regenerateButton = document.getElementById('regenerate-review-btn');
   if (regenerateButton) {
     regenerateButton.addEventListener('click', async (e) => {
       e.stopPropagation(); // Prevent triggering the header click event
-      dbgLog('[IntegratedReview] Regenerate review button clicked');
+      dbgLog('Regenerate review button clicked');
+      
+      // Track refresh action
+      try {
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule.trackUserAction('refresh_review', {
+          context: 'regenerate_button',
+          location: 'integrated_panel'
+        }).catch(() => {}); // Silently fail
+      } catch (error) {
+        // Silently fail - analytics shouldn't break the extension
+      }
       
       // Show loading state
       const reviewLoading = document.getElementById('review-loading');
@@ -543,7 +641,7 @@ async function createIntegratedReviewPanel(patchUrl) {
       if (typeof fetchAndDisplayCodeReview === 'function') {
         await fetchAndDisplayCodeReview(true); // Pass true to force regeneration
       } else {
-        console.error('[IntegratedReview] fetchAndDisplayCodeReview function not found');
+        console.error('fetchAndDisplayCodeReview function not found');
       }
     });
   }
@@ -594,11 +692,21 @@ async function createIntegratedReviewPanel(patchUrl) {
     languageSelector.addEventListener('touchend', blockEvent, true);
     
     // Save language preference when changed
-    languageSelector.addEventListener('change', (e) => {
+    languageSelector.addEventListener('change', async (e) => {
       e.stopPropagation(); // Prevent triggering the header click event
       const selectedLanguage = e.target.value;
+      
+      // Track language change
+      try {
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule.trackUserAction('language_changed', {
+          context: 'integrated_review_panel',
+          language: selectedLanguage
+        }).catch(() => {});
+      } catch (error) { /* silent */ }
+      
       setLanguagePreference(selectedLanguage);
-      dbgLog('[IntegratedReview] Language preference updated to:', selectedLanguage);
+      dbgLog('Language preference updated to:', selectedLanguage);
     });
   }
   
@@ -618,11 +726,11 @@ function applyPlatformSpecificStyling(container) {
                        window.location.hostname.includes('visualstudio.com');
   
   if (isAzureDevOps) {
-    dbgLog('[IntegratedReview] Detected Azure DevOps platform, applying Azure DevOps styling');
+    dbgLog('Detected Azure DevOps platform, applying Azure DevOps styling');
     
     // Detect Azure DevOps theme
     const theme = detectAzureDevOpsTheme();
-    dbgLog('[IntegratedReview] Detected Azure DevOps theme:', theme);
+    dbgLog('Detected Azure DevOps theme:', theme);
     
     // Apply theme-specific styling
     const cardBody = container.querySelector('.thinkreview-card-body');
@@ -661,7 +769,7 @@ function applyPlatformSpecificStyling(container) {
     container.classList.add(`${theme}-theme`);
     container.setAttribute('data-theme', theme);
   } else {
-    dbgLog('[IntegratedReview] Detected GitLab platform, using GitLab styling');
+    dbgLog('Detected GitLab platform, using GitLab styling');
     container.classList.add('gitlab-platform');
   }
 }
@@ -718,7 +826,7 @@ function detectAzureDevOpsTheme() {
 function initializeResizeHandle(container) {
   const resizeHandle = container.querySelector('.thinkreview-resize-handle');
   if (!resizeHandle) return;
-  
+
   let isResizing = false;
   let startX = 0;
   let startWidth = 0;
@@ -729,56 +837,40 @@ function initializeResizeHandle(container) {
     container.style.width = savedWidth + 'px';
   }
   
-  const startResize = (e) => {
-    // Don't allow resizing when minimized
-    if (container.classList.contains('minimized') || container.classList.contains('minimized-to-button')) {
-      return;
-    }
-    
-    isResizing = true;
-    startX = e.clientX;
-    startWidth = parseInt(getComputedStyle(container).width, 10);
-    
-    // Add resizing class for visual feedback
-    container.classList.add('resizing');
-    
-    // Prevent text selection during resize
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'ew-resize';
-    
-    e.preventDefault();
-  };
-  
   const doResize = (e) => {
-    if (!isResizing) return;
-    
     const deltaX = startX - e.clientX;
     const newWidth = Math.max(300, Math.min(800, startWidth + deltaX)); // Min 300px, Max 800px
-    
     container.style.width = newWidth + 'px';
   };
-  
+
   const stopResize = () => {
     if (!isResizing) return;
-    
     isResizing = false;
+    document.removeEventListener('mousemove', doResize);
+    document.removeEventListener('mouseup', stopResize);
     container.classList.remove('resizing');
-    
-    // Restore normal cursor and text selection
     document.body.style.userSelect = '';
     document.body.style.cursor = '';
-    
-    // Save the new width to localStorage
     const currentWidth = parseInt(getComputedStyle(container).width, 10);
     localStorage.setItem('gitlab-mr-review-width', currentWidth);
   };
-  
-  // Add event listeners
+
+  const startResize = (e) => {
+    if (container.classList.contains('minimized') || container.classList.contains('minimized-to-button')) {
+      return;
+    }
+    isResizing = true;
+    startX = e.clientX;
+    startWidth = parseInt(getComputedStyle(container).width, 10);
+    container.classList.add('resizing');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ew-resize';
+    document.addEventListener('mousemove', doResize);
+    document.addEventListener('mouseup', stopResize);
+    e.preventDefault();
+  };
+
   resizeHandle.addEventListener('mousedown', startResize);
-  document.addEventListener('mousemove', doResize);
-  document.addEventListener('mouseup', stopResize);
-  
-  // Prevent drag ghost image
   resizeHandle.addEventListener('dragstart', (e) => e.preventDefault());
 }
 
@@ -791,8 +883,9 @@ function initializeResizeHandle(container) {
  * @param {string} sender - 'user' or 'ai'.
  * @param {string} message - The message content (can be HTML or Markdown).
  * @param {string} [aiResponseText] - Optional raw AI response text for feedback tracking (conversations only).
+ * @param {boolean} [isTypingIndicator=false] - If true, treat as typing indicator (no copy button). Use instead of parsing content.
  */
-function appendToChatLog(sender, message, aiResponseText = null) {
+function appendToChatLog(sender, message, aiResponseText = null, isTypingIndicator = false) {
   const chatLog = document.getElementById('chat-log');
   if (!chatLog) return;
 
@@ -803,16 +896,6 @@ function appendToChatLog(sender, message, aiResponseText = null) {
   if (aiResponseText && sender === 'ai') {
     messageWrapper.setAttribute('data-ai-response', aiResponseText);
   }
-
-  // Check if this is a typing indicator (spinner message) - skip copy button for those
-  // Typing indicators contain HTML with gl-spinner class or specific thinking messages
-  const isTypingIndicator = message.includes('gl-spinner') || 
-                            message.includes('Thinking about') || 
-                            message.includes('Analyzing') || 
-                            message.includes('Crafting') || 
-                            message.includes('Reviewing') || 
-                            message.includes('Processing') || 
-                            message.includes('Working on');
 
   // Create wrapper for message bubble to support copy button
   const messageBubbleWrapper = document.createElement('div');
@@ -986,12 +1069,24 @@ function setupFeedbackButtons(container, aiResponse, mrUrl = null) {
     // Mark button as selected immediately for visual feedback
     setButtonSelected(clickedBtn);
     
+    // Track feedback button click
+    try {
+      const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+      const feedbackType = mrUrl ? 'codereview' : 'conversation';
+      analyticsModule.trackUserAction(rating === 'thumbs_up' ? 'thumbs_up_clicked' : 'thumbs_down_clicked', {
+        context: feedbackType,
+        location: 'integrated_panel'
+      }).catch(() => {}); // Silently fail
+    } catch (error) {
+      // Silently fail - analytics shouldn't break the extension
+    }
+    
     // Get user email (fire-and-forget, don't block UI)
     chrome.storage.local.get(['userData'], (result) => {
       const userData = result.userData;
       
       if (!userData || !userData.email) {
-        dbgWarn('[IntegratedReview] User not logged in, cannot submit feedback');
+        dbgWarn('User not logged in, cannot submit feedback');
         // Remove selection if user not logged in
         clickedBtn.classList.remove('selected');
         return;
@@ -1040,7 +1135,7 @@ function setupFeedbackButtons(container, aiResponse, mrUrl = null) {
  */
 function submitFeedback(email, feedbackType, aiResponse, mrUrl, rating, additionalFeedback) {
   // Log what we're sending for debugging
-  dbgLog('[IntegratedReview] Submitting feedback:', {
+  dbgLog('Submitting feedback:', {
     hasEmail: !!email,
     feedbackType,
     hasAiResponse: !!aiResponse,
@@ -1064,17 +1159,17 @@ function submitFeedback(email, feedbackType, aiResponse, mrUrl, rating, addition
       if (chrome.runtime.lastError) {
         const errorMsg = chrome.runtime.lastError.message || 
                         (typeof chrome.runtime.lastError === 'string' ? chrome.runtime.lastError : JSON.stringify(chrome.runtime.lastError));
-        dbgWarn('[IntegratedReview] Error submitting feedback (fire-and-forget):', errorMsg);
+        dbgWarn('Error submitting feedback (fire-and-forget):', errorMsg);
         return;
       }
       
       if (response && response.success) {
-        dbgLog('[IntegratedReview] Feedback submitted successfully (fire-and-forget)');
+        dbgLog('Feedback submitted successfully (fire-and-forget)');
       } else {
         const errorMsg = response?.error || 
                         (response?.message) ||
                         (typeof response === 'string' ? response : JSON.stringify(response));
-        dbgWarn('[IntegratedReview] Failed to submit feedback (fire-and-forget):', errorMsg);
+        dbgWarn('Failed to submit feedback (fire-and-forget):', errorMsg);
       }
     }
   );
@@ -1104,7 +1199,7 @@ async function handleSendMessage(messageText) {
   ];
   const randomMessage = thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)];
   
-  appendToChatLog('ai', `<span class="gl-spinner gl-spinner-sm"></span> ${randomMessage}`);
+  appendToChatLog('ai', `<span class="gl-spinner gl-spinner-sm"></span> ${randomMessage}`, null, true);
 
   try {
     // Get the user's language preference
@@ -1130,11 +1225,19 @@ async function handleSendMessage(messageText) {
     // Extract the response text with fallback handling
     // Handle the nested response structure: { status: "success", review: { response: "..." } }
     const responseText = aiResponse.review?.response || aiResponse.response || aiResponse.content || aiResponse;
-    dbgLog('[IntegratedReview] Response text to display:', responseText);
+    // Log only metadata, not the actual response text
+    dbgLog('Response text extracted:', {
+      hasResponse: !!responseText,
+      responseLength: responseText?.length || 0
+    });
     
     // Store raw response text for feedback querying (use original response before markdown processing)
     const rawResponseText = responseText;
-    
+
+    // Ensure copy button utils are loaded so the response has a copy button (e.g. for Generate PR description)
+    if (!attachCopyButtonToItem) {
+      await initCopyButtonUtils();
+    }
     appendToChatLog('ai', responseText, rawResponseText);
     conversationHistory.push({ role: 'model', content: responseText });
 
@@ -1185,7 +1288,7 @@ async function handleSendMessage(messageText) {
   }
 }
 
-async function displayIntegratedReview(review, patchContent, patchSize = null, subscriptionType = null, modelUsed = null, isCached = false) {
+async function displayIntegratedReview(review, patchContent, patchSize = null, subscriptionType = null, modelUsed = null, isCached = false, provider = null, ollamaMeta = null) {
   // Ensure copy button utils are loaded
   if (!attachCopyButtonToItem) {
     await initCopyButtonUtils();
@@ -1193,7 +1296,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   
   // Check if there was a JSON parsing error (safety check)
   if (review.parsingError === true) {
-    dbgWarn('[IntegratedReview] JSON parsing error detected in review object');
+    dbgWarn('JSON parsing error detected in review object');
     const errorMessage = review.errorMessage 
       ? `Unable to parse AI response: ${review.errorMessage}. Please try regenerating the review.`
       : 'The AI generated a response that could not be parsed. Please try regenerating the review or report this issue at https://thinkreview.dev/bug-report';
@@ -1210,7 +1313,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     loadingModule.hideButtonLoadingIndicator();
   } catch (error) {
     // Silently fail if module not available
-    dbgWarn('[IntegratedReview] Failed to hide loading indicator:', error);
+    dbgWarn('Failed to hide loading indicator:', error);
   }
 
   const reviewLoading = document.getElementById('review-loading');
@@ -1234,14 +1337,50 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
   reviewContent.classList.remove('gl-hidden');
 
-  // Render patch size banner if patchSize data is available
+  // Update subscription type in header (Free, Lite, Premium, Teams)
+  const subscriptionLabel = document.getElementById('review-subscription-label');
+  if (subscriptionLabel) {
+    const raw = (subscriptionType ?? '').toString().trim().toLowerCase();
+    let displayName = 'Free';
+    if (raw && !raw.includes('free')) {
+      if (raw === 'lite') displayName = 'Lite';
+      else if (raw === 'teams') displayName = 'Teams';
+      else if (raw === 'professional') displayName = 'Professional';
+    }
+    subscriptionLabel.textContent = displayName;
+    const slug = displayName.toLowerCase();
+    subscriptionLabel.className = 'thinkreview-header-subscription thinkreview-header-subscription-' + slug;
+  }
+
+  // Render patch size / metadata banner (Ollama-specific bar vs cloud bar)
   if (patchSizeBanner) {
     try {
       const metadataModule = await import('./review-metadata-bar.js');
-      metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionType, modelUsed, isCached);
+      if (provider === 'ollama' && ollamaMeta) {
+        metadataModule.renderOllamaMetadataBar(patchSizeBanner, ollamaMeta, {
+          onSwitchToCloud() {
+            document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
+          },
+          getModels() {
+            return new Promise((resolve) => {
+              chrome.runtime.sendMessage({ type: 'GET_OLLAMA_MODELS' }, (response) => {
+                if (chrome.runtime.lastError || !response) {
+                  resolve([]);
+                  return;
+                }
+                resolve(response.models || []);
+              });
+            });
+          },
+          onModelChange(modelName) {
+            document.dispatchEvent(new CustomEvent('thinkreview-ollama-model-changed', { detail: { model: modelName } }));
+          }
+        });
+      } else {
+        metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionType, modelUsed, isCached);
+      }
     } catch (error) {
-      dbgWarn('[IntegratedReview] Failed to load review metadata bar:', error);
-      // Best-effort: hide banner container on failure
+      dbgWarn('Failed to load review metadata bar:', error);
       patchSizeBanner.classList.add('gl-hidden');
     }
   }
@@ -1286,7 +1425,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
           reviewMetricsContainer.classList.add('gl-hidden');
         }
       } catch (error) {
-        dbgWarn('[IntegratedReview] Failed to load quality scorecard component:', error);
+        dbgWarn('Failed to load quality scorecard component:', error);
         reviewMetricsContainer.classList.add('gl-hidden');
       }
     } else {
@@ -1303,7 +1442,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
         const scorePopupModule = await import('./popup-modules/score-popup.js');
         scorePopupModule.showScorePopupOnButton(review.metrics.overallScore);
       } catch (error) {
-        dbgWarn('[IntegratedReview] Failed to load score popup module:', error);
+        dbgWarn('Failed to load score popup module:', error);
       }
     }
     
@@ -1312,7 +1451,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       const notificationModule = await import('./popup-modules/button-notification.js');
       notificationModule.showButtonNotification();
     } catch (error) {
-      dbgWarn('[IntegratedReview] Failed to load button notification module:', error);
+      dbgWarn('Failed to load button notification module:', error);
     }
   }
 
@@ -1363,6 +1502,23 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     attachCopyButtonToItem(reviewSummary, summaryWrapper);
   }
 
+  // Generate PR description button: send a dedicated prompt and show result in chat (attach once)
+  const generatePrDescBtn = document.getElementById('generate-pr-description-btn');
+  if (generatePrDescBtn && !generatePrDescBtn.dataset.prDescBound) {
+    generatePrDescBtn.dataset.prDescBound = '1';
+    generatePrDescBtn.addEventListener('click', async () => {
+      // Track PR description generation
+      try {
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule.trackUserAction('generate_pr_description_clicked', {
+          context: 'integrated_review_panel'
+        }).catch(() => {});
+      } catch (error) { /* silent */ }
+      
+      handleSendMessage('Write a concise PR/MR description suitable for the merge request description field. Output only the description text, ready to paste.');
+    });
+  }
+
   const populateList = (element, items, category) => {
     element.innerHTML = ''; // Clear previous items
     if (items && items.length > 0) {
@@ -1386,7 +1542,16 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
         contentDiv.style.cursor = 'pointer';
         
         // Add click handler for content
-        contentDiv.addEventListener('click', () => {
+        contentDiv.addEventListener('click', async () => {
+          // Track review item click
+          try {
+            const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+            analyticsModule.trackUserAction('review_item_clicked', {
+              context: 'integrated_review_panel',
+              category: category
+            }).catch(() => {});
+          } catch (error) { /* silent */ }
+          
           // Extract plain text from the item
           const itemText = extractPlainText(itemHtml).trim();
           
@@ -1468,7 +1633,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
           staticQuestionButton.appendChild(newBadge);
         }
       } catch (error) {
-        dbgWarn('[IntegratedReview] Failed to load badge module for button:', error);
+        dbgWarn('Failed to load badge module for button:', error);
       }
     })();
     
@@ -1502,7 +1667,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       // Pass mrUrl as the identifier (null for aiResponse)
       setupFeedbackButtons(initialFeedbackContainer, null, mrUrl);
     } else {
-      dbgWarn('[IntegratedReview] Cannot get mrUrl');
+      dbgWarn('Cannot get mrUrl');
       initialFeedbackContainer.classList.add('gl-hidden');
     }
   }
@@ -1531,9 +1696,18 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   chatInput.parentNode.replaceChild(newChatInput, chatInput);
   chatInput = newChatInput;
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const messageText = chatInput.value.trim();
     if (messageText !== '' && messageText.length <= 2000) {
+      // Track chat message sent
+      try {
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule.trackUserAction('chat_message_sent', {
+          context: 'integrated_review_panel',
+          message_length: messageText.length
+        }).catch(() => {});
+      } catch (error) { /* silent */ }
+      
       handleSendMessage(messageText);
       chatInput.value = '';
     } else if (messageText.length > 2000) {
@@ -1595,9 +1769,19 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   // Add click handlers for suggested questions
   const suggestedQuestionButtons = document.querySelectorAll('.thinkreview-suggested-question-btn');
   suggestedQuestionButtons.forEach(button => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       const question = button.getAttribute('data-question');
       if (question) {
+        // Track suggested question click
+        try {
+          const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+          const isStaticQuestion = button.classList.contains('static-question');
+          analyticsModule.trackUserAction('suggested_question_clicked', {
+            context: 'integrated_review_panel',
+            question_type: isStaticQuestion ? 'static' : 'dynamic'
+          }).catch(() => {});
+        } catch (error) { /* silent */ }
+        
         // Set the question in the input field
         chatInput.value = question;
         updateCharCounter();
@@ -1623,15 +1807,19 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
         });
         
         if (refreshResponse.status === 'success') {
-          dbgLog('[IntegratedReview] User data refreshed before feedback check:', refreshResponse.data);
+          // Log only metadata, not full user data which may contain email
+          dbgLog('User data refreshed before feedback check:', {
+            hasEmail: !!refreshResponse.data?.email,
+            todayReviewCount: refreshResponse.data?.todayReviewCount
+          });
         } else {
-          dbgWarn('[IntegratedReview] Failed to refresh user data:', refreshResponse.error);
+          dbgWarn('Failed to refresh user data:', refreshResponse.error);
         }
         
         // Now check if we should show the prompt (with fresh data in storage)
         await reviewPrompt.checkAndShow();
       } catch (error) {
-        // console.warn('[IntegratedReview] Error checking review prompt:', error);
+        // console.warn('Error checking review prompt:', error);
       }
     }
   }, 1000);
@@ -1675,6 +1863,7 @@ function showIntegratedReviewError(message) {
   const reviewError = document.getElementById('review-error');
   const reviewErrorMessage = document.getElementById('review-error-message');
   const tokenError = document.getElementById('review-azure-token-error');
+  const bitbucketTokenError = document.getElementById('review-bitbucket-token-error');
   const loginPrompt = document.getElementById('review-login-prompt');
   
   // Hide loading indicator and content
@@ -1683,6 +1872,7 @@ function showIntegratedReviewError(message) {
   
   // Hide other error states
   if (tokenError) tokenError.classList.add('gl-hidden');
+  if (bitbucketTokenError) bitbucketTokenError.classList.add('gl-hidden');
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
   
   // Display error message (message is already user-friendly from content.js)

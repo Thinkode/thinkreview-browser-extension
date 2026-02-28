@@ -5,10 +5,8 @@
 import { subscriptionStatus } from './components/popup-modules/subscription-status.js';
 import { reviewCount } from './components/popup-modules/review-count.js';
 
-// Debug toggle: set to false to disable console logs in production
-const DEBUG = false;
-function dbgLog(...args) { if (DEBUG) console.log('[popup]', ...args); }
-function dbgWarn(...args) { if (DEBUG) console.warn('[popup]', ...args); }
+import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
 
 // State management
 let isInitialized = false;
@@ -19,13 +17,13 @@ let pendingUserDataFetch = false; // Track if we need to fetch user data when Cl
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle review count refresh messages
   if (message.type === 'REVIEW_COUNT_UPDATED') {
-    dbgLog('[popup] Received review count update:', message.count);
+    dbgLog('Received review count update:', message.count);
     updateReviewCount(message.count);
   }
   
   // Handle webapp auth sync - refresh popup when webapp login is detected
   if (message.type === 'WEBAPP_AUTH_SYNCED') {
-    dbgLog('[popup] Received webapp auth sync notification, refreshing popup');
+    dbgLog('Received webapp auth sync notification, refreshing popup');
     // Refresh the UI to reflect the new login state
     (async () => {
       await updateUIForLoginStatus();
@@ -104,51 +102,28 @@ async function forceRefreshUserData() {
   try {
     const isLoggedIn = await isUserLoggedIn();
     if (isLoggedIn && window.CloudService) {
-      dbgLog('[popup] Force refreshing user data');
+      dbgLog('Force refreshing user data');
       cloudServiceReady = true;
       await fetchAndDisplayUserData();
-      showSuccessState('Ready to generate AI reviews');
+      showSuccessState('Ready to generate AI reviews - Navigate to a PR/MR page to start generating reviews');
       return true;
     }
     return false;
   } catch (error) {
-    dbgWarn('[popup] Error in force refresh:', error);
+    dbgWarn('Error in force refresh:', error);
     return false;
   }
 }
 
 // Function to update subscription status display
 // Uses consolidated fields: subscriptionType (Professional, Teams, or Free) and currentPlanValidTo
-async function updateSubscriptionStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate) {
-  await subscriptionStatus.updateStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate);
+async function updateSubscriptionStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate, initialTrialEndDate = null) {
+  await subscriptionStatus.updateStatus(subscriptionType, currentPlanValidTo, cancellationRequested, stripeCanceledDate, initialTrialEndDate);
   
-  // Show or hide cancel button based on subscription type, plan validity, and cancellation status
-  dbgLog(`[popup] Updating cancel button visibility for subscriptionType: '${subscriptionType}', currentPlanValidTo: '${currentPlanValidTo}', cancellationRequested: '${cancellationRequested}'`);
+  // Always show Manage Subscription button so users can upgrade or manage regardless of plan
   const cancelContainer = document.getElementById('cancel-subscription-container');
   if (cancelContainer) {
-    // Check if plan is free, expired, or already cancelled
-    // subscriptionType is case-insensitive: 'Professional', 'Teams', or 'Free'
-    const normalizedType = (subscriptionType || '').toLowerCase();
-    const isFreePlan = normalizedType === 'free' || normalizedType.includes('free');
-    // Use date utility to check if expired
-    let isExpired = false;
-    if (currentPlanValidTo) {
-      try {
-        const dateUtils = await import(chrome.runtime.getURL('utils/date-utils.js'));
-        isExpired = dateUtils.isPast(currentPlanValidTo);
-      } catch (error) {
-        // Fallback to simple comparison if import fails
-        dbgWarn('[popup] Error importing date utils, using fallback:', error);
-        isExpired = new Date(currentPlanValidTo) < new Date();
-      }
-    }
-    const isCancelled = cancellationRequested === true;
-    
-    if (!isFreePlan && !isExpired && !isCancelled) {
-      cancelContainer.style.display = 'block';
-    } else {
-      cancelContainer.style.display = 'none';
-    }
+    cancelContainer.style.display = 'block';
   }
 }
 
@@ -157,27 +132,27 @@ function isUserLoggedIn() {
   return new Promise((resolve) => {
     chrome.storage.local.get(['user', 'userData'], (result) => {
       if (chrome.runtime.lastError) {
-        dbgWarn('[popup] Error accessing storage:', chrome.runtime.lastError);
+        dbgWarn('Error accessing storage:', chrome.runtime.lastError);
         resolve(false);
         return;
       }
       
       // Debug: Log the user data to see what fields are available
-      dbgLog('[popup] User data from storage:', result);
+      dbgLog('User data from storage:', result);
       
       // Check both user and userData fields for backward compatibility
       // Supports both extension OAuth and webapp Firebase auth
       if (result.userData && result.userData.email) {
-        dbgLog('[popup] Using userData object, auth source:', result.authSource || 'extension');
+        dbgLog('Using userData object, auth source:', result.authSource || 'extension');
         resolve(true);
       } else if (result.user) {
         try {
           // Try to parse the user data to ensure it's valid
           const userData = JSON.parse(result.user);
-          dbgLog('[popup] Using parsed user object:', userData);
+          dbgLog('Using parsed user object:', userData);
           resolve(!!userData && !!userData.email);
         } catch (e) {
-          dbgWarn('[popup] Failed to parse user data:', e);
+          dbgWarn('Failed to parse user data:', e);
           resolve(false);
         }
       } else {
@@ -197,11 +172,11 @@ async function fetchAndDisplayUserData(retryCount = 0) {
       if (retryCount < maxRetries) {
         // Use exponential backoff for retries (1s, 2s, 4s)
         const backoffTime = Math.pow(2, retryCount) * 500;
-        dbgLog(`[popup] CloudService not available, retrying in ${backoffTime/1000}s (attempt ${retryCount + 1}/${maxRetries})`);
+        dbgLog(`CloudService not available, retrying in ${backoffTime/1000}s (attempt ${retryCount + 1}/${maxRetries})`);
         setTimeout(() => fetchAndDisplayUserData(retryCount + 1), backoffTime);
         return;
       } else {
-        dbgWarn('[popup] CloudService not available after retries');
+        dbgWarn('CloudService not available after retries');
               showErrorState('Unable to load user data');
       updateReviewCount('error');
       await updateSubscriptionStatus('Free', null, false, null);
@@ -212,26 +187,27 @@ async function fetchAndDisplayUserData(retryCount = 0) {
     // Double-check that CloudService is actually ready
     if (!cloudServiceReady) {
       cloudServiceReady = true; // Mark as ready since we have the service
-      dbgLog('[popup] CloudService detected as ready during fetch');
+      dbgLog('CloudService detected as ready during fetch');
     }
     const userData = await window.CloudService.getUserDataWithSubscription();
     updateReviewCount(userData.reviewCount);
     // Use consolidated fields: subscriptionType and cancellationRequested
     const subscriptionType = userData.subscriptionType || userData.stripeSubscriptionType || 'Free';
     const cancellationRequested = userData.cancellationRequested || false;
-    await updateSubscriptionStatus(subscriptionType, userData.currentPlanValidTo, cancellationRequested, userData.stripeCanceledDate);
-    dbgLog('[popup] User data updated:', userData);
+    const initialTrialEndDate = userData.initialTrialEndDate || null;
+    await updateSubscriptionStatus(subscriptionType, userData.currentPlanValidTo, cancellationRequested, userData.stripeCanceledDate, initialTrialEndDate);
+    dbgLog('User data updated:', userData);
     
     // Show success state if we got valid data
     if (userData.reviewCount !== null && userData.reviewCount !== undefined) {
       // showSuccessState('User data loaded successfully');
     }
   } catch (error) {
-    dbgWarn('[popup] Error fetching user data:', error);
+    dbgWarn('Error fetching user data:', error);
     if (retryCount < maxRetries) {
       // Use exponential backoff for retries (1s, 2s, 4s)
       const backoffTime = Math.pow(2, retryCount) * 500;
-      dbgLog(`[popup] Retrying user data fetch in ${backoffTime/1000}s (attempt ${retryCount + 1}/${maxRetries})`);
+      dbgLog(`Retrying user data fetch in ${backoffTime/1000}s (attempt ${retryCount + 1}/${maxRetries})`);
       setTimeout(() => fetchAndDisplayUserData(retryCount + 1), backoffTime);
     } else {
       showErrorState('Failed to load user data');
@@ -251,9 +227,8 @@ async function updateUIForLoginStatus() {
     const welcomeContent = document.getElementById('welcome-content');
     const loginPrompt = document.getElementById('login-prompt');
     const privacyPolicyText = document.getElementById('privacy-policy-text');
-    const privacyPolicyNotice = document.getElementById('privacy-policy-notice');
     
-    dbgLog('[popup] updateUIForLoginStatus - isLoggedIn:', isLoggedIn, 'cloudServiceReady:', cloudServiceReady, 'CloudService available:', !!window.CloudService);
+    dbgLog('updateUIForLoginStatus - isLoggedIn:', isLoggedIn, 'cloudServiceReady:', cloudServiceReady, 'CloudService available:', !!window.CloudService);
     
     if (isLoggedIn) {
       // User is logged in - show authenticated content, hide welcome, login prompt and privacy policy
@@ -270,9 +245,6 @@ async function updateUIForLoginStatus() {
       if (privacyPolicyText) {
         privacyPolicyText.style.display = 'none';
       }
-      if (privacyPolicyNotice) {
-        privacyPolicyNotice.style.display = 'none';
-      }
       // Show portal buttons row when logged in
       const portalButtonsRow = document.getElementById('portal-buttons-row');
       if (portalButtonsRow) {
@@ -281,14 +253,14 @@ async function updateUIForLoginStatus() {
       
       // Fetch review count if CloudService is ready
       if (cloudServiceReady && window.CloudService) {
-        dbgLog('[popup] CloudService ready, fetching review count immediately');
+        dbgLog('CloudService ready, fetching review count immediately');
         await fetchAndDisplayUserData();
-        showSuccessState('Ready to generate AI reviews');
+        showSuccessState('Ready to generate AI reviews - Navigate to a PR/MR page to start generating reviews');
         pendingUserDataFetch = false; // Clear pending flag
       } else {
         // Mark that we need to fetch review count when CloudService becomes ready
         pendingUserDataFetch = true;
-        dbgLog('[popup] CloudService not ready yet, marking review count fetch as pending. cloudServiceReady:', cloudServiceReady, 'CloudService available:', !!window.CloudService);
+        dbgLog('CloudService not ready yet, marking review count fetch as pending. cloudServiceReady:', cloudServiceReady, 'CloudService available:', !!window.CloudService);
         showLoadingState();
       }
     } else {
@@ -306,9 +278,6 @@ async function updateUIForLoginStatus() {
       if (privacyPolicyText) {
         privacyPolicyText.style.display = 'flex';
       }
-      if (privacyPolicyNotice) {
-        privacyPolicyNotice.style.display = 'flex';
-      }
       // Hide portal buttons row when not logged in
       const portalButtonsRow = document.getElementById('portal-buttons-row');
       if (portalButtonsRow) {
@@ -318,7 +287,7 @@ async function updateUIForLoginStatus() {
       pendingUserDataFetch = false; // Clear pending fetch
     }
   } catch (error) {
-    dbgWarn('[popup] Error updating UI for login status:', error);
+    dbgWarn('Error updating UI for login status:', error);
     showErrorState('Failed to check login status');
   }
 }
@@ -339,7 +308,7 @@ async function initializePopup() {
   if (isInitialized) return;
   
   try {
-    dbgLog('[popup] Initializing popup...');
+    dbgLog('Initializing popup...');
     
     // Update UI based on login status
     await updateUIForLoginStatus();
@@ -349,16 +318,16 @@ async function initializePopup() {
     
     // Check if CloudService is already ready and we have a pending fetch
     if (cloudServiceReady && window.CloudService && pendingUserDataFetch) {
-      dbgLog('[popup] CloudService already ready during initialization, processing pending fetch');
+      dbgLog('CloudService already ready during initialization, processing pending fetch');
       pendingUserDataFetch = false;
       await fetchAndDisplayUserData();
-      showSuccessState('Ready to generate AI reviews');
+      showSuccessState('Ready to generate AI reviews - Navigate to a PR/MR page to start generating reviews');
     }
     
     isInitialized = true;
-    dbgLog('[popup] Popup initialized successfully');
+    dbgLog('Popup initialized successfully');
   } catch (error) {
-    dbgWarn('[popup] Error initializing popup:', error);
+    dbgWarn('Error initializing popup:', error);
     showErrorState('Failed to initialize popup');
   }
 }
@@ -367,7 +336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check if CloudService is already available before initialization
   if (window.CloudService) {
     cloudServiceReady = true;
-    dbgLog('[popup] CloudService already available on popup load');
+    dbgLog('CloudService already available on popup load');
   }
   
   // Initialize popup
@@ -384,13 +353,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up domain settings
   initializeDomainSettings();
   
+  // Set up auto-start review option
+  initializeAutoStartReviewSettings();
+  
   // Set up Azure DevOps settings
   initializeAzureSettings();
   
   // Check if we should auto-trigger sign-in (from content script)
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('autoSignIn') === 'true') {
-    dbgLog('[popup] Auto sign-in requested, triggering Google Sign-In');
+    dbgLog('Auto sign-in requested, triggering Google Sign-In');
     
     // Wait a bit for the google-signin component to be ready
     setTimeout(() => {
@@ -400,21 +372,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isLoggedIn = isUserLoggedIn();
         isLoggedIn.then(loggedIn => {
           if (!loggedIn) {
-            dbgLog('[popup] User not logged in, triggering sign-in button click');
+            dbgLog('User not logged in, triggering sign-in button click');
             // Find the sign-in button inside the shadow DOM and click it
             const signInButton = googleSignInElement.shadowRoot?.querySelector('#signin');
             if (signInButton) {
               signInButton.click();
-              dbgLog('[popup] Sign-in button clicked automatically');
+              dbgLog('Sign-in button clicked automatically');
             } else {
-              dbgWarn('[popup] Could not find sign-in button in shadow DOM');
+              dbgWarn('Could not find sign-in button in shadow DOM');
             }
           } else {
-            dbgLog('[popup] User already logged in, skipping auto sign-in');
+            dbgLog('User already logged in, skipping auto sign-in');
           }
         });
       } else {
-        dbgWarn('[popup] Could not find google-signin element for auto sign-in');
+        dbgWarn('Could not find google-signin element for auto sign-in');
       }
     }, 500); // Wait for component to be fully loaded
   }
@@ -425,12 +397,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Listen for popup visibility changes (when popup is reopened)
   document.addEventListener('visibilitychange', async () => {
     if (!document.hidden && isInitialized) {
-      dbgLog('[popup] Popup became visible, checking if review count needs refresh');
+      dbgLog('Popup became visible, checking if review count needs refresh');
       
       // Force check CloudService availability
       if (window.CloudService && !cloudServiceReady) {
         cloudServiceReady = true;
-        dbgLog('[popup] CloudService detected on visibility change');
+        dbgLog('CloudService detected on visibility change');
       }
       
       // Add a small delay to ensure everything is loaded
@@ -440,12 +412,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Double check CloudService again after the delay
         if (window.CloudService && !cloudServiceReady) {
           cloudServiceReady = true;
-          dbgLog('[popup] CloudService detected after delay on visibility change');
+          dbgLog('CloudService detected after delay on visibility change');
         }
         
         if (isLoggedIn) {
           // Force refresh user data when popup is reopened
-          dbgLog('[popup] Popup reopened - force refreshing user data');
+          dbgLog('Popup reopened - force refreshing user data');
           await forceRefreshUserData();
         }
       }, 100);
@@ -455,7 +427,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Listen for sign-in state changes with improved event handling
   // Note: After successful sign-in, the page will reload, so this mainly handles sign-out
   document.addEventListener('signInStateChanged', async (event) => {
-    dbgLog('[popup] Sign-in state changed:', event.detail);
+    dbgLog('Sign-in state changed:', event.detail);
     
     // Handle both camelCase and snake_case event details
     const isSignedIn = event.detail.signed_in || event.detail.signedIn;
@@ -463,7 +435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (isSignedIn) {
       // User signed in - page will reload automatically after sign-in
       // This code path is for any edge cases where reload doesn't happen
-      dbgLog('[popup] User signed in, refreshing UI');
+      dbgLog('User signed in, refreshing UI');
       await updateUIForLoginStatus();
       
       // Show portal buttons row when signed in
@@ -474,14 +446,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       // If CloudService is already ready, fetch review count immediately
       if (cloudServiceReady && window.CloudService) {
-        dbgLog('[popup] CloudService ready, fetching review count immediately after sign-in');
+        dbgLog('CloudService ready, fetching review count immediately after sign-in');
         await fetchAndDisplayUserData();
-        showSuccessState('Ready to generate AI reviews');
+        showSuccessState('Ready to generate AI reviews - Navigate to a PR/MR page to start generating reviews');
         pendingUserDataFetch = false;
       } else {
         // Mark that we need to fetch review count when CloudService becomes ready
         pendingUserDataFetch = true;
-        dbgLog('[popup] CloudService not ready, marking review count fetch as pending after sign-in');
+        dbgLog('CloudService not ready, marking review count fetch as pending after sign-in');
       }
     } else {
       // User signed out - hide authenticated content, show welcome content, login prompt and privacy policy
@@ -489,7 +461,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const welcomeContent = document.getElementById('welcome-content');
       const loginPrompt = document.getElementById('login-prompt');
       const privacyPolicyText = document.getElementById('privacy-policy-text');
-      const privacyPolicyNotice = document.getElementById('privacy-policy-notice');
       if (authenticatedContent) {
         authenticatedContent.style.display = 'none';
         authenticatedContent.classList.remove('loading');
@@ -503,9 +474,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (privacyPolicyText) {
         privacyPolicyText.style.display = 'flex';
       }
-      if (privacyPolicyNotice) {
-        privacyPolicyNotice.style.display = 'flex';
-      }
       // Hide portal buttons row when signed out
       const portalButtonsRow = document.getElementById('portal-buttons-row');
       if (portalButtonsRow) {
@@ -518,35 +486,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Listen for sign-in errors
   document.addEventListener('signin-error', (event) => {
-    dbgWarn('[popup] Sign-in error:', event.detail);
+    dbgWarn('Sign-in error:', event.detail);
     showErrorState('Sign-in failed. Please try again.');
   });
   
   // Listen for sign-out errors
   document.addEventListener('signout-error', (event) => {
-    dbgWarn('[popup] Sign-out error:', event.detail);
+    dbgWarn('Sign-out error:', event.detail);
     showErrorState('Sign-out failed. Please try again.');
   });
   
   // Listen for CloudService ready event
   window.addEventListener('cloud-service-ready', async (event) => {
-    dbgLog('[popup] CloudService ready event received');
+    dbgLog('CloudService ready event received');
     cloudServiceReady = true;
     
     // Check if user is logged in and fetch review count
     const isLoggedIn = await isUserLoggedIn();
-    dbgLog('[popup] CloudService ready - isLoggedIn:', isLoggedIn, 'pendingUserDataFetch:', pendingUserDataFetch);
+    dbgLog('CloudService ready - isLoggedIn:', isLoggedIn, 'pendingUserDataFetch:', pendingUserDataFetch);
     
     if (isLoggedIn) {
       // If we have a pending review count fetch, handle it now
       if (pendingUserDataFetch) {
-        dbgLog('[popup] Processing pending review count fetch');
+        dbgLog('Processing pending review count fetch');
         pendingUserDataFetch = false;
         await fetchAndDisplayUserData();
-        showSuccessState('Ready to generate AI reviews');
+        showSuccessState('Ready to generate AI reviews - Navigate to a PR/MR page to start generating reviews');
       } else {
         // Otherwise, just fetch the review count normally
-        dbgLog('[popup] No pending fetch, fetching review count normally');
+        dbgLog('No pending fetch, fetching review count normally');
         await fetchAndDisplayUserData();
       }
     }
@@ -554,35 +522,51 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Listen for module loading errors
   window.addEventListener('modules-error', (event) => {
-    dbgWarn('[popup] Module loading error:', event.detail);
+    dbgWarn('Module loading error:', event.detail);
     showErrorState('Failed to load extension modules');
   });
   
   // Set up the portal buttons
   const dashboardBtn = document.getElementById('dashboard-btn');
   if (dashboardBtn) {
-    dashboardBtn.addEventListener('click', () => {
+    dashboardBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('dashboard_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/dashboard' });
     });
   }
   
   const analyticsBtn = document.getElementById('analytics-btn');
   if (analyticsBtn) {
-    analyticsBtn.addEventListener('click', () => {
+    analyticsBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('analytics_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/analytics' });
     });
   }
   
   const modelSelectionBtn = document.getElementById('model-selection-btn');
   if (modelSelectionBtn) {
-    modelSelectionBtn.addEventListener('click', () => {
+    modelSelectionBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('model_selection_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/model-selection' });
     });
   }
   
   const scoringMetricsBtn = document.getElementById('scoring-metrics-btn');
   if (scoringMetricsBtn) {
-    scoringMetricsBtn.addEventListener('click', () => {
+    scoringMetricsBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('scoring_metrics_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/scoring-metrics' });
     });
   }
@@ -590,7 +574,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up the signout button in portal buttons row
   const signoutBtn = document.getElementById('signout-btn');
   if (signoutBtn) {
-    signoutBtn.addEventListener('click', () => {
+    signoutBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('signout_clicked', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       // Find the google-signin component and trigger its signout
       const googleSignIn = document.querySelector('google-signin');
       if (googleSignIn && googleSignIn.shadowRoot) {
@@ -602,11 +590,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
   
-  // Set up the How it works button
+  // Set up the Documentation button
   const howItWorksBtn = document.getElementById('how-it-works-btn');
   if (howItWorksBtn) {
-    howItWorksBtn.addEventListener('click', () => {
-      // Open the docs portal in a new tab
+    howItWorksBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('documentation_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://thinkreview.dev/docs' });
     });
   }
@@ -614,7 +605,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up the Need Help button
   const needHelpBtn = document.getElementById('need-help-btn');
   if (needHelpBtn) {
-    needHelpBtn.addEventListener('click', () => {
+    needHelpBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('need_help_clicked', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       // Open the contact page in a new tab
       chrome.tabs.create({ url: 'https://thinkreview.dev/contact' });
     });
@@ -623,9 +618,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up the Report a Bug button
   const reportBugBtn = document.getElementById('report-bug-btn');
   if (reportBugBtn) {
-    reportBugBtn.addEventListener('click', () => {
+    reportBugBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('bug_report_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       // Open the bug report page in a new tab
       chrome.tabs.create({ url: 'https://thinkreview.dev/bug-report' });
+    });
+  }
+
+  const privacyFaqBtn = document.getElementById('privacy-faq-btn');
+  if (privacyFaqBtn) {
+    privacyFaqBtn.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://thinkreview.dev/privacy-faqs.html' });
     });
   }
   
@@ -641,12 +647,76 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize domain settings
   initializeDomainSettings();
   
+  // Initialize Azure DevOps domain settings
+  initializeAzureDevOpsDomainSettings();
+  
+  // Initialize Bitbucket settings (also called above after Azure)
+  initializeBitbucketSettings();
+  
   // Initialize AI Provider settings
   initializeAIProviderSettings();
 });
 
 // Domain Management Functionality
 const DEFAULT_DOMAINS = ['https://gitlab.com'];
+
+// Auto-start review option (default true)
+function initializeAutoStartReviewSettings() {
+  loadAutoStartReview();
+  const onRadio = document.getElementById('auto-start-review-on');
+  const offRadio = document.getElementById('auto-start-review-off');
+  if (onRadio) {
+    onRadio.addEventListener('change', () => {
+      if (onRadio.checked) chrome.storage.local.set({ autoStartReview: true });
+    });
+  }
+  if (offRadio) {
+    offRadio.addEventListener('change', () => {
+      if (offRadio.checked) chrome.storage.local.set({ autoStartReview: false });
+    });
+  }
+  setupAutoStartInfoTooltips();
+}
+
+function setupAutoStartInfoTooltips() {
+  const icons = document.querySelectorAll('.auto-start-info-icon');
+  if (icons.length === 0) return;
+  let tooltipEl = document.getElementById('auto-start-tooltip');
+  if (!tooltipEl) {
+    tooltipEl = document.createElement('div');
+    tooltipEl.id = 'auto-start-tooltip';
+    tooltipEl.className = 'auto-start-js-tooltip';
+    document.body.appendChild(tooltipEl);
+  }
+  icons.forEach(icon => {
+    icon.addEventListener('mouseenter', function showTooltip(e) {
+      const text = this.getAttribute('data-tooltip');
+      if (!text) return;
+      tooltipEl.textContent = text;
+      tooltipEl.classList.add('visible');
+      const rect = this.getBoundingClientRect();
+      tooltipEl.style.left = `${rect.left + rect.width / 2}px`;
+      tooltipEl.style.top = `${rect.top - 4}px`;
+      tooltipEl.style.transform = 'translate(-50%, -100%)';
+    });
+    icon.addEventListener('mouseleave', function hideTooltip() {
+      tooltipEl.classList.remove('visible');
+    });
+  });
+}
+
+async function loadAutoStartReview() {
+  try {
+    const result = await chrome.storage.local.get(['autoStartReview']);
+    const enabled = result.autoStartReview !== false;
+    const onRadio = document.getElementById('auto-start-review-on');
+    const offRadio = document.getElementById('auto-start-review-off');
+    if (onRadio) onRadio.checked = enabled;
+    if (offRadio) offRadio.checked = !enabled;
+  } catch (error) {
+    dbgWarn('Error loading auto-start review setting:', error);
+  }
+}
 
 function initializeDomainSettings() {
   loadDomains();
@@ -798,7 +868,7 @@ async function addDomain() {
       originPattern = `https://${domain}/*`;
     }
     
-    dbgLog(`[popup] Adding domain with pattern: ${originPattern}`);
+    dbgLog(`Adding domain with pattern: ${originPattern}`);
     
     // Request permission for this domain
     const granted = await chrome.permissions.request({
@@ -820,14 +890,14 @@ async function addDomain() {
     // This runs in the background without blocking the domain addition
     isUserLoggedIn().then(isLoggedIn => {
       if (isLoggedIn && window.CloudService) {
-        dbgLog('[popup] User logged in, tracking custom domain in cloud (async)');
+        dbgLog('User logged in, tracking custom domain in cloud (async)');
         window.CloudService.trackCustomDomains(domain, 'add')
-          .then(() => dbgLog('[popup] Custom domain tracked successfully in cloud'))
-          .catch(trackError => dbgWarn('[popup] Error tracking custom domain in cloud (non-critical):', trackError));
+          .then(() => dbgLog('Custom domain tracked successfully in cloud'))
+          .catch(trackError => dbgWarn('Error tracking custom domain in cloud (non-critical):', trackError));
       } else {
-        dbgLog('[popup] User not logged in or CloudService not available, skipping cloud tracking');
+        dbgLog('User not logged in or CloudService not available, skipping cloud tracking');
       }
-    }).catch(err => dbgWarn('[popup] Error checking login status for cloud tracking:', err));
+    }).catch(err => dbgWarn('Error checking login status for cloud tracking:', err));
     
     // Explicitly trigger content script update via message to background
     chrome.runtime.sendMessage({ 
@@ -835,7 +905,7 @@ async function addDomain() {
       domains: updatedDomains 
     });
     
-    dbgLog('[popup] Domain added successfully:', domain);
+    dbgLog('Domain added successfully:', domain);
     domainInput.value = '';
     addButton.textContent = originalButtonText;
     addButton.disabled = true;
@@ -846,7 +916,7 @@ async function addDomain() {
     showMessage('Domain added successfully! You may need to reload GitLab pages for changes to take effect.', 'success');
     
   } catch (error) {
-    dbgWarn('[popup] Error adding domain:', error);
+    dbgWarn('Error adding domain:', error);
     alert(`Error adding domain: ${error.message}. Please try again.`);
     document.getElementById('add-domain-btn').textContent = 'Add';
     document.getElementById('add-domain-btn').disabled = false;
@@ -877,14 +947,14 @@ async function removeDomain(domain) {
     // This runs in the background without blocking the domain removal
     isUserLoggedIn().then(isLoggedIn => {
       if (isLoggedIn && window.CloudService) {
-        dbgLog('[popup] User logged in, tracking custom domain removal in cloud (async)');
+        dbgLog('User logged in, tracking custom domain removal in cloud (async)');
         window.CloudService.trackCustomDomains(domain, 'remove')
-          .then(() => dbgLog('[popup] Custom domain removal tracked successfully in cloud'))
-          .catch(trackError => dbgWarn('[popup] Error tracking custom domain removal in cloud (non-critical):', trackError));
+          .then(() => dbgLog('Custom domain removal tracked successfully in cloud'))
+          .catch(trackError => dbgWarn('Error tracking custom domain removal in cloud (non-critical):', trackError));
       } else {
-        dbgLog('[popup] User not logged in or CloudService not available, skipping cloud tracking');
+        dbgLog('User not logged in or CloudService not available, skipping cloud tracking');
       }
-    }).catch(err => dbgWarn('[popup] Error checking login status for cloud tracking:', err));
+    }).catch(err => dbgWarn('Error checking login status for cloud tracking:', err));
     
     dbgLog('Domain removed:', domain);
     renderDomainList(updatedDomains);
@@ -894,6 +964,366 @@ async function removeDomain(domain) {
   } catch (error) {
     dbgWarn('Error removing domain:', error);
     alert('Error removing domain. Please try again.');
+  }
+}
+
+// Azure DevOps Domain Management: default cloud domains shown in list (like GitLab); custom on-prem stored separately
+const AZURE_DEFAULT_DOMAINS = ['https://dev.azure.com', 'https://visualstudio.com'];
+
+function initializeAzureDevOpsDomainSettings() {
+  loadAzureDevOpsDomains();
+  setupAzureDevOpsDomainEventListeners();
+}
+
+function setupAzureDevOpsDomainEventListeners() {
+  const addButton = document.getElementById('add-azure-domain-btn');
+  const domainInput = document.getElementById('azure-domain-input');
+  if (!addButton || !domainInput) return;
+
+  addButton.addEventListener('click', addAzureDevOpsDomain);
+  domainInput.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') addAzureDevOpsDomain();
+  });
+  domainInput.addEventListener('input', () => {
+    addButton.disabled = !validateDomainInput(domainInput.value.trim());
+  });
+}
+
+async function loadAzureDevOpsDomains() {
+  try {
+    const result = await chrome.storage.local.get(['azureDevOpsDomains']);
+    const customDomains = result.azureDevOpsDomains || [];
+    renderAzureDevOpsDomainList(customDomains);
+  } catch (error) {
+    dbgWarn('Error loading Azure DevOps domains:', error);
+    renderAzureDevOpsDomainList([]);
+  }
+}
+
+function renderAzureDevOpsDomainList(customDomains) {
+  const domainList = document.getElementById('azure-domain-list');
+  if (!domainList) return;
+
+  // Show default cloud domains first (like GitLab), then custom on-prem
+  const displayList = [
+    ...AZURE_DEFAULT_DOMAINS,
+    ...(customDomains.filter(d => !AZURE_DEFAULT_DOMAINS.includes(d)))
+  ];
+
+  if (displayList.length === 0) {
+    domainList.innerHTML = '<div class="no-domains">No custom domains added</div>';
+    return;
+  }
+
+  domainList.innerHTML = displayList.map(domain => {
+    const isDefault = AZURE_DEFAULT_DOMAINS.includes(domain);
+    const displayDomain = formatDomainForDisplay(domain);
+    return `
+      <div class="domain-item ${isDefault ? 'default' : ''}">
+        <span class="domain-name">${displayDomain}</span>
+        <div>
+          ${isDefault ? '<span class="default-label">DEFAULT</span>' : ''}
+          ${!isDefault ? `<button class="remove-domain-btn" data-domain="${domain.replace(/"/g, '&quot;')}">Remove</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  domainList.querySelectorAll('.remove-domain-btn').forEach(button => {
+    button.addEventListener('click', () => removeAzureDevOpsDomain(button.dataset.domain));
+  });
+}
+
+let isAddingAzureDomain = false;
+
+/**
+ * Tracks Azure DevOps custom domain add/remove in cloud when user is logged in (fire-and-forget).
+ * @param {string} domain - The domain that was added or removed
+ * @param {'add'|'remove'} action - 'add' or 'remove'
+ */
+function trackAzureDevOpsDomainInCloud(domain, action) {
+  const isAdd = action === 'add';
+  const actionLabel = isAdd ? 'custom domain' : 'custom domain removal';
+  isUserLoggedIn().then(isLoggedIn => {
+    if (isLoggedIn && window.CloudService) {
+      dbgLog(`User logged in, tracking ${actionLabel} in cloud (async)`);
+      window.CloudService.trackCustomDomains(domain, action)
+        .then(() => dbgLog(`${isAdd ? 'Custom domain' : 'Custom domain removal'} tracked successfully in cloud`))
+        .catch(trackError => dbgWarn(`Error tracking ${actionLabel} in cloud (non-critical):`, trackError));
+    } else {
+      dbgLog('User not logged in or CloudService not available, skipping cloud tracking');
+    }
+  }).catch(err => dbgWarn('Error checking login status for cloud tracking:', err));
+}
+
+async function addAzureDevOpsDomain() {
+  if (isAddingAzureDomain) return;
+
+  const domainInput = document.getElementById('azure-domain-input');
+  const addButton = document.getElementById('add-azure-domain-btn');
+  const inputValue = domainInput?.value?.trim()?.toLowerCase() ?? '';
+
+  if (!validateDomainInput(inputValue)) {
+    alert('Please enter a valid domain (e.g., devops.companyname.com, https://devops.companyname.com)');
+    return;
+  }
+
+  const domain = normalizeDomain(inputValue);
+
+  try {
+    isAddingAzureDomain = true;
+    const originalButtonText = addButton?.textContent ?? 'Add';
+    if (addButton) {
+      addButton.textContent = 'Adding...';
+      addButton.disabled = true;
+    }
+
+    const result = await chrome.storage.local.get(['azureDevOpsDomains']);
+    const domains = result.azureDevOpsDomains || [];
+
+    if (domains.includes(domain)) {
+      alert('Domain already exists');
+      if (addButton) {
+        addButton.textContent = originalButtonText;
+        addButton.disabled = false;
+      }
+      return;
+    }
+
+    let originPattern;
+    if (domain.startsWith('http://') || domain.startsWith('https://')) {
+      const url = new URL(domain);
+      originPattern = `${url.protocol}//${url.host}/*`;
+    } else {
+      originPattern = `https://${domain}/*`;
+    }
+
+    const granted = await chrome.permissions.request({ origins: [originPattern] });
+    if (!granted) {
+      alert('Permission not granted. The extension needs permission to access this domain.');
+      if (addButton) {
+        addButton.textContent = originalButtonText;
+        addButton.disabled = false;
+      }
+      return;
+    }
+
+    const updatedCustomDomains = [...domains, domain];
+    await chrome.storage.local.set({ azureDevOpsDomains: updatedCustomDomains });
+
+    trackAzureDevOpsDomainInCloud(domain, 'add');
+
+    chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
+
+    if (domainInput) domainInput.value = '';
+    if (addButton) {
+      addButton.textContent = originalButtonText;
+      addButton.disabled = true;
+    }
+    renderAzureDevOpsDomainList(updatedCustomDomains);
+    showMessage('Domain added. You may need to reload Azure DevOps pages for changes to take effect.', 'success');
+  } catch (error) {
+    dbgWarn('Error adding Azure DevOps domain:', error);
+    alert(`Error adding domain: ${error.message}. Please try again.`);
+    if (addButton) {
+      addButton.textContent = 'Add';
+      addButton.disabled = false;
+    }
+  } finally {
+    isAddingAzureDomain = false;
+  }
+}
+
+async function removeAzureDevOpsDomain(domain) {
+  if (!confirm(`Remove domain "${domain}"?`)) return;
+
+  try {
+    const result = await chrome.storage.local.get(['azureDevOpsDomains']);
+    const customDomains = result.azureDevOpsDomains || [];
+    const updatedCustomDomains = customDomains.filter(d => d !== domain);
+    await chrome.storage.local.set({ azureDevOpsDomains: updatedCustomDomains });
+
+    trackAzureDevOpsDomainInCloud(domain, 'remove');
+
+    chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
+    renderAzureDevOpsDomainList(updatedCustomDomains);
+    showMessage('Domain removed successfully!', 'success');
+  } catch (error) {
+    dbgWarn('Error removing Azure DevOps domain:', error);
+    alert('Error removing domain. Please try again.');
+  }
+}
+
+// Bitbucket: Allow Bitbucket (request permission for page + API host, store bitbucketAllowed, trigger content script update)
+const BITBUCKET_ORIGINS = ['https://bitbucket.org/*', 'https://api.bitbucket.org/*'];
+const BITBUCKET_TOKEN_MASK = '••••••••••••••••••••••••••••••••••••••••••••••••••';
+
+function initializeBitbucketSettings() {
+  loadBitbucketState();
+  loadBitbucketToken();
+  const allowBtn = document.getElementById('allow-bitbucket-btn');
+  if (allowBtn) {
+    allowBtn.addEventListener('click', allowBitbucket);
+  }
+  const saveTokenBtn = document.getElementById('save-bitbucket-token-btn');
+  const tokenInput = document.getElementById('bitbucket-token-input');
+  const emailInput = document.getElementById('bitbucket-email-input');
+  if (saveTokenBtn) saveTokenBtn.addEventListener('click', saveBitbucketToken);
+  if (tokenInput) {
+    tokenInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') saveBitbucketToken(); });
+  }
+  if (emailInput) {
+    emailInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') saveBitbucketToken(); });
+  }
+}
+
+async function loadBitbucketState() {
+  try {
+    const hasPermission = await chrome.permissions.contains({ origins: BITBUCKET_ORIGINS });
+    const result = await chrome.storage.local.get(['bitbucketAllowed']);
+    const allowed = result.bitbucketAllowed === true || hasPermission;
+
+    if (allowed) {
+      await chrome.storage.local.set({ bitbucketAllowed: true });
+    }
+
+    const allowSection = document.getElementById('bitbucket-allow-section');
+    const enabledMessage = document.getElementById('bitbucket-enabled-message');
+    const statusEl = document.getElementById('bitbucket-status');
+    const allowBtn = document.getElementById('allow-bitbucket-btn');
+
+    if (allowed) {
+      if (allowSection) allowSection.style.display = 'none';
+      if (enabledMessage) enabledMessage.style.display = 'flex';
+      if (statusEl) statusEl.textContent = '';
+    } else {
+      if (allowSection) allowSection.style.display = 'flex';
+      if (enabledMessage) enabledMessage.style.display = 'none';
+      if (statusEl) statusEl.textContent = '';
+      if (allowBtn) allowBtn.textContent = 'Allow Bitbucket';
+    }
+  } catch (error) {
+    dbgWarn('Error loading Bitbucket state:', error);
+  }
+}
+
+let isAllowingBitbucket = false;
+
+async function allowBitbucket() {
+  if (isAllowingBitbucket) return;
+  const allowBtn = document.getElementById('allow-bitbucket-btn');
+  const statusEl = document.getElementById('bitbucket-status');
+
+  try {
+    isAllowingBitbucket = true;
+    if (allowBtn) {
+      allowBtn.textContent = 'Adding...';
+      allowBtn.disabled = true;
+    }
+    if (statusEl) statusEl.textContent = '';
+
+    const granted = await chrome.permissions.request({ origins: BITBUCKET_ORIGINS });
+
+    if (!granted) {
+      if (statusEl) statusEl.textContent = 'Permission not granted.';
+      if (allowBtn) {
+        allowBtn.textContent = 'Allow Bitbucket';
+        allowBtn.disabled = false;
+      }
+      return;
+    }
+
+    await chrome.storage.local.set({ bitbucketAllowed: true });
+    chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
+
+    loadBitbucketState();
+    showMessage('Bitbucket enabled. Reload Bitbucket pages to use AI reviews.', 'success');
+  } catch (error) {
+    dbgWarn('Error allowing Bitbucket:', error);
+    if (statusEl) statusEl.textContent = 'Error: ' + (error.message || 'Failed');
+    if (allowBtn) {
+      allowBtn.textContent = 'Allow Bitbucket';
+      allowBtn.disabled = false;
+    }
+  } finally {
+    isAllowingBitbucket = false;
+  }
+}
+
+async function loadBitbucketToken() {
+  try {
+    const result = await chrome.storage.local.get(['bitbucketToken', 'bitbucketEmail']);
+    const token = result.bitbucketToken;
+    const email = result.bitbucketEmail;
+    const statusEl = document.getElementById('bitbucket-token-status');
+    const tokenInput = document.getElementById('bitbucket-token-input');
+    const emailInput = document.getElementById('bitbucket-email-input');
+    const saveBtn = document.getElementById('save-bitbucket-token-btn');
+    if (token && String(token).trim()) {
+      if (statusEl) {
+        statusEl.textContent = 'Token saved';
+        statusEl.className = 'token-status success';
+      }
+      if (tokenInput) {
+        tokenInput.value = BITBUCKET_TOKEN_MASK;
+        tokenInput.type = 'password';
+      }
+      if (emailInput) emailInput.value = (email != null && email !== undefined) ? String(email) : '';
+    } else {
+      if (statusEl) {
+        statusEl.textContent = '';
+        statusEl.className = 'token-status';
+      }
+      if (emailInput) emailInput.value = (email != null && email !== undefined) ? String(email) : '';
+    }
+  } catch (error) {
+    dbgWarn('Error loading Bitbucket token:', error);
+  }
+}
+
+async function saveBitbucketToken() {
+  const tokenInput = document.getElementById('bitbucket-token-input');
+  const emailInput = document.getElementById('bitbucket-email-input');
+  const saveBtn = document.getElementById('save-bitbucket-token-btn');
+  const statusEl = document.getElementById('bitbucket-token-status');
+  const tokenRaw = tokenInput?.value?.trim() ?? '';
+  const email = emailInput?.value?.trim() ?? '';
+  // If field shows the mask, keep existing token (user is only updating email or re-saving)
+  const stored = await chrome.storage.local.get(['bitbucketToken', 'bitbucketEmail']);
+  const existingToken = stored.bitbucketToken && String(stored.bitbucketToken).trim() ? stored.bitbucketToken.trim() : '';
+  const token = (tokenRaw === BITBUCKET_TOKEN_MASK && existingToken) ? existingToken : tokenRaw;
+  if (!token) {
+    if (statusEl) {
+      statusEl.textContent = 'Enter a token to save';
+      statusEl.className = 'token-status error';
+    }
+    return;
+  }
+  try {
+    if (saveBtn) saveBtn.textContent = 'Saving...';
+    await chrome.storage.local.set({ bitbucketToken: token, bitbucketEmail: email || '' });
+    if (statusEl) {
+      statusEl.textContent = 'Token saved';
+      statusEl.className = 'token-status success';
+    }
+    if (tokenInput) {
+      tokenInput.value = BITBUCKET_TOKEN_MASK;
+      tokenInput.type = 'password';
+    }
+    if (saveBtn) {
+      saveBtn.textContent = 'Save Token';
+      saveBtn.disabled = false;
+    }
+  } catch (error) {
+    dbgWarn('Error saving Bitbucket token:', error);
+    if (statusEl) {
+      statusEl.textContent = 'Failed to save';
+      statusEl.className = 'token-status error';
+    }
+    if (saveBtn) {
+      saveBtn.textContent = 'Save Token';
+      saveBtn.disabled = false;
+    }
   }
 }
 
@@ -944,22 +1374,6 @@ function setupAzureEventListeners() {
       saveAzureToken();
     }
   });
-  
-  // Input validation
-  tokenInput.addEventListener('input', () => {
-    const isValid = validateTokenInput(tokenInput.value.trim());
-    saveButton.disabled = !isValid;
-  });
-}
-
-function validateTokenInput(token) {
-  if (!token) return false;
-  
-  // Azure DevOps PATs are typically base64 encoded strings
-  // They usually start with a specific pattern and are 52 characters long
-  // But we'll be more lenient and just check for reasonable length and characters
-  const tokenRegex = /^[A-Za-z0-9+/=_-]{20,}$/;
-  return tokenRegex.test(token);
 }
 
 async function loadAzureToken() {
@@ -968,10 +1382,7 @@ async function loadAzureToken() {
     const token = result.azureDevOpsToken;
     
     if (token) {
-      // Show that token is saved (but don't display the actual token)
-      updateTokenStatus('Token saved successfully', 'success');
-      
-      // Pre-fill the input with masked token for user reference
+      clearTokenStatus();
       const tokenInput = document.getElementById('azure-token-input');
       if (tokenInput) {
         tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
@@ -991,40 +1402,26 @@ async function saveAzureToken() {
   const saveButton = document.getElementById('save-token-btn');
   const token = tokenInput.value.trim();
   
-  if (!validateTokenInput(token)) {
-    updateTokenStatus('Please enter a valid Azure DevOps Personal Access Token', 'error');
-    return;
-  }
-  
+  const originalButtonText = saveButton.textContent;
   try {
-    // Show loading state
-    const originalButtonText = saveButton.textContent;
     saveButton.textContent = 'Saving...';
     saveButton.disabled = true;
-    
-    // Save token to storage
+
     await chrome.storage.local.set({ azureDevOpsToken: token });
-    
-    // Update UI
+
     updateTokenStatus('Token saved successfully', 'success');
-    
-    // Mask the token in the input field
+    setTimeout(clearTokenStatus, 5000);
+
     tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
     tokenInput.type = 'password';
-    
-    // Reset button
-    saveButton.textContent = originalButtonText;
-    saveButton.disabled = true;
-    
+
     dbgLog('Azure DevOps token saved successfully');
-    
   } catch (error) {
     dbgWarn('Error saving Azure token:', error);
     updateTokenStatus('Error saving token. Please try again.', 'error');
-    
-    // Reset button
-    saveButton.textContent = 'Save Token';
+  } finally {
     saveButton.disabled = false;
+    saveButton.textContent = originalButtonText;
   }
 }
 
@@ -1033,6 +1430,14 @@ function updateTokenStatus(message, type) {
   if (statusDiv) {
     statusDiv.textContent = message;
     statusDiv.className = `token-status ${type}`;
+  }
+}
+
+function clearTokenStatus() {
+  const statusDiv = document.getElementById('token-status');
+  if (statusDiv) {
+    statusDiv.textContent = '';
+    statusDiv.className = 'token-status';
   }
 }
 
@@ -1077,7 +1482,10 @@ async function loadAIProviderSettings() {
     const provider = result.aiProvider || 'cloud';
     const config = result.ollamaConfig || {
       url: 'http://localhost:11434',
-      model: 'qwen3-coder:30b'
+      model: 'qwen3-coder:30b',
+      temperature: 0.3,
+      top_p: 0.4,
+      top_k: 90
     };
     
     // Set the selected provider
@@ -1091,25 +1499,36 @@ async function loadAIProviderSettings() {
     if (ollamaConfig) {
       ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
     }
+    // Show/hide "Start review automatically" only when Ollama is selected
+    const autoStartSection = document.getElementById('auto-start-review-section');
+    if (autoStartSection) {
+      autoStartSection.style.display = provider === 'ollama' ? 'flex' : 'none';
+    }
     
     // Load Ollama config values
     const urlInput = document.getElementById('ollama-url');
     const modelSelect = document.getElementById('ollama-model');
+    const tempInput = document.getElementById('ollama-temperature');
+    const topPInput = document.getElementById('ollama-top-p');
+    const topKInput = document.getElementById('ollama-top-k');
     
     if (urlInput) urlInput.value = config.url;
+    if (tempInput) tempInput.value = clampTemperature(config.temperature);
+    if (topPInput) topPInput.value = clampTopP(config.top_p);
+    if (topKInput) topKInput.value = clampTopK(config.top_k);
     
     // If Ollama is the selected provider, fetch available models
     if (provider === 'ollama') {
-      dbgLog('[popup] Ollama is selected provider, fetching available models...');
+      dbgLog('Ollama is selected provider, fetching available models...');
       await fetchAndPopulateModels(config.url, config.model);
     } else if (modelSelect) {
       // If not Ollama, just set the saved model value
       modelSelect.value = config.model;
     }
     
-    dbgLog('[popup] AI Provider settings loaded:', { provider, config });
+    dbgLog('AI Provider settings loaded:', { provider, config });
   } catch (error) {
-    dbgWarn('[popup] Error loading AI Provider settings:', error);
+    dbgWarn('Error loading AI Provider settings:', error);
   }
 }
 
@@ -1120,10 +1539,14 @@ function handleProviderChange(event) {
   if (ollamaConfig) {
     ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
   }
+  const autoStartSection = document.getElementById('auto-start-review-section');
+  if (autoStartSection) {
+    autoStartSection.style.display = provider === 'ollama' ? 'flex' : 'none';
+  }
   
   // Auto-save provider selection
   chrome.storage.local.set({ aiProvider: provider }, () => {
-    dbgLog('[popup] AI Provider changed to:', provider);
+    dbgLog('AI Provider changed to:', provider);
     showOllamaStatus(
       provider === 'cloud' 
         ? '☁️ Using Cloud AI (Advanced Models)' 
@@ -1136,33 +1559,33 @@ function handleProviderChange(event) {
       const urlInput = document.getElementById('ollama-url');
       const url = urlInput ? urlInput.value.trim() : 'http://localhost:11434';
       
-      dbgLog('[popup] Ollama selected, fetching available models...');
+      dbgLog('Ollama selected, fetching available models...');
       fetchAndPopulateModels(url).catch(err => {
-        dbgWarn('[popup] Error auto-fetching models (non-critical):', err);
+        dbgWarn('Error auto-fetching models (non-critical):', err);
       });
     }
     
     // Track provider change in cloud asynchronously (fire-and-forget)
     isUserLoggedIn().then(isLoggedIn => {
       if (isLoggedIn && window.CloudService) {
-        dbgLog('[popup] User logged in, tracking AI provider change in cloud (async)');
+        dbgLog('User logged in, tracking AI provider change in cloud (async)');
         // If switching to cloud, track Ollama as disabled
         if (provider === 'cloud') {
           window.CloudService.trackOllamaConfig(false, null)
-            .then(() => dbgLog('[popup] Ollama disabled tracked successfully in cloud'))
-            .catch(trackError => dbgWarn('[popup] Error tracking provider change in cloud (non-critical):', trackError));
+            .then(() => dbgLog('Ollama disabled tracked successfully in cloud'))
+            .catch(trackError => dbgWarn('Error tracking provider change in cloud (non-critical):', trackError));
         }
         // If switching to Ollama, it will be tracked when user saves the config
       } else {
-        dbgLog('[popup] User not logged in or CloudService not available, skipping cloud tracking');
+        dbgLog('User not logged in or CloudService not available, skipping cloud tracking');
       }
-    }).catch(err => dbgWarn('[popup] Error checking login status for cloud tracking:', err));
+    }).catch(err => dbgWarn('Error checking login status for cloud tracking:', err));
   });
 }
 
 async function fetchAndPopulateModels(url, savedModel = null) {
   if (!url) {
-    dbgWarn('[popup] No URL provided for fetching models');
+    dbgWarn('No URL provided for fetching models');
     return;
   }
   
@@ -1211,13 +1634,13 @@ async function fetchAndPopulateModels(url, savedModel = null) {
       }
       
       showOllamaStatus(`✅ Found ${modelsResult.models.length} installed model(s)`, 'success');
-      dbgLog('[popup] Successfully loaded', modelsResult.models.length, 'models from Ollama');
+      dbgLog('Successfully loaded', modelsResult.models.length, 'models from Ollama');
     } else {
       modelSelect.innerHTML = '<option value="">⚠️ No models installed</option>';
       showOllamaStatus('⚠️ No models found. Install one with: ollama pull qwen3-coder:30b', 'error');
     }
   } catch (error) {
-    dbgWarn('[popup] Error fetching models:', error);
+    dbgWarn('Error fetching models:', error);
     modelSelect.innerHTML = '<option value="">❌ Error loading models</option>';
     showOllamaStatus(`❌ Failed to fetch models: ${error.message}`, 'error');
   }
@@ -1253,7 +1676,7 @@ async function testOllamaConnection() {
           showOllamaStatus(`✅ Connected! Found ${modelsResult.models.length} model(s).`, 'success');
         }
       } catch (modelsError) {
-        dbgWarn('[popup] Error fetching models:', modelsError);
+        dbgWarn('Error fetching models:', modelsError);
         // Connection works but couldn't fetch models - still success
       }
     } else if (connectionResult.isCorsError) {
@@ -1262,7 +1685,7 @@ async function testOllamaConnection() {
       showOllamaStatus('❌ Cannot connect to Ollama. Make sure it\'s running.', 'error');
     }
   } catch (error) {
-    dbgWarn('[popup] Error testing Ollama connection:', error);
+    dbgWarn('Error testing Ollama connection:', error);
     showOllamaStatus(`❌ Connection failed: ${error.message}`, 'error');
   }
 }
@@ -1284,27 +1707,43 @@ async function saveOllamaSettings() {
     return;
   }
   
+  const tempInput = document.getElementById('ollama-temperature');
+  const topPInput = document.getElementById('ollama-top-p');
+  const topKInput = document.getElementById('ollama-top-k');
+  const temperature = clampTemperature(tempInput?.value);
+  const topP = clampTopP(topPInput?.value);
+  const topK = clampTopK(topKInput?.value);
+  if (tempInput) tempInput.value = temperature;
+  if (topPInput) topPInput.value = topP;
+  if (topKInput) topKInput.value = topK;
+
   try {
-    const config = { url, model };
-    
+    const config = { url, model, temperature, top_p: topP, top_k: topK };
+    const { OllamaService } = await import(chrome.runtime.getURL('services/ollama-service.js'));
+    const { contextLength, error: ctxError } = await OllamaService.getModelContextLength(url, model);
+    if (contextLength != null) {
+      config.OllamaModelcontextLength = contextLength;
+      dbgLog('Ollama model context length saved:', contextLength);
+    } else if (ctxError) {
+      dbgWarn('Could not fetch model context length (will not truncate patch):', ctxError);
+    }
     await chrome.storage.local.set({ ollamaConfig: config });
-    
-    dbgLog('[popup] Ollama settings saved:', config);
+    dbgLog('Ollama settings saved:', config);
     showOllamaStatus('✅ Settings saved successfully!', 'success');
     
     // Track Ollama configuration in cloud asynchronously (fire-and-forget)
     isUserLoggedIn().then(isLoggedIn => {
       if (isLoggedIn && window.CloudService) {
-        dbgLog('[popup] User logged in, tracking Ollama config in cloud (async)');
+        dbgLog('User logged in, tracking Ollama config in cloud (async)');
         window.CloudService.trackOllamaConfig(true, config)
-          .then(() => dbgLog('[popup] Ollama config tracked successfully in cloud'))
-          .catch(trackError => dbgWarn('[popup] Error tracking Ollama config in cloud (non-critical):', trackError));
+          .then(() => dbgLog('Ollama config tracked successfully in cloud'))
+          .catch(trackError => dbgWarn('Error tracking Ollama config in cloud (non-critical):', trackError));
       } else {
-        dbgLog('[popup] User not logged in or CloudService not available, skipping cloud tracking');
+        dbgLog('User not logged in or CloudService not available, skipping cloud tracking');
       }
-    }).catch(err => dbgWarn('[popup] Error checking login status for cloud tracking:', err));
+    }).catch(err => dbgWarn('Error checking login status for cloud tracking:', err));
   } catch (error) {
-    dbgWarn('[popup] Error saving Ollama settings:', error);
+    dbgWarn('Error saving Ollama settings:', error);
     showOllamaStatus('❌ Failed to save settings', 'error');
   }
 }
@@ -1339,7 +1778,7 @@ async function refreshOllamaModels() {
       showOllamaStatus('⚠️ No models found. Pull a model first: ollama pull codellama', 'error');
     }
   } catch (error) {
-    dbgWarn('[popup] Error refreshing models:', error);
+    dbgWarn('Error refreshing models:', error);
     showOllamaStatus(`❌ Failed to fetch models: ${error.message}`, 'error');
   } finally {
     // Reset button state
@@ -1370,7 +1809,7 @@ function updateModelSelect(models) {
     modelSelect.value = currentValue;
   }
   
-  dbgLog('[popup] Updated model select with', models.length, 'models');
+  dbgLog('Updated model select with', models.length, 'models');
 }
 
 function showOllamaStatus(message, type = 'info') {
@@ -1489,7 +1928,7 @@ function showCorsInstructions() {
           setTimeout(() => toast.remove(), 300);
         }, 1500);
       }).catch(err => {
-        console.warn('Copy failed:', err);
+        dbgWarn('Copy failed:', err);
         
         // Show error state
         button.style.color = '#ef4444';

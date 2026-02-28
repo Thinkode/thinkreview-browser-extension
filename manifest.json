@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
 
-  "name": "ThinkReview: AI Code Review for GitLab, GitHub & Azure DevOps",
-  "version": "1.4.13",
-  "description": "AI Copilot & AI Code Reviews for GitLab,GitHub and Azure DevOps PRs - Ollama support",
+  "name": "ThinkReview: AI Code Review for GitLab, GitHub, Bitbucket & Azure DevOps",
+  "version": "1.5.4",
+  "description": "AI Copilot & AI Code Reviews for GitLab, GitHub, Bitbucket and Azure DevOps PRs - Ollama support",
 
   "permissions": [
     "storage", 
@@ -43,7 +43,7 @@
         "https://portal.thinkreview.dev/*",
         "https://app.thinkreview.dev/*"
       ],
-      "js": ["content-webapp-auth.js"],
+      "js": ["vendor/honeybadger.ext.min.js", "content-webapp-auth.js"],
       "run_at": "document_idle",
       "all_frames": false
     }
@@ -55,7 +55,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["patch-viewer.html", "patch-viewer.js", "patch-viewer.css", "icons/*", "images/*", "components/*", "components/integrated-review.css", "components/review-prompt/*", "services/*", "services/ollama-service.js", "utils/*", "assets/*", "stripe-redirect.html","stripe-redirect.js", "onboarding.html", "onboarding.js","components/subscription-section.html","components/subscription-section.css"],
+      "resources": ["patch-viewer.html", "patch-viewer.js", "patch-viewer.css", "icons/*", "images/*", "components/*", "components/integrated-review.css", "components/review-prompt/*", "services/*", "services/ollama-service.js", "utils/*", "assets/*", "stripe-redirect.html","stripe-redirect.js", "onboarding.html", "onboarding.js","components/subscription-section.html","components/subscription-section.css", "vendor/*"],
       "matches": ["<all_urls>"]
     }
   ],

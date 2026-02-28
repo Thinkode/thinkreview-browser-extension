@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "lint": "node scripts/lint-manifest.js",
-    "test": "echo \"No tests specified yet\" && exit 0",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "build": "node scripts/build.js",
     "validate": "node scripts/validate-manifest.js",
     "ci": "npm run validate && npm run lint && npm run test"
@@ -39,5 +39,9 @@
   "homepage": "https://thinkreview.dev",
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
   }
 }
