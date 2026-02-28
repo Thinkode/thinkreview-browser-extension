@@ -367,6 +367,22 @@ Your role is to answer questions about this code review in a helpful, concise ma
   }
 
   /**
+   * Normalize a base URL for OpenAI-compatible endpoints.
+   * If the URL already contains a versioned path segment (/v1, /v1beta, etc.)
+   * it is returned as-is; otherwise /v1 is appended.
+   * @param {string} url
+   * @returns {string}
+   */
+  static _normalizeBaseUrl(url) {
+    const base = url.replace(/\/+$/, '');
+    // URLs that already carry a versioned path (e.g. /v1, /v1beta/openai)
+    if (/\/v\d/i.test(base)) {
+      return base;
+    }
+    return `${base}/v1`;
+  }
+
+  /**
    * Internal: Call the chat completions endpoint.
    * Returns the parsed JSON body, or an object with _retryWithoutResponseFormat if
    * the endpoint rejected response_format.
@@ -376,7 +392,7 @@ Your role is to answer questions about this code review in a helpful, concise ma
    * @returns {Promise<Object>}
    */
   static async _chatCompletion(baseUrl, apiKey, requestBody) {
-    const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
+    const endpoint = `${OpenAIService._normalizeBaseUrl(baseUrl)}/chat/completions`;
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -411,7 +427,7 @@ Your role is to answer questions about this code review in a helpful, concise ma
   static async checkConnection(url = 'https://api.openai.com', apiKey = '') {
     try {
       dbgLog(`Checking connection to OpenAI-compatible API at ${url}`);
-      const endpoint = `${url.replace(/\/+$/, '')}/v1/models`;
+      const endpoint = `${OpenAIService._normalizeBaseUrl(url)}/models`;
       const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
@@ -445,7 +461,7 @@ Your role is to answer questions about this code review in a helpful, concise ma
   static async getAvailableModels(url = 'https://api.openai.com', apiKey = '') {
     try {
       dbgLog(`Fetching available models from ${url}`);
-      const endpoint = `${url.replace(/\/+$/, '')}/v1/models`;
+      const endpoint = `${OpenAIService._normalizeBaseUrl(url)}/models`;
       const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
