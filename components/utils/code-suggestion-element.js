@@ -34,7 +34,7 @@ export function createCodeSuggestionElement(suggestion) {
     const meta = document.createElement('div');
     meta.className = 'thinkreview-suggestion-meta';
     meta.style.fontSize = '11px';
-    meta.style.color = '#888';
+    meta.style.color = '#9ca3af';
 
     const start = startLine;
     const end = typeof endLine === 'number' && endLine >= start ? endLine : start;
@@ -50,15 +50,17 @@ export function createCodeSuggestionElement(suggestion) {
     descElement.className = 'thinkreview-suggestion-description';
     descElement.style.marginBottom = '8px';
     descElement.style.fontSize = '13px';
-    descElement.style.color = '#666';
+    descElement.style.color = '#e0e0e0';
     descElement.textContent = description;
     suggestionElement.appendChild(descElement);
   }
 
-  // Code block
+  // Code block - dark theme to match integrated panel
   const codeBlock = document.createElement('pre');
   codeBlock.className = 'thinkreview-suggestion-code';
-  codeBlock.style.backgroundColor = '#f4f4f4';
+  codeBlock.style.backgroundColor = '#1a1a1a';
+  codeBlock.style.color = '#e0e0e0';
+  codeBlock.style.border = '1px solid #333333';
   codeBlock.style.padding = '8px';
   codeBlock.style.borderRadius = '4px';
   codeBlock.style.overflow = 'auto';

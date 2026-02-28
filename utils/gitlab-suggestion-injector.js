@@ -34,7 +34,7 @@ async function loadCopyButtonUtils() {
         button.style.color = '#4ade80';
         setTimeout(() => {
           button.innerHTML = originalHTML;
-          button.style.color = '';
+          button.style.color = '#e0e0e0'; // Reset to dark-theme icon color
         }, 2000);
       },
       showCopyErrorFeedback: (button) => {
@@ -47,7 +47,7 @@ async function loadCopyButtonUtils() {
         button.style.color = '#ef4444';
         setTimeout(() => {
           button.innerHTML = originalHTML;
-          button.style.color = '';
+          button.style.color = '#e0e0e0'; // Reset to dark-theme icon color
         }, 2000);
       }
     };
@@ -912,7 +912,7 @@ async function injectSuggestionIntoLine(suggestion) {
       commentArea.className = 'thinkreview-suggestion-area';
       commentArea.style.marginTop = '4px';
       commentArea.style.padding = '8px';
-      commentArea.style.backgroundColor = 'rgba(107, 79, 187, 0.1)';
+      commentArea.style.backgroundColor = '#1e1e1e';
       commentArea.style.borderLeft = '3px solid #6b4fbb';
       commentArea.style.borderRadius = '4px';
       commentArea.style.marginLeft = '0';
@@ -948,7 +948,7 @@ async function injectSuggestionIntoLine(suggestion) {
       commentArea.className = 'thinkreview-suggestion-area';
       commentArea.style.marginTop = '8px';
       commentArea.style.padding = '8px';
-      commentArea.style.backgroundColor = 'rgba(107, 79, 187, 0.1)';
+      commentArea.style.backgroundColor = '#1e1e1e';
       commentArea.style.borderLeft = '3px solid #6b4fbb';
       commentArea.style.borderRadius = '4px';
       
@@ -977,6 +977,7 @@ async function injectSuggestionIntoLine(suggestion) {
   copyButton.title = 'Copy code suggestion';
   copyButton.style.marginTop = '6px';
   copyButton.style.marginRight = '8px';
+  copyButton.style.color = '#e0e0e0'; // Match integrated panel light text on dark bg
   
   copyButton.addEventListener('click', async (e) => {
     e.stopPropagation();
