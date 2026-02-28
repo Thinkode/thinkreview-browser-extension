@@ -362,7 +362,6 @@ async function createIntegratedReviewPanel(patchUrl) {
         <div id="review-content" class="gl-hidden">
           <div id="review-scroll-container">
             <div id="review-prompt-container"></div>
-            <div id="review-patch-size-banner" class="gl-mb-4 gl-hidden"></div>
             <div id="review-metrics-container" class="gl-mb-4"></div>
             <div id="review-summary-container" class="gl-mb-4">
               <div class="thinkreview-section-header-row">
@@ -1328,7 +1327,6 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   const reviewSecurity = document.getElementById('review-security');
   const reviewPractices = document.getElementById('review-practices');
   const reviewMetricsContainer = document.getElementById('review-metrics-container');
-  const patchSizeBanner = document.getElementById('review-patch-size-banner');
 
   // Hide loading indicator and other states, show the main content area
   reviewLoading.classList.add('gl-hidden');
@@ -1350,39 +1348,6 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     subscriptionLabel.textContent = displayName;
     const slug = displayName.toLowerCase();
     subscriptionLabel.className = 'thinkreview-header-subscription thinkreview-header-subscription-' + slug;
-  }
-
-  // Render patch size / metadata banner (Ollama-specific bar vs cloud bar)
-  if (patchSizeBanner) {
-    try {
-      const metadataModule = await import('./review-metadata-bar.js');
-      if (provider === 'ollama' && ollamaMeta) {
-        metadataModule.renderOllamaMetadataBar(patchSizeBanner, ollamaMeta, {
-          onSwitchToCloud() {
-            document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
-          },
-          getModels() {
-            return new Promise((resolve) => {
-              chrome.runtime.sendMessage({ type: 'GET_OLLAMA_MODELS' }, (response) => {
-                if (chrome.runtime.lastError || !response) {
-                  resolve([]);
-                  return;
-                }
-                resolve(response.models || []);
-              });
-            });
-          },
-          onModelChange(modelName) {
-            document.dispatchEvent(new CustomEvent('thinkreview-ollama-model-changed', { detail: { model: modelName } }));
-          }
-        });
-      } else {
-        metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionType, modelUsed, isCached);
-      }
-    } catch (error) {
-      dbgWarn('Failed to load review metadata bar:', error);
-      patchSizeBanner.classList.add('gl-hidden');
-    }
   }
 
   // Render quality scorecard if metrics are available
