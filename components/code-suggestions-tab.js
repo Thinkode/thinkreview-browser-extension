@@ -45,7 +45,8 @@ export async function updateCodeSuggestionsTab({ review, patchContent, logger = 
       const showCopySuccessFeedback = copyModule.showCopySuccessFeedback;
       const showCopyErrorFeedback = copyModule.showCopyErrorFeedback;
 
-      for (const suggestion of review.codeSuggestions) {
+      for (let i = 0; i < review.codeSuggestions.length; i++) {
+        const suggestion = review.codeSuggestions[i];
         const el = suggestionModule.createCodeSuggestionElement(suggestion);
         const copyBtn = createCopyButton();
         copyBtn.title = 'Copy code suggestion';
@@ -80,6 +81,13 @@ export async function updateCodeSuggestionsTab({ review, patchContent, logger = 
         });
         wrapper.appendChild(el);
         codeSuggestionsInner.appendChild(wrapper);
+
+        // Add separator between suggestions (not after the last one)
+        if (i < review.codeSuggestions.length - 1) {
+          const separator = document.createElement('div');
+          separator.className = 'thinkreview-code-suggestion-separator';
+          codeSuggestionsInner.appendChild(separator);
+        }
       }
     }
 
