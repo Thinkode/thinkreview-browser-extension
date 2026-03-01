@@ -24,10 +24,12 @@ export function createCodeSuggestionElement(suggestion) {
     description
   } = suggestion || {};
 
-  // Root container
+  // Root container - minWidth 0 allows overflow to work in flex/grid parents
   const suggestionElement = document.createElement('div');
   suggestionElement.className = 'thinkreview-code-suggestion';
   suggestionElement.style.marginTop = '4px';
+  suggestionElement.style.minWidth = '0';
+  suggestionElement.style.maxWidth = '100%';
 
   // Meta: file name + line range (if available)
   if (typeof startLine === 'number') {
@@ -35,6 +37,8 @@ export function createCodeSuggestionElement(suggestion) {
     meta.className = 'thinkreview-suggestion-meta';
     meta.style.fontSize = '11px';
     meta.style.color = '#9ca3af';
+    meta.style.overflowWrap = 'break-word';
+    meta.style.wordBreak = 'break-word';
 
     const start = startLine;
     const end = typeof endLine === 'number' && endLine >= start ? endLine : start;
@@ -51,11 +55,20 @@ export function createCodeSuggestionElement(suggestion) {
     descElement.style.marginBottom = '8px';
     descElement.style.fontSize = '13px';
     descElement.style.color = '#e0e0e0';
+    descElement.style.overflowWrap = 'break-word';
+    descElement.style.wordBreak = 'break-word';
     descElement.textContent = description;
     suggestionElement.appendChild(descElement);
   }
 
-  // Code block - dark theme to match integrated panel
+  // Code block - wrap in scroll container so long lines get horizontal scroll (not overflow)
+  const codeScrollWrap = document.createElement('div');
+  codeScrollWrap.className = 'thinkreview-suggestion-code-scroll';
+  codeScrollWrap.style.overflowX = 'auto';
+  codeScrollWrap.style.overflowY = 'auto';
+  codeScrollWrap.style.maxWidth = '100%';
+  codeScrollWrap.style.minWidth = '0';
+
   const codeBlock = document.createElement('pre');
   codeBlock.className = 'thinkreview-suggestion-code';
   codeBlock.style.backgroundColor = '#1a1a1a';
@@ -63,13 +76,15 @@ export function createCodeSuggestionElement(suggestion) {
   codeBlock.style.border = '1px solid #333333';
   codeBlock.style.padding = '8px';
   codeBlock.style.borderRadius = '4px';
-  codeBlock.style.overflow = 'auto';
+  codeBlock.style.margin = '0';
   codeBlock.style.fontSize = '12px';
   codeBlock.style.fontFamily = 'monospace';
+  codeBlock.style.whiteSpace = 'pre';
 
   const codeText = document.createTextNode(suggestedCode || '');
   codeBlock.appendChild(codeText);
-  suggestionElement.appendChild(codeBlock);
+  codeScrollWrap.appendChild(codeBlock);
+  suggestionElement.appendChild(codeScrollWrap);
 
   return suggestionElement;
 }

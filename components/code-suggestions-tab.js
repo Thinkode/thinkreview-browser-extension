@@ -78,7 +78,9 @@ export async function updateCodeSuggestionsTab({ review, patchContent, logger = 
           backgroundColor: '#1e1e1e',
           borderLeft: '3px solid #6b4fbb',
           borderRadius: '4px',
-          width: '100%'
+          width: '100%',
+          maxWidth: '100%',
+          minWidth: 0
         });
         wrapper.appendChild(el);
 

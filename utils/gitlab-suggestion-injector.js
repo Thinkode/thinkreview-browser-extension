@@ -917,6 +917,8 @@ async function injectSuggestionIntoLine(suggestion) {
       commentArea.style.borderRadius = '4px';
       commentArea.style.marginLeft = '0';
       commentArea.style.width = '100%';
+      commentArea.style.maxWidth = '100%';
+      commentArea.style.minWidth = '0';
       
       // Insert after the line_holder
       const parent = lineHolder.parentElement;
@@ -951,7 +953,9 @@ async function injectSuggestionIntoLine(suggestion) {
       commentArea.style.backgroundColor = '#1e1e1e';
       commentArea.style.borderLeft = '3px solid #6b4fbb';
       commentArea.style.borderRadius = '4px';
-      
+      commentArea.style.maxWidth = '100%';
+      commentArea.style.minWidth = '0';
+
       const parent = targetElement.parentElement;
       if (parent) {
         const nextSibling = targetElement.nextSibling;
