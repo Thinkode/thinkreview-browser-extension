@@ -6,7 +6,7 @@
  */
 
 // Debug toggle
-const DEBUG = true;
+const DEBUG = false;
 function dbgLog(...args) { if (DEBUG) console.log('[GitLabSuggestionInjector]', ...args); }
 function dbgWarn(...args) { if (DEBUG) console.warn('[GitLabSuggestionInjector]', ...args); }
 

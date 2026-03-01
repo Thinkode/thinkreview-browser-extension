@@ -96,6 +96,82 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
 
     if (codeSuggestionsInner) {
       codeSuggestionsInner.innerHTML = '';
+      
+      // Add GitLab injection toggle control (Beta)
+      const toggleContainer = document.createElement('div');
+      toggleContainer.className = 'thinkreview-gitlab-injection-toggle';
+      Object.assign(toggleContainer.style, {
+        marginBottom: '16px',
+        padding: '12px',
+        backgroundColor: '#2a2a2a',
+        borderRadius: '6px',
+        border: '1px solid #3a3a3a'
+      });
+      
+      const toggleWrapper = document.createElement('label');
+      Object.assign(toggleWrapper.style, {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        cursor: 'pointer',
+        userSelect: 'none'
+      });
+      
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.id = 'gitlab-injection-toggle';
+      checkbox.className = 'thinkreview-gitlab-injection-checkbox';
+      
+      // Load saved preference
+      const savedPreference = await chrome.storage.local.get(['gitlabInjectionEnabled']);
+      checkbox.checked = savedPreference.gitlabInjectionEnabled !== false; // Default to true
+      
+      Object.assign(checkbox.style, {
+        width: '18px',
+        height: '18px',
+        cursor: 'pointer',
+        accentColor: '#6b4fbb'
+      });
+      
+      const labelText = document.createElement('span');
+      Object.assign(labelText.style, {
+        fontSize: '13px',
+        color: '#e0e0e0',
+        fontWeight: '500'
+      });
+      labelText.textContent = 'Show suggestions in GitLab diff';
+      
+      const betaBadge = document.createElement('span');
+      Object.assign(betaBadge.style, {
+        fontSize: '10px',
+        padding: '2px 6px',
+        backgroundColor: '#8b5cf6',
+        color: '#ffffff',
+        borderRadius: '4px',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+      });
+      betaBadge.textContent = 'Beta';
+      
+      toggleWrapper.appendChild(checkbox);
+      toggleWrapper.appendChild(labelText);
+      toggleWrapper.appendChild(betaBadge);
+      toggleContainer.appendChild(toggleWrapper);
+      
+      // Save preference on change
+      checkbox.addEventListener('change', async () => {
+        await chrome.storage.local.set({ gitlabInjectionEnabled: checkbox.checked });
+        dbgLog(`GitLab injection ${checkbox.checked ? 'enabled' : 'disabled'}`);
+        
+        // Update stored suggestions flag
+        if (window.__thinkreview_codeSuggestions) {
+          window.__thinkreview_codeSuggestions.injectionEnabled = checkbox.checked;
+        }
+      });
+      
+      codeSuggestionsInner.appendChild(toggleContainer);
+      
       const [suggestionModule, copyModule, analyticsModule] = await Promise.all([
         import('./utils/code-suggestion-element.js'),
         import('./utils/item-copy-button.js'),
@@ -185,12 +261,16 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
 
     // Store for GitLab diff injection (content.js will process when on GitLab)
     if (patchContent) {
+      const savedPreference = await chrome.storage.local.get(['gitlabInjectionEnabled']);
+      const injectionEnabled = savedPreference.gitlabInjectionEnabled !== false; // Default to true
+      
       window.__thinkreview_codeSuggestions = {
         suggestions: review.codeSuggestions,
         patchContent: patchContent,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        injectionEnabled: injectionEnabled
       };
-      dbgLog(`Stored ${review.codeSuggestions.length} code suggestions for injection`);
+      dbgLog(`Stored ${review.codeSuggestions.length} code suggestions for injection (enabled: ${injectionEnabled})`);
     }
   } else {
     // No code suggestions - hide tab and clear

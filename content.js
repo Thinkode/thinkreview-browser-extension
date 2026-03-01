@@ -1134,7 +1134,14 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
           try {
             // Check if suggestions were stored by displayIntegratedReview
             if (window.__thinkreview_codeSuggestions) {
-              const { suggestions, patchContent: storedPatchContent } = window.__thinkreview_codeSuggestions;
+              const { suggestions, patchContent: storedPatchContent, injectionEnabled } = window.__thinkreview_codeSuggestions;
+              
+              // Check if injection is enabled (default to true if not set)
+              if (injectionEnabled === false) {
+                dbgLog(`[Code Review Extension] GitLab injection is disabled, skipping ${suggestions.length} code suggestions`);
+                delete window.__thinkreview_codeSuggestions;
+                return;
+              }
               
               dbgLog(`[Code Review Extension] Attempting to inject ${suggestions.length} code suggestions`);
               
