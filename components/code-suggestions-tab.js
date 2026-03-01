@@ -1,25 +1,72 @@
 // code-suggestions-tab.js
 // Module for the Code Suggestions tab in the integrated review panel.
 // Handles visibility, badge, population, and GitLab diff injection storage.
+// Code suggestions feature is only available for Professional and Lite subscription types.
+
+/**
+ * Returns true if subscription type allows code suggestions (Professional, Lite, Teams).
+ * @param {string} subscriptionType - User subscription type from storage
+ * @returns {boolean}
+ */
+function hasCodeSuggestionsAccess(subscriptionType) {
+  const raw = (subscriptionType ?? '').toString().trim().toLowerCase();
+  return raw === 'professional' || raw === 'lite' || raw === 'teams';
+}
 
 /**
  * Updates the Code Suggestions tab based on review data.
  * Shows tab and populates when review.codeSuggestions exists; hides and clears when not.
+ * For Free users with code suggestions, shows upgrade message instead.
  *
  * @param {Object} params
  * @param {Object} params.review - Review object with optional codeSuggestions array
  * @param {string} [params.patchContent] - Raw patch content for GitLab diff injection
+ * @param {string} [params.subscriptionType] - User subscription type (from storage); Free users see upgrade message
  * @param {Object} [params.logger] - Optional { dbgLog, dbgWarn }
  * @param {Function} [params.onExplainSuggestion] - Callback(suggestion) when Explain is clicked; switches to Review tab and sends message
  */
-export async function updateCodeSuggestionsTab({ review, patchContent, logger = {}, onExplainSuggestion } = {}) {
+export async function updateCodeSuggestionsTab({ review, patchContent, subscriptionType = 'Free', logger = {}, onExplainSuggestion } = {}) {
   const { dbgLog = () => {}, dbgWarn = (...args) => console.warn('[CodeSuggestionsTab]', ...args) } = logger;
 
   const codeSuggestionsTabBtn = document.getElementById('tab-btn-code-suggestions');
   const codeSuggestionsPanel = document.getElementById('tab-panel-code-suggestions');
   const codeSuggestionsInner = document.getElementById('review-code-suggestions-inner');
 
-  if (Array.isArray(review.codeSuggestions) && review.codeSuggestions.length > 0) {
+  const hasSuggestions = Array.isArray(review.codeSuggestions) && review.codeSuggestions.length > 0;
+  const canAccessSuggestions = hasCodeSuggestionsAccess(subscriptionType);
+
+  if (hasSuggestions && !canAccessSuggestions) {
+    // Free user: show tab with upgrade message
+    if (codeSuggestionsTabBtn) {
+      codeSuggestionsTabBtn.classList.remove('gl-hidden');
+      // Add "New" badge same as paid users
+      if (!codeSuggestionsTabBtn.querySelector('.thinkreview-new-badge')) {
+        try {
+          const badgeModule = await import('./utils/new-badge.js');
+          const badgeCreator = badgeModule?.createNewBadge;
+          if (badgeCreator) {
+            const newBadge = badgeCreator('New');
+            codeSuggestionsTabBtn.appendChild(newBadge);
+          }
+        } catch (error) {
+          dbgWarn('Failed to load badge module for Code Suggestions tab:', error);
+        }
+      }
+    }
+
+    if (codeSuggestionsInner) {
+      codeSuggestionsInner.innerHTML = '';
+      const upgradeModule = await import('./utils/code-suggestions-upgrade-message.js');
+      const upgradeBox = upgradeModule.createCodeSuggestionsUpgradeMessage();
+      codeSuggestionsInner.appendChild(upgradeBox);
+    }
+
+    // Do not store for GitLab injection - Free users don't get suggestions
+    delete window.__thinkreview_codeSuggestions;
+    return;
+  }
+
+  if (hasSuggestions && canAccessSuggestions) {
     // Show Code Suggestions tab in the integrated panel
     if (codeSuggestionsTabBtn) {
       codeSuggestionsTabBtn.classList.remove('gl-hidden');

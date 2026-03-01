@@ -1865,6 +1865,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     await codeSuggestionsModule.updateCodeSuggestionsTab({
       review,
       patchContent,
+      subscriptionType: subscriptionTypeForDisplay,
       logger: { dbgLog, dbgWarn },
       onExplainSuggestion: (suggestion) => {
         // Build explain message with suggestion context (handleSendMessage switches to Review tab)
