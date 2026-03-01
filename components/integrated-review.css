@@ -1169,6 +1169,10 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   border-radius: 1px;
 }
 
+#gitlab-mr-integrated-review .thinkreview-explain-suggestion-btn:hover {
+  color: #d4c4f7 !important;
+}
+
 #gitlab-mr-integrated-review .gl-hidden {
   display: none !important;
 }

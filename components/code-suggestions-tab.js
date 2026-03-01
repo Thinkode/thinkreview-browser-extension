@@ -10,8 +10,9 @@
  * @param {Object} params.review - Review object with optional codeSuggestions array
  * @param {string} [params.patchContent] - Raw patch content for GitLab diff injection
  * @param {Object} [params.logger] - Optional { dbgLog, dbgWarn }
+ * @param {Function} [params.onExplainSuggestion] - Callback(suggestion) when Explain is clicked; switches to Review tab and sends message
  */
-export async function updateCodeSuggestionsTab({ review, patchContent, logger = {} }) {
+export async function updateCodeSuggestionsTab({ review, patchContent, logger = {}, onExplainSuggestion } = {}) {
   const { dbgLog = () => {}, dbgWarn = (...args) => console.warn('[CodeSuggestionsTab]', ...args) } = logger;
 
   const codeSuggestionsTabBtn = document.getElementById('tab-btn-code-suggestions');
@@ -80,6 +81,32 @@ export async function updateCodeSuggestionsTab({ review, patchContent, logger = 
           width: '100%'
         });
         wrapper.appendChild(el);
+
+        // Explain button - sends message to conversation
+        if (typeof onExplainSuggestion === 'function') {
+          const explainBtn = document.createElement('button');
+          explainBtn.type = 'button';
+          explainBtn.className = 'thinkreview-explain-suggestion-btn';
+          explainBtn.textContent = 'Explain';
+          explainBtn.title = 'Ask AI to explain this suggestion in the conversation';
+          Object.assign(explainBtn.style, {
+            marginTop: '8px',
+            padding: 0,
+            fontSize: '12px',
+            background: 'none',
+            border: 'none',
+            color: '#b8a5e8',
+            cursor: 'pointer',
+            textDecoration: 'underline'
+          });
+          explainBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onExplainSuggestion(suggestion);
+          });
+          wrapper.appendChild(explainBtn);
+        }
+
         codeSuggestionsInner.appendChild(wrapper);
 
         // Add separator between suggestions (not after the last one)

@@ -1846,7 +1846,31 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     await codeSuggestionsModule.updateCodeSuggestionsTab({
       review,
       patchContent,
-      logger: { dbgLog, dbgWarn }
+      logger: { dbgLog, dbgWarn },
+      onExplainSuggestion: (suggestion) => {
+        // Switch to Review tab
+        const reviewTabBtn = document.querySelector('.thinkreview-tab-btn[data-tab="review"]');
+        const reviewPanel = document.getElementById('tab-panel-review');
+        if (reviewTabBtn && reviewPanel) {
+          document.querySelectorAll('.thinkreview-tab-btn').forEach((b) => b.classList.remove('active'));
+          document.querySelectorAll('.thinkreview-tab-panel').forEach((p) => p.classList.remove('active'));
+          reviewTabBtn.classList.add('active');
+          reviewPanel.classList.add('active');
+        }
+        // Build explain message with suggestion context
+        const parts = ['Can you explain this code suggestion?'];
+        if (suggestion.description) parts.push(suggestion.description);
+        if (suggestion.filePath) {
+          const range = typeof suggestion.startLine === 'number'
+            ? ` lines ${suggestion.startLine}${suggestion.endLine && suggestion.endLine !== suggestion.startLine ? '–' + suggestion.endLine : ''}`
+            : '';
+          parts.push(`File: ${suggestion.filePath}${range}.`);
+        }
+        if (suggestion.suggestedCode) {
+          parts.push('Suggested code:', '```', suggestion.suggestedCode, '```');
+        }
+        handleSendMessage(parts.join('\n'));
+      }
     });
   } catch (error) {
     dbgWarn('Failed to update code suggestions tab:', error);
