@@ -3,6 +3,15 @@
 // Handles visibility, badge, population, and GitLab diff injection storage.
 // Code suggestions feature is only available for Professional and Lite subscription types.
 
+/** Cached analytics module - loaded once on first use */
+let _analyticsModulePromise = null;
+async function getAnalyticsModule() {
+  if (!_analyticsModulePromise) {
+    _analyticsModulePromise = import(chrome.runtime.getURL('utils/analytics-service.js'));
+  }
+  return _analyticsModulePromise;
+}
+
 /**
  * Returns true if subscription type allows code suggestions (Professional, Lite, Teams).
  * @param {string} subscriptionType - User subscription type from storage
@@ -87,12 +96,14 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
 
     if (codeSuggestionsInner) {
       codeSuggestionsInner.innerHTML = '';
-      const suggestionModule = await import('./utils/code-suggestion-element.js');
-      const copyModule = await import('./utils/item-copy-button.js');
+      const [suggestionModule, copyModule, analyticsModule] = await Promise.all([
+        import('./utils/code-suggestion-element.js'),
+        import('./utils/item-copy-button.js'),
+        getAnalyticsModule()
+      ]);
       const createCopyButton = copyModule.createCopyButton;
       const showCopySuccessFeedback = copyModule.showCopySuccessFeedback;
       const showCopyErrorFeedback = copyModule.showCopyErrorFeedback;
-      const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
 
       for (let i = 0; i < review.codeSuggestions.length; i++) {
         const suggestion = review.codeSuggestions[i];
