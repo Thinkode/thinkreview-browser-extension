@@ -1071,6 +1071,7 @@ function waitForGitLabDiffView() {
         );
         if (fileContainers.length > 0) {
           dbgLog(`Diff view loaded after ${attempts * checkInterval}ms with ${fileContainers.length} file containers`);
+          observer.disconnect();
           resolve();
           return;
         }
@@ -1082,6 +1083,7 @@ function waitForGitLabDiffView() {
       );
       if (anyFileContainers.length > 0) {
         dbgLog(`Found ${anyFileContainers.length} file containers in document after ${attempts * checkInterval}ms`);
+        observer.disconnect();
         resolve();
         return;
       }
@@ -1093,6 +1095,7 @@ function waitForGitLabDiffView() {
         if (container) {
           dbgLog(`Container found but no file containers. Container classes: ${container.className}`);
         }
+        observer.disconnect();
         resolve(); // Resolve anyway to continue
         return;
       }
