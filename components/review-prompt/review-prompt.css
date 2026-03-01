@@ -5,14 +5,14 @@
 
 /* Review Prompt Container */
 #review-prompt {
-  margin-top: 16px;
+  margin-top: 8px;
 }
 
 /* Alert Styles */
 #review-prompt .gl-alert {
-  padding: 12px 16px;
-  border-radius: 4px;
-  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
 }
 
 #review-prompt .gl-alert-info {
@@ -36,57 +36,57 @@
 #review-prompt .review-prompt-modern {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   color: white;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 #review-prompt .review-prompt-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 #review-prompt .review-prompt-icon {
-  font-size: 32px;
+  font-size: 22px;
   line-height: 1;
 }
 
 #review-prompt .review-prompt-subtitle {
-  margin: 4px 0 0 0;
+  margin: 2px 0 0 0;
   opacity: 0.9;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 #review-prompt .review-prompt-content {
-  padding-top: 8px;
+  padding-top: 4px;
 }
 
 #review-prompt .review-prompt-question {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 500;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   text-align: center;
 }
 
 /* GitHub Link */
 #review-prompt .review-prompt-github-link {
-  margin: 16px 0 12px 0;
+  margin: 8px 0 8px 0;
   text-align: center;
 }
 
 #review-prompt .review-prompt-github-link a {
   color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
   background-color: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
@@ -107,13 +107,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 
 #review-prompt .star-rating {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   align-items: center;
 }
 
@@ -121,8 +121,8 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
+  padding: 2px;
+  border-radius: 4px;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
@@ -140,12 +140,12 @@
 
 #review-prompt .star:focus {
   outline: 2px solid rgba(255, 255, 255, 0.5);
-  outline-offset: 2px;
+  outline-offset: 1px;
 }
 
 #review-prompt .star-icon {
-  width: 32px;
-  height: 32px;
+  width: 22px;
+  height: 22px;
   stroke: #d1d5db;
   fill: none;
   stroke-width: 2;
@@ -166,7 +166,7 @@
 }
 
 #review-prompt .rating-label {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 500;
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -181,15 +181,15 @@
 #review-prompt .review-prompt-actions {
   display: flex;
   justify-content: center;
-  gap: 12px;
-  margin-top: 16px;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 #review-prompt .review-prompt-btn {
-  padding: 10px 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
-  font-size: 14px;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   text-decoration: none;
@@ -222,6 +222,7 @@
 #review-prompt .review-prompt-btn-primary {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-color: rgba(255, 255, 255, 0.5);
+  border-width: 1px;
   color: white;
   font-weight: 600;
 }

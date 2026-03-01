@@ -235,6 +235,15 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
       const score = parseInt(element.getAttribute('data-score'), 10);
       
       const handleClick = () => {
+        // Track which score metric was clicked (overall, codeQuality, security, bestPractices)
+        if (trackUserAction) {
+          trackUserAction('score_metric_clicked', {
+            context: 'quality_scorecard',
+            location: 'integrated_panel',
+            metric: metricName,
+            score
+          }).catch(() => {});
+        }
         onMetricClick(metricName, score);
       };
       

@@ -5,6 +5,70 @@ import { dbgWarn } from '../../utils/logger.js';
 import { trackUserAction } from '../../utils/analytics-service.js';
 
 /**
+ * Creates the copy icon SVG element (safe DOM construction, no innerHTML)
+ * @returns {SVGSVGElement}
+ */
+function createCopyIconSvg() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '14');
+  svg.setAttribute('height', '14');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.style.display = 'block';
+  svg.style.visibility = 'visible';
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z');
+  path.setAttribute('fill', 'currentColor');
+  path.style.fill = 'currentColor';
+  svg.appendChild(path);
+  return svg;
+}
+
+/**
+ * Creates the checkmark success icon SVG element
+ * @returns {SVGSVGElement}
+ */
+function createCheckmarkSvg() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '14');
+  svg.setAttribute('height', '14');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z');
+  path.setAttribute('fill', 'currentColor');
+  svg.appendChild(path);
+  return svg;
+}
+
+/**
+ * Creates the error icon SVG element
+ * @returns {SVGSVGElement}
+ */
+function createErrorSvg() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '14');
+  svg.setAttribute('height', '14');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z');
+  path.setAttribute('fill', 'currentColor');
+  svg.appendChild(path);
+  return svg;
+}
+
+/**
+ * Clears all child nodes from an element
+ * @param {HTMLElement} el
+ */
+function clearElement(el) {
+  while (el.firstChild) {
+    el.removeChild(el.firstChild);
+  }
+}
+
+/**
  * Creates a copy button element with SVG icon
  * @returns {HTMLElement} The copy button element
  */
@@ -17,11 +81,7 @@ export function createCopyButton() {
   button.style.display = 'flex';
   button.style.visibility = 'visible';
   button.style.opacity = '0.6';
-  button.innerHTML = `
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block; visibility: visible;">
-      <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="currentColor" style="fill: currentColor !important;"/>
-    </svg>
-  `;
+  button.appendChild(createCopyIconSvg());
   return button;
 }
 
@@ -628,17 +688,14 @@ export async function copyItemContent(element, button) {
  * Shows success feedback on the copy button (checkmark icon)
  * @param {HTMLElement} button - The copy button element
  */
-function showCopySuccessFeedback(button) {
-  const originalHTML = button.innerHTML;
-  button.innerHTML = `
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
-    </svg>
-  `;
+export function showCopySuccessFeedback(button) {
+  clearElement(button);
+  button.appendChild(createCheckmarkSvg());
   button.style.color = '#4ade80';
-  
+
   setTimeout(() => {
-    button.innerHTML = originalHTML;
+    clearElement(button);
+    button.appendChild(createCopyIconSvg());
     button.style.color = '';
   }, 2000);
 }
@@ -647,17 +704,14 @@ function showCopySuccessFeedback(button) {
  * Shows error feedback on the copy button (error icon)
  * @param {HTMLElement} button - The copy button element
  */
-function showCopyErrorFeedback(button) {
-  const originalHTML = button.innerHTML;
-  button.innerHTML = `
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
-    </svg>
-  `;
+export function showCopyErrorFeedback(button) {
+  clearElement(button);
+  button.appendChild(createErrorSvg());
   button.style.color = '#ef4444';
-  
+
   setTimeout(() => {
-    button.innerHTML = originalHTML;
+    clearElement(button);
+    button.appendChild(createCopyIconSvg());
     button.style.color = '';
   }, 2000);
 }

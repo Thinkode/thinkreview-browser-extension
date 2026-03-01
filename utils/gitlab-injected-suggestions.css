@@ -1,0 +1,181 @@
+/* gitlab-injected-suggestions.css */
+/* Styles for code suggestions injected into GitLab diff view */
+
+/* Suggestion Marker - ThinkReview logo in line number gutter */
+.thinkreview-suggestion-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 4px;
+  padding: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+  border-radius: 4px;
+  background: #ffd700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.thinkreview-suggestion-marker:hover {
+  transform: scale(1.1);
+  background: #ffed4e;
+  box-shadow: 0 2px 6px rgba(255, 215, 0, 0.6);
+}
+
+.thinkreview-marker-logo {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+/* Dialog Backdrop */
+.thinkreview-suggestion-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Dialog Container */
+.thinkreview-suggestion-dialog {
+  background-color: #1e1e1e;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  max-width: 800px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease;
+  border: 1px solid #333333;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Dialog Header */
+.thinkreview-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #333333;
+  background: linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%);
+  border-radius: 8px 8px 0 0;
+}
+
+.thinkreview-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #b8a5e8;
+}
+
+.thinkreview-dialog-title img {
+  width: 20px;
+  height: 20px;
+}
+
+.thinkreview-dialog-close {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.thinkreview-dialog-close:hover {
+  background-color: #333333;
+  color: #ffffff;
+}
+
+/* Dialog Content */
+.thinkreview-dialog-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Dialog Footer */
+.thinkreview-dialog-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #333333;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background-color: #1a1a1a;
+  border-radius: 0 0 8px 8px;
+}
+
+.thinkreview-dialog-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #6b4fbb 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.thinkreview-dialog-copy-btn:hover {
+  background: linear-gradient(135deg, #7c5fcc 0%, #9c6cf6 100%);
+  box-shadow: 0 4px 8px rgba(107, 79, 187, 0.3);
+  transform: translateY(-1px);
+}
+
+.thinkreview-dialog-copy-btn:active {
+  transform: translateY(0);
+}
+
+/* Copy button feedback states */
+.thinkreview-dialog-copy-btn.thinkreview-copy-success {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%) !important;
+}
+
+.thinkreview-dialog-copy-btn.thinkreview-copy-error {
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%) !important;
+}

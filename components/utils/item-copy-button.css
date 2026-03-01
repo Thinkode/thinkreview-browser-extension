@@ -90,3 +90,32 @@
 #gitlab-mr-integrated-review .chat-message-bubble-wrapper:hover .thinkreview-item-copy-btn {
   opacity: 1 !important;
 }
+
+/* Code suggestion copy button - works in integrated panel and GitLab diff injection */
+.thinkreview-code-suggestion .thinkreview-item-copy-btn {
+  background: transparent !important;
+  border: none !important;
+  color: #e0e0e0 !important;
+  cursor: pointer !important;
+  padding: 4px 6px !important;
+  border-radius: 4px !important;
+  opacity: 0.8 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  margin-top: 6px !important;
+  visibility: visible !important;
+}
+.thinkreview-code-suggestion .thinkreview-item-copy-btn:hover {
+  opacity: 1 !important;
+}
+.thinkreview-code-suggestion .thinkreview-item-copy-btn:active {
+  transform: scale(0.95);
+}
+.thinkreview-code-suggestion .thinkreview-item-copy-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+  display: block !important;
+  visibility: visible !important;
+}

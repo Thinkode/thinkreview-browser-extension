@@ -94,12 +94,17 @@ async function initFormattingUtils() {
   }
 }
 
+let showCopySuccessFeedback = null;
+let showCopyErrorFeedback = null;
+
 async function initCopyButtonUtils() {
   try {
     const module = await import('./utils/item-copy-button.js');
     createCopyButton = module.createCopyButton;
     copyItemContent = module.copyItemContent;
     attachCopyButtonToItem = module.attachCopyButtonToItem;
+    showCopySuccessFeedback = module.showCopySuccessFeedback;
+    showCopyErrorFeedback = module.showCopyErrorFeedback;
     dbgLog('Copy button utils loaded');
   } catch (e) {
     dbgWarn('Failed to load copy button utils', e);
@@ -360,6 +365,13 @@ async function createIntegratedReviewPanel(patchUrl) {
           </div>
         </div>
         <div id="review-content" class="gl-hidden">
+          <div class="thinkreview-tabs-wrapper">
+            <div class="thinkreview-tab-buttons" id="review-tab-buttons">
+              <button type="button" class="thinkreview-tab-btn active" data-tab="review">Review</button>
+              <button type="button" class="thinkreview-tab-btn gl-hidden" data-tab="code-suggestions" id="tab-btn-code-suggestions">Code Suggestions</button>
+            </div>
+            <div class="thinkreview-tab-panels">
+              <div class="thinkreview-tab-panel active" id="tab-panel-review" data-tab="review">
           <div id="review-scroll-container">
             <div id="review-prompt-container"></div>
             <div id="review-patch-size-banner" class="gl-mb-4 gl-hidden"></div>
@@ -405,6 +417,12 @@ async function createIntegratedReviewPanel(patchUrl) {
               </div>
             </div>
             <div id="chat-log" class="thinkreview-chat-log"></div>
+          </div>
+              </div>
+              <div class="thinkreview-tab-panel" id="tab-panel-code-suggestions" data-tab="code-suggestions">
+                <div id="review-code-suggestions-inner" class="thinkreview-code-suggestions-scroll"></div>
+              </div>
+            </div>
           </div>
           <div id="chat-input-container" class="thinkreview-chat-input-container">
             <textarea id="chat-input" class="thinkreview-chat-input" placeholder="Ask a follow-up question..." maxlength="2000"></textarea>
@@ -521,6 +539,35 @@ async function createIntegratedReviewPanel(patchUrl) {
     });
   }
   
+  // Tab switching for Review | Code Suggestions
+  const tabButtonsContainer = document.getElementById('review-tab-buttons');
+  if (tabButtonsContainer) {
+    tabButtonsContainer.addEventListener('click', (e) => {
+      const btn = e.target.closest('.thinkreview-tab-btn');
+      if (!btn || btn.classList.contains('gl-hidden')) return;
+      const tab = btn.getAttribute('data-tab');
+      if (!tab) return;
+      const panel = document.getElementById('tab-panel-' + tab.replace(/_/g, '-'));
+      if (!panel) return;
+      tabButtonsContainer.querySelectorAll('.thinkreview-tab-btn').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('.thinkreview-tab-panel').forEach((p) => p.classList.remove('active'));
+      btn.classList.add('active');
+      panel.classList.add('active');
+
+      if (tab === 'code-suggestions') {
+        (async () => {
+          try {
+            const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+            analyticsModule.trackUserAction('code_suggestions_tab_clicked', {
+              context: 'integrated_panel',
+              location: 'tab_switch'
+            }).catch(() => {});
+          } catch (_) {}
+        })();
+      }
+    });
+  }
+
   // Add event listener for the refresh button
   const refreshButton = document.getElementById('refresh-review-btn');
   if (refreshButton) {
@@ -1176,10 +1223,25 @@ function submitFeedback(email, feedbackType, aiResponse, mrUrl, rating, addition
 }
 
 /**
+ * Switch to Review tab (where conversation is displayed)
+ */
+function switchToReviewTab() {
+  const reviewTabBtn = document.querySelector('.thinkreview-tab-btn[data-tab="review"]');
+  const reviewPanel = document.getElementById('tab-panel-review');
+  if (reviewTabBtn && reviewPanel) {
+    document.querySelectorAll('.thinkreview-tab-btn').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.thinkreview-tab-panel').forEach((p) => p.classList.remove('active'));
+    reviewTabBtn.classList.add('active');
+    reviewPanel.classList.add('active');
+  }
+}
+
+/**
  * Handles sending a user message.
  * @param {string} messageText - The text of the user's message.
  */
 async function handleSendMessage(messageText) {
+  switchToReviewTab();
   appendToChatLog('user', messageText);
   conversationHistory.push({ role: 'user', content: messageText });
 
@@ -1338,9 +1400,13 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   reviewContent.classList.remove('gl-hidden');
 
   // Update subscription type in header (Free, Lite, Premium, Teams)
+  // Always read from storage (getUserSubscriptionDataThinkReview) - stored by background via REFRESH_USER_DATA_STORAGE / GET_USER_DATA_WITH_SUBSCRIPTION
+  const storage = await chrome.storage.local.get(['userSubscriptionData']);
+  const subscriptionTypeForDisplay = storage.userSubscriptionData?.userSubscriptionType || 'Free';
+
   const subscriptionLabel = document.getElementById('review-subscription-label');
   if (subscriptionLabel) {
-    const raw = (subscriptionType ?? '').toString().trim().toLowerCase();
+    const raw = (subscriptionTypeForDisplay ?? '').toString().trim().toLowerCase();
     let displayName = 'Free';
     if (raw && !raw.includes('free')) {
       if (raw === 'lite') displayName = 'Lite';
@@ -1377,7 +1443,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
           }
         });
       } else {
-        metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionType, modelUsed, isCached);
+        metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionTypeForDisplay, modelUsed, isCached);
       }
     } catch (error) {
       dbgWarn('Failed to load review metadata bar:', error);
@@ -1618,25 +1684,6 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     buttonContent.textContent = shortDisplayText;
     
     staticQuestionButton.appendChild(buttonContent);
-    
-    // Create "New Prompt" badge using the reusable module
-    // Always await the cached promise to ensure deterministic badge creation
-    (async () => {
-      try {
-        // Always await the promise to ensure the module is loaded before accessing createNewBadge
-        const module = await badgeModulePromise;
-        const badgeCreator = module?.createNewBadge || createNewBadge;
-        
-        // Create and append badge if module loaded successfully
-        if (badgeCreator && !staticQuestionButton.querySelector('.thinkreview-new-badge')) {
-          const newBadge = badgeCreator('New Prompt');
-          staticQuestionButton.appendChild(newBadge);
-        }
-      } catch (error) {
-        dbgWarn('Failed to load badge module for button:', error);
-      }
-    })();
-    
     suggestedQuestionsContainer.appendChild(staticQuestionButton);
     
     // Add AI-generated questions (limit to maximum of 3)
@@ -1823,6 +1870,34 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       }
     }
   }, 1000);
+
+  // Handle code suggestions tab (modularized)
+  try {
+    const codeSuggestionsModule = await import('./code-suggestions-tab.js');
+    await codeSuggestionsModule.updateCodeSuggestionsTab({
+      review,
+      patchContent,
+      subscriptionType: subscriptionTypeForDisplay,
+      logger: { dbgLog, dbgWarn },
+      onExplainSuggestion: (suggestion) => {
+        // Build explain message with suggestion context (handleSendMessage switches to Review tab)
+        const parts = ['Can you explain this code suggestion?'];
+        if (suggestion.description) parts.push(suggestion.description);
+        if (suggestion.filePath) {
+          const range = typeof suggestion.startLine === 'number'
+            ? ` lines ${suggestion.startLine}${suggestion.endLine && suggestion.endLine !== suggestion.startLine ? '–' + suggestion.endLine : ''}`
+            : '';
+          parts.push(`File: ${suggestion.filePath}${range}.`);
+        }
+        if (suggestion.suggestedCode) {
+          parts.push('Suggested code:', '```', suggestion.suggestedCode, '```');
+        }
+        handleSendMessage(parts.join('\n'));
+      }
+    });
+  } catch (error) {
+    dbgWarn('Failed to update code suggestions tab:', error);
+  }
 }
 
 /**
