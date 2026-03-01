@@ -101,10 +101,10 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
       const toggleContainer = document.createElement('div');
       toggleContainer.className = 'thinkreview-gitlab-injection-toggle';
       Object.assign(toggleContainer.style, {
-        marginBottom: '16px',
-        padding: '12px',
+        marginBottom: '12px',
+        padding: '8px',
         backgroundColor: '#2a2a2a',
-        borderRadius: '6px',
+        borderRadius: '4px',
         border: '1px solid #3a3a3a'
       });
       
@@ -112,7 +112,7 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
       Object.assign(toggleWrapper.style, {
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
+        gap: '8px',
         cursor: 'pointer',
         userSelect: 'none'
       });
@@ -124,18 +124,18 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
       
       // Load saved preference
       const savedPreference = await chrome.storage.local.get(['gitlabInjectionEnabled']);
-      checkbox.checked = savedPreference.gitlabInjectionEnabled !== false; // Default to true
+      checkbox.checked = savedPreference.gitlabInjectionEnabled === true; // Default to false
       
       Object.assign(checkbox.style, {
-        width: '18px',
-        height: '18px',
+        width: '16px',
+        height: '16px',
         cursor: 'pointer',
         accentColor: '#6b4fbb'
       });
       
       const labelText = document.createElement('span');
       Object.assign(labelText.style, {
-        fontSize: '13px',
+        fontSize: '12px',
         color: '#e0e0e0',
         fontWeight: '500'
       });
@@ -143,11 +143,11 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
       
       const betaBadge = document.createElement('span');
       Object.assign(betaBadge.style, {
-        fontSize: '10px',
-        padding: '2px 6px',
+        fontSize: '9px',
+        padding: '2px 5px',
         backgroundColor: '#8b5cf6',
         color: '#ffffff',
-        borderRadius: '4px',
+        borderRadius: '3px',
         fontWeight: '600',
         textTransform: 'uppercase',
         letterSpacing: '0.5px'
@@ -262,7 +262,7 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
     // Store for GitLab diff injection (content.js will process when on GitLab)
     if (patchContent) {
       const savedPreference = await chrome.storage.local.get(['gitlabInjectionEnabled']);
-      const injectionEnabled = savedPreference.gitlabInjectionEnabled !== false; // Default to true
+      const injectionEnabled = savedPreference.gitlabInjectionEnabled === true; // Default to false
       
       window.__thinkreview_codeSuggestions = {
         suggestions: review.codeSuggestions,
