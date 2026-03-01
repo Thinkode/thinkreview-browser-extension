@@ -47,86 +47,25 @@ function createSVGElement(type, attributes = {}) {
 }
 
 /**
- * Create a checkmark SVG icon
- * @returns {SVGElement}
+ * Debounce function to limit how often a function can fire
+ * @param {Function} func - Function to debounce
+ * @param {number} wait - Milliseconds to wait
+ * @returns {Function} - Debounced function
  */
-function createCheckmarkSVG() {
-  const svg = createSVGElement('svg', {
-    width: '14',
-    height: '14',
-    viewBox: '0 0 24 24',
-    fill: 'none'
-  });
-  const path = createSVGElement('path', {
-    d: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z',
-    fill: 'currentColor'
-  });
-  svg.appendChild(path);
-  return svg;
-}
-
-/**
- * Create an error SVG icon
- * @returns {SVGElement}
- */
-function createErrorSVG() {
-  const svg = createSVGElement('svg', {
-    width: '14',
-    height: '14',
-    viewBox: '0 0 24 24',
-    fill: 'none'
-  });
-  const path = createSVGElement('path', {
-    d: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z',
-    fill: 'currentColor'
-  });
-  svg.appendChild(path);
-  return svg;
-}
-
-// Import copy button utility
-let copyButtonUtils = null;
-async function loadCopyButtonUtils() {
-  if (!copyButtonUtils) {
-    const module = await import('../components/utils/item-copy-button.js');
-    copyButtonUtils = {
-      createCopyButton: module.createCopyButton,
-      showCopySuccessFeedback: (button) => {
-        // Store original content
-        const originalContent = Array.from(button.childNodes);
-        
-        // Clear and add checkmark SVG
-        button.textContent = '';
-        button.appendChild(createCheckmarkSVG());
-        button.classList.add('thinkreview-copy-success');
-        
-        setTimeout(() => {
-          // Restore original content
-          button.textContent = '';
-          originalContent.forEach(node => button.appendChild(node.cloneNode(true)));
-          button.classList.remove('thinkreview-copy-success');
-        }, 2000);
-      },
-      showCopyErrorFeedback: (button) => {
-        // Store original content
-        const originalContent = Array.from(button.childNodes);
-        
-        // Clear and add error SVG
-        button.textContent = '';
-        button.appendChild(createErrorSVG());
-        button.classList.add('thinkreview-copy-error');
-        
-        setTimeout(() => {
-          // Restore original content
-          button.textContent = '';
-          originalContent.forEach(node => button.appendChild(node.cloneNode(true)));
-          button.classList.remove('thinkreview-copy-error');
-        }, 2000);
-      }
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
     };
-  }
-  return copyButtonUtils;
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
 }
+
+// Import copy button utilities directly
+import { createCopyButton, showCopySuccessFeedback, showCopyErrorFeedback } from '../components/utils/item-copy-button.js';
 
 /**
  * Parse patch content to build a mapping of file paths to line number ranges
@@ -626,7 +565,7 @@ function findLineInContainer(container, filePath, lineNumber) {
                        !container.querySelector('.diff-content, .file-content, table.diff-file');
     
     if (isCollapsed) {
-      dbgLog(`File ${filePath} appears to be collapsed/not expanded, skipping line ${lineNumber}`);
+      dbgLog(`File ${filePath} appears to be collapsed/not expanded (GitLab virtual scrolling). User needs to expand the file first. Skipping line ${lineNumber}`);
       return null; // Return null to indicate we should skip this injection
     }
     
@@ -766,32 +705,6 @@ async function showSuggestionDialog(suggestion, markerElement) {
   const backdrop = document.createElement('div');
   backdrop.className = 'thinkreview-suggestion-backdrop';
   
-  // Start periodic check to see if dialog/markers are still in DOM
-  const checkInterval = setInterval(() => {
-    const dialogExists = document.querySelector('.thinkreview-suggestion-backdrop');
-    const markerCount = document.querySelectorAll('.thinkreview-suggestion-marker').length;
-    
-    dbgLog(`Periodic check: dialog exists=${!!dialogExists}, markers=${markerCount}, currentOpenDialog=${!!currentOpenDialog}`);
-    
-    if (!dialogExists && currentOpenDialog) {
-      dbgLog('Dialog disappeared, checking markers...');
-      if (markerCount === 0 && lastInjectedSuggestions?.length > 0) {
-        dbgLog('Both dialog and markers disappeared, triggering re-inject');
-        clearInterval(checkInterval);
-        scheduleReinject();
-      }
-    }
-    
-    // Stop checking if dialog was explicitly closed
-    if (!currentOpenDialog) {
-      dbgLog('Dialog was closed by user, stopping periodic check');
-      clearInterval(checkInterval);
-    }
-  }, 1000);
-  
-  // Store interval ID so we can clear it when dialog is closed
-  backdrop.dataset.checkIntervalId = checkInterval;
-  
   // Create dialog container
   const dialog = document.createElement('div');
   dialog.className = 'thinkreview-suggestion-dialog';
@@ -835,8 +748,7 @@ async function showSuggestionDialog(suggestion, markerElement) {
   footer.className = 'thinkreview-dialog-footer';
   
   // Add copy button
-  const utils = await loadCopyButtonUtils();
-  const copyButton = utils.createCopyButton();
+  const copyButton = createCopyButton();
   copyButton.className = 'thinkreview-dialog-copy-btn';
   copyButton.title = 'Copy code suggestion';
   
@@ -872,10 +784,10 @@ async function showSuggestionDialog(suggestion, markerElement) {
     try {
       await navigator.clipboard.writeText(textToCopy);
       dbgLog('Copied suggestion in GitLab format to clipboard');
-      utils.showCopySuccessFeedback(copyButton);
+      showCopySuccessFeedback(copyButton);
     } catch (err) {
       dbgWarn('Failed to copy suggestion to clipboard', err);
-      utils.showCopyErrorFeedback(copyButton);
+      showCopyErrorFeedback(copyButton);
     }
   });
   
@@ -889,12 +801,6 @@ async function showSuggestionDialog(suggestion, markerElement) {
   
   // Close handlers
   const closeDialog = () => {
-    // Clear periodic check interval
-    const intervalId = backdrop.dataset.checkIntervalId;
-    if (intervalId) {
-      clearInterval(parseInt(intervalId));
-    }
-    
     backdrop.remove();
     // Clear the current dialog state when user explicitly closes it
     currentOpenDialog = null;
@@ -923,7 +829,76 @@ async function showSuggestionDialog(suggestion, markerElement) {
 }
 
 /**
- * Inject a suggestion marker into GitLab's diff view
+ * Inject a suggestion marker into a specific line element (optimized path)
+ * @param {Object} suggestion - The code suggestion object
+ * @param {HTMLElement} lineElement - The line element to inject into
+ * @returns {Promise<boolean>} - Promise that resolves to true if injection was successful
+ */
+async function injectSuggestionIntoLineElement(suggestion, lineElement) {
+  const { filePath, startLine } = suggestion;
+  
+  dbgLog(`[Inject] Injecting suggestion marker for ${filePath} at line ${startLine} (optimized path)`);
+  
+  // Find the line holder (row) that contains this line
+  let lineHolder = lineElement;
+  if (!lineElement.classList.contains('line_holder') && !lineElement.classList.contains('diff-grid-row')) {
+    lineHolder = lineElement.closest('.line_holder, .diff-grid-row, tr');
+  }
+  
+  if (!lineHolder) {
+    dbgLog('Could not find line holder, falling back to line element');
+    lineHolder = lineElement;
+  }
+  
+  // Check if a marker already exists for this line
+  const existingMarker = lineHolder.querySelector('.thinkreview-suggestion-marker');
+  if (existingMarker) {
+    dbgLog(`Marker already exists for ${filePath}:${startLine}, skipping`);
+    return true;
+  }
+  
+  // Find the line number cell (new/right side)
+  const lineNumberCell = lineHolder.querySelector(
+    '.diff-td.line_number.new, .diff-td.line_number:last-of-type, ' +
+    'td.line_number.new, td.line_number:last-of-type, ' +
+    'td.new_line, .new_line, ' +
+    '[class*="line-number"]:last-of-type'
+  );
+  
+  if (!lineNumberCell) {
+    dbgLog('Could not find line number cell, skipping marker injection');
+    return false;
+  }
+  
+  // Create the suggestion marker
+  const marker = document.createElement('span');
+  marker.className = 'thinkreview-suggestion-marker';
+  marker.title = 'Click to view ThinkReview code suggestion';
+  
+  // ThinkReview logo
+  const logo = document.createElement('img');
+  logo.src = chrome.runtime.getURL('images/icon16.png');
+  logo.alt = 'ThinkReview';
+  logo.className = 'thinkreview-marker-logo';
+  
+  marker.appendChild(logo);
+  
+  // Click handler to show dialog
+  marker.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    await showSuggestionDialog(suggestion, marker);
+  });
+  
+  // Insert marker into the line number cell
+  lineNumberCell.appendChild(marker);
+  
+  dbgLog(`Successfully injected suggestion marker for ${filePath}:${startLine}`);
+  return true;
+}
+
+/**
+ * Inject a suggestion marker into GitLab's diff view (fallback with comprehensive search)
  * @param {Object} suggestion - The code suggestion object with filePath, startLine/endLine, suggestedCode
  * @returns {Promise<boolean>} - Promise that resolves to true if injection was successful
  */
@@ -1048,85 +1023,48 @@ async function injectSuggestionIntoLine(suggestion) {
  */
 function waitForGitLabDiffView() {
   return new Promise((resolve) => {
-    // Check if diff container already exists
-    const diffContainer = findGitLabDiffContainer();
-    if (diffContainer) {
-      // Check if it has file containers
-      const fileContainers = diffContainer.querySelectorAll('.file-holder, .diff-file, table.diff-file');
-      if (fileContainers.length > 0) {
-        dbgLog('Diff view already loaded');
-        resolve();
-        return;
-      }
-    }
-
-    // Wait for diff container to appear
-    let attempts = 0;
-    const maxAttempts = 30; // 15 seconds max (increased)
-    const checkInterval = 500; // Check every 500ms
-
-    const checkForDiff = () => {
-      attempts++;
-      const container = findGitLabDiffContainer();
-      if (container && container !== document.body) {
-        // Try multiple selectors for file containers
-        const fileContainers = container.querySelectorAll(
-          '.file-holder, .diff-file, table.diff-file, .file-content, .js-diff-file, [data-path], table[data-path]'
-        );
-        if (fileContainers.length > 0) {
-          dbgLog(`Diff view loaded after ${attempts * checkInterval}ms with ${fileContainers.length} file containers`);
-          observer.disconnect();
-          resolve();
-          return;
-        }
-      }
-      
-      // Also check if we can find any file containers in the entire document
+    // Helper function to check if diff view is ready
+    const checkDiffViewReady = () => {
+      // First try to find file containers in the entire document
       const anyFileContainers = document.querySelectorAll(
         '.file-holder, .diff-file, table.diff-file, [data-path], .js-diff-file'
       );
+      
       if (anyFileContainers.length > 0) {
-        dbgLog(`Found ${anyFileContainers.length} file containers in document after ${attempts * checkInterval}ms`);
-        observer.disconnect();
-        resolve();
-        return;
+        dbgLog(`Diff view ready: found ${anyFileContainers.length} file containers`);
+        return true;
       }
-
-      if (attempts >= maxAttempts) {
-        dbgWarn(`Timeout waiting for GitLab diff view after ${attempts * checkInterval}ms`);
-        // Log what we found for debugging
-        const container = findGitLabDiffContainer();
-        if (container) {
-          dbgLog(`Container found but no file containers. Container classes: ${container.className}`);
-        }
-        observer.disconnect();
-        resolve(); // Resolve anyway to continue
-        return;
-      }
-
-      setTimeout(checkForDiff, checkInterval);
-    };
-
-    // Use MutationObserver to watch for DOM changes
-    const observer = new MutationObserver((mutations) => {
-      const container = findGitLabDiffContainer();
-      if (container && container !== document.body) {
-        const fileContainers = container.querySelectorAll(
+      
+      // Also check if diff container exists with file containers
+      const diffContainer = findGitLabDiffContainer();
+      if (diffContainer && diffContainer !== document.body) {
+        const fileContainers = diffContainer.querySelectorAll(
           '.file-holder, .diff-file, table.diff-file, .file-content, .js-diff-file, [data-path]'
         );
         if (fileContainers.length > 0) {
-          dbgLog(`Diff view detected via MutationObserver with ${fileContainers.length} file containers`);
-          observer.disconnect();
-          resolve();
+          dbgLog(`Diff view ready: found ${fileContainers.length} file containers in diff container`);
+          return true;
         }
       }
       
-      // Also check document-wide
-      const anyFileContainers = document.querySelectorAll(
-        '.file-holder, .diff-file, table.diff-file, [data-path], .js-diff-file'
-      );
-      if (anyFileContainers.length > 0) {
-        dbgLog(`File containers detected via MutationObserver: ${anyFileContainers.length}`);
+      return false;
+    };
+
+    // Check if diff view is already ready
+    if (checkDiffViewReady()) {
+      dbgLog('Diff view already loaded');
+      resolve();
+      return;
+    }
+
+    const timeout = 15000; // 15 seconds max
+    let timeoutId;
+
+    // Use MutationObserver to watch for DOM changes
+    const observer = new MutationObserver((mutations) => {
+      if (checkDiffViewReady()) {
+        dbgLog('Diff view detected via MutationObserver');
+        clearTimeout(timeoutId);
         observer.disconnect();
         resolve();
       }
@@ -1138,13 +1076,12 @@ function waitForGitLabDiffView() {
       subtree: true
     });
 
-    // Also start polling as fallback
-    checkForDiff();
-
-    // Cleanup observer after max attempts
-    setTimeout(() => {
+    // Set timeout for cleanup
+    timeoutId = setTimeout(() => {
+      dbgWarn(`Timeout waiting for GitLab diff view after ${timeout}ms`);
       observer.disconnect();
-    }, maxAttempts * checkInterval);
+      resolve(); // Resolve anyway to continue
+    }, timeout);
   });
 }
 
@@ -1153,8 +1090,16 @@ function waitForGitLabDiffView() {
  */
 function containsOurSuggestions(node) {
   if (!node || node.nodeType !== 1) return false; // Element nodes only
-  return node.classList?.contains('thinkreview-suggestion-marker') ||
-    !!node.querySelector?.('.thinkreview-suggestion-marker');
+  
+  const hasMarkerClass = node.classList?.contains('thinkreview-suggestion-marker');
+  const hasMarkerChild = !!node.querySelector?.('.thinkreview-suggestion-marker');
+  
+  if (hasMarkerClass || hasMarkerChild) {
+    dbgLog(`Found marker in removed node: ${node.tagName}.${node.className || 'no-class'}`);
+    return true;
+  }
+  
+  return false;
 }
 
 /**
@@ -1286,7 +1231,7 @@ function setupDialogObserver() {
 
 /**
  * Set up observer to detect when our suggestion markers are removed and re-inject.
- * Observes the parent of diff container to catch container replacements.
+ * Observes the diff container with debounced handler to prevent excessive re-injections.
  */
 function setupReinjectObserver() {
   if (reinjectObserver) {
@@ -1294,43 +1239,103 @@ function setupReinjectObserver() {
     reinjectObserver = null;
   }
 
-  // Find the diff container's parent to observe (catches container replacement)
+  // Find the diff container to observe
   const diffContainer = findGitLabDiffContainer();
-  let observeTarget = document.body;
-  let targetDesc = 'document.body (fallback)';
-  
-  if (diffContainer && diffContainer.parentElement) {
-    // Observe the parent so we can detect when the container itself is replaced
-    observeTarget = diffContainer.parentElement;
-    targetDesc = `parent of diff container (${diffContainer.parentElement.tagName}.${diffContainer.parentElement.className || 'no-class'})`;
-    dbgLog(`Found diff container parent for observation: ${targetDesc}`);
-  } else if (diffContainer) {
-    // If no parent, observe the container itself with subtree
-    observeTarget = diffContainer;
-    targetDesc = 'diff container itself';
-    dbgLog('Diff container has no parent, observing container itself');
-  } else {
-    dbgWarn('Could not find diff container for observer, falling back to document.body');
+  if (!diffContainer) {
+    dbgWarn('Could not find diff container for observer');
+    return;
   }
+  
+  dbgLog(`Setting up observer on diff container: ${diffContainer.tagName}.${diffContainer.className || 'no-class'}`);
+
+  // Handler to check for marker removal
+  const checkForMarkerRemoval = (mutations) => {
+    const markersRemoved = mutations.some(m =>
+      Array.from(m.removedNodes).some(node => containsOurSuggestions(node))
+    );
+
+    if (markersRemoved && !isReinjecting) {
+      dbgLog('Detected removal of suggestion markers');
+      scheduleReinject();
+    }
+  };
+
+  // Debounced handler to prevent excessive re-injections during rapid DOM changes
+  const debouncedCheckForMarkerRemoval = debounce(checkForMarkerRemoval, 250);
 
   reinjectObserver = new MutationObserver((mutations) => {
-    // Check for removed nodes containing markers
-    for (const mutation of mutations) {
-      for (const node of mutation.removedNodes || []) {
-        if (containsOurSuggestions(node)) {
-          dbgLog('Detected removal of node containing suggestion markers');
-          scheduleReinject();
-          return;
+    // Always log mutations for debugging
+    dbgLog(`Observer detected ${mutations.length} mutations`);
+    
+    // Check current marker count
+    const currentMarkerCount = document.querySelectorAll('.thinkreview-suggestion-marker').length;
+    dbgLog(`Current marker count: ${currentMarkerCount}`);
+    
+    // Log mutation details
+    const hasRemovals = mutations.some(m => m.removedNodes.length > 0);
+    const hasAdditions = mutations.some(m => m.addedNodes.length > 0);
+    
+    if (hasRemovals) {
+      dbgLog(`Mutations include ${mutations.filter(m => m.removedNodes.length > 0).length} with removed nodes`);
+      // Log what was removed
+      mutations.forEach((m, idx) => {
+        if (m.removedNodes.length > 0) {
+          dbgLog(`  Mutation ${idx}: removed ${m.removedNodes.length} nodes from ${m.target.tagName}.${m.target.className || 'no-class'}`);
         }
+      });
+    }
+    
+    if (hasAdditions) {
+      dbgLog(`Mutations include ${mutations.filter(m => m.addedNodes.length > 0).length} with added nodes`);
+    }
+    
+    // Check for marker removal
+    debouncedCheckForMarkerRemoval(mutations);
+    
+    // Also check if new file containers were added (for collapsed files that get expanded)
+    if (hasAdditions && lastInjectedSuggestions?.length > 0) {
+      // Check if any previously failed suggestions can now be injected
+      if (currentMarkerCount < lastInjectedSuggestions.length) {
+        dbgLog('New content detected, checking for previously collapsed files...');
+        // Debounce this as well to avoid excessive re-injection attempts
+        setTimeout(() => {
+          if (!isReinjecting) {
+            dbgLog('Attempting to inject into newly expanded files...');
+            scheduleReinject();
+          }
+        }, 500);
       }
     }
   });
 
-  reinjectObserver.observe(observeTarget, { childList: true, subtree: true });
-  dbgLog(`Re-inject observer active on ${targetDesc}`);
+  // Observe the diff container specifically
+  reinjectObserver.observe(diffContainer, { childList: true, subtree: true });
+  dbgLog('Re-inject observer active with debounced handler (250ms)');
   
   // Set up separate observer for dialog on document.body
   setupDialogObserver();
+  
+  // Fallback: periodic check for marker count (in case GitLab hides markers without removing them)
+  let lastKnownMarkerCount = document.querySelectorAll('.thinkreview-suggestion-marker').length;
+  const periodicCheck = setInterval(() => {
+    const currentCount = document.querySelectorAll('.thinkreview-suggestion-marker').length;
+    
+    if (currentCount !== lastKnownMarkerCount) {
+      dbgLog(`Periodic check: marker count changed from ${lastKnownMarkerCount} to ${currentCount}`);
+      
+      if (currentCount === 0 && lastKnownMarkerCount > 0 && lastInjectedSuggestions?.length > 0) {
+        dbgLog('All markers disappeared (detected by periodic check), scheduling re-inject');
+        scheduleReinject();
+      }
+      
+      lastKnownMarkerCount = currentCount;
+    }
+  }, 1000);
+  
+  // Store interval ID for cleanup
+  if (!window.__thinkreview_periodicCheckInterval) {
+    window.__thinkreview_periodicCheckInterval = periodicCheck;
+  }
 }
 
 /**
@@ -1345,22 +1350,54 @@ export async function injectCodeSuggestions(suggestions, patchContent) {
     return { success: 0, failed: 0 };
   }
 
+  dbgLog(`Starting injection of ${suggestions.length} suggestions`);
   ensureGitLabInjectedStylesLoaded();
 
   // Wait for GitLab's diff view to be fully loaded
+  dbgLog('Waiting for GitLab diff view to be ready...');
   await waitForGitLabDiffView();
+  dbgLog('GitLab diff view is ready');
   
   // Additional wait for all content to render
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 300));
 
-  const diffContainer = findGitLabDiffContainer();
-  if (!diffContainer) {
-    dbgWarn('GitLab diff container not found, cannot inject suggestions');
-    return { success: 0, failed: suggestions.length };
+  // Pre-cache all file containers by data-path for optimized lookup
+  let allContainers = getAllFileContainers();
+  dbgLog(`Found ${allContainers.length} total file containers`);
+  
+  // If no containers found, wait a bit more and retry
+  if (allContainers.length === 0) {
+    dbgLog('No file containers found on first attempt, waiting and retrying...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    allContainers = getAllFileContainers();
+    dbgLog(`After retry: Found ${allContainers.length} file containers`);
+    
+    if (allContainers.length === 0) {
+      dbgWarn('No file containers found after retry, exiting early');
+      return { success: 0, failed: suggestions.length };
+    }
+  }
+  
+  const containerMap = new Map();
+  
+  allContainers.forEach(container => {
+    const path = container.getAttribute('data-path');
+    if (path) {
+      containerMap.set(path, container);
+    }
+  });
+  
+  dbgLog(`Pre-cached ${containerMap.size} file containers by data-path`);
+  
+  // Log available file paths for debugging
+  if (containerMap.size > 0) {
+    const paths = Array.from(containerMap.keys()).slice(0, 5);
+    dbgLog(`Sample file paths: ${paths.join(', ')}${containerMap.size > 5 ? '...' : ''}`);
   }
 
   let successCount = 0;
   let failedCount = 0;
+  let skippedCollapsed = 0;
 
   for (const suggestion of suggestions) {
     const hasStart = typeof suggestion.startLine === 'number' && suggestion.startLine >= 1;
@@ -1371,23 +1408,112 @@ export async function injectCodeSuggestions(suggestions, patchContent) {
       continue;
     }
 
-    const success = await injectSuggestionIntoLine(suggestion);
-    if (success) {
-      successCount++;
+    // Use optimized lookup with containerMap
+    const container = containerMap.get(suggestion.filePath);
+    if (container) {
+      // Check if file is collapsed before attempting injection
+      const isCollapsed = container.classList.contains('diff-file-row') || 
+                         container.classList.contains('tree-list-parent') ||
+                         !container.querySelector('.diff-content, .file-content, table.diff-file');
+      
+      if (isCollapsed) {
+        dbgLog(`Skipping ${suggestion.filePath}:${suggestion.startLine} - file is collapsed`);
+        skippedCollapsed++;
+        continue;
+      }
+      
+      // Use specific, stable selectors for line lookup
+      const lineElement = container.querySelector(
+        `[data-new-line-number="${suggestion.startLine}"], [data-linenumber="${suggestion.startLine}"]`
+      );
+      
+      if (lineElement) {
+        const success = await injectSuggestionIntoLineElement(suggestion, lineElement);
+        if (success) {
+          successCount++;
+        } else {
+          failedCount++;
+        }
+      } else {
+        // Fallback to the original comprehensive search
+        const success = await injectSuggestionIntoLine(suggestion);
+        if (success) {
+          successCount++;
+        } else {
+          failedCount++;
+        }
+      }
     } else {
-      failedCount++;
+      // Fallback to the original comprehensive search
+      const success = await injectSuggestionIntoLine(suggestion);
+      if (success) {
+        successCount++;
+      } else {
+        failedCount++;
+      }
     }
   }
 
-  if (successCount > 0) {
-    lastInjectedSuggestions = suggestions;
-    lastPatchContent = patchContent || '';
-    setupReinjectObserver();
-  }
+  // Always store suggestions and setup observer, even if some failed
+  lastInjectedSuggestions = suggestions;
+  lastPatchContent = patchContent || '';
+  setupReinjectObserver();
 
-  dbgLog(`Injection complete: ${successCount} successful, ${failedCount} failed`);
-  return { success: successCount, failed: failedCount };
+  // Verify markers were actually injected
+  const actualMarkerCount = document.querySelectorAll('.thinkreview-suggestion-marker').length;
+  dbgLog(`Actual markers in DOM: ${actualMarkerCount}`);
+
+  if (skippedCollapsed > 0) {
+    dbgLog(`Injection complete: ${successCount} successful, ${failedCount} failed, ${skippedCollapsed} skipped (collapsed files)`);
+    dbgLog('Collapsed files will be injected automatically when expanded');
+  } else {
+    dbgLog(`Injection complete: ${successCount} successful, ${failedCount} failed`);
+  }
+  
+  return { success: successCount, failed: failedCount, skipped: skippedCollapsed };
 }
+
+// Memory management: cleanup observers on window unload
+window.addEventListener('unload', () => {
+  if (reinjectObserver) {
+    reinjectObserver.disconnect();
+    reinjectObserver = null;
+  }
+  if (dialogObserver) {
+    dialogObserver.disconnect();
+    dialogObserver = null;
+  }
+  if (window.__thinkreview_periodicCheckInterval) {
+    clearInterval(window.__thinkreview_periodicCheckInterval);
+    window.__thinkreview_periodicCheckInterval = null;
+  }
+  dbgLog('Cleaned up observers and intervals on window unload');
+});
+
+// Also cleanup when tab becomes hidden (for long-lived GitLab sessions)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (reinjectObserver) {
+      reinjectObserver.disconnect();
+      dbgLog('Disconnected reinject observer (tab hidden)');
+    }
+    if (dialogObserver) {
+      dialogObserver.disconnect();
+      dbgLog('Disconnected dialog observer (tab hidden)');
+    }
+    if (window.__thinkreview_periodicCheckInterval) {
+      clearInterval(window.__thinkreview_periodicCheckInterval);
+      window.__thinkreview_periodicCheckInterval = null;
+      dbgLog('Cleared periodic check interval (tab hidden)');
+    }
+  } else {
+    // Re-setup observers when tab becomes visible again
+    if (lastInjectedSuggestions?.length > 0) {
+      setupReinjectObserver();
+      dbgLog('Re-setup observers (tab visible)');
+    }
+  }
+});
 
 // Export helper functions for testing
 export { parsePatchLineMapping, findGitLabDiffLine, createSuggestionBlock };
