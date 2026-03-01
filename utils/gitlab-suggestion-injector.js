@@ -361,11 +361,11 @@ function findLineInContainer(container, filePath, lineNumber) {
   }
 
   const lineSelectors = [
-    `[data-line-number="${lineNumber}"]`, `[data-new-line="${lineNumber}"]`,
-    `[data-new-line-number="${lineNumber}"]`, `[data-linenumber="${lineNumber}"]`,
-    `.line_holder[data-linenumber="${lineNumber}"]`, `tr[data-new-line-number="${lineNumber}"]`,
-    `td[data-linenumber="${lineNumber}"]`, `td[data-line-number="${lineNumber}"]`,
-    `[data-qa-line-number="${lineNumber}"]`
+    `[data-interop-new-line="${lineNumber}"]`, `[data-line-number="${lineNumber}"]`,
+    `[data-new-line="${lineNumber}"]`, `[data-new-line-number="${lineNumber}"]`,
+    `[data-linenumber="${lineNumber}"]`, `.line_holder[data-linenumber="${lineNumber}"]`,
+    `tr[data-new-line-number="${lineNumber}"]`, `td[data-linenumber="${lineNumber}"]`,
+    `td[data-line-number="${lineNumber}"]`, `[data-qa-line-number="${lineNumber}"]`
   ];
   for (const selector of lineSelectors) {
     const lineElement = container.querySelector(selector);
@@ -381,10 +381,13 @@ function findLineInContainer(container, filePath, lineNumber) {
     }
   }
 
-  const allElementsWithData = container.querySelectorAll('[data-line-number], [data-new-line], [data-linenumber], [data-new-line-number]');
+  const allElementsWithData = container.querySelectorAll(
+    '[data-line-number], [data-new-line], [data-linenumber], [data-new-line-number], [data-interop-new-line], [data-interop-line]'
+  );
   dbgLog(`Found ${allElementsWithData.length} elements with line number data attributes`);
   for (const element of allElementsWithData) {
-    const dataLine = element.getAttribute('data-line-number') || element.getAttribute('data-new-line') ||
+    const dataLine = element.getAttribute('data-interop-new-line') || element.getAttribute('data-interop-line') ||
+                    element.getAttribute('data-line-number') || element.getAttribute('data-new-line') ||
                     element.getAttribute('data-linenumber') || element.getAttribute('data-new-line-number');
     const dataLineNum = parseInt(dataLine, 10);
     if (!isNaN(dataLineNum) && dataLineNum === lineNumber) {
@@ -393,9 +396,12 @@ function findLineInContainer(container, filePath, lineNumber) {
     }
   }
 
-  const elementsWithLineData = container.querySelectorAll('[data-line-number], [data-new-line], [data-linenumber], [data-new-line-number]');
+  const elementsWithLineData = container.querySelectorAll(
+    '[data-line-number], [data-new-line], [data-linenumber], [data-new-line-number], [data-interop-new-line], [data-interop-line]'
+  );
   for (const element of elementsWithLineData) {
-    const dataLine = element.getAttribute('data-line-number') || element.getAttribute('data-new-line') ||
+    const dataLine = element.getAttribute('data-interop-new-line') || element.getAttribute('data-interop-line') ||
+                    element.getAttribute('data-line-number') || element.getAttribute('data-new-line') ||
                     element.getAttribute('data-linenumber') || element.getAttribute('data-new-line-number');
     const dataLineNum = parseInt(dataLine, 10);
     if (!isNaN(dataLineNum) && dataLineNum === lineNumber) {
@@ -424,7 +430,8 @@ function findLineInContainer(container, filePath, lineNumber) {
   allLines = allLines.filter((line) => {
     const hasTd = line.querySelectorAll('td').length > 0;
     const hasData = line.hasAttribute('data-line-number') || line.hasAttribute('data-new-line') ||
-                   line.hasAttribute('data-linenumber') || line.hasAttribute('data-new-line-number');
+                   line.hasAttribute('data-linenumber') || line.hasAttribute('data-new-line-number') ||
+                   line.hasAttribute('data-interop-new-line') || line.hasAttribute('data-interop-line');
     const hasText = /\d+/.test(line.textContent || '');
     return hasTd || hasData || hasText;
   });
@@ -454,7 +461,8 @@ function findLineInContainer(container, filePath, lineNumber) {
   }
 
   for (const line of allLines) {
-    const lineDataNum = line.getAttribute('data-linenumber') || line.getAttribute('data-line-number') ||
+    const lineDataNum = line.getAttribute('data-interop-new-line') || line.getAttribute('data-interop-line') ||
+                       line.getAttribute('data-linenumber') || line.getAttribute('data-line-number') ||
                        line.getAttribute('data-new-line') || line.getAttribute('data-new-line-number') ||
                        line.getAttribute('data-line');
     const lineDataNumParsed = parseInt(lineDataNum, 10);
@@ -463,9 +471,12 @@ function findLineInContainer(container, filePath, lineNumber) {
       return line;
     }
 
-    const childElementsWithLineData = line.querySelectorAll('[data-linenumber], [data-line-number], [data-new-line], [data-new-line-number]');
+    const childElementsWithLineData = line.querySelectorAll(
+      '[data-linenumber], [data-line-number], [data-new-line], [data-new-line-number], [data-interop-new-line], [data-interop-line]'
+    );
     for (const child of childElementsWithLineData) {
-      const childDataLine = child.getAttribute('data-linenumber') || child.getAttribute('data-line-number') ||
+      const childDataLine = child.getAttribute('data-interop-new-line') || child.getAttribute('data-interop-line') ||
+                           child.getAttribute('data-linenumber') || child.getAttribute('data-line-number') ||
                            child.getAttribute('data-new-line') || child.getAttribute('data-new-line-number');
       const childDataLineNum = parseInt(childDataLine, 10);
       if (!isNaN(childDataLineNum) && childDataLineNum === lineNumber) {
@@ -486,7 +497,8 @@ function findLineInContainer(container, filePath, lineNumber) {
         dbgLog(`Found line element for ${filePath}:${lineNumber} (td text match: "${tdText}")`);
         return line;
       }
-      const tdDataLine = td.getAttribute('data-linenumber') || td.getAttribute('data-line-number') ||
+      const tdDataLine = td.getAttribute('data-interop-new-line') || td.getAttribute('data-interop-line') ||
+                        td.getAttribute('data-linenumber') || td.getAttribute('data-line-number') ||
                         td.getAttribute('data-new-line') || td.getAttribute('data-new-line-number') ||
                         td.getAttribute('data-line');
       const tdDataLineParsed = parseInt(tdDataLine, 10);
@@ -504,7 +516,8 @@ function findLineInContainer(container, filePath, lineNumber) {
         dbgLog(`Found line element for ${filePath}:${lineNumber} (div text: "${divText}")`);
         return line;
       }
-      const divDataLine = div.getAttribute('data-linenumber') || div.getAttribute('data-line-number') ||
+      const divDataLine = div.getAttribute('data-interop-new-line') || div.getAttribute('data-interop-line') ||
+                         div.getAttribute('data-linenumber') || div.getAttribute('data-line-number') ||
                          div.getAttribute('data-new-line') || div.getAttribute('data-new-line-number') ||
                          div.getAttribute('data-line');
       const divDataLineParsed = parseInt(divDataLine, 10);
@@ -532,7 +545,9 @@ function findLineInContainer(container, filePath, lineNumber) {
           dbgLog(`Found line element for ${filePath}:${lineNumber} (exact text match: "${lineNumText}")`);
           return line;
         }
-        const dataLineNum = lineNumElement.getAttribute('data-linenumber') ||
+        const dataLineNum = lineNumElement.getAttribute('data-interop-new-line') ||
+                           lineNumElement.getAttribute('data-interop-line') ||
+                           lineNumElement.getAttribute('data-linenumber') ||
                            lineNumElement.getAttribute('data-line-number') ||
                            lineNumElement.getAttribute('data-new-line') ||
                            lineNumElement.getAttribute('data-new-line-number') ||
