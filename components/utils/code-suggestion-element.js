@@ -51,8 +51,14 @@ export function createCodeSuggestionElement(suggestion) {
     lineSpan.style.color = '#e9730c';
     lineSpan.textContent = ` — lines ${start}${end !== start ? '–' + end : ''}`;
 
+    const approxSpan = document.createElement('span');
+    approxSpan.style.color = '#9ca3af';
+    approxSpan.style.fontStyle = 'italic';
+    approxSpan.textContent = ' (line numbers might have a slight offset)';
+
     meta.appendChild(fileSpan);
     meta.appendChild(lineSpan);
+    meta.appendChild(approxSpan);
     suggestionElement.appendChild(meta);
   }
 
