@@ -1211,10 +1211,25 @@ function submitFeedback(email, feedbackType, aiResponse, mrUrl, rating, addition
 }
 
 /**
+ * Switch to Review tab (where conversation is displayed)
+ */
+function switchToReviewTab() {
+  const reviewTabBtn = document.querySelector('.thinkreview-tab-btn[data-tab="review"]');
+  const reviewPanel = document.getElementById('tab-panel-review');
+  if (reviewTabBtn && reviewPanel) {
+    document.querySelectorAll('.thinkreview-tab-btn').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.thinkreview-tab-panel').forEach((p) => p.classList.remove('active'));
+    reviewTabBtn.classList.add('active');
+    reviewPanel.classList.add('active');
+  }
+}
+
+/**
  * Handles sending a user message.
  * @param {string} messageText - The text of the user's message.
  */
 async function handleSendMessage(messageText) {
+  switchToReviewTab();
   appendToChatLog('user', messageText);
   conversationHistory.push({ role: 'user', content: messageText });
 
@@ -1848,16 +1863,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       patchContent,
       logger: { dbgLog, dbgWarn },
       onExplainSuggestion: (suggestion) => {
-        // Switch to Review tab
-        const reviewTabBtn = document.querySelector('.thinkreview-tab-btn[data-tab="review"]');
-        const reviewPanel = document.getElementById('tab-panel-review');
-        if (reviewTabBtn && reviewPanel) {
-          document.querySelectorAll('.thinkreview-tab-btn').forEach((b) => b.classList.remove('active'));
-          document.querySelectorAll('.thinkreview-tab-panel').forEach((p) => p.classList.remove('active'));
-          reviewTabBtn.classList.add('active');
-          reviewPanel.classList.add('active');
-        }
-        // Build explain message with suggestion context
+        // Build explain message with suggestion context (handleSendMessage switches to Review tab)
         const parts = ['Can you explain this code suggestion?'];
         if (suggestion.description) parts.push(suggestion.description);
         if (suggestion.filePath) {
