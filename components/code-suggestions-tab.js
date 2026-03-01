@@ -68,9 +68,9 @@ export async function updateCodeSuggestionsTab({ review, patchContent, logger = 
           }
         });
         el.appendChild(copyBtn);
-        // Wrap in suggestion-area div to match injector styling (dark bg, purple border)
+        // Wrap in suggestion-tab-item div (separate class from diff injection to avoid reinject conflicts)
         const wrapper = document.createElement('div');
-        wrapper.className = 'thinkreview-suggestion-area';
+        wrapper.className = 'thinkreview-suggestion-tab-item';
         Object.assign(wrapper.style, {
           marginTop: '8px',
           padding: '8px',
