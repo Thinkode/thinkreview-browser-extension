@@ -1388,9 +1388,13 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   reviewContent.classList.remove('gl-hidden');
 
   // Update subscription type in header (Free, Lite, Premium, Teams)
+  // Always read from storage (getUserSubscriptionDataThinkReview) - stored by background via REFRESH_USER_DATA_STORAGE / GET_USER_DATA_WITH_SUBSCRIPTION
+  const storage = await chrome.storage.local.get(['userSubscriptionData']);
+  const subscriptionTypeForDisplay = storage.userSubscriptionData?.userSubscriptionType || 'Free';
+
   const subscriptionLabel = document.getElementById('review-subscription-label');
   if (subscriptionLabel) {
-    const raw = (subscriptionType ?? '').toString().trim().toLowerCase();
+    const raw = (subscriptionTypeForDisplay ?? '').toString().trim().toLowerCase();
     let displayName = 'Free';
     if (raw && !raw.includes('free')) {
       if (raw === 'lite') displayName = 'Lite';
@@ -1427,7 +1431,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
           }
         });
       } else {
-        metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionType, modelUsed, isCached);
+        metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionTypeForDisplay, modelUsed, isCached);
       }
     } catch (error) {
       dbgWarn('Failed to load review metadata bar:', error);
