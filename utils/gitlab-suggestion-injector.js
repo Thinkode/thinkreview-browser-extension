@@ -967,6 +967,13 @@ async function injectSuggestionIntoLine(suggestion) {
     }
   }
 
+  // "Only you can see this" notice - avoid confusion that this is a public comment
+  const onlyYouNotice = document.createElement('div');
+  onlyYouNotice.className = 'thinkreview-only-you-notice';
+  onlyYouNotice.textContent = '(Only you can see this)';
+  onlyYouNotice.style.cssText = 'font-size:11px;color:#9ca3af;margin-bottom:8px;font-style:italic';
+  commentArea.appendChild(onlyYouNotice);
+
   // Create suggestion element using shared UI utility
   const suggestionUiModule = await import('../components/utils/code-suggestion-element.js');
   const suggestionElement = suggestionUiModule.createCodeSuggestionElement(suggestion);
