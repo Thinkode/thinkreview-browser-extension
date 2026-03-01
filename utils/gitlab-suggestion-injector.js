@@ -975,7 +975,7 @@ async function injectSuggestionIntoLine(suggestion) {
   const onlyYouNotice = document.createElement('div');
   onlyYouNotice.className = 'thinkreview-only-you-notice';
   onlyYouNotice.textContent = '(Only you can see this)';
-  onlyYouNotice.style.cssText = 'font-size:11px;color:#9ca3af;margin-bottom:8px;font-style:italic';
+  onlyYouNotice.style.cssText = 'font-size:11px;color:#9ca3af;margin-bottom:8px;font-style:italic;font-weight:normal';
   commentArea.appendChild(onlyYouNotice);
 
   // Create suggestion element using shared UI utility

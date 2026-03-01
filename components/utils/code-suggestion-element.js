@@ -31,12 +31,11 @@ export function createCodeSuggestionElement(suggestion) {
   suggestionElement.style.minWidth = '0';
   suggestionElement.style.maxWidth = '100%';
 
-  // Meta: file name + line range (if available)
+  // Meta: file name (orange) + line range (if available)
   if (typeof startLine === 'number') {
     const meta = document.createElement('div');
     meta.className = 'thinkreview-suggestion-meta';
     meta.style.fontSize = '11px';
-    meta.style.color = '#9ca3af';
     meta.style.overflowWrap = 'break-word';
     meta.style.wordBreak = 'break-word';
 
@@ -44,7 +43,16 @@ export function createCodeSuggestionElement(suggestion) {
     const end = typeof endLine === 'number' && endLine >= start ? endLine : start;
     const fileLabel = filePath || 'Unknown file';
 
-    meta.textContent = `${fileLabel} — lines ${start}${end !== start ? '–' + end : ''}`;
+    const fileSpan = document.createElement('span');
+    fileSpan.style.color = '#e9730c';
+    fileSpan.textContent = fileLabel;
+
+    const lineSpan = document.createElement('span');
+    lineSpan.style.color = '#e9730c';
+    lineSpan.textContent = ` — lines ${start}${end !== start ? '–' + end : ''}`;
+
+    meta.appendChild(fileSpan);
+    meta.appendChild(lineSpan);
     suggestionElement.appendChild(meta);
   }
 
