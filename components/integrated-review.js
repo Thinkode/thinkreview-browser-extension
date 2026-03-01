@@ -553,6 +553,18 @@ async function createIntegratedReviewPanel(patchUrl) {
       document.querySelectorAll('.thinkreview-tab-panel').forEach((p) => p.classList.remove('active'));
       btn.classList.add('active');
       panel.classList.add('active');
+
+      if (tab === 'code-suggestions') {
+        (async () => {
+          try {
+            const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+            analyticsModule.trackUserAction('code_suggestions_tab_clicked', {
+              context: 'integrated_panel',
+              location: 'tab_switch'
+            }).catch(() => {});
+          } catch (_) {}
+        })();
+      }
     });
   }
 

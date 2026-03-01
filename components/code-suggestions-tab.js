@@ -92,6 +92,7 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
       const createCopyButton = copyModule.createCopyButton;
       const showCopySuccessFeedback = copyModule.showCopySuccessFeedback;
       const showCopyErrorFeedback = copyModule.showCopyErrorFeedback;
+      const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
 
       for (let i = 0; i < review.codeSuggestions.length; i++) {
         const suggestion = review.codeSuggestions[i];
@@ -111,6 +112,10 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
           try {
             await navigator.clipboard.writeText(lines.join('\n'));
             if (showCopySuccessFeedback) showCopySuccessFeedback(copyBtn);
+            analyticsModule.trackUserAction('copy_button', {
+              context: 'code_suggestion',
+              location: 'integrated_panel'
+            }).catch(() => {});
           } catch (err) {
             if (showCopyErrorFeedback) showCopyErrorFeedback(copyBtn);
           }
