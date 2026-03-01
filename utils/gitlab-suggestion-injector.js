@@ -14,6 +14,7 @@ function dbgWarn(...args) { if (DEBUG) console.warn('[GitLabSuggestionInjector]'
 let lastInjectedSuggestions = null;
 let lastPatchContent = null;
 let reinjectObserver = null;
+let dialogObserver = null; // Separate observer for dialog on document.body
 let reinjectTimeoutId = null;
 let isReinjecting = false;
 
@@ -1194,28 +1195,17 @@ function scheduleReinject() {
 }
 
 /**
- * Set up observer to detect when our suggestion markers are removed and re-inject.
- * Uses document.body so we catch replacements of the entire diff container (e.g. Cmd+F search).
+ * Set up observer for dialog removal on document.body.
+ * Separate from marker observer for performance.
  */
-function setupReinjectObserver() {
-  if (reinjectObserver) {
-    reinjectObserver.disconnect();
-    reinjectObserver = null;
+function setupDialogObserver() {
+  if (dialogObserver) {
+    dialogObserver.disconnect();
+    dialogObserver = null;
   }
 
-  reinjectObserver = new MutationObserver((mutations) => {
-    // Check for removed nodes containing markers
-    for (const mutation of mutations) {
-      for (const node of mutation.removedNodes || []) {
-        if (containsOurSuggestions(node)) {
-          dbgLog('Detected removal of node containing suggestion markers');
-          scheduleReinject();
-          return;
-        }
-      }
-    }
-    
-    // Check for removed dialog backdrop
+  dialogObserver = new MutationObserver((mutations) => {
+    // Only check for removed dialog backdrop
     for (const mutation of mutations) {
       for (const node of mutation.removedNodes || []) {
         if (node.nodeType === 1 && 
@@ -1235,8 +1225,58 @@ function setupReinjectObserver() {
     }
   });
 
-  reinjectObserver.observe(document.body, { childList: true, subtree: true });
-  dbgLog('Re-inject observer active (will restore suggestion markers if DOM is replaced)');
+  // Only observe direct children of body for dialog (not subtree)
+  dialogObserver.observe(document.body, { childList: true, subtree: false });
+  dbgLog('Dialog observer active on document.body (childList only, no subtree)');
+}
+
+/**
+ * Set up observer to detect when our suggestion markers are removed and re-inject.
+ * Observes the parent of diff container to catch container replacements.
+ */
+function setupReinjectObserver() {
+  if (reinjectObserver) {
+    reinjectObserver.disconnect();
+    reinjectObserver = null;
+  }
+
+  // Find the diff container's parent to observe (catches container replacement)
+  const diffContainer = findGitLabDiffContainer();
+  let observeTarget = document.body;
+  let targetDesc = 'document.body (fallback)';
+  
+  if (diffContainer && diffContainer.parentElement) {
+    // Observe the parent so we can detect when the container itself is replaced
+    observeTarget = diffContainer.parentElement;
+    targetDesc = `parent of diff container (${diffContainer.parentElement.tagName}.${diffContainer.parentElement.className || 'no-class'})`;
+    dbgLog(`Found diff container parent for observation: ${targetDesc}`);
+  } else if (diffContainer) {
+    // If no parent, observe the container itself with subtree
+    observeTarget = diffContainer;
+    targetDesc = 'diff container itself';
+    dbgLog('Diff container has no parent, observing container itself');
+  } else {
+    dbgWarn('Could not find diff container for observer, falling back to document.body');
+  }
+
+  reinjectObserver = new MutationObserver((mutations) => {
+    // Check for removed nodes containing markers
+    for (const mutation of mutations) {
+      for (const node of mutation.removedNodes || []) {
+        if (containsOurSuggestions(node)) {
+          dbgLog('Detected removal of node containing suggestion markers');
+          scheduleReinject();
+          return;
+        }
+      }
+    }
+  });
+
+  reinjectObserver.observe(observeTarget, { childList: true, subtree: true });
+  dbgLog(`Re-inject observer active on ${targetDesc}`);
+  
+  // Set up separate observer for dialog on document.body
+  setupDialogObserver();
 }
 
 /**
