@@ -1,0 +1,64 @@
+/* gitlab-injected-suggestions.css */
+/* Styles for code suggestions injected into GitLab diff view */
+
+/* Main suggestion area container - line_holder variant */
+.thinkreview-suggestion-area {
+  margin-top: 4px;
+  padding: 8px;
+  background-color: #1e1e1e;
+  border-left: 3px solid #6b4fbb;
+  border-radius: 4px;
+  margin-left: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Fallback variant (slightly larger top margin when not using line_holder) */
+.thinkreview-suggestion-area.thinkreview-suggestion-area--fallback {
+  margin-top: 8px;
+}
+
+/* Branding row with logo */
+.thinkreview-injected-branding {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.thinkreview-injected-branding img {
+  width: 16px;
+  height: 16px;
+}
+
+.thinkreview-injected-branding span {
+  font-size: 12px;
+  font-weight: 500;
+  color: #b8a5e8;
+}
+
+/* "Only you can see this" notice */
+.thinkreview-only-you-notice {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 8px;
+  font-style: italic;
+  font-weight: normal;
+}
+
+/* Copy button within injected suggestions */
+.thinkreview-suggestion-area .thinkreview-item-copy-btn {
+  margin-top: 6px;
+  margin-right: 8px;
+  color: #e0e0e0;
+}
+
+/* Copy button feedback states - used by loadCopyButtonUtils in injector */
+.thinkreview-suggestion-area .thinkreview-item-copy-btn.thinkreview-copy-success {
+  color: #4ade80 !important;
+}
+
+.thinkreview-suggestion-area .thinkreview-item-copy-btn.thinkreview-copy-error {
+  color: #ef4444 !important;
+}

@@ -17,6 +17,17 @@ let reinjectObserver = null;
 let reinjectTimeoutId = null;
 let isReinjecting = false;
 
+/** Ensure GitLab-injected suggestions stylesheet is loaded */
+function ensureGitLabInjectedStylesLoaded() {
+  const id = 'thinkreview-gitlab-injected-styles';
+  if (document.getElementById(id)) return;
+  const link = document.createElement('link');
+  link.id = id;
+  link.rel = 'stylesheet';
+  link.href = chrome.runtime.getURL('utils/gitlab-injected-suggestions.css');
+  document.head.appendChild(link);
+}
+
 // Import copy button utility
 let copyButtonUtils = null;
 async function loadCopyButtonUtils() {
@@ -31,10 +42,10 @@ async function loadCopyButtonUtils() {
             <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
           </svg>
         `;
-        button.style.color = '#4ade80';
+        button.classList.add('thinkreview-copy-success');
         setTimeout(() => {
           button.innerHTML = originalHTML;
-          button.style.color = '#e0e0e0'; // Reset to dark-theme icon color
+          button.classList.remove('thinkreview-copy-success');
         }, 2000);
       },
       showCopyErrorFeedback: (button) => {
@@ -44,10 +55,10 @@ async function loadCopyButtonUtils() {
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
           </svg>
         `;
-        button.style.color = '#ef4444';
+        button.classList.add('thinkreview-copy-error');
         setTimeout(() => {
           button.innerHTML = originalHTML;
-          button.style.color = '#e0e0e0'; // Reset to dark-theme icon color
+          button.classList.remove('thinkreview-copy-error');
         }, 2000);
       }
     };
@@ -910,15 +921,6 @@ async function injectSuggestionIntoLine(suggestion) {
       // Create suggestion area after the line_holder
       commentArea = document.createElement('div');
       commentArea.className = 'thinkreview-suggestion-area';
-      commentArea.style.marginTop = '4px';
-      commentArea.style.padding = '8px';
-      commentArea.style.backgroundColor = '#1e1e1e';
-      commentArea.style.borderLeft = '3px solid #6b4fbb';
-      commentArea.style.borderRadius = '4px';
-      commentArea.style.marginLeft = '0';
-      commentArea.style.width = '100%';
-      commentArea.style.maxWidth = '100%';
-      commentArea.style.minWidth = '0';
       
       // Insert after the line_holder
       const parent = lineHolder.parentElement;
@@ -947,14 +949,7 @@ async function injectSuggestionIntoLine(suggestion) {
     }
     if (!commentArea) {
       commentArea = document.createElement('div');
-      commentArea.className = 'thinkreview-suggestion-area';
-      commentArea.style.marginTop = '8px';
-      commentArea.style.padding = '8px';
-      commentArea.style.backgroundColor = '#1e1e1e';
-      commentArea.style.borderLeft = '3px solid #6b4fbb';
-      commentArea.style.borderRadius = '4px';
-      commentArea.style.maxWidth = '100%';
-      commentArea.style.minWidth = '0';
+      commentArea.className = 'thinkreview-suggestion-area thinkreview-suggestion-area--fallback';
 
       const parent = targetElement.parentElement;
       if (parent) {
@@ -974,14 +969,11 @@ async function injectSuggestionIntoLine(suggestion) {
   // ThinkReview branding with logo
   const branding = document.createElement('div');
   branding.className = 'thinkreview-injected-branding';
-  branding.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:8px';
   const logoImg = document.createElement('img');
   logoImg.src = chrome.runtime.getURL('images/icon16.png');
   logoImg.alt = 'ThinkReview';
-  logoImg.style.cssText = 'width:16px;height:16px';
   const brandingText = document.createElement('span');
   brandingText.textContent = 'ThinkReview';
-  brandingText.style.cssText = 'font-size:12px;font-weight:500;color:#b8a5e8';
   branding.appendChild(logoImg);
   branding.appendChild(brandingText);
   commentArea.appendChild(branding);
@@ -990,7 +982,6 @@ async function injectSuggestionIntoLine(suggestion) {
   const onlyYouNotice = document.createElement('div');
   onlyYouNotice.className = 'thinkreview-only-you-notice';
   onlyYouNotice.textContent = '(Only you can see this)';
-  onlyYouNotice.style.cssText = 'font-size:11px;color:#9ca3af;margin-bottom:8px;font-style:italic;font-weight:normal';
   commentArea.appendChild(onlyYouNotice);
 
   // Create suggestion element using shared UI utility
@@ -1001,9 +992,6 @@ async function injectSuggestionIntoLine(suggestion) {
   const utils = await loadCopyButtonUtils();
   const copyButton = utils.createCopyButton();
   copyButton.title = 'Copy code suggestion';
-  copyButton.style.marginTop = '6px';
-  copyButton.style.marginRight = '8px';
-  copyButton.style.color = '#e0e0e0'; // Match integrated panel light text on dark bg
   
   copyButton.addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -1220,6 +1208,8 @@ export async function injectCodeSuggestions(suggestions, patchContent) {
     dbgLog('No suggestions to inject');
     return { success: 0, failed: 0 };
   }
+
+  ensureGitLabInjectedStylesLoaded();
 
   // Wait for GitLab's diff view to be fully loaded
   await waitForGitLabDiffView();
