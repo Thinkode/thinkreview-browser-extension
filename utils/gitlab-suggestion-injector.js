@@ -17,6 +17,9 @@ let reinjectObserver = null;
 let reinjectTimeoutId = null;
 let isReinjecting = false;
 
+// Store for dialog state to re-open if removed
+let currentOpenDialog = null; // { suggestion, markerElement }
+
 /** Ensure GitLab-injected suggestions stylesheet is loaded */
 function ensureGitLabInjectedStylesLoaded() {
   const id = 'thinkreview-gitlab-injected-styles';
@@ -562,6 +565,16 @@ function findLineInContainer(container, filePath, lineNumber) {
   }
 
   if (allLines.length === 0) {
+    // Check if the file is collapsed/not expanded
+    const isCollapsed = container.classList.contains('diff-file-row') || 
+                       container.classList.contains('tree-list-parent') ||
+                       !container.querySelector('.diff-content, .file-content, table.diff-file');
+    
+    if (isCollapsed) {
+      dbgLog(`File ${filePath} appears to be collapsed/not expanded, skipping line ${lineNumber}`);
+      return null; // Return null to indicate we should skip this injection
+    }
+    
     dbgWarn(`No structured line elements found for ${filePath}; falling back to main content block for line ${lineNumber}`);
     const fallbackContent = container.querySelector(
       '.file-content, .diff-viewer, pre, code, .blob-content, .diff-td, .line_content'
@@ -680,7 +693,182 @@ function createSuggestionBlock(suggestion) {
 }
 
 /**
- * Inject a suggestion into GitLab's diff view
+ * Create and show a popup dialog with the suggestion details
+ * @param {Object} suggestion - The code suggestion object
+ * @param {HTMLElement} markerElement - The marker element that was clicked
+ */
+async function showSuggestionDialog(suggestion, markerElement) {
+  // Remove any existing dialog
+  const existingDialog = document.querySelector('.thinkreview-suggestion-backdrop');
+  if (existingDialog) {
+    existingDialog.remove();
+  }
+
+  // Store current dialog state for re-opening if removed
+  currentOpenDialog = { suggestion, markerElement };
+
+  // Create dialog backdrop
+  const backdrop = document.createElement('div');
+  backdrop.className = 'thinkreview-suggestion-backdrop';
+  
+  // Start periodic check to see if dialog/markers are still in DOM
+  const checkInterval = setInterval(() => {
+    const dialogExists = document.querySelector('.thinkreview-suggestion-backdrop');
+    const markerCount = document.querySelectorAll('.thinkreview-suggestion-marker').length;
+    
+    dbgLog(`Periodic check: dialog exists=${!!dialogExists}, markers=${markerCount}, currentOpenDialog=${!!currentOpenDialog}`);
+    
+    if (!dialogExists && currentOpenDialog) {
+      dbgLog('Dialog disappeared, checking markers...');
+      if (markerCount === 0 && lastInjectedSuggestions?.length > 0) {
+        dbgLog('Both dialog and markers disappeared, triggering re-inject');
+        clearInterval(checkInterval);
+        scheduleReinject();
+      }
+    }
+    
+    // Stop checking if dialog was explicitly closed
+    if (!currentOpenDialog) {
+      dbgLog('Dialog was closed by user, stopping periodic check');
+      clearInterval(checkInterval);
+    }
+  }, 1000);
+  
+  // Store interval ID so we can clear it when dialog is closed
+  backdrop.dataset.checkIntervalId = checkInterval;
+  
+  // Create dialog container
+  const dialog = document.createElement('div');
+  dialog.className = 'thinkreview-suggestion-dialog';
+  
+  // Dialog header with close button
+  const header = document.createElement('div');
+  header.className = 'thinkreview-dialog-header';
+  
+  const title = document.createElement('div');
+  title.className = 'thinkreview-dialog-title';
+  
+  const logoImg = document.createElement('img');
+  logoImg.src = chrome.runtime.getURL('images/icon16.png');
+  logoImg.alt = 'ThinkReview';
+  
+  const titleText = document.createElement('span');
+  titleText.textContent = 'Code Suggestion';
+  
+  title.appendChild(logoImg);
+  title.appendChild(titleText);
+  
+  const closeButton = document.createElement('button');
+  closeButton.className = 'thinkreview-dialog-close';
+  closeButton.innerHTML = '×';
+  closeButton.title = 'Close';
+  
+  header.appendChild(title);
+  header.appendChild(closeButton);
+  
+  // Dialog content
+  const content = document.createElement('div');
+  content.className = 'thinkreview-dialog-content';
+  
+  // Create suggestion element using shared UI utility
+  const suggestionUiModule = await import('../components/utils/code-suggestion-element.js');
+  const suggestionElement = suggestionUiModule.createCodeSuggestionElement(suggestion);
+  content.appendChild(suggestionElement);
+  
+  // Dialog footer with actions
+  const footer = document.createElement('div');
+  footer.className = 'thinkreview-dialog-footer';
+  
+  // Add copy button
+  const utils = await loadCopyButtonUtils();
+  const copyButton = utils.createCopyButton();
+  copyButton.className = 'thinkreview-dialog-copy-btn';
+  copyButton.title = 'Copy code suggestion';
+  
+  const copyButtonText = document.createElement('span');
+  copyButtonText.textContent = 'Copy Suggestion';
+  copyButton.appendChild(copyButtonText);
+  
+  copyButton.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const lines = [];
+
+    // Add description if available
+    if (suggestion.description) {
+      lines.push(suggestion.description);
+    }
+
+    // Add GitLab suggestion block
+    if (suggestion.suggestedCode) {
+      const suggestedCodeLines = suggestion.suggestedCode.split('\n');
+      const rawLinesToAdd = suggestedCodeLines.length;
+      const linesToAdd = Math.max(0, rawLinesToAdd - 1);
+      
+      lines.push('');
+      lines.push(`\`\`\`suggestion:-0+${linesToAdd}`);
+      lines.push(suggestion.suggestedCode);
+      lines.push('```');
+    }
+
+    const textToCopy = lines.join('\n');
+
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      dbgLog('Copied suggestion in GitLab format to clipboard');
+      utils.showCopySuccessFeedback(copyButton);
+    } catch (err) {
+      dbgWarn('Failed to copy suggestion to clipboard', err);
+      utils.showCopyErrorFeedback(copyButton);
+    }
+  });
+  
+  footer.appendChild(copyButton);
+  
+  // Assemble dialog
+  dialog.appendChild(header);
+  dialog.appendChild(content);
+  dialog.appendChild(footer);
+  backdrop.appendChild(dialog);
+  
+  // Close handlers
+  const closeDialog = () => {
+    // Clear periodic check interval
+    const intervalId = backdrop.dataset.checkIntervalId;
+    if (intervalId) {
+      clearInterval(parseInt(intervalId));
+    }
+    
+    backdrop.remove();
+    // Clear the current dialog state when user explicitly closes it
+    currentOpenDialog = null;
+  };
+  
+  closeButton.addEventListener('click', closeDialog);
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) {
+      closeDialog();
+    }
+  });
+  
+  // ESC key to close
+  const escHandler = (e) => {
+    if (e.key === 'Escape') {
+      closeDialog();
+      document.removeEventListener('keydown', escHandler);
+    }
+  };
+  document.addEventListener('keydown', escHandler);
+  
+  // Add to document
+  document.body.appendChild(backdrop);
+  
+  dbgLog('Suggestion dialog opened');
+}
+
+/**
+ * Inject a suggestion marker into GitLab's diff view
  * @param {Object} suggestion - The code suggestion object with filePath, startLine/endLine, suggestedCode
  * @returns {Promise<boolean>} - Promise that resolves to true if injection was successful
  */
@@ -696,7 +884,7 @@ async function injectSuggestionIntoLine(suggestion) {
   }
 
   dbgLog(
-    `[Inject] Preparing to inject suggestion for ${filePath} at requested line ${requestedLineNumber}`
+    `[Inject] Preparing to inject suggestion marker for ${filePath} at requested line ${requestedLineNumber}`
   );
 
   // Try to find the exact line first
@@ -731,155 +919,71 @@ async function injectSuggestionIntoLine(suggestion) {
   }
 
   if (!lineElement) {
-    dbgWarn(
-      `Could not inject suggestion for ${filePath}:${requestedLineNumber} - no suitable anchor line found (exact or backoff)`
+    dbgLog(
+      `Skipping suggestion for ${filePath}:${requestedLineNumber} - file may be collapsed or line not visible in diff`
     );
     return false;
   }
 
-  dbgLog(`Injecting suggestion into element: ${lineElement.tagName}, classes: ${lineElement.className}, id: ${lineElement.id || 'no-id'}`);
+  dbgLog(`Injecting suggestion marker into element: ${lineElement.tagName}, classes: ${lineElement.className}, id: ${lineElement.id || 'no-id'}`);
 
-  // GitLab's structure: we want to insert into or after the line_content div
-  // The lineElement should already be a div.diff-td.line_content or we found it
-  let targetElement = lineElement;
-  
-  // If we found a line_holder, find the right-side line_content
-  if (lineElement.classList.contains('line_holder') || lineElement.classList.contains('diff-grid-row')) {
-    const rightSideContent = lineElement.querySelector('div.diff-td.line_content.right-side, div.diff-td.line_content.with-coverage.right-side, div.line_content.right-side') ||
-                            lineElement.querySelector('div.diff-td.line_content:last-child, div.line_content:last-child');
-    if (rightSideContent) {
-      targetElement = rightSideContent;
-      dbgLog(`Found right-side line_content for injection`);
-    }
+  // Find the line holder (row) that contains this line
+  let lineHolder = lineElement;
+  if (!lineElement.classList.contains('line_holder') && !lineElement.classList.contains('diff-grid-row')) {
+    lineHolder = lineElement.closest('.line_holder, .diff-grid-row, tr');
   }
   
-  // targetElement should now be the div.diff-td.line_content element
-  // We'll insert the suggestion as a sibling or child of this element
-  let commentArea = null;
-  
-  // Check if targetElement is a line_content div
-  if (targetElement.classList.contains('line_content') || targetElement.classList.contains('diff-td')) {
-    // Find the parent line_holder to insert after
-    const lineHolder = targetElement.closest('.line_holder, .diff-grid-row, [id*="_' + anchorLineNumber + '"]');
-    
-    if (lineHolder) {
-      // Create suggestion area after the line_holder
-      commentArea = document.createElement('div');
-      commentArea.className = 'thinkreview-suggestion-area';
-      
-      // Insert after the line_holder
-      const parent = lineHolder.parentElement;
-      if (parent) {
-        const nextSibling = lineHolder.nextSibling;
-        if (nextSibling) {
-          parent.insertBefore(commentArea, nextSibling);
-        } else {
-          parent.appendChild(commentArea);
-        }
-        dbgLog(`Inserted suggestion area after line_holder`);
-      } else {
-        dbgWarn('Could not find parent element for line_holder');
-        return false;
-      }
-    } else {
-      // Fallback: append to the line_content itself
-      commentArea = targetElement;
-      dbgLog(`Using line_content element directly for injection`);
-    }
-  } else {
-    // Fallback to old method
-    commentArea = targetElement.querySelector('.add-diff-note, .js-add-diff-note, [data-testid="add-comment-button"]');
-    if (!commentArea) {
-      commentArea = targetElement.closest('.line_holder, tr')?.querySelector('.notes, .discussion-notes');
-    }
-    if (!commentArea) {
-      commentArea = document.createElement('div');
-      commentArea.className = 'thinkreview-suggestion-area thinkreview-suggestion-area--fallback';
-
-      const parent = targetElement.parentElement;
-      if (parent) {
-        const nextSibling = targetElement.nextSibling;
-        if (nextSibling) {
-          parent.insertBefore(commentArea, nextSibling);
-        } else {
-          parent.appendChild(commentArea);
-        }
-      } else {
-        dbgWarn('Could not find parent element for line');
-        return false;
-      }
-    }
+  if (!lineHolder) {
+    dbgLog('Could not find line holder, falling back to line element');
+    lineHolder = lineElement;
   }
-
-  // ThinkReview branding with logo
-  const branding = document.createElement('div');
-  branding.className = 'thinkreview-injected-branding';
-  const logoImg = document.createElement('img');
-  logoImg.src = chrome.runtime.getURL('images/icon16.png');
-  logoImg.alt = 'ThinkReview';
-  const brandingText = document.createElement('span');
-  brandingText.textContent = 'ThinkReview';
-  branding.appendChild(logoImg);
-  branding.appendChild(brandingText);
-  commentArea.appendChild(branding);
-
-  // "Only you can see this" notice - avoid confusion that this is a public comment
-  const onlyYouNotice = document.createElement('div');
-  onlyYouNotice.className = 'thinkreview-only-you-notice';
-  onlyYouNotice.textContent = '(Only you can see this)';
-  commentArea.appendChild(onlyYouNotice);
-
-  // Create suggestion element using shared UI utility
-  const suggestionUiModule = await import('../components/utils/code-suggestion-element.js');
-  const suggestionElement = suggestionUiModule.createCodeSuggestionElement(suggestion);
-
-  // Add copy button (description + code) - use utility from item-copy-button.js
-  const utils = await loadCopyButtonUtils();
-  const copyButton = utils.createCopyButton();
-  copyButton.title = 'Copy code suggestion';
   
-  copyButton.addEventListener('click', async (e) => {
+  // Check if a marker already exists for this line
+  const existingMarker = lineHolder.querySelector('.thinkreview-suggestion-marker');
+  if (existingMarker) {
+    dbgLog(`Marker already exists for ${filePath}:${anchorLineNumber}, skipping`);
+    return true;
+  }
+  
+  // Find the line number cell (new/right side)
+  const lineNumberCell = lineHolder.querySelector(
+    '.diff-td.line_number.new, .diff-td.line_number:last-of-type, ' +
+    'td.line_number.new, td.line_number:last-of-type, ' +
+    'td.new_line, .new_line, ' +
+    '[class*="line-number"]:last-of-type'
+  );
+  
+  if (!lineNumberCell) {
+    dbgLog('Could not find line number cell, skipping marker injection');
+    return false;
+  }
+  
+  dbgLog(`Found line number cell: ${lineNumberCell.tagName}, classes: ${lineNumberCell.className}`);
+  
+  // Create the suggestion marker
+  const marker = document.createElement('span');
+  marker.className = 'thinkreview-suggestion-marker';
+  marker.title = 'Click to view ThinkReview code suggestion';
+  
+  // ThinkReview logo
+  const logo = document.createElement('img');
+  logo.src = chrome.runtime.getURL('images/icon16.png');
+  logo.alt = 'ThinkReview';
+  logo.className = 'thinkreview-marker-logo';
+  
+  marker.appendChild(logo);
+  
+  // Click handler to show dialog
+  marker.addEventListener('click', async (e) => {
     e.stopPropagation();
     e.preventDefault();
-    
-    const lines = [];
-
-    // Add description if available
-    if (suggestion.description) {
-      lines.push(suggestion.description);
-    }
-
-    // Add GitLab suggestion block
-    if (suggestion.suggestedCode) {
-      // Always use -0+X format where X is (number of lines in suggested code - 1), but never below 0
-      const suggestedCodeLines = suggestion.suggestedCode.split('\n');
-      const rawLinesToAdd = suggestedCodeLines.length;
-      const linesToAdd = Math.max(0, rawLinesToAdd - 1);
-      
-      // Format as GitLab suggestion block
-      lines.push('');
-      lines.push(`\`\`\`suggestion:-0+${linesToAdd}`);
-      lines.push(suggestion.suggestedCode);
-      lines.push('```');
-    }
-
-    const textToCopy = lines.join('\n');
-
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      dbgLog('Copied suggestion in GitLab format to clipboard');
-      utils.showCopySuccessFeedback(copyButton);
-    } catch (err) {
-      dbgWarn('Failed to copy suggestion to clipboard', err);
-      utils.showCopyErrorFeedback(copyButton);
-    }
+    await showSuggestionDialog(suggestion, marker);
   });
-
-  suggestionElement.appendChild(copyButton);
-
-  commentArea.appendChild(suggestionElement);
   
-  dbgLog(`Successfully injected suggestion for ${filePath}:${anchorLineNumber} (requested ${requestedLineNumber})`);
+  // Insert marker into the line number cell
+  lineNumberCell.appendChild(marker);
+  
+  dbgLog(`Successfully injected suggestion marker for ${filePath}:${anchorLineNumber} (requested ${requestedLineNumber})`);
   return true;
 }
 
@@ -990,38 +1094,107 @@ function waitForGitLabDiffView() {
 }
 
 /**
- * Check if any removed nodes contain our suggestion elements
+ * Check if any removed nodes contain our suggestion markers
  */
 function containsOurSuggestions(node) {
   if (!node || node.nodeType !== 1) return false; // Element nodes only
-  return node.classList?.contains('thinkreview-suggestion-area') ||
-    !!node.querySelector?.('.thinkreview-suggestion-area');
+  return node.classList?.contains('thinkreview-suggestion-marker') ||
+    !!node.querySelector?.('.thinkreview-suggestion-marker');
 }
 
 /**
- * Schedule re-injection when our elements are removed (e.g. Cmd+F triggers GitLab DOM replacement)
+ * Schedule re-injection when our markers are removed (e.g. Cmd+F triggers GitLab DOM replacement)
  */
 function scheduleReinject() {
-  if (reinjectTimeoutId) clearTimeout(reinjectTimeoutId);
+  dbgLog('scheduleReinject called');
+  if (reinjectTimeoutId) {
+    dbgLog('Clearing existing reinject timeout');
+    clearTimeout(reinjectTimeoutId);
+  }
   reinjectTimeoutId = setTimeout(async () => {
     reinjectTimeoutId = null;
-    if (!lastInjectedSuggestions?.length || isReinjecting) return;
+    
+    dbgLog(`Re-inject check: lastInjectedSuggestions=${lastInjectedSuggestions?.length}, isReinjecting=${isReinjecting}`);
+    if (!lastInjectedSuggestions?.length || isReinjecting) {
+      dbgLog('Skipping re-injection: no suggestions or already re-injecting');
+      return;
+    }
 
-    const count = document.querySelectorAll('.thinkreview-suggestion-area').length;
-    if (count > 0) return; // Still present, no need to re-inject
+    const count = document.querySelectorAll('.thinkreview-suggestion-marker').length;
+    dbgLog(`Current marker count: ${count}`);
+    if (count > 0) {
+      dbgLog('Markers still present, no need to re-inject');
+      return; // Still present, no need to re-inject
+    }
 
-    dbgLog('Suggestions removed from DOM (e.g. Cmd+F search), re-injecting...');
+    dbgLog('Suggestion markers removed from DOM (e.g. Cmd+F search), re-injecting...');
+    
+    // Store dialog state before re-injection
+    const dialogWasOpen = currentOpenDialog !== null;
+    const savedDialogState = currentOpenDialog ? { ...currentOpenDialog } : null;
+    dbgLog(`Dialog was open: ${dialogWasOpen}`, savedDialogState);
+    
     isReinjecting = true;
     try {
+      dbgLog(`Re-injecting ${lastInjectedSuggestions.length} suggestions...`);
+      
+      // Clear currentOpenDialog temporarily to prevent the periodic check from interfering
+      currentOpenDialog = null;
+      
       await injectCodeSuggestions(lastInjectedSuggestions, lastPatchContent || '');
+      
+      // Re-open dialog if it was open before
+      if (dialogWasOpen && savedDialogState) {
+        dbgLog('Re-opening dialog after marker re-injection...');
+        dbgLog('Saved dialog state:', savedDialogState);
+        
+        // Wait a bit for markers to be re-injected
+        setTimeout(async () => {
+          const { suggestion } = savedDialogState;
+          dbgLog('Looking for matching suggestion:', suggestion.filePath, suggestion.startLine);
+          
+          // Find the matching suggestion in the re-injected list
+          const matchingSuggestion = lastInjectedSuggestions.find(s => 
+            s.filePath === suggestion.filePath && 
+            s.startLine === suggestion.startLine &&
+            s.suggestedCode === suggestion.suggestedCode
+          );
+          
+          dbgLog('Matching suggestion found:', !!matchingSuggestion);
+          
+          if (matchingSuggestion) {
+            // Find any marker (they all trigger the same dialog logic)
+            const markers = document.querySelectorAll('.thinkreview-suggestion-marker');
+            dbgLog(`Found ${markers.length} markers for dialog re-open`);
+            if (markers.length > 0) {
+              dbgLog('Calling showSuggestionDialog...');
+              await showSuggestionDialog(matchingSuggestion, markers[0]);
+              dbgLog('Dialog should now be open');
+            } else {
+              dbgLog('No markers found to attach dialog to');
+            }
+          } else {
+            dbgLog('Could not find matching suggestion for dialog re-open');
+            dbgLog('Available suggestions:', lastInjectedSuggestions.map(s => ({ 
+              file: s.filePath, 
+              line: s.startLine 
+            })));
+          }
+        }, 500);
+      } else {
+        dbgLog('Not re-opening dialog: dialogWasOpen=' + dialogWasOpen + ', savedDialogState=' + !!savedDialogState);
+      }
+    } catch (error) {
+      dbgWarn('Error during re-injection:', error);
     } finally {
       isReinjecting = false;
+      dbgLog('Re-injection complete, isReinjecting set to false');
     }
   }, 400);
 }
 
 /**
- * Set up observer to detect when our suggestions are removed and re-inject.
+ * Set up observer to detect when our suggestion markers are removed and re-inject.
  * Uses document.body so we catch replacements of the entire diff container (e.g. Cmd+F search).
  */
 function setupReinjectObserver() {
@@ -1031,18 +1204,39 @@ function setupReinjectObserver() {
   }
 
   reinjectObserver = new MutationObserver((mutations) => {
+    // Check for removed nodes containing markers
     for (const mutation of mutations) {
       for (const node of mutation.removedNodes || []) {
         if (containsOurSuggestions(node)) {
+          dbgLog('Detected removal of node containing suggestion markers');
           scheduleReinject();
           return;
+        }
+      }
+    }
+    
+    // Check for removed dialog backdrop
+    for (const mutation of mutations) {
+      for (const node of mutation.removedNodes || []) {
+        if (node.nodeType === 1 && 
+            (node.classList?.contains('thinkreview-suggestion-backdrop') ||
+             node.querySelector?.('.thinkreview-suggestion-backdrop'))) {
+          dbgLog('Detected removal of dialog backdrop');
+          // Check if markers also disappeared
+          const markerCount = document.querySelectorAll('.thinkreview-suggestion-marker').length;
+          dbgLog(`Marker count after dialog removal: ${markerCount}`);
+          if (markerCount === 0 && lastInjectedSuggestions?.length > 0) {
+            dbgLog('Markers also removed, scheduling re-inject');
+            scheduleReinject();
+            return;
+          }
         }
       }
     }
   });
 
   reinjectObserver.observe(document.body, { childList: true, subtree: true });
-  dbgLog('Re-inject observer active (will restore suggestions if DOM is replaced)');
+  dbgLog('Re-inject observer active (will restore suggestion markers if DOM is replaced)');
 }
 
 /**
