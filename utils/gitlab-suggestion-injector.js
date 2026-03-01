@@ -32,6 +32,58 @@ function ensureGitLabInjectedStylesLoaded() {
   document.head.appendChild(link);
 }
 
+/**
+ * Create an SVG element safely without using innerHTML
+ * @param {string} type - SVG element type (svg, path, etc.)
+ * @param {Object} attributes - Attributes to set on the element
+ * @returns {SVGElement}
+ */
+function createSVGElement(type, attributes = {}) {
+  const element = document.createElementNS('http://www.w3.org/2000/svg', type);
+  for (const [key, value] of Object.entries(attributes)) {
+    element.setAttribute(key, value);
+  }
+  return element;
+}
+
+/**
+ * Create a checkmark SVG icon
+ * @returns {SVGElement}
+ */
+function createCheckmarkSVG() {
+  const svg = createSVGElement('svg', {
+    width: '14',
+    height: '14',
+    viewBox: '0 0 24 24',
+    fill: 'none'
+  });
+  const path = createSVGElement('path', {
+    d: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z',
+    fill: 'currentColor'
+  });
+  svg.appendChild(path);
+  return svg;
+}
+
+/**
+ * Create an error SVG icon
+ * @returns {SVGElement}
+ */
+function createErrorSVG() {
+  const svg = createSVGElement('svg', {
+    width: '14',
+    height: '14',
+    viewBox: '0 0 24 24',
+    fill: 'none'
+  });
+  const path = createSVGElement('path', {
+    d: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z',
+    fill: 'currentColor'
+  });
+  svg.appendChild(path);
+  return svg;
+}
+
 // Import copy button utility
 let copyButtonUtils = null;
 async function loadCopyButtonUtils() {
@@ -40,28 +92,34 @@ async function loadCopyButtonUtils() {
     copyButtonUtils = {
       createCopyButton: module.createCopyButton,
       showCopySuccessFeedback: (button) => {
-        const originalHTML = button.innerHTML;
-        button.innerHTML = `
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
-          </svg>
-        `;
+        // Store original content
+        const originalContent = Array.from(button.childNodes);
+        
+        // Clear and add checkmark SVG
+        button.textContent = '';
+        button.appendChild(createCheckmarkSVG());
         button.classList.add('thinkreview-copy-success');
+        
         setTimeout(() => {
-          button.innerHTML = originalHTML;
+          // Restore original content
+          button.textContent = '';
+          originalContent.forEach(node => button.appendChild(node.cloneNode(true)));
           button.classList.remove('thinkreview-copy-success');
         }, 2000);
       },
       showCopyErrorFeedback: (button) => {
-        const originalHTML = button.innerHTML;
-        button.innerHTML = `
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
-          </svg>
-        `;
+        // Store original content
+        const originalContent = Array.from(button.childNodes);
+        
+        // Clear and add error SVG
+        button.textContent = '';
+        button.appendChild(createErrorSVG());
         button.classList.add('thinkreview-copy-error');
+        
         setTimeout(() => {
-          button.innerHTML = originalHTML;
+          // Restore original content
+          button.textContent = '';
+          originalContent.forEach(node => button.appendChild(node.cloneNode(true)));
           button.classList.remove('thinkreview-copy-error');
         }, 2000);
       }
@@ -256,10 +314,9 @@ function findFileContainer(filePath, fileName, allContainers) {
       const fileHeader = container.querySelector(headerSelector);
       if (fileHeader) {
         const headerText = fileHeader.textContent || '';
-        const headerHTML = fileHeader.innerHTML || '';
         const headerHref = fileHeader.getAttribute('href') || '';
 
-        if (headerText.includes(filePath) || headerHTML.includes(filePath) || headerHref.includes(filePath)) {
+        if (headerText.includes(filePath) || headerHref.includes(filePath)) {
           dbgLog(`Found file container using selector: ${headerSelector}, exact path match: "${headerText.substring(0, 100)}"`);
           return container;
         }
@@ -274,8 +331,7 @@ function findFileContainer(filePath, fileName, allContainers) {
           return false;
         });
         if (othersWithSameName.length === 1 &&
-            (headerText.includes(fileName) || headerText.endsWith(fileName) ||
-             headerHTML.includes(fileName) || headerHref.includes(fileName))) {
+            (headerText.includes(fileName) || headerText.endsWith(fileName) || headerHref.includes(fileName))) {
           dbgLog(`Found file container using selector: ${headerSelector}, filename match (unique): "${headerText.substring(0, 100)}"`);
           return container;
         }
@@ -283,17 +339,15 @@ function findFileContainer(filePath, fileName, allContainers) {
     }
 
     const containerText = container.textContent || '';
-    const containerHTML = container.innerHTML || '';
-    if (containerText.includes(filePath) || containerHTML.includes(filePath)) {
+    if (containerText.includes(filePath)) {
       dbgLog('Found file container by container text match (exact path)');
       return container;
     }
     const containersWithFileName = allContainers.filter((c) => {
       const cText = c.textContent || '';
-      const cHTML = c.innerHTML || '';
-      return cText.includes(fileName) || cHTML.includes(fileName);
+      return cText.includes(fileName);
     });
-    if (containersWithFileName.length === 1 && (containerText.includes(fileName) || containerHTML.includes(fileName))) {
+    if (containersWithFileName.length === 1 && containerText.includes(fileName)) {
       dbgLog('Found file container by container text match (unique filename)');
       return container;
     }
@@ -761,7 +815,7 @@ async function showSuggestionDialog(suggestion, markerElement) {
   
   const closeButton = document.createElement('button');
   closeButton.className = 'thinkreview-dialog-close';
-  closeButton.innerHTML = '×';
+  closeButton.textContent = '×';
   closeButton.title = 'Close';
   
   header.appendChild(title);
