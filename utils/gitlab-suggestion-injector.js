@@ -971,6 +971,21 @@ async function injectSuggestionIntoLine(suggestion) {
     }
   }
 
+  // ThinkReview branding with logo
+  const branding = document.createElement('div');
+  branding.className = 'thinkreview-injected-branding';
+  branding.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:8px';
+  const logoImg = document.createElement('img');
+  logoImg.src = chrome.runtime.getURL('images/icon16.png');
+  logoImg.alt = 'ThinkReview';
+  logoImg.style.cssText = 'width:16px;height:16px';
+  const brandingText = document.createElement('span');
+  brandingText.textContent = 'ThinkReview';
+  brandingText.style.cssText = 'font-size:12px;font-weight:500;color:#b8a5e8';
+  branding.appendChild(logoImg);
+  branding.appendChild(brandingText);
+  commentArea.appendChild(branding);
+
   // "Only you can see this" notice - avoid confusion that this is a public comment
   const onlyYouNotice = document.createElement('div');
   onlyYouNotice.className = 'thinkreview-only-you-notice';
