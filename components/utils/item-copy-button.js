@@ -686,6 +686,7 @@ export async function copyItemContent(element, button) {
 
 /**
  * Shows success feedback on the copy button (checkmark icon)
+ * Reused by other copy buttons (e.g. \"Copy full review\") for consistent UX.
  * @param {HTMLElement} button - The copy button element
  */
 export function showCopySuccessFeedback(button) {
@@ -702,6 +703,7 @@ export function showCopySuccessFeedback(button) {
 
 /**
  * Shows error feedback on the copy button (error icon)
+ * Reused by other copy buttons (e.g. \"Copy full review\") for consistent UX.
  * @param {HTMLElement} button - The copy button element
  */
 export function showCopyErrorFeedback(button) {

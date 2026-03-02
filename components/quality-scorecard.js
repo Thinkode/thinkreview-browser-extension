@@ -68,6 +68,16 @@ export function renderQualityScorecard(metrics, onMetricClick = null) {
   container.setAttribute('aria-label', 'Code quality metrics');
 
   container.innerHTML = `
+    <div class="thinkreview-scorecard-header-row thinkreview-scorecard-copy-all-row">
+      <span class="thinkreview-copy-all-btn-wrapper">
+        <button id="copy-all-review-btn" class="thinkreview-copy-all-btn" aria-label="Copy full review" title="Copy full review">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="currentColor"/>
+          </svg>
+        </button>
+        <span class="thinkreview-copy-all-tooltip" aria-hidden="true">Copy full review</span>
+      </span>
+    </div>
     <div class="thinkreview-scorecard-header gl-display-flex gl-align-items-center gl-justify-content-space-between gl-mb-3">
       <h5 class="gl-font-weight-bold thinkreview-section-title gl-mb-0">Quality Score</h5>
     </div>

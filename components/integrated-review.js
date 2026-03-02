@@ -65,6 +65,9 @@ let createCopyButton = null;
 let copyItemContent = null;
 let attachCopyButtonToItem = null;
 
+// Store current review data for copy-all functionality
+let currentReviewData = null;
+
 // Badge utils
 let createNewBadge = null;
 // Cache the badge module loading promise to avoid repeated imports
@@ -577,6 +580,9 @@ async function createIntegratedReviewPanel(patchUrl) {
       const reviewContent = document.getElementById('review-content');
       const reviewError = document.getElementById('review-error');
       
+      // Clear previous review data so Copy All can't use stale content
+      currentReviewData = null;
+
       // Show loading indicator
       reviewLoading.classList.remove('gl-hidden');
       reviewContent.classList.add('gl-hidden');
@@ -677,6 +683,9 @@ async function createIntegratedReviewPanel(patchUrl) {
       const reviewContent = document.getElementById('review-content');
       const reviewError = document.getElementById('review-error');
       
+      // Clear previous review data so Copy All can't use stale content
+      currentReviewData = null;
+
       if (reviewLoading) reviewLoading.classList.remove('gl-hidden');
       if (reviewContent) reviewContent.classList.add('gl-hidden');
       if (reviewError) reviewError.classList.add('gl-hidden');
@@ -698,11 +707,13 @@ async function createIntegratedReviewPanel(patchUrl) {
   const headerActions = container.querySelector('.thinkreview-header-actions');
   if (headerActions) {
     const blockEvent = (e) => {
-      // Allow clicks on bug report button, regenerate button, and language selector
-      if (e.target.id === 'bug-report-btn' || 
+      // Allow clicks on bug report button, regenerate button, copy-all button, and language selector
+      if (e.target.id === 'bug-report-btn' ||
           e.target.closest('#bug-report-btn') ||
-          e.target.id === 'regenerate-review-btn' || 
+          e.target.id === 'regenerate-review-btn' ||
           e.target.closest('#regenerate-review-btn') ||
+          e.target.id === 'copy-all-review-btn' ||
+          e.target.closest('#copy-all-review-btn') ||
           e.target.id === 'language-selector' ||
           e.target.closest('#language-selector')) {
         return; // Don't block these events
@@ -1351,11 +1362,14 @@ async function handleSendMessage(messageText) {
 }
 
 async function displayIntegratedReview(review, patchContent, patchSize = null, subscriptionType = null, modelUsed = null, isCached = false, provider = null, ollamaMeta = null) {
+  // Store review data for copy-all functionality
+  currentReviewData = review;
+
   // Ensure copy button utils are loaded
   if (!attachCopyButtonToItem) {
     await initCopyButtonUtils();
   }
-  
+
   // Check if there was a JSON parsing error (safety check)
   if (review.parsingError === true) {
     dbgWarn('JSON parsing error detected in review object');
@@ -1497,6 +1511,67 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     } else {
       reviewMetricsContainer.classList.add('gl-hidden');
     }
+  }
+
+  // Setup copy-all review button in the quality scorecard header (rendered above)
+  const copyAllButton = document.getElementById('copy-all-review-btn');
+  if (copyAllButton && !copyAllButton.dataset.copyBound) {
+    copyAllButton.dataset.copyBound = '1';
+    copyAllButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+
+      if (!currentReviewData) return;
+
+      let markdown = '';
+      try {
+        const module = await import('./utils/review-markdown.js');
+        markdown = module.buildReviewMarkdown(currentReviewData);
+      } catch (error) {
+        dbgWarn('Failed to load review markdown utils:', error);
+        return;
+      }
+      if (!markdown.trim()) return;
+
+      try {
+        await navigator.clipboard.writeText(markdown);
+
+        // Show success feedback (green checkmark)
+        const originalHTML = copyAllButton.innerHTML;
+        copyAllButton.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
+          </svg>
+        `;
+        copyAllButton.style.color = '#4ade80';
+        setTimeout(() => {
+          copyAllButton.innerHTML = originalHTML;
+          copyAllButton.style.color = '';
+        }, 2000);
+
+        // Track copy-all action
+        try {
+          const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+          analyticsModule.trackUserAction('copy_all_review', {
+            context: 'integrated_review_panel'
+          }).catch(() => {});
+        } catch (error) { /* silent */ }
+      } catch (error) {
+        dbgWarn('Failed to copy all review content:', error);
+
+        // Show error feedback
+        const originalHTML = copyAllButton.innerHTML;
+        copyAllButton.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
+          </svg>
+        `;
+        copyAllButton.style.color = '#ef4444';
+        setTimeout(() => {
+          copyAllButton.innerHTML = originalHTML;
+          copyAllButton.style.color = '';
+        }, 2000);
+      }
+    });
   }
 
   // Show score popup and notification indicator on AI Review button if panel is minimized
