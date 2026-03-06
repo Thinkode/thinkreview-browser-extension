@@ -1865,6 +1865,32 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   pointer-events: none;
 }
 
+/* ── Docked sidebar panel mode ───────────────────────────── */
+.thinkreview-panel-container.thinkreview-panel-docked {
+  right: 0;
+  top: 0;
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 0;
+  z-index: 1050;
+}
+
+.thinkreview-panel-container.thinkreview-panel-docked.thinkreview-panel-docked-left {
+  left: 0;
+  right: auto;
+}
+
+/* Nudge page body when panel is docked so content isn't obscured */
+body.thinkreview-body-docked-right {
+  margin-right: 520px;
+  transition: margin-right 0.5s ease;
+}
+
+body.thinkreview-body-docked-left {
+  margin-left: 520px;
+  transition: margin-left 0.5s ease;
+}
+
 /* Toggle button styles removed - using only arrow down and AI Review button */
 
 #gitlab-mr-integrated-review .btn {
