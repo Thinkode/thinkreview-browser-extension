@@ -582,6 +582,11 @@ async function injectIntegratedReviewPanel(opts = {}) {
         // In overlay mode, still apply the sidebar side for positioning alignment
         createdPanel.classList.add('thinkreview-panel-overlay-left');
       }
+      if (expandSettings.panelMode !== 'docked' && expandSettings.buttonPosition?.startsWith('top')) {
+        createdPanel.classList.add('thinkreview-panel-button-top');
+      } else {
+        createdPanel.classList.remove('thinkreview-panel-button-top');
+      }
       applyDockedBodyMargin(true, expandSettings.panelMode, expandSettings.sidebarSide);
     }
   }
@@ -1282,6 +1287,11 @@ async function toggleReviewPanel() {
     } else {
       panel.classList.remove('thinkreview-panel-overlay-left');
     }
+    if (expandSettings.panelMode !== 'docked' && expandSettings.buttonPosition?.startsWith('top')) {
+      panel.classList.add('thinkreview-panel-button-top');
+    } else {
+      panel.classList.remove('thinkreview-panel-button-top');
+    }
     applyDockedBodyMargin(true, expandSettings.panelMode, expandSettings.sidebarSide);
     
     // Hide score popup when panel is expanded
@@ -1338,7 +1348,7 @@ async function toggleReviewPanel() {
     }
 
     // Remove docked mode classes when minimizing
-    panel.classList.remove('thinkreview-panel-docked', 'thinkreview-panel-docked-left');
+    panel.classList.remove('thinkreview-panel-docked', 'thinkreview-panel-docked-left', 'thinkreview-panel-button-top');
     applyDockedBodyMargin(false, 'overlay', 'right');
     
     // Show score popup when panel is minimized
@@ -1527,6 +1537,11 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
       // Overlay mode: position panel on left or right to match layout
       if (merged.sidebarSide === 'left') panel.classList.add('thinkreview-panel-overlay-left');
       else panel.classList.remove('thinkreview-panel-overlay-left');
+    }
+    if (merged.panelMode !== 'docked' && merged.buttonPosition?.startsWith('top')) {
+      panel.classList.add('thinkreview-panel-button-top');
+    } else {
+      panel.classList.remove('thinkreview-panel-button-top');
     }
     applyDockedBodyMargin(!panel.classList.contains('thinkreview-panel-minimized-to-button'), merged.panelMode, merged.sidebarSide);
   } else {
