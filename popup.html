@@ -295,6 +295,66 @@
         </div>
       </div>
       
+      <!-- Layout & Display Settings Section -->
+      <div id="layout-settings" class="layout-settings-section">
+        <h3 class="settings-title">Layout &amp; Display</h3>
+        <p class="settings-description">Choose how the AI Review button appears and how the panel is displayed</p>
+
+        <div class="layout-settings-row">
+          <span class="layout-settings-label">Open panel with</span>
+          <div class="layout-options-group">
+            <div class="layout-option">
+              <label><input type="radio" name="layout-trigger-mode" value="floating-button" id="trigger-floating-btn" checked><span> Floating button</span></label>
+            </div>
+            <div class="layout-option">
+              <label><input type="radio" name="layout-trigger-mode" value="sidebar-tab" id="trigger-sidebar-tab"><span> Sidebar tab</span></label>
+            </div>
+          </div>
+        </div>
+
+        <div id="button-position-row" class="layout-settings-row layout-sub-row">
+          <span class="layout-settings-label">Button position</span>
+          <div class="layout-options-group layout-options-grid">
+            <div class="layout-option">
+              <label><input type="radio" name="layout-button-position" value="bottom-right" id="pos-bottom-right" checked><span> Bottom right</span></label>
+            </div>
+            <div class="layout-option">
+              <label><input type="radio" name="layout-button-position" value="bottom-left" id="pos-bottom-left"><span> Bottom left</span></label>
+            </div>
+            <div class="layout-option">
+              <label><input type="radio" name="layout-button-position" value="top-right" id="pos-top-right"><span> Top right</span></label>
+            </div>
+            <div class="layout-option">
+              <label><input type="radio" name="layout-button-position" value="top-left" id="pos-top-left"><span> Top left</span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="layout-settings-row">
+          <span class="layout-settings-label">Panel display</span>
+          <div class="layout-options-group">
+            <div class="layout-option">
+              <label><input type="radio" name="layout-panel-mode" value="overlay" id="panel-overlay" checked><span> Floating overlay</span></label>
+            </div>
+            <div class="layout-option">
+              <label><input type="radio" name="layout-panel-mode" value="docked" id="panel-docked"><span> Docked sidebar</span></label>
+            </div>
+          </div>
+        </div>
+
+        <div id="sidebar-side-row" class="layout-settings-row layout-sub-row" style="display: none;">
+          <span class="layout-settings-label">Side</span>
+          <div class="layout-options-group">
+            <div class="layout-option">
+              <label><input type="radio" name="layout-sidebar-side" value="right" id="side-right" checked><span> Right</span></label>
+            </div>
+            <div class="layout-option">
+              <label><input type="radio" name="layout-sidebar-side" value="left" id="side-left"><span> Left</span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Domain Settings Section -->
       <div id="domain-settings" class="domain-settings-section">
         <h3 class="settings-title">GitLab Domains</h3>
