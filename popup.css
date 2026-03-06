@@ -1674,13 +1674,6 @@ footer {
   margin-bottom: 0;
 }
 
-/* ── Layout & Display settings section ─────────────────── */
-.layout-settings-section {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #e1e4e8;
-}
-
 .layout-settings-row {
   display: flex;
   align-items: flex-start;

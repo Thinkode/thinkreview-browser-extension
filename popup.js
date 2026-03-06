@@ -356,9 +356,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up auto-start review option
   initializeAutoStartReviewSettings();
 
-  // Set up layout & display settings
-  initializeLayoutSettings();
-  
   // Set up Azure DevOps settings
   initializeAzureSettings();
   
@@ -725,86 +722,6 @@ function initializeDomainSettings() {
   loadDomains();
   setupDomainEventListeners();
 }
-
-// ── Layout & Display settings ──────────────────────────────
-
-const DEFAULT_LAYOUT_SETTINGS = {
-  triggerMode: 'floating-button',
-  buttonPosition: 'bottom-right',
-  panelMode: 'overlay',
-  sidebarSide: 'right',
-};
-
-async function loadLayoutSettings() {
-  try {
-    const result = await chrome.storage.local.get(['reviewLayoutSettings']);
-    const settings = { ...DEFAULT_LAYOUT_SETTINGS, ...(result.reviewLayoutSettings || {}) };
-
-    const triggerFloating = document.getElementById('trigger-floating-btn');
-    const triggerSidebar = document.getElementById('trigger-sidebar-tab');
-    const posBottomRight = document.getElementById('pos-bottom-right');
-    const posBottomLeft = document.getElementById('pos-bottom-left');
-    const posTopRight = document.getElementById('pos-top-right');
-    const posTopLeft = document.getElementById('pos-top-left');
-    const panelOverlay = document.getElementById('panel-overlay');
-    const panelDocked = document.getElementById('panel-docked');
-    const sideRight = document.getElementById('side-right');
-    const sideLeft = document.getElementById('side-left');
-
-    if (triggerFloating) triggerFloating.checked = settings.triggerMode === 'floating-button';
-    if (triggerSidebar) triggerSidebar.checked = settings.triggerMode === 'sidebar-tab';
-    if (posBottomRight) posBottomRight.checked = settings.buttonPosition === 'bottom-right';
-    if (posBottomLeft) posBottomLeft.checked = settings.buttonPosition === 'bottom-left';
-    if (posTopRight) posTopRight.checked = settings.buttonPosition === 'top-right';
-    if (posTopLeft) posTopLeft.checked = settings.buttonPosition === 'top-left';
-    if (panelOverlay) panelOverlay.checked = settings.panelMode === 'overlay';
-    if (panelDocked) panelDocked.checked = settings.panelMode === 'docked';
-    if (sideRight) sideRight.checked = settings.sidebarSide === 'right';
-    if (sideLeft) sideLeft.checked = settings.sidebarSide === 'left';
-
-    _updateLayoutSubRows(settings);
-  } catch (error) {
-    dbgWarn('Error loading layout settings:', error);
-  }
-}
-
-async function saveLayoutSettings() {
-  try {
-    const current = await chrome.storage.local.get(['reviewLayoutSettings']);
-    const existing = { ...DEFAULT_LAYOUT_SETTINGS, ...(current.reviewLayoutSettings || {}) };
-
-    const triggerMode = document.querySelector('input[name="layout-trigger-mode"]:checked')?.value || existing.triggerMode;
-    const buttonPosition = document.querySelector('input[name="layout-button-position"]:checked')?.value || existing.buttonPosition;
-    const panelMode = document.querySelector('input[name="layout-panel-mode"]:checked')?.value || existing.panelMode;
-    const sidebarSide = document.querySelector('input[name="layout-sidebar-side"]:checked')?.value || existing.sidebarSide;
-
-    const updated = { triggerMode, buttonPosition, panelMode, sidebarSide };
-    await chrome.storage.local.set({ reviewLayoutSettings: updated });
-    _updateLayoutSubRows(updated);
-  } catch (error) {
-    dbgWarn('Error saving layout settings:', error);
-  }
-}
-
-function _updateLayoutSubRows(settings) {
-  const buttonPositionRow = document.getElementById('button-position-row');
-  const sidebarSideRow = document.getElementById('sidebar-side-row');
-  if (buttonPositionRow) {
-    buttonPositionRow.style.display = settings.triggerMode === 'floating-button' ? '' : 'none';
-  }
-  if (sidebarSideRow) {
-    const needsSide = settings.triggerMode === 'sidebar-tab' || settings.panelMode === 'docked';
-    sidebarSideRow.style.display = needsSide ? '' : 'none';
-  }
-}
-
-function initializeLayoutSettings() {
-  loadLayoutSettings();
-  const layoutSection = document.getElementById('layout-settings');
-  if (!layoutSection) return;
-  layoutSection.addEventListener('change', saveLayoutSettings);
-}
-
 
 function setupDomainEventListeners() {
   const addButton = document.getElementById('add-domain-btn');
