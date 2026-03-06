@@ -1316,11 +1316,8 @@ async function toggleReviewPanel() {
     if (!hasReview && !hasError && !isReviewInProgress) {
       fetchAndDisplayCodeReview();
     }
-  } else if (isReviewInProgress) {
-    // Review is in progress — keep panel visible rather than minimizing it
-    return;
   } else {
-    // If panel is already visible, minimize it
+    // If panel is already visible, minimize it (even if review is in progress)
     panel.classList.remove('thinkreview-panel-minimized', 'thinkreview-panel-hidden', 'thinkreview-panel-minimized-to-button');
     panel.classList.add('thinkreview-panel-minimized-to-button');
 
