@@ -1,6 +1,8 @@
 // formatting.js
 // Reusable markdown rendering and lightweight syntax highlighting utilities
 
+import { dbgWarn } from '../../utils/logger.js';
+
 export function preprocessAIResponse(response) {
   if (!response) return '';
   let cleaned = response;
@@ -728,7 +730,8 @@ export function setupCopyHandler(root = null) {
       btn.textContent = 'Copied';
       btn.disabled = true;
       setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1200);
-    } catch (_) {
+    } catch (e) {
+      dbgWarn('Clipboard API failed, using execCommand fallback:', e);
       const textarea = document.createElement('textarea');
       textarea.value = formattedText;
       document.body.appendChild(textarea);

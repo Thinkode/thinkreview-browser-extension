@@ -576,7 +576,9 @@ async function createIntegratedReviewPanel(patchUrl) {
               context: 'integrated_panel',
               location: 'tab_switch'
             }).catch(() => {});
-          } catch (_) {}
+          } catch (e) {
+            dbgWarn('Failed to load analytics module:', e);
+          }
         })();
       }
     });

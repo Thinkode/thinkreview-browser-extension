@@ -1240,7 +1240,9 @@ export class CloudService {
         try {
           const parsed = JSON.parse(storageData.user);
           if (parsed && parsed.email) email = parsed.email;
-        } catch (_) {}
+        } catch (e) {
+          dbgWarn('Failed to parse stored user data:', e);
+        }
       }
       if (!email) {
         dbgWarn('Cannot log Azure DevOps version: No user data in storage');

@@ -4,6 +4,8 @@
  * Appended to document.body to avoid overflow clipping by the panel container.
  */
 
+import { dbgWarn } from '../../utils/logger.js';
+
 // Load this module's CSS
 const _cssURL = chrome.runtime.getURL('components/popup-modules/layout-settings-widget.css');
 if (!document.querySelector(`link[href="${_cssURL}"]`)) {
@@ -53,7 +55,8 @@ async function _getSettings() {
   try {
     const result = await chrome.storage.local.get(['reviewLayoutSettings']);
     return { ...DEFAULT_LAYOUT_SETTINGS, ...(result.reviewLayoutSettings || {}) };
-  } catch (_) {
+  } catch (e) {
+    dbgWarn('Failed to load layout settings:', e);
     return { ...DEFAULT_LAYOUT_SETTINGS };
   }
 }

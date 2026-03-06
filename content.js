@@ -293,7 +293,8 @@ async function getLayoutSettings() {
       sidebarSide: 'right',
       ...(result.reviewLayoutSettings || {}),
     };
-  } catch (_) {
+  } catch (e) {
+    dbgWarn('Failed to load layout settings:', e);
     return { triggerMode: 'floating-button', buttonPosition: 'bottom-right', panelMode: 'overlay', sidebarSide: 'right' };
   }
 }
@@ -1498,7 +1499,9 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     const { injectTrigger, removeTrigger } = await import(chrome.runtime.getURL('components/layout-trigger.js'));
     removeTrigger();
     injectTrigger(merged, toggleReviewPanel);
-  } catch (_) {}
+  } catch (e) {
+    dbgWarn('Failed to re-inject trigger UI:', e);
+  }
 
   // If panel is currently open (not minimized), re-apply docked mode
   const panel = document.getElementById('gitlab-mr-integrated-review');

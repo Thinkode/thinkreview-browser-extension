@@ -4,6 +4,8 @@
  * Loaded dynamically by content.js via chrome.runtime.getURL().
  */
 
+import { dbgWarn } from '../utils/logger.js';
+
 // Load this module's CSS
 const _cssURL = chrome.runtime.getURL('components/layout-trigger.css');
 if (!document.querySelector(`link[href="${_cssURL}"]`)) {
@@ -31,7 +33,8 @@ export async function getLayoutSettings() {
   try {
     const result = await chrome.storage.local.get(['reviewLayoutSettings']);
     return { ...DEFAULT_LAYOUT_SETTINGS, ...(result.reviewLayoutSettings || {}) };
-  } catch (_) {
+  } catch (e) {
+    dbgWarn('Failed to load layout settings:', e);
     return { ...DEFAULT_LAYOUT_SETTINGS };
   }
 }
@@ -77,7 +80,9 @@ async function _trackClick(context) {
   try {
     const mod = await import(chrome.runtime.getURL('utils/analytics-service.js'));
     mod.trackUserAction('ai_review_clicked', { context, location: 'pr_page' }).catch(() => {});
-  } catch (_) {}
+  } catch (e) {
+    dbgWarn('Failed to load analytics module:', e);
+  }
 }
 
 function _injectFloatingButton(settings, onToggle) {

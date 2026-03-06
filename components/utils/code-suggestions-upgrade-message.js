@@ -1,6 +1,8 @@
 // code-suggestions-upgrade-message.js
 // Upgrade message shown to Free users in the Code Suggestions tab.
 
+import { dbgWarn } from '../../utils/logger.js';
+
 const SUBSCRIPTION_PORTAL_URL = 'https://portal.thinkreview.dev/subscription';
 
 /**
@@ -66,7 +68,9 @@ export function createCodeSuggestionsUpgradeMessage() {
         location: 'integrated_panel',
         source: 'upgrade_message'
       }).catch(() => {});
-    } catch (_) {}
+    } catch (e) {
+      dbgWarn('Failed to load analytics module:', e);
+    }
   });
 
   const freeTrialNote = document.createElement('p');
