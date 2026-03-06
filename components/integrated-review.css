@@ -1865,6 +1865,12 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   pointer-events: none;
 }
 
+.thinkreview-panel-container.thinkreview-panel-minimized-to-button.thinkreview-panel-overlay-left,
+#gitlab-mr-integrated-review.minimized-to-button.thinkreview-panel-overlay-left {
+  left: 24px;
+  right: auto;
+}
+
 /* ── Docked sidebar panel mode ───────────────────────────── */
 .thinkreview-panel-container.thinkreview-panel-docked {
   right: 0;
@@ -1877,6 +1883,17 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
 
 .thinkreview-panel-container.thinkreview-panel-docked.thinkreview-panel-docked-left {
   left: 0;
+  right: auto;
+}
+
+/* Overlay mode with left positioning */
+.thinkreview-panel-container.thinkreview-panel-overlay-left {
+  left: 20px;
+  right: auto;
+}
+
+#gitlab-mr-integrated-review.thinkreview-panel-overlay-left {
+  left: 20px;
   right: auto;
 }
 

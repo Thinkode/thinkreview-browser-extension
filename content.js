@@ -578,6 +578,9 @@ async function injectIntegratedReviewPanel(opts = {}) {
       if (expandSettings.panelMode === 'docked') {
         createdPanel.classList.add('thinkreview-panel-docked');
         if (expandSettings.sidebarSide === 'left') createdPanel.classList.add('thinkreview-panel-docked-left');
+      } else if (expandSettings.sidebarSide === 'left') {
+        // In overlay mode, still apply the sidebar side for positioning alignment
+        createdPanel.classList.add('thinkreview-panel-overlay-left');
       }
       applyDockedBodyMargin(true, expandSettings.panelMode, expandSettings.sidebarSide);
     }
@@ -1273,6 +1276,11 @@ async function toggleReviewPanel() {
       panel.classList.add('thinkreview-panel-docked');
       if (expandSettings.sidebarSide === 'left') panel.classList.add('thinkreview-panel-docked-left');
       else panel.classList.remove('thinkreview-panel-docked-left');
+    } else if (expandSettings.sidebarSide === 'left') {
+      // In overlay mode, apply the sidebar side for positioning alignment
+      panel.classList.add('thinkreview-panel-overlay-left');
+    } else {
+      panel.classList.remove('thinkreview-panel-overlay-left');
     }
     applyDockedBodyMargin(true, expandSettings.panelMode, expandSettings.sidebarSide);
     
@@ -1320,6 +1328,14 @@ async function toggleReviewPanel() {
     // If panel is already visible, minimize it (even if review is in progress)
     panel.classList.remove('thinkreview-panel-minimized', 'thinkreview-panel-hidden', 'thinkreview-panel-minimized-to-button');
     panel.classList.add('thinkreview-panel-minimized-to-button');
+
+    // Get settings to apply left positioning if needed
+    const minimizeSettings = await getLayoutSettings();
+    if (minimizeSettings.sidebarSide === 'left') {
+      panel.classList.add('thinkreview-panel-overlay-left');
+    } else {
+      panel.classList.remove('thinkreview-panel-overlay-left');
+    }
 
     // Remove docked mode classes when minimizing
     panel.classList.remove('thinkreview-panel-docked', 'thinkreview-panel-docked-left');
