@@ -1516,13 +1516,17 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     dbgWarn('Failed to re-inject trigger UI:', e);
   }
 
-  // If panel is currently open (not minimized), re-apply docked mode
+  // If panel is currently open (not minimized), re-apply docked mode and overlay side
   const panel = document.getElementById('gitlab-mr-integrated-review');
   if (panel && !panel.classList.contains('thinkreview-panel-minimized-to-button')) {
     panel.classList.remove('thinkreview-panel-docked', 'thinkreview-panel-docked-left');
     if (merged.panelMode === 'docked') {
       panel.classList.add('thinkreview-panel-docked');
       if (merged.sidebarSide === 'left') panel.classList.add('thinkreview-panel-docked-left');
+    } else {
+      // Overlay mode: position panel on left or right to match layout
+      if (merged.sidebarSide === 'left') panel.classList.add('thinkreview-panel-overlay-left');
+      else panel.classList.remove('thinkreview-panel-overlay-left');
     }
     applyDockedBodyMargin(!panel.classList.contains('thinkreview-panel-minimized-to-button'), merged.panelMode, merged.sidebarSide);
   } else {
