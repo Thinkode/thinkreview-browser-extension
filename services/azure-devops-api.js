@@ -208,7 +208,13 @@ export class AzureDevOpsAPI {
       this._projectResolutionPromise = this.resolveProjectForRepository();
     }
     if (this._projectResolutionPromise) {
-      await this._projectResolutionPromise;
+      try {
+        await this._projectResolutionPromise;
+      } catch (err) {
+        // Clear the failed promise so future calls can retry resolution
+        this._projectResolutionPromise = null;
+        throw err;
+      }
     }
 
     dbgLog('Making Azure DevOps API request:', {

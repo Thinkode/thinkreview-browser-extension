@@ -377,7 +377,6 @@ async function createIntegratedReviewPanel(patchUrl) {
               <div class="thinkreview-tab-panel active" id="tab-panel-review" data-tab="review">
           <div id="review-scroll-container">
             <div id="review-prompt-container"></div>
-            <div id="review-patch-size-banner" class="gl-mb-4 gl-hidden"></div>
             <div id="review-metrics-container" class="gl-mb-4"></div>
             <div id="review-summary-container" class="gl-mb-4">
               <div class="thinkreview-section-header-row">
@@ -1410,7 +1409,6 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   const reviewSecurity = document.getElementById('review-security');
   const reviewPractices = document.getElementById('review-practices');
   const reviewMetricsContainer = document.getElementById('review-metrics-container');
-  const patchSizeBanner = document.getElementById('review-patch-size-banner');
 
   // Hide loading indicator and other states, show the main content area
   reviewLoading.classList.add('gl-hidden');

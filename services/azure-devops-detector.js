@@ -261,18 +261,32 @@ export class AzureDevOpsDetector {
 
   /**
    * Extract project name from URL
-   * Project is always the first segment after the org: /{org}/{project}/... or /{org}/{project}/{team}/_git/...
-   * Returns null only when path is /{org}/_git/{repo} (no project segment).
-   * @returns {string|null} Project name, or null when URL is /{org}/_git/{repo}
+   * URL shapes vary by domain:
+   *   dev.azure.com:      /{org}/{project}/_git/{repo} or /{org}/_git/{repo}
+   *   visualstudio.com:   /{project}/_git/{repo}  (org is in subdomain)
+   *   on-prem:            /{collection}/{project}/_git/{repo} or /{collection}/_git/{repo}
+   * Returns null only when there is no project segment before _git.
+   * @returns {string|null} Project name, or null when URL has no project in path
    */
   extractProject() {
     const pathname = window.location.pathname;
+    const hostname = window.location.hostname;
     const pathParts = pathname.split('/').filter(Boolean);
 
-    // Must have at least org and something before or at _git
     if (pathParts.length < 2) return null;
 
-    // First segment is org/collection; second is project when present
+    // For visualstudio.com: org is in subdomain, path is /{project}/_git/{repo}/...
+    // First segment IS the project (no org/collection in path)
+    if (hostname.includes('visualstudio.com')) {
+      const firstSegment = pathParts[0];
+      if (firstSegment === '_git') {
+        // Edge case: /_git/{repo} with no project
+        return null;
+      }
+      return firstSegment;
+    }
+
+    // For dev.azure.com and on-prem: first segment is org/collection
     // URL shapes: /{org}/_git/{repo} or /{org}/{project}/_git/{repo} or /{org}/{project}/{team}/_git/{repo}
     const segmentAfterOrg = pathParts[1];
     if (segmentAfterOrg === '_git') {

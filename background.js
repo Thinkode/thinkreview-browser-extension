@@ -4,6 +4,7 @@
 // Import services statically since dynamic imports aren't allowed in service workers
 import { CloudService } from './services/cloud-service.js';
 import { OllamaService } from './services/ollama-service.js';
+import { OpenAIService } from './services/openai-service.js';
 import { isValidOrigin } from './utils/origin-validator.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
@@ -277,11 +278,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       try {
         // Get AI provider setting
-        const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+        const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openaiConfig']);
         const provider = settings.aiProvider || 'cloud';
-        
+
         dbgLog('Using AI provider for conversation:', provider);
-        
+
         // Route to appropriate service based on provider
         if (provider === 'ollama') {
           // Use Ollama for conversational response
@@ -313,8 +314,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             });
             return;
           }
+        } else if (provider === 'openai') {
+          // Use OpenAI-compatible API for conversational response
+          try {
+            const config = settings.openaiConfig || { url: 'https://api.openai.com', model: 'gpt-4o-mini' };
+
+            dbgLog('Getting conversational response from OpenAI-compatible API:', { url: config.url, model: config.model });
+
+            const data = await OpenAIService.getConversationalResponse(
+              patchContent,
+              conversationHistory,
+              language || 'English',
+              mrId,
+              mrUrl
+            );
+
+            dbgLog('OpenAI conversational response completed successfully');
+            sendResponse({ success: true, data: data, provider: 'openai' });
+            return;
+          } catch (openaiError) {
+            dbgWarn('OpenAI conversational response failed:', openaiError.message);
+
+            sendResponse({
+              success: false,
+              error: openaiError.message,
+              provider: 'openai',
+              suggestion: 'Check your API key, model name, and endpoint URL in extension settings.'
+            });
+            return;
+          }
         }
-        
+
         // Default: Use cloud service (Gemini)
         const data = await CloudService.getConversationalResponse(patchContent, conversationHistory, mrId, mrUrl, language || 'English');
         // Log only metadata, not the actual response content
@@ -362,11 +392,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     (async () => {
       // Get AI provider setting (declare outside try block so it's accessible in catch)
-      let settings = { aiProvider: 'cloud', ollamaConfig: null };
+      let settings = { aiProvider: 'cloud', ollamaConfig: null, openaiConfig: null };
       let provider = 'cloud';
-      
+
       try {
-        settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+        settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openaiConfig']);
         provider = settings.aiProvider || 'cloud';
         
         dbgLog('Using AI provider:', provider);
@@ -402,8 +432,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             });
             return;
           }
+        } else if (provider === 'openai') {
+          // Use OpenAI-compatible API for code review
+          try {
+            const config = settings.openaiConfig || { url: 'https://api.openai.com', model: 'gpt-4o-mini' };
+
+            dbgLog('Reviewing with OpenAI-compatible API:', { url: config.url, model: config.model });
+
+            const data = await OpenAIService.reviewPatchCode(patchContent, language, mrId, mrUrl);
+
+            dbgLog('OpenAI review completed successfully');
+
+            // Track the review in Firebase (fire-and-forget, reuse Ollama tracking with openai provider tag)
+            trackOllamaReview(patchContent, mrId, mrUrl, data, config.model).catch(err => {
+              dbgWarn('Failed to track OpenAI review in Firebase:', err.message);
+            });
+
+            // Map openaiMeta to ollamaMeta key for the existing content.js/integrated-review.js data channel
+            if (data.openaiMeta) {
+              data.ollamaMeta = data.openaiMeta;
+            }
+
+            sendResponse({ success: true, data, provider: 'openai' });
+            return;
+          } catch (openaiError) {
+            dbgWarn('OpenAI review failed:', openaiError.message);
+
+            sendResponse({
+              success: false,
+              error: openaiError.message,
+              provider: 'openai',
+              suggestion: 'Check your API key, model name, and endpoint URL in extension settings.'
+            });
+            return;
+          }
         }
-        
+
         // Default: Use cloud service (Gemini)
         // Validate patchContent before sending
         if (!patchContent || patchContent.trim().length === 0) {
