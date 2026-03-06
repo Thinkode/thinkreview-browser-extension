@@ -1,0 +1,100 @@
+/* layout-trigger.css */
+/* Styles for the floating button and sidebar tab review trigger UI */
+
+/* ── Floating button container ───────────────────────────── */
+.thinkreview-floating-btn-container {
+  position: fixed;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.thinkreview-floating-btn-container.pos-bottom-right {
+  bottom: 24px;
+  right: 24px;
+}
+
+.thinkreview-floating-btn-container.pos-bottom-left {
+  bottom: 24px;
+  left: 24px;
+}
+
+.thinkreview-floating-btn-container.pos-top-right {
+  top: 80px;
+  right: 24px;
+}
+
+.thinkreview-floating-btn-container.pos-top-left {
+  top: 80px;
+  left: 24px;
+}
+
+/* ── Sidebar tab trigger ─────────────────────────────────── */
+.thinkreview-sidebar-tab {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 9999;
+  background: #6b4fbb;
+  color: white;
+  cursor: pointer;
+  border: none;
+  padding: 14px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  user-select: none;
+  transition: background 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.thinkreview-sidebar-tab.side-right {
+  right: 0;
+  border-radius: 6px 0 0 6px;
+}
+
+.thinkreview-sidebar-tab.side-left {
+  left: 0;
+  border-radius: 0 6px 6px 0;
+}
+
+.thinkreview-sidebar-tab:hover {
+  background: #5a3ea5;
+}
+
+.thinkreview-sidebar-tab-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
+/* Content container wraps logo + label so rotation keeps logo before text */
+.thinkreview-sidebar-tab-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.thinkreview-sidebar-tab.side-left .thinkreview-sidebar-tab-content {
+  transform: rotate(180deg);
+}
+
+.thinkreview-sidebar-tab-chevron {
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+.thinkreview-sidebar-tab-logo {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
