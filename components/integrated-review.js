@@ -496,6 +496,15 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Initialize resize functionality
   initializeResizeHandle(container);
 
+  // Mount the layout settings widget in the header actions
+  try {
+    const { mountLayoutSettingsWidget } = await import('./popup-modules/layout-settings-widget.js');
+    const headerActionsEl = container.querySelector('.thinkreview-header-actions');
+    await mountLayoutSettingsWidget(headerActionsEl);
+  } catch (error) {
+    // Silently fail — layout widget is non-critical
+  }
+
   // Delegate copy handler to panel only (avoids document-level listener; improves perf when interacting with GitLab diff)
   await formattingReady;
   if (setupCopyHandler) setupCopyHandler(container);
@@ -507,6 +516,9 @@ async function createIntegratedReviewPanel(patchUrl) {
       // Only minimize to the button, don't toggle
       container.classList.remove('thinkreview-panel-minimized', 'thinkreview-panel-hidden');
       container.classList.add('thinkreview-panel-minimized-to-button');
+
+      // Notify content.js to remove docked body margin
+      document.dispatchEvent(new CustomEvent('thinkreview:panelminimized'));
       
       // Show score popup when panel is minimized
       try {
@@ -707,7 +719,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   const headerActions = container.querySelector('.thinkreview-header-actions');
   if (headerActions) {
     const blockEvent = (e) => {
-      // Allow clicks on bug report button, regenerate button, copy-all button, and language selector
+      // Allow clicks on bug report button, regenerate button, copy-all button, language selector, and layout button
       if (e.target.id === 'bug-report-btn' ||
           e.target.closest('#bug-report-btn') ||
           e.target.id === 'regenerate-review-btn' ||
@@ -715,7 +727,9 @@ async function createIntegratedReviewPanel(patchUrl) {
           e.target.id === 'copy-all-review-btn' ||
           e.target.closest('#copy-all-review-btn') ||
           e.target.id === 'language-selector' ||
-          e.target.closest('#language-selector')) {
+          e.target.closest('#language-selector') ||
+          e.target.id === 'thinkreview-layout-btn' ||
+          e.target.closest('#thinkreview-layout-btn')) {
         return; // Don't block these events
       }
       e.stopPropagation();
