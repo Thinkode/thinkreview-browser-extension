@@ -288,7 +288,6 @@ async function createIntegratedReviewPanel(patchUrl) {
             <img src="${logoUrl}" alt="ThinkReview" class="thinkreview-header-logo">
             <span class="gl-font-weight-bold">ThinkReview</span>
             <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
-            <span class="thinkreview-toggle-icon gl-ml-2" title="Minimize">▲</span>
           </div>
           <span id="review-subscription-label" class="thinkreview-header-subscription" aria-label="Current plan"></span>
         </div>
