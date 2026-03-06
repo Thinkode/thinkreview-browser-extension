@@ -568,6 +568,20 @@ async function injectIntegratedReviewPanel(opts = {}) {
   
   dbgLog('Integrated review panel created');
   
+  // If the user explicitly triggered this (button click), expand the panel immediately
+  if (opts.triggerReview === true) {
+    const createdPanel = document.getElementById('gitlab-mr-integrated-review');
+    if (createdPanel) {
+      createdPanel.classList.remove('thinkreview-panel-minimized-to-button');
+      const expandSettings = await getLayoutSettings();
+      if (expandSettings.panelMode === 'docked') {
+        createdPanel.classList.add('thinkreview-panel-docked');
+        if (expandSettings.sidebarSide === 'left') createdPanel.classList.add('thinkreview-panel-docked-left');
+      }
+      applyDockedBodyMargin(true, expandSettings.panelMode, expandSettings.sidebarSide);
+    }
+  }
+  
   // Track current PR ID
   currentPRId = getCurrentPRId();
   
@@ -1340,7 +1354,7 @@ async function toggleReviewPanel() {
     }
     
     // Update the button arrow to up arrow
-    const arrowSpan = reviewBtn.querySelector('span:last-child');
+    const arrowSpan = reviewBtn?.querySelector('span:last-child');
     if (arrowSpan) {
       arrowSpan.textContent = '▲';
     }
