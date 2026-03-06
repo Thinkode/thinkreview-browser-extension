@@ -29,8 +29,6 @@ const LAYOUT_GROUPS = [
     combos: [
       { id: 'float-br', label: 'Bottom Right', settings: { triggerMode: 'floating-button', buttonPosition: 'bottom-right', panelMode: 'overlay', sidebarSide: 'right' } },
       { id: 'float-bl', label: 'Bottom Left',  settings: { triggerMode: 'floating-button', buttonPosition: 'bottom-left',  panelMode: 'overlay', sidebarSide: 'left'  } },
-      { id: 'float-tr', label: 'Top Right',    settings: { triggerMode: 'floating-button', buttonPosition: 'top-right',    panelMode: 'overlay', sidebarSide: 'right' } },
-      { id: 'float-tl', label: 'Top Left',     settings: { triggerMode: 'floating-button', buttonPosition: 'top-left',     panelMode: 'overlay', sidebarSide: 'left'  } },
     ],
   },
   {
