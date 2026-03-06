@@ -1,0 +1,42 @@
+/* Completion message bubble - first best practice tooltip */
+.thinkreview-completion-bubble {
+  max-width: 260px;
+  padding: 10px 14px;
+  background: #1a1628;
+  border: 1px solid #3d2d6e;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  pointer-events: none;
+  animation: thinkreview-bubble-in 0.25s ease-out;
+}
+
+@keyframes thinkreview-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Sidebar case uses translateY(-50%) only */
+#thinkreview-completion-bubble.thinkreview-completion-bubble-sidebar {
+  animation-name: thinkreview-bubble-in-sidebar;
+}
+
+@keyframes thinkreview-bubble-in-sidebar {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}

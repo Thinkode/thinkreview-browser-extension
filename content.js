@@ -466,6 +466,19 @@ async function checkAndTriggerReviewForNewPR() {
     } catch (error) {
       // Silently fail if module not available
     }
+    // Clear completion effects (shake + bubble)
+    try {
+      const effectsModule = await import(chrome.runtime.getURL('components/popup-modules/completion-effects.js'));
+      effectsModule.clearTriggerShake();
+    } catch (error) {
+      // Silently fail if module not available
+    }
+    try {
+      const bubbleModule = await import(chrome.runtime.getURL('components/popup-modules/completion-message-bubble.js'));
+      bubbleModule.hideBubble();
+    } catch (error) {
+      // Silently fail if module not available
+    }
     
     return;
   }
@@ -1306,6 +1319,20 @@ async function toggleReviewPanel() {
     try {
       const notificationModule = await import(chrome.runtime.getURL('components/popup-modules/button-notification.js'));
       notificationModule.hideButtonNotification();
+    } catch (error) {
+      // Silently fail if module not available
+    }
+
+    // Clear completion effects (shake + first best practice bubble)
+    try {
+      const effectsModule = await import(chrome.runtime.getURL('components/popup-modules/completion-effects.js'));
+      effectsModule.clearTriggerShake();
+    } catch (error) {
+      // Silently fail if module not available
+    }
+    try {
+      const bubbleModule = await import(chrome.runtime.getURL('components/popup-modules/completion-message-bubble.js'));
+      bubbleModule.hideBubble();
     } catch (error) {
       // Silently fail if module not available
     }

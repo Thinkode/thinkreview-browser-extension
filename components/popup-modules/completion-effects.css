@@ -1,0 +1,51 @@
+/**
+ * completion-effects.css
+ * Keyframes for the ThinkReview trigger shake (shake then calm per cycle).
+ * Duration and iteration count are set from constants in completion-effects.js via an injected style.
+ */
+
+@keyframes thinkreview-shake-float {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  /* Shake in first ~25% of cycle */
+  5% {
+    transform: translateX(-4px);
+  }
+  10% {
+    transform: translateX(4px);
+  }
+  15% {
+    transform: translateX(-4px);
+  }
+  20% {
+    transform: translateX(4px);
+  }
+  /* Back to center; calm/stationary for rest of cycle */
+  25%, 100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes thinkreview-shake-sidebar {
+  0%, 100% {
+    transform: translateY(-50%) translateX(0);
+  }
+  /* Shake in first ~25% of cycle */
+  5% {
+    transform: translateY(-50%) translateX(-4px);
+  }
+  10% {
+    transform: translateY(-50%) translateX(4px);
+  }
+  15% {
+    transform: translateY(-50%) translateX(-4px);
+  }
+  20% {
+    transform: translateY(-50%) translateX(4px);
+  }
+  /* Back to center; calm/stationary for rest of cycle */
+  25%, 100% {
+    transform: translateY(-50%) translateX(0);
+  }
+}

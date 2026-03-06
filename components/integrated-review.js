@@ -1615,6 +1615,26 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     } catch (error) {
       dbgWarn('Failed to load button notification module:', error);
     }
+
+    // Phase 1: Shake trigger for 5s and show first best practice bubble for 5s (if any)
+    try {
+      const triggerResolver = await import('./popup-modules/trigger-resolver.js');
+      const triggerEl = triggerResolver.getActiveTriggerElement();
+      if (triggerEl) {
+        const effectsModule = await import('./popup-modules/completion-effects.js');
+        effectsModule.runTriggerShake(triggerEl);
+      }
+      if (review.bestPractices && review.bestPractices.length > 0) {
+        const first = review.bestPractices[0];
+        const text = typeof first === 'string' ? first.trim() : (first && typeof first === 'object' && first.description ? String(first.description).trim() : String(first).trim());
+        if (text && triggerEl) {
+          const bubbleModule = await import('./popup-modules/completion-message-bubble.js');
+          bubbleModule.showBubble(triggerEl, text, 5000);
+        }
+      }
+    } catch (error) {
+      dbgWarn('Failed to run completion effects (shake/bubble):', error);
+    }
   }
 
   /**
