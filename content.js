@@ -1298,9 +1298,12 @@ async function toggleReviewPanel() {
     const hasError = reviewError && !reviewError.classList.contains('gl-hidden');
     
     // If no review has been generated yet (no content and no error), trigger the review
-    if (!hasReview && !hasError) {
+    if (!hasReview && !hasError && !isReviewInProgress) {
       fetchAndDisplayCodeReview();
     }
+  } else if (isReviewInProgress) {
+    // Review is in progress — keep panel visible rather than minimizing it
+    return;
   } else {
     // If panel is already visible, minimize it
     panel.classList.remove('thinkreview-panel-minimized', 'thinkreview-panel-hidden', 'thinkreview-panel-minimized-to-button');
