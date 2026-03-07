@@ -286,13 +286,17 @@ function getGitHubPRId() {
 async function getLayoutSettings() {
   try {
     const result = await chrome.storage.local.get(['reviewLayoutSettings']);
-    return {
+    const raw = {
       triggerMode: 'floating-button',
       buttonPosition: 'bottom-right',
       panelMode: 'overlay',
       sidebarSide: 'right',
       ...(result.reviewLayoutSettings || {}),
     };
+    const pos = raw.buttonPosition;
+    if (pos === 'top-right') raw.buttonPosition = 'bottom-right';
+    else if (pos === 'top-left') raw.buttonPosition = 'bottom-left';
+    return raw;
   } catch (e) {
     dbgWarn('Failed to load layout settings:', e);
     return { triggerMode: 'floating-button', buttonPosition: 'bottom-right', panelMode: 'overlay', sidebarSide: 'right' };
@@ -594,11 +598,6 @@ async function injectIntegratedReviewPanel(opts = {}) {
       } else if (expandSettings.sidebarSide === 'left') {
         // In overlay mode, still apply the sidebar side for positioning alignment
         createdPanel.classList.add('thinkreview-panel-overlay-left');
-      }
-      if (expandSettings.panelMode !== 'docked' && expandSettings.buttonPosition?.startsWith('top')) {
-        createdPanel.classList.add('thinkreview-panel-button-top');
-      } else {
-        createdPanel.classList.remove('thinkreview-panel-button-top');
       }
       applyDockedBodyMargin(true, expandSettings.panelMode, expandSettings.sidebarSide);
     }
@@ -1300,11 +1299,6 @@ async function toggleReviewPanel() {
     } else {
       panel.classList.remove('thinkreview-panel-overlay-left');
     }
-    if (expandSettings.panelMode !== 'docked' && expandSettings.buttonPosition?.startsWith('top')) {
-      panel.classList.add('thinkreview-panel-button-top');
-    } else {
-      panel.classList.remove('thinkreview-panel-button-top');
-    }
     applyDockedBodyMargin(true, expandSettings.panelMode, expandSettings.sidebarSide);
     
     // Hide score popup when panel is expanded
@@ -1543,6 +1537,8 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     sidebarSide: 'right',
     ...settings,
   };
+  if (merged.buttonPosition === 'top-right') merged.buttonPosition = 'bottom-right';
+  else if (merged.buttonPosition === 'top-left') merged.buttonPosition = 'bottom-left';
 
   // Re-inject the trigger UI with the new settings
   try {
@@ -1564,11 +1560,6 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
       // Overlay mode: position panel on left or right to match layout
       if (merged.sidebarSide === 'left') panel.classList.add('thinkreview-panel-overlay-left');
       else panel.classList.remove('thinkreview-panel-overlay-left');
-    }
-    if (merged.panelMode !== 'docked' && merged.buttonPosition?.startsWith('top')) {
-      panel.classList.add('thinkreview-panel-button-top');
-    } else {
-      panel.classList.remove('thinkreview-panel-button-top');
     }
     applyDockedBodyMargin(!panel.classList.contains('thinkreview-panel-minimized-to-button'), merged.panelMode, merged.sidebarSide);
   } else {

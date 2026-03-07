@@ -28,7 +28,6 @@ const LAYOUT_GROUPS = [
     label: 'Floating Button',
     combos: [
       { id: 'float-br', label: 'Bottom Right', settings: { triggerMode: 'floating-button', buttonPosition: 'bottom-right', panelMode: 'overlay', sidebarSide: 'right' } },
-      { id: 'float-tr', label: 'Top Right',    settings: { triggerMode: 'floating-button', buttonPosition: 'top-right',    panelMode: 'overlay', sidebarSide: 'right' } },
     ],
   },
   {
@@ -52,11 +51,20 @@ const ALL_COMBOS = LAYOUT_GROUPS.flatMap(g => g.combos);
 async function _getSettings() {
   try {
     const result = await chrome.storage.local.get(['reviewLayoutSettings']);
-    return { ...DEFAULT_LAYOUT_SETTINGS, ...(result.reviewLayoutSettings || {}) };
+    const raw = { ...DEFAULT_LAYOUT_SETTINGS, ...(result.reviewLayoutSettings || {}) };
+    return _normalizeLayoutSettings(raw);
   } catch (e) {
     dbgWarn('Failed to load layout settings:', e);
     return { ...DEFAULT_LAYOUT_SETTINGS };
   }
+}
+
+/** Normalize deprecated top-right/top-left to bottom-right/bottom-left. */
+function _normalizeLayoutSettings(settings) {
+  const pos = settings.buttonPosition;
+  if (pos === 'top-right') return { ...settings, buttonPosition: 'bottom-right' };
+  if (pos === 'top-left') return { ...settings, buttonPosition: 'bottom-left' };
+  return settings;
 }
 
 async function _saveSettings(settings) {
@@ -205,7 +213,6 @@ function _buildDiagram(s) {
   const isTab = s.triggerMode === 'sidebar-tab';
   const isDocked = s.panelMode === 'docked';
   const isLeft = s.sidebarSide === 'left';
-  const isTopPos = s.buttonPosition && s.buttonPosition.startsWith('top');
   const isLeftPos = s.buttonPosition && s.buttonPosition.endsWith('left');
 
   const pageBg = `<rect x="0.5" y="0.5" width="39" height="27" rx="2" fill="#2a2440" stroke="#4a3880" stroke-width="0.8"/>`;
@@ -225,9 +232,9 @@ function _buildDiagram(s) {
     `;
   } else {
     const bx = isLeftPos ? 2 : 29;
-    const by = isTopPos ? 2 : 21;
+    const by = 21;
     const px = isLeftPos ? 2 : 8;
-    const py = isTopPos ? 9 : 3;
+    const py = 3;
     elements = `
       <rect x="${px}" y="${py}" width="20" height="14" rx="2" fill="#4a3880" stroke="#6b4fbb" stroke-width="0.6"/>
       <rect x="${bx}" y="${by}" width="9" height="5" rx="1" fill="#6b4fbb"/>

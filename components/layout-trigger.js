@@ -27,16 +27,25 @@ export const DEFAULT_LAYOUT_SETTINGS = {
 
 /**
  * Reads layout settings from chrome.storage.local, merged with defaults.
+ * Normalizes deprecated top-right/top-left to bottom-right/bottom-left.
  * @returns {Promise<Object>}
  */
 export async function getLayoutSettings() {
   try {
     const result = await chrome.storage.local.get(['reviewLayoutSettings']);
-    return { ...DEFAULT_LAYOUT_SETTINGS, ...(result.reviewLayoutSettings || {}) };
+    const raw = { ...DEFAULT_LAYOUT_SETTINGS, ...(result.reviewLayoutSettings || {}) };
+    return _normalizeLayoutSettings(raw);
   } catch (e) {
     dbgWarn('Failed to load layout settings:', e);
     return { ...DEFAULT_LAYOUT_SETTINGS };
   }
+}
+
+function _normalizeLayoutSettings(settings) {
+  const pos = settings.buttonPosition;
+  if (pos === 'top-right') return { ...settings, buttonPosition: 'bottom-right' };
+  if (pos === 'top-left') return { ...settings, buttonPosition: 'bottom-left' };
+  return settings;
 }
 
 /**
@@ -86,9 +95,10 @@ async function _trackClick(context) {
 }
 
 function _injectFloatingButton(settings, onToggle) {
+  const pos = settings.buttonPosition || 'bottom-right';
   const container = document.createElement('div');
   container.id = FLOATING_BTN_CONTAINER_ID;
-  container.className = `thinkreview-floating-btn-container pos-${settings.buttonPosition || 'bottom-right'}`;
+  container.className = `thinkreview-floating-btn-container pos-${pos}`;
 
   const logoUrl = chrome.runtime.getURL('images/icon16.png');
   const btn = document.createElement('button');

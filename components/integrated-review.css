@@ -1897,12 +1897,6 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   right: auto;
 }
 
-/* Extra top offset when floating button is top-right to avoid overlap */
-.thinkreview-panel-container.thinkreview-panel-button-top:not(.thinkreview-panel-minimized-to-button),
-#gitlab-mr-integrated-review.thinkreview-panel-button-top:not(.thinkreview-panel-minimized-to-button) {
-  top: 145px;
-}
-
 /* Nudge page body when panel is docked so content isn't obscured */
 body.thinkreview-body-docked-right {
   margin-right: 520px;

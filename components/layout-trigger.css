@@ -20,16 +20,6 @@
   left: 24px;
 }
 
-.thinkreview-floating-btn-container.pos-top-right {
-  top: 80px;
-  right: 24px;
-}
-
-.thinkreview-floating-btn-container.pos-top-left {
-  top: 80px;
-  left: 24px;
-}
-
 /* ── Sidebar tab trigger ─────────────────────────────────── */
 .thinkreview-sidebar-tab {
   position: fixed;
