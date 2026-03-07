@@ -4,7 +4,10 @@
  */
 
 const BUBBLE_ID = 'thinkreview-completion-bubble';
-const MAX_TEXT_LENGTH = 150;
+/** Max characters to show so text fits inside the bubble without overflow (~6 lines at 400px width). */
+const MAX_TEXT_LENGTH = 320;
+/** How long to show the bubble (ms). */
+const BUBBLE_DURATION_MS = 5000;
 
 const cssURL = chrome.runtime.getURL('components/popup-modules/completion-message-bubble.css');
 if (!document.querySelector(`link[href="${cssURL}"]`)) {
@@ -55,13 +58,14 @@ function positionBubble(bubble, triggerEl) {
     bubble.style.transform = 'translateY(-50%)';
     bubble.classList.add('thinkreview-completion-bubble-sidebar');
   } else {
-    // Floating button: above the button, centered
-    const centerX = triggerRect.left + triggerRect.width / 2;
-    bubble.style.left = `${centerX}px`;
-    bubble.style.bottom = `${window.innerHeight - triggerRect.top + 8}px`;
-    bubble.style.transform = 'translateX(-50%)';
-    bubble.style.right = 'auto';
-    bubble.style.top = 'auto';
+    // Floating button (bottom-right or bottom-left): show bubble to the left of the button
+    const gap = 8;
+    bubble.style.right = `${window.innerWidth - triggerRect.left + gap}px`;
+    bubble.style.left = 'auto';
+    bubble.style.top = `${triggerRect.top + triggerRect.height / 2}px`;
+    bubble.style.bottom = 'auto';
+    bubble.style.transform = 'translateY(-50%)';
+    bubble.classList.add('thinkreview-completion-bubble-float-left');
   }
 }
 
@@ -69,9 +73,9 @@ function positionBubble(bubble, triggerEl) {
  * Shows a message bubble near the trigger for a given duration.
  * @param {HTMLElement} triggerEl - The ThinkReview trigger (floating button or sidebar tab)
  * @param {string} text - Text to show (will be truncated to MAX_TEXT_LENGTH)
- * @param {number} durationMs - How long to show the bubble (default 5000)
+ * @param {number} durationMs - How long to show the bubble (default BUBBLE_DURATION_MS = 5s)
  */
-export function showBubble(triggerEl, text, durationMs = 5000) {
+export function showBubble(triggerEl, text, durationMs = BUBBLE_DURATION_MS) {
   hideBubble();
 
   if (!triggerEl || !text || typeof text !== 'string') return;

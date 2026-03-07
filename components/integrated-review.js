@@ -1629,7 +1629,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
         const text = typeof first === 'string' ? first.trim() : (first && typeof first === 'object' && first.description ? String(first.description).trim() : String(first).trim());
         if (text && triggerEl) {
           const bubbleModule = await import('./popup-modules/completion-message-bubble.js');
-          bubbleModule.showBubble(triggerEl, text, 5000);
+          bubbleModule.showBubble(triggerEl, text, 5000); /* 5 seconds */
         }
       }
     } catch (error) {

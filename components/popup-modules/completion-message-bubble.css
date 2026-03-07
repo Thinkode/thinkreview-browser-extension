@@ -1,6 +1,8 @@
 /* Completion message bubble - first best practice tooltip */
-.thinkreview-completion-bubble {
-  max-width: 260px;
+.thinkreview-completion-bubble,
+#thinkreview-completion-bubble {
+  width: 400px;
+  max-width: min(400px, calc(100vw - 48px));
   padding: 10px 14px;
   background: #1a1628;
   border: 1px solid #3d2d6e;
@@ -12,6 +14,10 @@
   line-height: 1.4;
   pointer-events: none;
   animation: thinkreview-bubble-in 0.25s ease-out;
+  box-sizing: border-box;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 @keyframes thinkreview-bubble-in {
@@ -22,6 +28,22 @@
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Floating button: bubble on left of button (no horizontal translate) */
+#thinkreview-completion-bubble.thinkreview-completion-bubble-float-left {
+  animation-name: thinkreview-bubble-in-float-left;
+}
+
+@keyframes thinkreview-bubble-in-float-left {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
   }
 }
 
