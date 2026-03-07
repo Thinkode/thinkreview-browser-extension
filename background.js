@@ -568,7 +568,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         try {
           const parsed = JSON.parse(storageResult.user);
           if (parsed?.email) email = parsed.email;
-        } catch (_) {}
+        } catch (e) {
+          dbgWarn('Failed to parse stored user data:', e);
+        }
       }
       try {
         const [userData, subscriptionData] = await Promise.all([
@@ -633,7 +635,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         try {
           const parsed = JSON.parse(storageResult.user);
           if (parsed?.email) email = parsed.email;
-        } catch (_) {}
+        } catch (e) {
+          dbgWarn('Failed to parse stored user data:', e);
+        }
       }
       try {
         const [userData, subscriptionData] = await Promise.all([

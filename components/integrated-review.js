@@ -288,7 +288,6 @@ async function createIntegratedReviewPanel(patchUrl) {
             <img src="${logoUrl}" alt="ThinkReview" class="thinkreview-header-logo">
             <span class="gl-font-weight-bold">ThinkReview</span>
             <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
-            <span class="thinkreview-toggle-icon gl-ml-2" title="Minimize">▲</span>
           </div>
           <span id="review-subscription-label" class="thinkreview-header-subscription" aria-label="Current plan"></span>
         </div>
@@ -496,6 +495,15 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Initialize resize functionality
   initializeResizeHandle(container);
 
+  // Mount the layout settings widget in the header actions
+  try {
+    const { mountLayoutSettingsWidget } = await import('./popup-modules/layout-settings-widget.js');
+    const headerActionsEl = container.querySelector('.thinkreview-header-actions');
+    await mountLayoutSettingsWidget(headerActionsEl);
+  } catch (error) {
+    // Silently fail — layout widget is non-critical
+  }
+
   // Delegate copy handler to panel only (avoids document-level listener; improves perf when interacting with GitLab diff)
   await formattingReady;
   if (setupCopyHandler) setupCopyHandler(container);
@@ -507,6 +515,9 @@ async function createIntegratedReviewPanel(patchUrl) {
       // Only minimize to the button, don't toggle
       container.classList.remove('thinkreview-panel-minimized', 'thinkreview-panel-hidden');
       container.classList.add('thinkreview-panel-minimized-to-button');
+
+      // Notify content.js to remove docked body margin
+      document.dispatchEvent(new CustomEvent('thinkreview:panelminimized'));
       
       // Show score popup when panel is minimized
       try {
@@ -565,7 +576,9 @@ async function createIntegratedReviewPanel(patchUrl) {
               context: 'integrated_panel',
               location: 'tab_switch'
             }).catch(() => {});
-          } catch (_) {}
+          } catch (e) {
+            dbgWarn('Failed to load analytics module:', e);
+          }
         })();
       }
     });
@@ -707,7 +720,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   const headerActions = container.querySelector('.thinkreview-header-actions');
   if (headerActions) {
     const blockEvent = (e) => {
-      // Allow clicks on bug report button, regenerate button, copy-all button, and language selector
+      // Allow clicks on bug report button, regenerate button, copy-all button, language selector, and layout button
       if (e.target.id === 'bug-report-btn' ||
           e.target.closest('#bug-report-btn') ||
           e.target.id === 'regenerate-review-btn' ||
@@ -715,7 +728,9 @@ async function createIntegratedReviewPanel(patchUrl) {
           e.target.id === 'copy-all-review-btn' ||
           e.target.closest('#copy-all-review-btn') ||
           e.target.id === 'language-selector' ||
-          e.target.closest('#language-selector')) {
+          e.target.closest('#language-selector') ||
+          e.target.id === 'thinkreview-layout-btn' ||
+          e.target.closest('#thinkreview-layout-btn')) {
         return; // Don't block these events
       }
       e.stopPropagation();
@@ -897,7 +912,7 @@ function initializeResizeHandle(container) {
   
   const doResize = (e) => {
     const deltaX = startX - e.clientX;
-    const newWidth = Math.max(300, Math.min(800, startWidth + deltaX)); // Min 300px, Max 800px
+    const newWidth = Math.max(400, Math.min(800, startWidth + deltaX)); // Min 400px, Max 800px
     container.style.width = newWidth + 'px';
   };
 
@@ -1599,6 +1614,26 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       notificationModule.showButtonNotification();
     } catch (error) {
       dbgWarn('Failed to load button notification module:', error);
+    }
+
+    // Phase 1: Shake trigger for 5s and show first best practice bubble for 5s (if any)
+    try {
+      const triggerResolver = await import('./popup-modules/trigger-resolver.js');
+      const triggerEl = triggerResolver.getActiveTriggerElement();
+      if (triggerEl) {
+        const effectsModule = await import('./popup-modules/completion-effects.js');
+        effectsModule.runTriggerShake(triggerEl);
+      }
+      if (review.bestPractices && review.bestPractices.length > 0) {
+        const first = review.bestPractices[0];
+        const text = typeof first === 'string' ? first.trim() : (first && typeof first === 'object' && first.description ? String(first.description).trim() : String(first).trim());
+        if (text && triggerEl) {
+          const bubbleModule = await import('./popup-modules/completion-message-bubble.js');
+          bubbleModule.showBubble(triggerEl, text, 5000); /* 5 seconds */
+        }
+      }
+    } catch (error) {
+      dbgWarn('Failed to run completion effects (shake/bubble):', error);
     }
   }
 

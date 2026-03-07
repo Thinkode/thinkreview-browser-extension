@@ -3,6 +3,9 @@
   position: relative;
 }
 
+/* Sidebar tab: already position fixed in layout-trigger.css; absolute children position relative to it */
+
+/* Floating button: top-right */
 .thinkreview-button-loading {
   position: absolute;
   top: -4px;
@@ -16,6 +19,15 @@
   z-index: 10001;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   background-color: rgba(107, 79, 187, 0.9);
+}
+
+/* Side layout: bottom center of the tab (no transform so spin animation works) */
+.thinkreview-button-loading-side {
+  top: auto;
+  right: auto;
+  left: 50%;
+  bottom: -4px;
+  margin-left: -6px;
 }
 
 @keyframes thinkreview-loading-spin {

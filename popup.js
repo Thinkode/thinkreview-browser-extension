@@ -355,7 +355,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Set up auto-start review option
   initializeAutoStartReviewSettings();
-  
+
   // Set up Azure DevOps settings
   initializeAzureSettings();
   
