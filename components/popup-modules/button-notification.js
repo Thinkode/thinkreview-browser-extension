@@ -1,51 +1,61 @@
 /**
  * Button Notification Module
- * Adds a notification indicator to the AI Review button when review is completed but panel hasn't been opened
+ * Adds a notification indicator to the AI Review trigger (floating button or sidebar tab) when review is completed but panel hasn't been opened.
+ * On side layout, the dot is shown at the bottom of the tab for visibility.
  */
 
-// Load CSS for the button notification
 const cssURL = chrome.runtime.getURL('components/popup-modules/button-notification.css');
-const linkElement = document.createElement('link');
-linkElement.rel = 'stylesheet';
-linkElement.href = cssURL;
 if (!document.querySelector(`link[href="${cssURL}"]`)) {
+  const linkElement = document.createElement('link');
+  linkElement.rel = 'stylesheet';
+  linkElement.href = cssURL;
   document.head.appendChild(linkElement);
 }
 
 /**
- * Shows notification indicator on the AI Review button
+ * Returns the active trigger element (floating button or sidebar tab).
+ * @returns {HTMLElement | null}
+ */
+function getTrigger() {
+  return document.getElementById('code-review-btn') || document.getElementById('thinkreview-sidebar-tab');
+}
+
+/**
+ * Shows notification indicator on the active trigger (floating button or sidebar tab).
  */
 export function showButtonNotification() {
-  const reviewBtn = document.getElementById('code-review-btn');
-  if (!reviewBtn) return;
+  const trigger = getTrigger();
+  if (!trigger) return;
 
-  // Check if notification already exists
-  if (reviewBtn.querySelector('.thinkreview-button-notification')) {
+  if (trigger.querySelector('.thinkreview-button-notification')) {
     return;
   }
 
-  // Create notification dot
   const notification = document.createElement('span');
   notification.className = 'thinkreview-button-notification';
   notification.setAttribute('aria-label', 'Review ready - click to view');
-  
-  // Insert notification before the arrow span
-  const arrowSpan = reviewBtn.querySelector('span:last-child');
+
+  const isSidebarTab = trigger.id === 'thinkreview-sidebar-tab';
+  if (isSidebarTab) {
+    notification.classList.add('thinkreview-button-notification-side');
+  }
+
+  const arrowSpan = trigger.querySelector('span:last-child');
   if (arrowSpan) {
-    reviewBtn.insertBefore(notification, arrowSpan);
+    trigger.insertBefore(notification, arrowSpan);
   } else {
-    reviewBtn.appendChild(notification);
+    trigger.appendChild(notification);
   }
 }
 
 /**
- * Hides notification indicator from the AI Review button
+ * Hides notification indicator from whichever trigger currently has it.
  */
 export function hideButtonNotification() {
-  const reviewBtn = document.getElementById('code-review-btn');
-  if (!reviewBtn) return;
+  const trigger = getTrigger();
+  if (!trigger) return;
 
-  const notification = reviewBtn.querySelector('.thinkreview-button-notification');
+  const notification = trigger.querySelector('.thinkreview-button-notification');
   if (notification) {
     notification.remove();
   }

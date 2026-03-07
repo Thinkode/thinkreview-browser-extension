@@ -3,6 +3,9 @@
   position: relative;
 }
 
+/* Sidebar tab: already position fixed in layout-trigger.css; absolute children position relative to it */
+
+/* Floating button: top-right */
 .thinkreview-button-notification {
   position: absolute;
   top: -4px;
@@ -15,6 +18,15 @@
   animation: thinkreview-notification-pulse 2s ease-in-out infinite;
   z-index: 10001;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Side layout: bottom center of the tab (no transform so pulse animation works) */
+.thinkreview-button-notification-side {
+  top: auto;
+  right: auto;
+  left: 50%;
+  bottom: -4px;
+  margin-left: -5px;
 }
 
 @keyframes thinkreview-notification-pulse {
