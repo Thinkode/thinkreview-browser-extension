@@ -2,6 +2,11 @@
 /* Styles for the in-panel layout button and body-appended grouped dropdown */
 
 /* ── Layout button ───────────────────────────────────────── */
+.thinkreview-layout-btn-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
 .thinkreview-layout-btn {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.35);
@@ -18,6 +23,32 @@
 
 .thinkreview-layout-btn:hover {
   background: rgba(255, 255, 255, 0.18);
+}
+
+/* Fast tooltip for layout button (similar to regenerate tooltip) */
+.thinkreview-layout-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e1e4e8;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease, transform 0.1s ease;
+  z-index: var(--thinkreview-z-tooltip);
+}
+
+.thinkreview-layout-btn-wrapper:hover .thinkreview-layout-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
 }
 
 /* ── Body-appended dropdown ─────────────────────────────── */

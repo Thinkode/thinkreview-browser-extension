@@ -98,8 +98,15 @@ export async function mountLayoutSettingsWidget(headerActionsEl) {
   btn.title = 'Layout & display options';
   btn.setAttribute('aria-label', 'Layout options');
   btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`;
+  const wrapper = document.createElement('span');
+  wrapper.className = 'thinkreview-layout-btn-wrapper';
+  const tooltip = document.createElement('span');
+  tooltip.className = 'thinkreview-layout-tooltip';
+  tooltip.textContent = 'Layout & display options';
+  wrapper.appendChild(btn);
+  wrapper.appendChild(tooltip);
 
-  headerActionsEl.insertBefore(btn, headerActionsEl.firstChild);
+  headerActionsEl.insertBefore(wrapper, headerActionsEl.firstChild);
 
   // ── Dropdown (body-appended to avoid overflow clipping) ──
   const dropdown = document.createElement('div');
