@@ -208,6 +208,30 @@
   padding: 16px;
 }
 
+/* Dark scrollbar for all scrollable areas inside the panel */
+#gitlab-mr-integrated-review ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+#gitlab-mr-integrated-review ::-webkit-scrollbar-track {
+  background: #1e1e1e;
+  border-radius: 3px;
+}
+
+#gitlab-mr-integrated-review ::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+  border-radius: 3px;
+}
+
+#gitlab-mr-integrated-review ::-webkit-scrollbar-thumb:hover {
+  background: #6b4fbb;
+}
+
+#gitlab-mr-integrated-review ::-webkit-scrollbar-corner {
+  background: #1e1e1e;
+}
+
 #chat-log {
   padding: 8px 0;
 }
