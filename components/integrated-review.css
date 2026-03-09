@@ -9,6 +9,15 @@
   
   /* Spacing */
   --thinkreview-padding-sm: 8px 12px;
+
+  /* Z-index layers (higher = on top) */
+  --thinkreview-z-panel: 1000;
+  --thinkreview-z-resize-handle: 1001;
+  --thinkreview-z-trigger: 1020;
+  --thinkreview-z-docked-panel: 1050;
+  --thinkreview-z-tooltip: 1100;
+  --thinkreview-z-modal-overlay: 1200;
+  --thinkreview-z-toast: 1250;
 }
 
 .thinkreview-panel-container {
@@ -19,7 +28,7 @@
   max-width: 90vw;
   max-height: 80vh;
   overflow-y: auto;
-  z-index: 1000;
+  z-index: var(--thinkreview-z-panel);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   transition: transform 0.3s ease, opacity 0.3s ease, right 0.5s ease, bottom 0.5s ease, width 0.5s ease, height 0.5s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -35,7 +44,7 @@
   max-width: 90vw;
   max-height: 80vh;
   overflow-y: auto;
-  z-index: 1000;
+  z-index: var(--thinkreview-z-panel);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   transition: transform 0.3s ease, opacity 0.3s ease, right 0.5s ease, bottom 0.5s ease, width 0.5s ease, height 0.5s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -53,7 +62,7 @@
   background: linear-gradient(to right, transparent 0%, transparent 2px, #6b4fbb 2px, #6b4fbb 6px, transparent 6px, transparent 100%);
   opacity: 0;
   transition: opacity 0.2s ease;
-  z-index: 1001;
+  z-index: var(--thinkreview-z-resize-handle);
 }
 
 #gitlab-mr-integrated-review:hover .thinkreview-resize-handle {
@@ -752,7 +761,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 1000;
+  z-index: var(--thinkreview-z-tooltip);
 }
 
 #gitlab-mr-integrated-review .thinkreview-copy-all-tooltip::after {
@@ -826,7 +835,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.1s ease;
-  z-index: 1000;
+  z-index: var(--thinkreview-z-tooltip);
 }
 
 #gitlab-mr-integrated-review .thinkreview-regenerate-tooltip.thinkreview-tooltip-visible {
@@ -1559,7 +1568,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s ease;
-  z-index: 1000;
+  z-index: var(--thinkreview-z-tooltip);
 }
 
 #gitlab-mr-integrated-review .thinkreview-ollama-truncated-tooltip.thinkreview-tooltip-visible {
@@ -1878,7 +1887,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   height: 100vh;
   max-height: 100vh;
   border-radius: 0;
-  z-index: 1050;
+  z-index: var(--thinkreview-z-docked-panel);
 }
 
 .thinkreview-panel-container.thinkreview-panel-docked.thinkreview-panel-docked-left {
@@ -2377,7 +2386,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 1000;
+  z-index: var(--thinkreview-z-tooltip);
 }
 
 #gitlab-mr-integrated-review .thinkreview-configure-tooltip::after {
@@ -2945,7 +2954,7 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: var(--thinkreview-z-modal-overlay);
   animation: fadeIn 0.2s ease;
 }
 
