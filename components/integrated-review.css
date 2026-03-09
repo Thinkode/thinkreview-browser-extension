@@ -30,7 +30,7 @@
   width: 500px;
   max-width: 90vw;
   max-height: 80vh;
-  overflow-y: auto;
+  overflow: hidden;
   z-index: var(--thinkreview-z-panel);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   transition: transform 0.3s ease, opacity 0.3s ease, right 0.5s ease, bottom 0.5s ease, width 0.5s ease, height 0.5s ease;
@@ -46,7 +46,7 @@
   width: 500px;
   max-width: 90vw;
   max-height: 80vh;
-  overflow-y: auto;
+  overflow: hidden;
   z-index: var(--thinkreview-z-panel);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   transition: transform 0.3s ease, opacity 0.3s ease, right 0.5s ease, bottom 0.5s ease, width 0.5s ease, height 0.5s ease;
