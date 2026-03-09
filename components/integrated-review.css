@@ -1893,6 +1893,12 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   z-index: var(--thinkreview-z-docked-panel);
 }
 
+/* Override #gitlab-mr-integrated-review so right-docked panel stays on the right when switching from left */
+#gitlab-mr-integrated-review.thinkreview-panel-docked:not(.thinkreview-panel-docked-left) {
+  left: auto;
+  right: 0;
+}
+
 .thinkreview-panel-container.thinkreview-panel-docked.thinkreview-panel-docked-left {
   left: 0;
   right: auto;
