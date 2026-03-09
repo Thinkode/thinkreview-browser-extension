@@ -16,9 +16,9 @@ if (!document.querySelector(`link[href="${_cssURL}"]`)) {
 }
 
 const DEFAULT_LAYOUT_SETTINGS = {
-  triggerMode: 'floating-button',
+  triggerMode: 'sidebar-tab',
   buttonPosition: 'bottom-right',
-  panelMode: 'overlay',
+  panelMode: 'docked',
   sidebarSide: 'right',
 };
 

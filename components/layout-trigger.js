@@ -19,9 +19,9 @@ const FLOATING_BTN_CONTAINER_ID = 'code-review-btns';
 const SIDEBAR_TAB_ID = 'thinkreview-sidebar-tab';
 
 export const DEFAULT_LAYOUT_SETTINGS = {
-  triggerMode: 'floating-button',
+  triggerMode: 'sidebar-tab',
   buttonPosition: 'bottom-right',
-  panelMode: 'overlay',
+  panelMode: 'docked',
   sidebarSide: 'right',
 };
 

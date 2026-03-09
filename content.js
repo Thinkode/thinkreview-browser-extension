@@ -287,9 +287,9 @@ async function getLayoutSettings() {
   try {
     const result = await chrome.storage.local.get(['reviewLayoutSettings']);
     const raw = {
-      triggerMode: 'floating-button',
+      triggerMode: 'sidebar-tab',
       buttonPosition: 'bottom-right',
-      panelMode: 'overlay',
+      panelMode: 'docked',
       sidebarSide: 'right',
       ...(result.reviewLayoutSettings || {}),
     };
@@ -299,7 +299,7 @@ async function getLayoutSettings() {
     return raw;
   } catch (e) {
     dbgWarn('Failed to load layout settings:', e);
-    return { triggerMode: 'floating-button', buttonPosition: 'bottom-right', panelMode: 'overlay', sidebarSide: 'right' };
+    return { triggerMode: 'sidebar-tab', buttonPosition: 'bottom-right', panelMode: 'docked', sidebarSide: 'right' };
   }
 }
 
