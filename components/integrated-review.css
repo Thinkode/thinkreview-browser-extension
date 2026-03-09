@@ -6,20 +6,39 @@
   --thinkreview-text-secondary: #e0e0e0;
   --thinkreview-bg-transparent: transparent;
   --thinkreview-border-light: rgba(255, 255, 255, 0.1);
-  
+
+  /* Panel width for body margin when docked (synced with resize) */
+  --thinkreview-panel-width: 520px;
+
+  /* Panel vertical positioning: top offset and bottom gap define max-height */
+  --thinkreview-panel-top: 100px;
+  --thinkreview-panel-bottom-gap: 20px;
+  --thinkreview-panel-max-height: calc(100vh - var(--thinkreview-panel-top) - var(--thinkreview-panel-bottom-gap));
+
   /* Spacing */
   --thinkreview-padding-sm: 8px 12px;
+
+  /* Z-index layers (higher = on top) */
+  --thinkreview-z-panel: 1000;
+  --thinkreview-z-resize-handle: 1001;
+  --thinkreview-z-trigger: 1020;
+  --thinkreview-z-docked-panel: 1050;
+  --thinkreview-z-tooltip: 1100;
+  --thinkreview-z-modal-overlay: 1200;
+  --thinkreview-z-toast: 1250;
 }
 
 .thinkreview-panel-container {
   position: fixed;
   right: 20px;
-  top: 100px;
+  top: var(--thinkreview-panel-top);
   width: 500px;
   max-width: 90vw;
-  max-height: 80vh;
-  overflow-y: auto;
-  z-index: 1000;
+  max-height: var(--thinkreview-panel-max-height);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: var(--thinkreview-z-panel);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   transition: transform 0.3s ease, opacity 0.3s ease, right 0.5s ease, bottom 0.5s ease, width 0.5s ease, height 0.5s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -30,12 +49,14 @@
 #gitlab-mr-integrated-review {
   position: fixed;
   right: 20px;
-  top: 100px;
+  top: var(--thinkreview-panel-top);
   width: 500px;
   max-width: 90vw;
-  max-height: 80vh;
-  overflow-y: auto;
-  z-index: 1000;
+  max-height: var(--thinkreview-panel-max-height);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: var(--thinkreview-z-panel);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   transition: transform 0.3s ease, opacity 0.3s ease, right 0.5s ease, bottom 0.5s ease, width 0.5s ease, height 0.5s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -53,7 +74,7 @@
   background: linear-gradient(to right, transparent 0%, transparent 2px, #6b4fbb 2px, #6b4fbb 6px, transparent 6px, transparent 100%);
   opacity: 0;
   transition: opacity 0.2s ease;
-  z-index: 1001;
+  z-index: var(--thinkreview-z-resize-handle);
 }
 
 #gitlab-mr-integrated-review:hover .thinkreview-resize-handle {
@@ -83,6 +104,10 @@
   border: 1px solid #6b4fbb;
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 #gitlab-mr-integrated-review .thinkreview-card-header {
@@ -176,7 +201,8 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  height: calc(80vh - 50px); /* Adjust height based on max-height of the panel and header height */
+  flex: 1;
+  min-height: 0;
   /* Default to dark theme for better readability */
   background-color: #1e1e1e;
   color: #ffffff;
@@ -194,6 +220,30 @@
   min-height: 0; /* Allow flex shrink so overflow/scroll works */
   overflow-y: auto;
   padding: 16px;
+}
+
+/* Dark scrollbar for all scrollable areas inside the panel */
+#gitlab-mr-integrated-review ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+#gitlab-mr-integrated-review ::-webkit-scrollbar-track {
+  background: #1e1e1e;
+  border-radius: 3px;
+}
+
+#gitlab-mr-integrated-review ::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+  border-radius: 3px;
+}
+
+#gitlab-mr-integrated-review ::-webkit-scrollbar-thumb:hover {
+  background: #6b4fbb;
+}
+
+#gitlab-mr-integrated-review ::-webkit-scrollbar-corner {
+  background: #1e1e1e;
 }
 
 #chat-log {
@@ -752,7 +802,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 1000;
+  z-index: var(--thinkreview-z-tooltip);
 }
 
 #gitlab-mr-integrated-review .thinkreview-copy-all-tooltip::after {
@@ -826,7 +876,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.1s ease;
-  z-index: 1000;
+  z-index: var(--thinkreview-z-tooltip);
 }
 
 #gitlab-mr-integrated-review .thinkreview-regenerate-tooltip.thinkreview-tooltip-visible {
@@ -1559,7 +1609,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s ease;
-  z-index: 1000;
+  z-index: var(--thinkreview-z-tooltip);
 }
 
 #gitlab-mr-integrated-review .thinkreview-ollama-truncated-tooltip.thinkreview-tooltip-visible {
@@ -1863,6 +1913,61 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   bottom: 150px;
   top: auto;
   pointer-events: none;
+}
+
+.thinkreview-panel-container.thinkreview-panel-minimized-to-button.thinkreview-panel-overlay-left,
+#gitlab-mr-integrated-review.minimized-to-button.thinkreview-panel-overlay-left {
+  left: 24px;
+  right: auto;
+}
+
+/* ── Docked sidebar panel mode ───────────────────────────── */
+.thinkreview-panel-container.thinkreview-panel-docked {
+  right: 0;
+  top: 0;
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 0;
+  z-index: var(--thinkreview-z-docked-panel);
+}
+
+/* Override #gitlab-mr-integrated-review so right-docked panel stays on the right when switching from left */
+#gitlab-mr-integrated-review.thinkreview-panel-docked:not(.thinkreview-panel-docked-left) {
+  left: auto;
+  right: 0;
+}
+
+.thinkreview-panel-container.thinkreview-panel-docked.thinkreview-panel-docked-left {
+  left: 0;
+  right: auto;
+}
+
+/* Override #gitlab-mr-integrated-review so left-docked panel actually appears on the left */
+#gitlab-mr-integrated-review.thinkreview-panel-docked.thinkreview-panel-docked-left {
+  left: 0;
+  right: auto;
+}
+
+/* Overlay mode with left positioning */
+.thinkreview-panel-container.thinkreview-panel-overlay-left {
+  left: 20px;
+  right: auto;
+}
+
+#gitlab-mr-integrated-review.thinkreview-panel-overlay-left {
+  left: 20px;
+  right: auto;
+}
+
+/* Nudge page body when panel is docked so content isn't obscured */
+body.thinkreview-body-docked-right {
+  margin-right: var(--thinkreview-panel-width);
+  transition: margin-right 0.5s ease;
+}
+
+body.thinkreview-body-docked-left {
+  margin-left: var(--thinkreview-panel-width);
+  transition: margin-left 0.5s ease;
 }
 
 /* Toggle button styles removed - using only arrow down and AI Review button */
@@ -2334,7 +2439,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 1000;
+  z-index: var(--thinkreview-z-tooltip);
 }
 
 #gitlab-mr-integrated-review .thinkreview-configure-tooltip::after {
@@ -2902,7 +3007,7 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: var(--thinkreview-z-modal-overlay);
   animation: fadeIn 0.2s ease;
 }
 

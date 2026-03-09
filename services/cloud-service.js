@@ -17,6 +17,7 @@ const CANCEL_SUBSCRIPTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/cancelSubscriptionT
 const CONVERSATIONAL_REVIEW_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview`;
 const CONVERSATIONAL_REVIEW_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview_1_1`;
 const TRACK_CUSTOM_DOMAINS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackCustomDomainsThinkReview`;
+const STORE_LAYOUT_SETTINGS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/storeLayoutSettingsThinkReview`;
 const LOG_AZURE_DEVOPS_VERSION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/logAzureDevOpsVersionThinkReview`;
 const SUBMIT_REVIEW_FEEDBACK_URL = `${CLOUD_FUNCTIONS_BASE_URL}/submitReviewFeedback`;
 
@@ -1218,6 +1219,64 @@ export class CloudService {
   }
 
   /**
+   * Store layout settings for a user to Firestore (Users_Reviews/{userId}/Settings/layoutSettings).
+   * @param {Object} settings - Layout settings { triggerMode, buttonPosition, panelMode, sidebarSide }
+   * @returns {Promise<Object>} Response from the backend
+   */
+  static async storeLayoutSettings(settings) {
+    dbgLog('Storing layout settings:', settings);
+
+    try {
+      const storageData = await new Promise((resolve) => {
+        chrome.storage.local.get(['userData', 'user'], (result) => {
+          resolve(result);
+        });
+      });
+
+      let email = null;
+
+      if (storageData.userData && storageData.userData.email) {
+        email = storageData.userData.email;
+      } else if (storageData.user) {
+        try {
+          const parsedUser = JSON.parse(storageData.user);
+          if (parsedUser && parsedUser.email) {
+            email = parsedUser.email;
+          }
+        } catch (parseError) {
+          dbgWarn('Failed to parse user data:', parseError);
+        }
+      }
+
+      if (!email) {
+        dbgWarn('Cannot store layout settings: No user data in storage');
+        throw new Error('User not authenticated');
+      }
+
+      const response = await fetch(STORE_LAYOUT_SETTINGS_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, settings })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      dbgLog('Layout settings stored successfully:', data);
+
+      return data;
+    } catch (error) {
+      dbgWarn('Error storing layout settings:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Log Azure DevOps (on-prem) server version check to the user's Settings/azure-info in the cloud.
    * Call only after a fresh version detection (when local storage had no valid azureOnPremise* fields).
    * @param {string} origin - e.g. window.location.origin
@@ -1240,7 +1299,9 @@ export class CloudService {
         try {
           const parsed = JSON.parse(storageData.user);
           if (parsed && parsed.email) email = parsed.email;
-        } catch (_) {}
+        } catch (e) {
+          dbgWarn('Failed to parse stored user data:', e);
+        }
       }
       if (!email) {
         dbgWarn('Cannot log Azure DevOps version: No user data in storage');

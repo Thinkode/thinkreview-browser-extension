@@ -1,0 +1,148 @@
+/* layout-settings-widget.css */
+/* Styles for the in-panel layout button and body-appended grouped dropdown */
+
+/* ── Layout button ───────────────────────────────────────── */
+.thinkreview-layout-btn-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.thinkreview-layout-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 4px 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.15s ease;
+}
+
+.thinkreview-layout-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Fast tooltip for layout button (similar to regenerate tooltip) */
+.thinkreview-layout-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e1e4e8;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease, transform 0.1s ease;
+  z-index: var(--thinkreview-z-tooltip);
+}
+
+.thinkreview-layout-btn-wrapper:hover .thinkreview-layout-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
+}
+
+/* ── Body-appended dropdown ─────────────────────────────── */
+#thinkreview-layout-dropdown {
+  position: fixed;
+  z-index: 2147483647;
+  background: #1a1628;
+  border: 1px solid #3d2d6e;
+  border-radius: 10px;
+  padding: 6px 0;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  animation: thinkreview-dropdown-in 0.12s ease;
+}
+
+@keyframes thinkreview-dropdown-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Section label ───────────────────────────────────────── */
+.thinkreview-layout-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(155, 126, 240, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 6px 14px 3px;
+}
+
+/* ── Divider between groups ──────────────────────────────── */
+.thinkreview-layout-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 4px 8px;
+}
+
+/* ── Individual layout list item ─────────────────────────── */
+.thinkreview-layout-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 14px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease;
+  border-radius: 0;
+}
+
+.thinkreview-layout-item:hover {
+  background: rgba(107, 79, 187, 0.22);
+  color: white;
+}
+
+.thinkreview-layout-item.active {
+  color: #c9b4ff;
+  background: rgba(107, 79, 187, 0.15);
+}
+
+/* ── Mini SVG diagram ────────────────────────────────────── */
+.thinkreview-layout-item-diagram {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.thinkreview-layout-item.active .thinkreview-layout-item-diagram {
+  border-color: #6b4fbb;
+}
+
+.thinkreview-layout-item-diagram svg {
+  display: block;
+}
+
+/* ── Item label ──────────────────────────────────────────── */
+.thinkreview-layout-item-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* ── Active checkmark ────────────────────────────────────── */
+.thinkreview-layout-item-check {
+  color: #9b7ef0;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}

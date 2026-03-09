@@ -18,6 +18,16 @@ chrome.runtime.setUninstallURL('https://thinkreview.dev/goodbye.html', () => {
 const AUTH_TOKEN_KEY = 'oauth_token';
 const AUTH_USER_KEY = 'oauth_user';
 
+function getEmailFromStorage(storageResult) {
+  try {
+    const parsed = JSON.parse(storageResult.user);
+    return parsed?.email || null;
+  } catch (e) {
+    dbgWarn('Failed to parse stored user data:', e);
+    return null;
+  }
+}
+
 // Helper function to fetch user info from Google
 async function fetchUserInfo(token) {
   try {
@@ -565,10 +575,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       let email = null;
       if (storageResult.userData?.email) email = storageResult.userData.email;
       else if (storageResult.user) {
-        try {
-          const parsed = JSON.parse(storageResult.user);
-          if (parsed?.email) email = parsed.email;
-        } catch (_) {}
+        const storedEmail = getEmailFromStorage(storageResult);
+        if (storedEmail) email = storedEmail;
       }
       try {
         const [userData, subscriptionData] = await Promise.all([
@@ -630,10 +638,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       let email = null;
       if (storageResult.userData?.email) email = storageResult.userData.email;
       else if (storageResult.user) {
-        try {
-          const parsed = JSON.parse(storageResult.user);
-          if (parsed?.email) email = parsed.email;
-        } catch (_) {}
+        const storedEmail = getEmailFromStorage(storageResult);
+        if (storedEmail) email = storedEmail;
       }
       try {
         const [userData, subscriptionData] = await Promise.all([

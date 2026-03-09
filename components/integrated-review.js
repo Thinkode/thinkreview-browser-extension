@@ -288,7 +288,6 @@ async function createIntegratedReviewPanel(patchUrl) {
             <img src="${logoUrl}" alt="ThinkReview" class="thinkreview-header-logo">
             <span class="gl-font-weight-bold">ThinkReview</span>
             <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
-            <span class="thinkreview-toggle-icon gl-ml-2" title="Minimize">▲</span>
           </div>
           <span id="review-subscription-label" class="thinkreview-header-subscription" aria-label="Current plan"></span>
         </div>
@@ -496,6 +495,15 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Initialize resize functionality
   initializeResizeHandle(container);
 
+  // Mount the layout settings widget in the header actions
+  try {
+    const { mountLayoutSettingsWidget } = await import('./popup-modules/layout-settings-widget.js');
+    const headerActionsEl = container.querySelector('.thinkreview-header-actions');
+    await mountLayoutSettingsWidget(headerActionsEl);
+  } catch (error) {
+    // Silently fail — layout widget is non-critical
+  }
+
   // Delegate copy handler to panel only (avoids document-level listener; improves perf when interacting with GitLab diff)
   await formattingReady;
   if (setupCopyHandler) setupCopyHandler(container);
@@ -507,6 +515,9 @@ async function createIntegratedReviewPanel(patchUrl) {
       // Only minimize to the button, don't toggle
       container.classList.remove('thinkreview-panel-minimized', 'thinkreview-panel-hidden');
       container.classList.add('thinkreview-panel-minimized-to-button');
+
+      // Notify content.js to remove docked body margin
+      document.dispatchEvent(new CustomEvent('thinkreview:panelminimized'));
       
       // Show score popup when panel is minimized
       try {
@@ -537,8 +548,8 @@ async function createIntegratedReviewPanel(patchUrl) {
         }
       }
       
-      // Save the state to localStorage
-      localStorage.setItem('gitlab-mr-review-minimized-to-button', 'true');
+      // Save the state to extension storage
+      chrome.storage.local.set({ 'gitlab-mr-review-minimized-to-button': 'true' });
     });
   }
   
@@ -565,7 +576,9 @@ async function createIntegratedReviewPanel(patchUrl) {
               context: 'integrated_panel',
               location: 'tab_switch'
             }).catch(() => {});
-          } catch (_) {}
+          } catch (e) {
+            dbgWarn('Failed to load analytics module:', e);
+          }
         })();
       }
     });
@@ -593,22 +606,25 @@ async function createIntegratedReviewPanel(patchUrl) {
     });
   }
   
-  // Set initial state based on localStorage
-  const isMinimized = localStorage.getItem('gitlab-mr-review-minimized') === 'true';
+  // Set initial state based on extension storage (async)
+  const panelState = await chrome.storage.local.get([
+    'gitlab-mr-review-minimized',
+    'gitlab-mr-review-hidden',
+    'gitlab-mr-review-minimized-to-button'
+  ]);
+  const isMinimized = panelState['gitlab-mr-review-minimized'] === 'true';
   if (isMinimized) {
     container.classList.remove('thinkreview-panel-minimized-to-button');
     container.classList.add('thinkreview-panel-minimized');
   }
-  
-  // Set initial hidden state based on localStorage
-  const isHidden = localStorage.getItem('gitlab-mr-review-hidden') === 'true';
+
+  const isHidden = panelState['gitlab-mr-review-hidden'] === 'true';
   if (isHidden) {
     container.classList.remove('thinkreview-panel-minimized-to-button');
     container.classList.add('thinkreview-panel-hidden');
   }
-  
-  // Set initial minimized-to-button state based on localStorage
-  const isMinimizedToButton = localStorage.getItem('gitlab-mr-review-minimized-to-button') === 'true';
+
+  const isMinimizedToButton = panelState['gitlab-mr-review-minimized-to-button'] === 'true';
   if (isMinimizedToButton) {
     // Already has thinkreview-panel-minimized-to-button class from initial creation
     
@@ -707,7 +723,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   const headerActions = container.querySelector('.thinkreview-header-actions');
   if (headerActions) {
     const blockEvent = (e) => {
-      // Allow clicks on bug report button, regenerate button, copy-all button, and language selector
+      // Allow clicks on bug report button, regenerate button, copy-all button, language selector, and layout button
       if (e.target.id === 'bug-report-btn' ||
           e.target.closest('#bug-report-btn') ||
           e.target.id === 'regenerate-review-btn' ||
@@ -715,7 +731,9 @@ async function createIntegratedReviewPanel(patchUrl) {
           e.target.id === 'copy-all-review-btn' ||
           e.target.closest('#copy-all-review-btn') ||
           e.target.id === 'language-selector' ||
-          e.target.closest('#language-selector')) {
+          e.target.closest('#language-selector') ||
+          e.target.id === 'thinkreview-layout-btn' ||
+          e.target.closest('#thinkreview-layout-btn')) {
         return; // Don't block these events
       }
       e.stopPropagation();
@@ -730,8 +748,8 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Add event listener for the language selector
   const languageSelector = container.querySelector('#language-selector');
   if (languageSelector) {
-    // Load saved language preference
-    const savedLanguage = getLanguagePreference();
+    // Load saved language preference from extension storage
+    const savedLanguage = await getLanguagePreference();
     languageSelector.value = savedLanguage;
     
     // Comprehensive event blocking to prevent panel minimization
@@ -889,16 +907,29 @@ function initializeResizeHandle(container) {
   let startX = 0;
   let startWidth = 0;
   
-  // Load saved width from localStorage (only if not minimized)
-  const savedWidth = localStorage.getItem('gitlab-mr-review-width');
-  if (savedWidth && !container.classList.contains('minimized')) {
-    container.style.width = savedWidth + 'px';
-  }
+  // Load saved width from extension storage (only if not minimized)
+  chrome.storage.local.get(['gitlab-mr-review-width'], (result) => {
+    const savedWidth = result['gitlab-mr-review-width'];
+    if (savedWidth != null && savedWidth !== '' && !container.classList.contains('minimized')) {
+      const widthPx = (typeof savedWidth === 'number' ? savedWidth : parseInt(savedWidth, 10)) + 'px';
+      if (!isNaN(parseInt(savedWidth, 10))) {
+        container.style.width = widthPx;
+        if (container.classList.contains('thinkreview-panel-docked')) {
+          document.documentElement.style.setProperty('--thinkreview-panel-width', widthPx);
+        }
+      }
+    }
+  });
   
   const doResize = (e) => {
     const deltaX = startX - e.clientX;
-    const newWidth = Math.max(300, Math.min(800, startWidth + deltaX)); // Min 300px, Max 800px
+    const newWidth = Math.max(400, Math.min(800, startWidth + deltaX)); // Min 400px, Max 800px
     container.style.width = newWidth + 'px';
+
+    // Sync body margin with panel width so page content isn't obscured or gapped
+    if (container.classList.contains('thinkreview-panel-docked')) {
+      document.documentElement.style.setProperty('--thinkreview-panel-width', newWidth + 'px');
+    }
   };
 
   const stopResize = () => {
@@ -910,7 +941,7 @@ function initializeResizeHandle(container) {
     document.body.style.userSelect = '';
     document.body.style.cursor = '';
     const currentWidth = parseInt(getComputedStyle(container).width, 10);
-    localStorage.setItem('gitlab-mr-review-width', currentWidth);
+    chrome.storage.local.set({ 'gitlab-mr-review-width': currentWidth });
   };
 
   const startResize = (e) => {
@@ -1275,8 +1306,8 @@ async function handleSendMessage(messageText) {
   appendToChatLog('ai', `<span class="gl-spinner gl-spinner-sm"></span> ${randomMessage}`, null, true);
 
   try {
-    // Get the user's language preference
-    const language = getLanguagePreference();
+    // Get the user's language preference from extension storage
+    const language = await getLanguagePreference();
     
     // The `getAIResponse` function will be exposed by content.js
     const aiResponse = await window.getAIResponse(currentPatchContent, conversationHistory, language);
@@ -1599,6 +1630,26 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       notificationModule.showButtonNotification();
     } catch (error) {
       dbgWarn('Failed to load button notification module:', error);
+    }
+
+    // Phase 1: Shake trigger for 5s and show first best practice bubble for 5s (if any)
+    try {
+      const triggerResolver = await import('./popup-modules/trigger-resolver.js');
+      const triggerEl = triggerResolver.getActiveTriggerElement();
+      if (triggerEl) {
+        const effectsModule = await import('./popup-modules/completion-effects.js');
+        effectsModule.runTriggerShake(triggerEl);
+      }
+      if (review.bestPractices && review.bestPractices.length > 0) {
+        const first = review.bestPractices[0];
+        const text = typeof first === 'string' ? first.trim() : (first && typeof first === 'object' && first.description ? String(first.description).trim() : String(first).trim());
+        if (text && triggerEl) {
+          const bubbleModule = await import('./popup-modules/completion-message-bubble.js');
+          bubbleModule.showBubble(triggerEl, text, 5000); /* 5 seconds */
+        }
+      }
+    } catch (error) {
+      dbgWarn('Failed to run completion effects (shake/bubble):', error);
     }
   }
 
@@ -2054,18 +2105,18 @@ function showIntegratedReviewError(message) {
 }
 
 /**
- * Get the user's language preference from localStorage
- * @returns {string} - The language preference (defaults to "English")
+ * Get the user's language preference from extension storage
+ * @returns {Promise<string>} - The language preference (defaults to "English")
  */
-function getLanguagePreference() {
-  const savedLanguage = localStorage.getItem('code-review-language');
-  return savedLanguage || 'English';
+async function getLanguagePreference() {
+  const result = await chrome.storage.local.get(['code-review-language']);
+  return result['code-review-language'] || 'English';
 }
 
 /**
- * Set the user's language preference in localStorage
+ * Set the user's language preference in extension storage
  * @param {string} language - The language to save
  */
 function setLanguagePreference(language) {
-  localStorage.setItem('code-review-language', language);
+  chrome.storage.local.set({ 'code-review-language': language });
 }

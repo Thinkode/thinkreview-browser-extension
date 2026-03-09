@@ -279,62 +279,82 @@ function getGitHubPRId() {
   return match ? match[1] : null;
 }
 
-function injectButtons() {
-  if (document.getElementById('code-review-btns')) {
+/**
+ * Reads layout settings from chrome.storage.local, merged with defaults.
+ * @returns {Promise<Object>}
+ */
+async function getLayoutSettings() {
+  try {
+    const result = await chrome.storage.local.get(['reviewLayoutSettings']);
+    const raw = {
+      triggerMode: 'sidebar-tab',
+      buttonPosition: 'bottom-right',
+      panelMode: 'docked',
+      sidebarSide: 'right',
+      ...(result.reviewLayoutSettings || {}),
+    };
+    const pos = raw.buttonPosition;
+    if (pos === 'top-right') raw.buttonPosition = 'bottom-right';
+    else if (pos === 'top-left') raw.buttonPosition = 'bottom-left';
+    return raw;
+  } catch (e) {
+    dbgWarn('Failed to load layout settings:', e);
+    return { triggerMode: 'sidebar-tab', buttonPosition: 'bottom-right', panelMode: 'docked', sidebarSide: 'right' };
+  }
+}
+
+/**
+ * Applies or removes the docked-sidebar body margin when the panel is expanded/collapsed.
+ * @param {boolean} isExpanded - True when panel is being shown, false when minimized
+ * @param {string} panelMode - 'overlay' | 'docked'
+ * @param {string} sidebarSide - 'right' | 'left'
+ */
+function applyDockedBodyMargin(isExpanded, panelMode, sidebarSide) {
+  if (panelMode !== 'docked') {
+    document.body.classList.remove('thinkreview-body-docked-right', 'thinkreview-body-docked-left');
+    return;
+  }
+  const bodyClass = sidebarSide === 'left' ? 'thinkreview-body-docked-left' : 'thinkreview-body-docked-right';
+  const otherClass = sidebarSide === 'left' ? 'thinkreview-body-docked-right' : 'thinkreview-body-docked-left';
+  if (isExpanded) {
+    document.body.classList.add(bodyClass);
+    document.body.classList.remove(otherClass);
+  } else {
+    document.body.classList.remove('thinkreview-body-docked-right', 'thinkreview-body-docked-left');
+  }
+}
+
+async function injectButtons() {
+  if (document.getElementById('code-review-btns') || document.getElementById('thinkreview-sidebar-tab')) {
     dbgLog('Buttons already injected');
     return;
   }
-  
-  dbgLog('Injecting buttons');
+
+  dbgLog('Injecting trigger UI');
+  try {
+    const settings = await getLayoutSettings();
+    const { injectTrigger } = await import(chrome.runtime.getURL('components/layout-trigger.js'));
+    injectTrigger(settings, toggleReviewPanel);
+    dbgLog('Trigger injected via layout-trigger.js, mode:', settings.triggerMode);
+  } catch (error) {
+    dbgError('Failed to load layout-trigger.js, falling back to inline button:', error);
+    _injectFallbackButton();
+  }
+}
+
+// Fallback button used if layout-trigger.js fails to load
+function _injectFallbackButton() {
+  if (document.getElementById('code-review-btns')) return;
   const container = document.createElement('div');
   container.id = 'code-review-btns';
-  container.style.position = 'fixed';
-  container.style.bottom = '24px';
-  container.style.right = '24px';
-  container.style.zIndex = '9999';
-  container.style.display = 'flex';
-  container.style.flexDirection = 'column';
-  container.style.gap = '8px';
-
-  // AI Review button
+  container.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;';
   const reviewBtn = document.createElement('button');
   reviewBtn.id = 'code-review-btn';
-  reviewBtn.textContent = 'AI Review';
-  reviewBtn.style.padding = '8px 12px';
-  reviewBtn.style.background = '#6b4fbb';
-  reviewBtn.style.color = 'white';
-  reviewBtn.style.border = 'none';
-  reviewBtn.style.borderRadius = '4px';
-  reviewBtn.style.cursor = 'pointer';
-  reviewBtn.style.display = 'flex';
-  reviewBtn.style.alignItems = 'center';
-  reviewBtn.style.justifyContent = 'center';
-  reviewBtn.innerHTML = '<span style="margin-right: 5px;">AI Review</span><span style="font-size: 10px;">▼</span>';
-  
-  // Add click handler with debugging
-  reviewBtn.onclick = async function(event) {
-    dbgLog('AI Review button clicked!');
-    
-    // Track AI review button click
-    try {
-      const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
-      trackUserAction('ai_review_clicked', {
-        context: 'main_button',
-        location: 'pr_page'
-      }).catch(() => {}); // Silently fail
-    } catch (error) {
-      // Silently fail - analytics shouldn't break the extension
-    }
-    
-    event.preventDefault();
-    event.stopPropagation();
-    toggleReviewPanel();
-  };
-
+  reviewBtn.style.cssText = 'padding:8px 12px;background:#6b4fbb;color:white;border:none;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;';
+  reviewBtn.innerHTML = '<span style="margin-right:5px;">AI Review</span><span style="font-size:10px;">▼</span>';
+  reviewBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); toggleReviewPanel(); };
   container.appendChild(reviewBtn);
   document.body.appendChild(container);
-  
-  dbgLog('Buttons injected successfully');
 }
 
 /**
@@ -450,6 +470,19 @@ async function checkAndTriggerReviewForNewPR() {
     } catch (error) {
       // Silently fail if module not available
     }
+    // Clear completion effects (shake + bubble)
+    try {
+      const effectsModule = await import(chrome.runtime.getURL('components/popup-modules/completion-effects.js'));
+      effectsModule.clearTriggerShake();
+    } catch (error) {
+      // Silently fail if module not available
+    }
+    try {
+      const bubbleModule = await import(chrome.runtime.getURL('components/popup-modules/completion-message-bubble.js'));
+      bubbleModule.hideBubble();
+    } catch (error) {
+      // Silently fail if module not available
+    }
     
     return;
   }
@@ -552,6 +585,23 @@ async function injectIntegratedReviewPanel(opts = {}) {
   await createIntegratedReviewPanel(patchUrl);
   
   dbgLog('Integrated review panel created');
+  
+  // If the user explicitly triggered this (button click), expand the panel immediately
+  if (opts.triggerReview === true) {
+    const createdPanel = document.getElementById('gitlab-mr-integrated-review');
+    if (createdPanel) {
+      createdPanel.classList.remove('thinkreview-panel-minimized-to-button');
+      const expandSettings = await getLayoutSettings();
+      if (expandSettings.panelMode === 'docked') {
+        createdPanel.classList.add('thinkreview-panel-docked');
+        if (expandSettings.sidebarSide === 'left') createdPanel.classList.add('thinkreview-panel-docked-left');
+      } else if (expandSettings.sidebarSide === 'left') {
+        // In overlay mode, still apply the sidebar side for positioning alignment
+        createdPanel.classList.add('thinkreview-panel-overlay-left');
+      }
+      applyDockedBodyMargin(true, expandSettings.panelMode, expandSettings.sidebarSide);
+    }
+  }
   
   // Track current PR ID
   currentPRId = getCurrentPRId();
@@ -1055,8 +1105,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       }
     }
     
-    // Get the user's language preference from localStorage
-    const language = localStorage.getItem('code-review-language') || 'English';
+    // Get the user's language preference from extension storage
+    const result = await chrome.storage.local.get(['code-review-language']);
+    const language = result['code-review-language'] || 'English';
     
     // Get the full MR/PR URL
     const mrUrl = window.location.href;
@@ -1236,6 +1287,20 @@ async function toggleReviewPanel() {
   if (panel.classList.contains('thinkreview-panel-minimized-to-button')) {
     // If panel is minimized, maximize it
     panel.classList.remove('thinkreview-panel-minimized', 'thinkreview-panel-hidden', 'thinkreview-panel-minimized-to-button');
+
+    // Apply docked mode if configured
+    const expandSettings = await getLayoutSettings();
+    if (expandSettings.panelMode === 'docked') {
+      panel.classList.add('thinkreview-panel-docked');
+      if (expandSettings.sidebarSide === 'left') panel.classList.add('thinkreview-panel-docked-left');
+      else panel.classList.remove('thinkreview-panel-docked-left');
+    } else if (expandSettings.sidebarSide === 'left') {
+      // In overlay mode, apply the sidebar side for positioning alignment
+      panel.classList.add('thinkreview-panel-overlay-left');
+    } else {
+      panel.classList.remove('thinkreview-panel-overlay-left');
+    }
+    applyDockedBodyMargin(true, expandSettings.panelMode, expandSettings.sidebarSide);
     
     // Hide score popup when panel is expanded
     try {
@@ -1252,6 +1317,20 @@ async function toggleReviewPanel() {
     } catch (error) {
       // Silently fail if module not available
     }
+
+    // Clear completion effects (shake + first best practice bubble)
+    try {
+      const effectsModule = await import(chrome.runtime.getURL('components/popup-modules/completion-effects.js'));
+      effectsModule.clearTriggerShake();
+    } catch (error) {
+      // Silently fail if module not available
+    }
+    try {
+      const bubbleModule = await import(chrome.runtime.getURL('components/popup-modules/completion-message-bubble.js'));
+      bubbleModule.hideBubble();
+    } catch (error) {
+      // Silently fail if module not available
+    }
     
     // Hide loading indicator when panel is expanded
     try {
@@ -1262,7 +1341,7 @@ async function toggleReviewPanel() {
     }
     
     // Update the button arrow to down arrow
-    const arrowSpan = reviewBtn.querySelector('span:last-child');
+    const arrowSpan = reviewBtn?.querySelector('span:last-child');
     if (arrowSpan) {
       arrowSpan.textContent = '▼';
     }
@@ -1274,13 +1353,25 @@ async function toggleReviewPanel() {
     const hasError = reviewError && !reviewError.classList.contains('gl-hidden');
     
     // If no review has been generated yet (no content and no error), trigger the review
-    if (!hasReview && !hasError) {
+    if (!hasReview && !hasError && !isReviewInProgress) {
       fetchAndDisplayCodeReview();
     }
   } else {
-    // If panel is already visible, minimize it
+    // If panel is already visible, minimize it (even if review is in progress)
     panel.classList.remove('thinkreview-panel-minimized', 'thinkreview-panel-hidden', 'thinkreview-panel-minimized-to-button');
     panel.classList.add('thinkreview-panel-minimized-to-button');
+
+    // Get settings to apply left positioning if needed
+    const minimizeSettings = await getLayoutSettings();
+    if (minimizeSettings.sidebarSide === 'left') {
+      panel.classList.add('thinkreview-panel-overlay-left');
+    } else {
+      panel.classList.remove('thinkreview-panel-overlay-left');
+    }
+
+    // Remove docked mode classes when minimizing
+    panel.classList.remove('thinkreview-panel-docked', 'thinkreview-panel-docked-left', 'thinkreview-panel-button-top');
+    applyDockedBodyMargin(false, 'overlay', 'right');
     
     // Show score popup when panel is minimized
     try {
@@ -1309,14 +1400,16 @@ async function toggleReviewPanel() {
     }
     
     // Update the button arrow to up arrow
-    const arrowSpan = reviewBtn.querySelector('span:last-child');
+    const arrowSpan = reviewBtn?.querySelector('span:last-child');
     if (arrowSpan) {
       arrowSpan.textContent = '▲';
     }
   }
   
-  // Save the state to localStorage
-  localStorage.setItem('gitlab-mr-review-minimized-to-button', panel.classList.contains('thinkreview-panel-minimized-to-button'));
+  // Save the state to extension storage
+  chrome.storage.local.set({
+    'gitlab-mr-review-minimized-to-button': String(panel.classList.contains('thinkreview-panel-minimized-to-button'))
+  });
 }
 
 /**
@@ -1424,8 +1517,8 @@ async function initializeExtension() {
         }
       }
       
-      // Save the minimized state to localStorage
-      localStorage.setItem('code-review-minimized-to-button', 'true');
+      // Save the minimized state to extension storage
+      chrome.storage.local.set({ 'code-review-minimized-to-button': 'true' });
     }, 1000);
   } else {
     dbgLog('Current page does not need the button');
@@ -1434,3 +1527,61 @@ async function initializeExtension() {
 
 // Initialize the extension
 initializeExtension();
+
+// ── Live layout change handling ────────────────────────────
+// Re-apply trigger and docked mode when settings change (from popup or in-panel widget)
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area !== 'local' || !changes.reviewLayoutSettings) return;
+  const settings = changes.reviewLayoutSettings.newValue || {};
+  const merged = {
+    triggerMode: 'floating-button',
+    buttonPosition: 'bottom-right',
+    panelMode: 'overlay',
+    sidebarSide: 'right',
+    ...settings,
+  };
+  if (merged.buttonPosition === 'top-right') merged.buttonPosition = 'bottom-right';
+  else if (merged.buttonPosition === 'top-left') merged.buttonPosition = 'bottom-left';
+
+  // Re-inject the trigger UI with the new settings
+  try {
+    const { injectTrigger, removeTrigger } = await import(chrome.runtime.getURL('components/layout-trigger.js'));
+    removeTrigger();
+    injectTrigger(merged, toggleReviewPanel);
+  } catch (e) {
+    dbgWarn('Failed to re-inject trigger UI:', e);
+  }
+
+  // If panel is currently open (not minimized), re-apply docked mode and overlay side
+  const panel = document.getElementById('gitlab-mr-integrated-review');
+  if (panel && !panel.classList.contains('thinkreview-panel-minimized-to-button')) {
+    panel.classList.remove('thinkreview-panel-docked', 'thinkreview-panel-docked-left');
+    if (merged.panelMode === 'docked') {
+      panel.classList.add('thinkreview-panel-docked');
+      if (merged.sidebarSide === 'left') panel.classList.add('thinkreview-panel-docked-left');
+    } else {
+      // Overlay mode: position panel on left or right to match layout
+      if (merged.sidebarSide === 'left') panel.classList.add('thinkreview-panel-overlay-left');
+      else panel.classList.remove('thinkreview-panel-overlay-left');
+    }
+    applyDockedBodyMargin(!panel.classList.contains('thinkreview-panel-minimized-to-button'), merged.panelMode, merged.sidebarSide);
+  } else {
+    // Panel is minimized or absent — ensure body margins are cleared
+    applyDockedBodyMargin(false, 'overlay', 'right');
+  }
+});
+
+// Listen for layoutchanged event dispatched by the in-panel widget (layout-settings-widget.js)
+document.addEventListener('thinkreview:layoutchanged', async (e) => {
+  // The storage.onChanged listener above already handles this via the chrome.storage.set call;
+  // nothing extra needed here. Event is kept for future extensibility.
+});
+
+// Listen for panelminimized event dispatched by integrated-review.js header click
+document.addEventListener('thinkreview:panelminimized', () => {
+  applyDockedBodyMargin(false, 'overlay', 'right');
+  const panel = document.getElementById('gitlab-mr-integrated-review');
+  if (panel) {
+    panel.classList.remove('thinkreview-panel-docked', 'thinkreview-panel-docked-left');
+  }
+});
