@@ -6,6 +6,9 @@
   --thinkreview-text-secondary: #e0e0e0;
   --thinkreview-bg-transparent: transparent;
   --thinkreview-border-light: rgba(255, 255, 255, 0.1);
+
+  /* Panel width for body margin when docked (synced with resize) */
+  --thinkreview-panel-width: 520px;
   
   /* Spacing */
   --thinkreview-padding-sm: 8px 12px;
@@ -1895,6 +1898,12 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   right: auto;
 }
 
+/* Override #gitlab-mr-integrated-review so left-docked panel actually appears on the left */
+#gitlab-mr-integrated-review.thinkreview-panel-docked.thinkreview-panel-docked-left {
+  left: 0;
+  right: auto;
+}
+
 /* Overlay mode with left positioning */
 .thinkreview-panel-container.thinkreview-panel-overlay-left {
   left: 20px;
@@ -1908,12 +1917,12 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
 
 /* Nudge page body when panel is docked so content isn't obscured */
 body.thinkreview-body-docked-right {
-  margin-right: 520px;
+  margin-right: var(--thinkreview-panel-width);
   transition: margin-right 0.5s ease;
 }
 
 body.thinkreview-body-docked-left {
-  margin-left: 520px;
+  margin-left: var(--thinkreview-panel-width);
   transition: margin-left 0.5s ease;
 }
 

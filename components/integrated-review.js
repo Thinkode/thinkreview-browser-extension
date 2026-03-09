@@ -907,14 +907,22 @@ function initializeResizeHandle(container) {
   // Load saved width from localStorage (only if not minimized)
   const savedWidth = localStorage.getItem('gitlab-mr-review-width');
   if (savedWidth && !container.classList.contains('minimized')) {
-    container.style.width = savedWidth + 'px';
+    const widthPx = savedWidth + 'px';
+    container.style.width = widthPx;
+    if (container.classList.contains('thinkreview-panel-docked')) {
+      document.documentElement.style.setProperty('--thinkreview-panel-width', widthPx);
+    }
   }
   
   const doResize = (e) => {
     const deltaX = startX - e.clientX;
     const newWidth = Math.max(400, Math.min(800, startWidth + deltaX)); // Min 400px, Max 800px
-    container.style.width = newWidth + 'px';   
-    
+    container.style.width = newWidth + 'px';
+
+    // Sync body margin with panel width so page content isn't obscured or gapped
+    if (container.classList.contains('thinkreview-panel-docked')) {
+      document.documentElement.style.setProperty('--thinkreview-panel-width', newWidth + 'px');
+    }
   };
 
   const stopResize = () => {
