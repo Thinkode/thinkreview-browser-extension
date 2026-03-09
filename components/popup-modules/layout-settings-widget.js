@@ -5,6 +5,7 @@
  */
 
 import { dbgWarn } from '../../utils/logger.js';
+import { CloudService } from '../../services/cloud-service.js';
 
 // Load this module's CSS
 const _cssURL = chrome.runtime.getURL('components/popup-modules/layout-settings-widget.css');
@@ -69,6 +70,7 @@ function _normalizeLayoutSettings(settings) {
 
 async function _saveSettings(settings) {
   await chrome.storage.local.set({ reviewLayoutSettings: settings });
+  CloudService.storeLayoutSettings(settings).catch(e => dbgWarn('Failed to sync layout settings:', e));
 }
 
 function _getActiveComboId(settings) {
