@@ -1105,8 +1105,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       }
     }
     
-    // Get the user's language preference from localStorage
-    const language = localStorage.getItem('code-review-language') || 'English';
+    // Get the user's language preference from extension storage
+    const result = await chrome.storage.local.get(['code-review-language']);
+    const language = result['code-review-language'] || 'English';
     
     // Get the full MR/PR URL
     const mrUrl = window.location.href;
@@ -1405,8 +1406,10 @@ async function toggleReviewPanel() {
     }
   }
   
-  // Save the state to localStorage
-  localStorage.setItem('gitlab-mr-review-minimized-to-button', panel.classList.contains('thinkreview-panel-minimized-to-button'));
+  // Save the state to extension storage
+  chrome.storage.local.set({
+    'gitlab-mr-review-minimized-to-button': String(panel.classList.contains('thinkreview-panel-minimized-to-button'))
+  });
 }
 
 /**
@@ -1514,8 +1517,8 @@ async function initializeExtension() {
         }
       }
       
-      // Save the minimized state to localStorage
-      localStorage.setItem('code-review-minimized-to-button', 'true');
+      // Save the minimized state to extension storage
+      chrome.storage.local.set({ 'code-review-minimized-to-button': 'true' });
     }, 1000);
   } else {
     dbgLog('Current page does not need the button');
