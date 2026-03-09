@@ -9,7 +9,12 @@
 
   /* Panel width for body margin when docked (synced with resize) */
   --thinkreview-panel-width: 520px;
-  
+
+  /* Panel vertical positioning: top offset and bottom gap define max-height */
+  --thinkreview-panel-top: 100px;
+  --thinkreview-panel-bottom-gap: 20px;
+  --thinkreview-panel-max-height: calc(100vh - var(--thinkreview-panel-top) - var(--thinkreview-panel-bottom-gap));
+
   /* Spacing */
   --thinkreview-padding-sm: 8px 12px;
 
@@ -26,10 +31,10 @@
 .thinkreview-panel-container {
   position: fixed;
   right: 20px;
-  top: 100px;
+  top: var(--thinkreview-panel-top);
   width: 500px;
   max-width: 90vw;
-  max-height: 80vh;
+  max-height: var(--thinkreview-panel-max-height);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -44,10 +49,10 @@
 #gitlab-mr-integrated-review {
   position: fixed;
   right: 20px;
-  top: 100px;
+  top: var(--thinkreview-panel-top);
   width: 500px;
   max-width: 90vw;
-  max-height: 80vh;
+  max-height: var(--thinkreview-panel-max-height);
   overflow: hidden;
   display: flex;
   flex-direction: column;
