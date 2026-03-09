@@ -31,6 +31,8 @@
   max-width: 90vw;
   max-height: 80vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   z-index: var(--thinkreview-z-panel);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   transition: transform 0.3s ease, opacity 0.3s ease, right 0.5s ease, bottom 0.5s ease, width 0.5s ease, height 0.5s ease;
@@ -47,6 +49,8 @@
   max-width: 90vw;
   max-height: 80vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   z-index: var(--thinkreview-z-panel);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   transition: transform 0.3s ease, opacity 0.3s ease, right 0.5s ease, bottom 0.5s ease, width 0.5s ease, height 0.5s ease;
@@ -95,6 +99,10 @@
   border: 1px solid #6b4fbb;
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 #gitlab-mr-integrated-review .thinkreview-card-header {
@@ -188,7 +196,8 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  height: calc(80vh - 50px); /* Adjust height based on max-height of the panel and header height */
+  flex: 1;
+  min-height: 0;
   /* Default to dark theme for better readability */
   background-color: #1e1e1e;
   color: #ffffff;
