@@ -913,7 +913,8 @@ function initializeResizeHandle(container) {
   const doResize = (e) => {
     const deltaX = startX - e.clientX;
     const newWidth = Math.max(400, Math.min(800, startWidth + deltaX)); // Min 400px, Max 800px
-    container.style.width = newWidth + 'px';
+    container.style.width = newWidth + 'px';   
+    
   };
 
   const stopResize = () => {
