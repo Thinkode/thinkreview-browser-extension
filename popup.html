@@ -310,7 +310,7 @@
         </div>
         <p class="help-text section-docs-links"><a href="https://thinkreview.dev/docs/troubleshooting#ai-button-not-visible" target="_blank" rel="noopener noreferrer" class="privacy-notice-link">Not working?</a> · <a href="https://thinkreview.dev/docs/gitlab-integration" target="_blank" rel="noopener noreferrer" class="privacy-notice-link">GitLab setup guide</a></p>
       </div>
-      
+
       <!-- Azure DevOps Settings Section -->
       <div id="azure-settings" class="azure-settings-section">
         <h3 class="settings-title">Azure DevOps Integration</h3>
@@ -384,17 +384,32 @@
       <!-- GitHub Settings Section -->
       <div id="github-settings" class="github-settings-section">
         <h3 class="settings-title">GitHub Integration</h3>
-        <p class="settings-description">ThinkReview is ready to work on GitHub pull requests</p>
+        <p class="settings-description">ThinkReview works out of the box on github.com. Use custom domains below only for GitHub Enterprise Server (GHES, self-hosted).</p>
         
         <div class="github-info">
           <div class="github-info-icon thinkreview-tick-green">✓</div>
           <div class="github-info-content">
             <p class="github-info-text">
-              <strong>No setup required!</strong> The extension automatically works on GitHub pull requests. Simply navigate to any GitHub PR page to start generating AI code reviews.
+              <strong>No setup required on github.com!</strong> The extension automatically works on GitHub.com pull requests. Simply navigate to any GitHub PR page to start generating AI code reviews.
             </p>
           </div>
         </div>
-        <p class="help-text section-docs-links"><a href="https://thinkreview.dev/docs/troubleshooting#ai-button-not-visible" target="_blank" rel="noopener noreferrer" class="privacy-notice-link">Not working?</a> · <a href="https://thinkreview.dev/docs/github-integration" target="_blank" rel="noopener noreferrer" class="privacy-notice-link">GitHub setup guide</a></p>
+        
+        <div class="domain-settings-section">
+          <h4 class="settings-subtitle">GitHub Enterprise Server (GHES) Domains</h4>
+          <p class="settings-description">Add custom GitHub Enterprise Server (GHES) domains (e.g. github.mycompany.com) where the extension should work.</p>
+          
+          <div class="domain-input-section">
+            <input type="text" id="github-enterprise-domain-input" placeholder="e.g., github.mycompany.com" class="domain-input">
+            <button id="add-github-enterprise-domain-btn" class="add-domain-btn">Add</button>
+          </div>
+          
+          <div id="github-enterprise-domain-list" class="domain-list">
+            <!-- Domain items will be populated by JavaScript -->
+          </div>
+        </div>
+
+        <p class="help-text section-docs-links"><a href="https://thinkreview.dev/docs/troubleshooting#ai-button-not-visible" target="_blank" rel="noopener noreferrer" class="privacy-notice-link">Not working?</a> · <a href="https://thinkreview.dev/docs/github-integration" target="_blank" rel="noopener noreferrer" class="privacy-notice-link">GitHub & GitHub Enterprise setup guide</a></p>
       </div>
     </div>
     

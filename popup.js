@@ -649,6 +649,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Initialize Azure DevOps domain settings
   initializeAzureDevOpsDomainSettings();
+
+  // Initialize GitHub Enterprise domain settings
+  initializeGitHubEnterpriseDomainSettings();
   
   // Initialize Bitbucket settings (also called above after Azure)
   initializeBitbucketSettings();
@@ -727,21 +730,23 @@ function setupDomainEventListeners() {
   const addButton = document.getElementById('add-domain-btn');
   const domainInput = document.getElementById('domain-input');
   
-  // Add domain button click
-  addButton.addEventListener('click', addDomain);
-  
-  // Enter key in input field
-  domainInput.addEventListener('keypress', (event) => {
-    if (event.key === 'Enter') {
-      addDomain();
-    }
-  });
-  
-  // Input validation
-  domainInput.addEventListener('input', () => {
-    const isValid = validateDomainInput(domainInput.value.trim());
-    addButton.disabled = !isValid;
-  });
+  if (addButton && domainInput) {
+    // Add domain button click
+    addButton.addEventListener('click', addDomain);
+    
+    // Enter key in input field
+    domainInput.addEventListener('keypress', (event) => {
+      if (event.key === 'Enter') {
+        addDomain();
+      }
+    });
+    
+    // Input validation
+    domainInput.addEventListener('input', () => {
+      const isValid = validateDomainInput(domainInput.value.trim());
+      addButton.disabled = !isValid;
+    });
+  }
 }
 
 function validateDomainInput(domain) {
@@ -923,6 +928,189 @@ async function addDomain() {
   } finally {
     // Reset flag to allow future calls
     isAddingDomain = false;
+  }
+}
+
+// GitHub Enterprise (self-hosted) Domain Management
+const GITHUB_ENTERPRISE_DEFAULT_DOMAINS = [];
+
+function initializeGitHubEnterpriseDomainSettings() {
+  loadGitHubEnterpriseDomains();
+  setupGitHubEnterpriseDomainEventListeners();
+}
+
+function setupGitHubEnterpriseDomainEventListeners() {
+  const addButton = document.getElementById('add-github-enterprise-domain-btn');
+  const domainInput = document.getElementById('github-enterprise-domain-input');
+  if (!addButton || !domainInput) return;
+
+  addButton.addEventListener('click', addGitHubEnterpriseDomain);
+  domainInput.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') addGitHubEnterpriseDomain();
+  });
+  domainInput.addEventListener('input', () => {
+    addButton.disabled = !validateDomainInput(domainInput.value.trim());
+  });
+}
+
+async function loadGitHubEnterpriseDomains() {
+  try {
+    const result = await chrome.storage.local.get(['githubEnterpriseDomains']);
+    const domains = result.githubEnterpriseDomains || GITHUB_ENTERPRISE_DEFAULT_DOMAINS;
+    renderGitHubEnterpriseDomainList(domains);
+  } catch (error) {
+    dbgWarn('Error loading GitHub Enterprise domains:', error);
+    renderGitHubEnterpriseDomainList(GITHUB_ENTERPRISE_DEFAULT_DOMAINS);
+  }
+}
+
+function renderGitHubEnterpriseDomainList(domains) {
+  const domainList = document.getElementById('github-enterprise-domain-list');
+  if (!domainList) return;
+
+  if (!domains || domains.length === 0) {
+    domainList.innerHTML = '<div class="no-domains">No custom domains added</div>';
+    return;
+  }
+
+  domainList.innerHTML = domains.map(domain => {
+    const isDefault = GITHUB_ENTERPRISE_DEFAULT_DOMAINS.includes(domain);
+    const displayDomain = formatDomainForDisplay(domain);
+    return `
+      <div class="domain-item ${isDefault ? 'default' : ''}">
+        <span class="domain-name">${displayDomain}</span>
+        <div>
+          ${isDefault ? '<span class="default-label">DEFAULT</span>' : ''}
+          ${!isDefault ? `<button class="remove-domain-btn" data-domain="${domain.replace(/"/g, '&quot;')}">Remove</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  domainList.querySelectorAll('.remove-domain-btn').forEach(button => {
+    button.addEventListener('click', () => removeGitHubEnterpriseDomain(button.dataset.domain));
+  });
+}
+
+let isAddingGitHubEnterpriseDomain = false;
+
+async function addGitHubEnterpriseDomain() {
+  if (isAddingGitHubEnterpriseDomain) return;
+
+  const domainInput = document.getElementById('github-enterprise-domain-input');
+  const addButton = document.getElementById('add-github-enterprise-domain-btn');
+  const inputValue = domainInput?.value?.trim()?.toLowerCase() ?? '';
+
+  if (!validateDomainInput(inputValue)) {
+    alert('Please enter a valid domain (e.g., github.mycompany.com, https://github.mycompany.com)');
+    return;
+  }
+
+  const domain = normalizeDomain(inputValue);
+
+  try {
+    isAddingGitHubEnterpriseDomain = true;
+    const originalButtonText = addButton?.textContent ?? 'Add';
+    if (addButton) {
+      addButton.textContent = 'Adding...';
+      addButton.disabled = true;
+    }
+
+    const result = await chrome.storage.local.get(['githubEnterpriseDomains']);
+    const domains = result.githubEnterpriseDomains || GITHUB_ENTERPRISE_DEFAULT_DOMAINS;
+
+    if (domains.includes(domain)) {
+      alert('Domain already exists');
+      if (addButton) {
+        addButton.textContent = originalButtonText;
+        addButton.disabled = false;
+      }
+      return;
+    }
+
+    let originPattern;
+    if (domain.startsWith('http://') || domain.startsWith('https://')) {
+      const url = new URL(domain);
+      originPattern = `${url.protocol}//${url.host}/*`;
+    } else {
+      originPattern = `https://${domain}/*`;
+    }
+
+    dbgLog(`Adding GitHub Enterprise domain with pattern: ${originPattern}`);
+
+    const granted = await chrome.permissions.request({ origins: [originPattern] });
+    if (!granted) {
+      alert('Permission not granted. The extension needs permission to access this domain.');
+      if (addButton) {
+        addButton.textContent = originalButtonText;
+        addButton.disabled = false;
+      }
+      return;
+    }
+
+    const updatedDomains = [...domains, domain];
+    await chrome.storage.local.set({ githubEnterpriseDomains: updatedDomains });
+
+    // Track custom domain in cloud asynchronously (fire-and-forget)
+    isUserLoggedIn().then(isLoggedIn => {
+      if (isLoggedIn && window.CloudService) {
+        dbgLog('User logged in, tracking GitHub Enterprise custom domain in cloud (async)');
+        window.CloudService.trackCustomDomains(domain, 'add')
+          .then(() => dbgLog('GitHub Enterprise custom domain tracked successfully in cloud'))
+          .catch(trackError => dbgWarn('Error tracking GitHub Enterprise custom domain in cloud (non-critical):', trackError));
+      } else {
+        dbgLog('User not logged in or CloudService not available, skipping cloud tracking for GitHub Enterprise');
+      }
+    }).catch(err => dbgWarn('Error checking login status for GitHub Enterprise cloud tracking:', err));
+
+    chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
+
+    if (domainInput) domainInput.value = '';
+    if (addButton) {
+      addButton.textContent = originalButtonText;
+      addButton.disabled = true;
+    }
+
+    renderGitHubEnterpriseDomainList(updatedDomains);
+    showMessage('Domain added successfully! You may need to reload GitHub Enterprise pages for changes to take effect.', 'success');
+  } catch (error) {
+    dbgWarn('Error adding GitHub Enterprise domain:', error);
+    alert(`Error adding domain: ${error.message}. Please try again.`);
+    if (addButton) {
+      addButton.textContent = 'Add';
+      addButton.disabled = false;
+    }
+  } finally {
+    isAddingGitHubEnterpriseDomain = false;
+  }
+}
+
+async function removeGitHubEnterpriseDomain(domain) {
+  if (!confirm(`Remove domain "${domain}"?`)) return;
+
+  try {
+    const result = await chrome.storage.local.get(['githubEnterpriseDomains']);
+    const domains = result.githubEnterpriseDomains || GITHUB_ENTERPRISE_DEFAULT_DOMAINS;
+    const updatedDomains = domains.filter(d => d !== domain);
+    await chrome.storage.local.set({ githubEnterpriseDomains: updatedDomains });
+
+    // Track custom domain removal in cloud asynchronously (fire-and-forget)
+    isUserLoggedIn().then(isLoggedIn => {
+      if (isLoggedIn && window.CloudService) {
+        dbgLog('User logged in, tracking GitHub Enterprise custom domain removal in cloud (async)');
+        window.CloudService.trackCustomDomains(domain, 'remove')
+          .then(() => dbgLog('GitHub Enterprise custom domain removal tracked successfully in cloud'))
+          .catch(trackError => dbgWarn('Error tracking GitHub Enterprise custom domain removal in cloud (non-critical):', trackError));
+      } else {
+        dbgLog('User not logged in or CloudService not available, skipping cloud tracking for GitHub Enterprise removal');
+      }
+    }).catch(err => dbgWarn('Error checking login status for GitHub Enterprise cloud tracking:', err));
+
+    renderGitHubEnterpriseDomainList(updatedDomains);
+    showMessage('Domain removed successfully!', 'success');
+  } catch (error) {
+    dbgWarn('Error removing GitHub Enterprise domain:', error);
+    alert('Error removing domain. Please try again.');
   }
 }
 

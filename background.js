@@ -1049,9 +1049,10 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 async function updateContentScripts() {
   try {
     // Get current domains from storage
-    const result = await chrome.storage.local.get(['gitlabDomains', 'azureDevOpsDomains', 'bitbucketAllowed']);
+    const result = await chrome.storage.local.get(['gitlabDomains', 'azureDevOpsDomains', 'bitbucketAllowed', 'githubEnterpriseDomains']);
     const gitlabDomains = result.gitlabDomains || DEFAULT_DOMAINS;
     const customAzureDevOpsDomains = result.azureDevOpsDomains || [];
+    const githubEnterpriseDomains = result.githubEnterpriseDomains || [];
 
     // Built-in Azure DevOps domains (always included)
     const builtInAzureDevOpsDomains = [
@@ -1059,9 +1060,10 @@ async function updateContentScripts() {
       'https://*.visualstudio.com'
     ];
 
-    // Add GitHub domains
+    // Add GitHub domains (GitHub.com + GitHub Enterprise/self-hosted)
     const githubDomains = [
-      'https://github.com'
+      'https://github.com',
+      ...githubEnterpriseDomains
     ];
 
     // Add Bitbucket when user has allowed it and we have permission
@@ -1076,6 +1078,20 @@ async function updateContentScripts() {
     const allDomains = [...gitlabDomains, ...builtInAzureDevOpsDomains, ...customAzureDevOpsDomains, ...githubDomains, ...bitbucketDomains];
     const azureMatchAllDomains = new Set([...builtInAzureDevOpsDomains, ...customAzureDevOpsDomains]);
     const bitbucketMatchAllDomains = new Set(bitbucketDomains);
+    const githubMatchAllHosts = new Set(
+      githubDomains
+        .filter(d => typeof d === 'string')
+        .map(d => {
+          try {
+            const hasProtocol = d.startsWith('http://') || d.startsWith('https://');
+            const url = new URL(hasProtocol ? d : `https://${d}`);
+            return url.hostname;
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean)
+    );
     
     dbgLog('Updating content scripts for domains:', allDomains);
     
@@ -1130,8 +1146,8 @@ async function updateContentScripts() {
         } else if (azureMatchAllDomains.has(domain) || azureMatchAllDomains.has(url.hostname)) {
           // Azure DevOps (built-in or custom): match all pages (SPA - button always visible, but only works on PR pages)
           matchPattern = `${url.protocol}//${url.host}/*`;
-        } else if (url.hostname === 'github.com' || url.hostname.endsWith('.github.com')) {
-          // GitHub: match all pages (SPA - button always visible, but only works on PR pages)
+        } else if (githubMatchAllHosts.has(url.hostname)) {
+          // GitHub & GitHub Enterprise: match all pages (SPA - button always visible, but only works on PR pages)
           matchPattern = `${url.protocol}//${url.host}/*`;
         } else if (bitbucketMatchAllDomains.has(domain) || url.hostname === 'bitbucket.org') {
           // Bitbucket: match all pages (SPA - button visible on PR pages)

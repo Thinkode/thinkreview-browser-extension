@@ -51,26 +51,48 @@ export class GitHubDetector {
   isGitHubPRPage() {
     const url = window.location.href;
     const hostname = window.location.hostname;
-    
-    // Check if we're on GitHub domains
-    const isGitHubDomain = hostname === 'github.com' || hostname.endsWith('.github.com');
-    
-    if (!isGitHubDomain) {
+    const pathname = window.location.pathname;
+
+    // Check if URL contains pull request path pattern
+    // GitHub / GitHub Enterprise PR URLs: /owner/repo/pull/{number}
+    const prInfo = parseGitHubPRFromPath(pathname);
+    const isPRPath = !!prInfo;
+
+    if (!isPRPath) {
       return false;
     }
-    
-    // Check if URL contains pull request path pattern
-    // GitHub PR URLs: /owner/repo/pull/{number}
-    const prInfo = parseGitHubPRFromPath(window.location.pathname);
-    const isPRPath = !!prInfo;
-    
-    dbgLog('GitHub PR detection:', {
-      isGitHubDomain,
+
+    // For github.com and *.github.com, keep the original simple behavior
+    const isGitHubDotCom =
+      hostname === 'github.com' || hostname.endsWith('.github.com');
+    if (isGitHubDotCom) {
+      dbgLog('GitHub PR detection (github.com):', {
+        isPRPath,
+        hostname,
+        url: url.substring(0, 100) + '...'
+      });
+      return true;
+    }
+
+    // For other hosts (GitHub Enterprise), use heuristic DOM checks
+    const prDomSelectors = [
+      '.gh-header-title',
+      '.gh-header-number',
+      '[data-testid="issue-title"]',
+      '.js-issue-title',
+      '[data-pjax="#js-repo-pjax-container"]'
+    ];
+    const hasGitHubDom = prDomSelectors.some(sel => !!document.querySelector(sel));
+
+    dbgLog('GitHub PR detection (enterprise):', {
       isPRPath,
+      hasGitHubDom,
+      hostname,
       url: url.substring(0, 100) + '...'
     });
-    
-    return isGitHubDomain && isPRPath;
+
+    // For GHES, require both the path and some GitHub-like DOM
+    return isPRPath && hasGitHubDom;
   }
 
   /**

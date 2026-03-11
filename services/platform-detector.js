@@ -336,7 +336,16 @@ export class PlatformDetector {
    */
   isGitHubSite() {
     const hostname = window.location.hostname;
-    return hostname === 'github.com' || hostname.endsWith('.github.com');
+    // Treat GitHub.com and subdomains as GitHub
+    if (hostname === 'github.com' || hostname.endsWith('.github.com')) {
+      return true;
+    }
+    // Also treat any host that looks like a GitHub PR page as GitHub (GitHub Enterprise)
+    try {
+      return githubDetector.isGitHubPRPage();
+    } catch {
+      return false;
+    }
   }
 
   /**
