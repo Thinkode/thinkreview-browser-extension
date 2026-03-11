@@ -267,10 +267,18 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
 
   // Add upgrade message if forced truncation occurred and user is on free tier
   if (showUpgradeMessage) {
-    // Calculate percentages
-    const percentageReviewed = patchSize.original > 0 
-      ? Math.round((patchSize.truncated / patchSize.original) * 100) 
-      : 100;
+    // Calculate percentages with a minimum visible value of 0.1% when some code was reviewed
+    let percentageReviewed;
+    if (patchSize.original > 0) {
+      const rawPercentage = (patchSize.truncated / patchSize.original) * 100;
+      if (rawPercentage > 0 && rawPercentage < 0.1) {
+        percentageReviewed = 0.1;
+      } else {
+        percentageReviewed = Math.round(rawPercentage * 10) / 10; // one decimal place
+      }
+    } else {
+      percentageReviewed = 100;
+    }
     
     // Format sizes for display
     const truncatedSizeFormatted = formatSize(patchSize.truncated);

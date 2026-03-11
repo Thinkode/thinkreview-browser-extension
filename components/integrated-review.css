@@ -10,9 +10,10 @@
   /* Panel width for body margin when docked (synced with resize) */
   --thinkreview-panel-width: 520px;
 
-  /* Panel vertical positioning: top offset and bottom gap define max-height */
+  /* Panel vertical positioning: top offset and bottom gap define max-height.
+     Bottom gap keeps a small buffer above the floating AI Review button. */
   --thinkreview-panel-top: 100px;
-  --thinkreview-panel-bottom-gap: 20px;
+  --thinkreview-panel-bottom-gap: 80px;
   --thinkreview-panel-max-height: calc(100vh - var(--thinkreview-panel-top) - var(--thinkreview-panel-bottom-gap));
 
   /* Spacing */
@@ -34,7 +35,10 @@
   top: var(--thinkreview-panel-top);
   width: 500px;
   max-width: 90vw;
-  max-height: var(--thinkreview-panel-max-height);
+  /* Use a fixed height so the panel doesn't resize vertically
+     when switching between tabs or when content height changes */
+  height: var(--thinkreview-panel-max-height);
+  min-height: var(--thinkreview-panel-max-height);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -52,7 +56,9 @@
   top: var(--thinkreview-panel-top);
   width: 500px;
   max-width: 90vw;
-  max-height: var(--thinkreview-panel-max-height);
+  /* Legacy selector: keep height in sync with main container rule above */
+  height: var(--thinkreview-panel-max-height);
+  min-height: var(--thinkreview-panel-max-height);
   overflow: hidden;
   display: flex;
   flex-direction: column;

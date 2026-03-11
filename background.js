@@ -1011,7 +1011,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     await chrome.storage.local.set({ lastInstalledVersion: manifest.version });
   }
   
-  // Open release notes page on update
+  // On update, just track version change in storage (no auto-opening release notes tab)
   if (details.reason === 'update') {
     const manifest = chrome.runtime.getManifest();
     const currentVersion = manifest.version;
@@ -1020,10 +1020,9 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     const result = await chrome.storage.local.get(['lastInstalledVersion']);
     const previousVersion = result.lastInstalledVersion;
     
-    // Only show release notes if this is a version change (not just a reload)
+    // Only log if this is a version change (not just a reload)
     if (previousVersion && previousVersion !== currentVersion) {
-      dbgLog(`Extension updated from ${previousVersion} to ${currentVersion}, opening release notes`);
-      chrome.tabs.create({ url: 'https://thinkreview.dev/release-notes' });
+      dbgLog(`Extension updated from ${previousVersion} to ${currentVersion}, release notes not auto-opened`);
     }
     
     // Update stored version
