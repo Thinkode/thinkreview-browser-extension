@@ -30,11 +30,13 @@ function hasCodeSuggestionsAccess(subscriptionType) {
  * @param {Object} params
  * @param {Object} params.review - Review object with optional codeSuggestions array
  * @param {string} [params.patchContent] - Raw patch content for GitLab diff injection
- * @param {string} [params.subscriptionType] - User subscription type (from storage); Free users see upgrade message
+ * @param {string} [params.subscriptionType] - User subscription type (from storage); Free users see upgrade message when forced truncation applies
+ * @param {boolean} [params.wasForcedTruncated] - Whether the patch was forcibly truncated due to free-tier limits
+ * @param {Object} [params.patchSize] - Patch size info { original, truncated, wasForcedTruncated, ... } from backend
  * @param {Object} [params.logger] - Optional { dbgLog, dbgWarn }
  * @param {Function} [params.onExplainSuggestion] - Callback(suggestion) when Explain is clicked; switches to Review tab and sends message
  */
-export async function updateCodeSuggestionsTab({ review, patchContent, subscriptionType = 'Free', logger = {}, onExplainSuggestion } = {}) {
+export async function updateCodeSuggestionsTab({ review, patchContent, subscriptionType = 'Free', wasForcedTruncated = false, patchSize = null, logger = {}, onExplainSuggestion } = {}) {
   const { dbgLog = () => {}, dbgWarn = (...args) => console.warn('[CodeSuggestionsTab]', ...args) } = logger;
 
   const codeSuggestionsTabBtn = document.getElementById('tab-btn-code-suggestions');
@@ -43,9 +45,13 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
 
   const hasSuggestions = Array.isArray(review.codeSuggestions) && review.codeSuggestions.length > 0;
   const canAccessSuggestions = hasCodeSuggestionsAccess(subscriptionType);
+  const isFreeLike = !canAccessSuggestions;
 
-  if (hasSuggestions && !canAccessSuggestions) {
-    // Free user: show tab with upgrade message
+  // If user is effectively on Free tier AND the patch was forcibly truncated due to free-tier limits,
+  // keep existing behavior: show upgrade message instead of full code suggestions, but add
+  // a banner explaining that suggestions are based on only part of the PR.
+  if (hasSuggestions && isFreeLike && wasForcedTruncated) {
+    // Free user with forced truncation: show tab with upgrade + truncation banner
     if (codeSuggestionsTabBtn) {
       codeSuggestionsTabBtn.classList.remove('gl-hidden');
       // Add "New" badge same as paid users
@@ -65,6 +71,42 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
 
     if (codeSuggestionsInner) {
       codeSuggestionsInner.innerHTML = '';
+
+      // Optional banner explaining partial coverage due to free-tier truncation
+      try {
+        if (patchSize && typeof patchSize.original === 'number' && patchSize.original > 0 && typeof patchSize.truncated === 'number') {
+          const original = patchSize.original;
+          const truncated = patchSize.truncated;
+
+          // Calculate percentages with a minimum visible value of 0.1% when some code was reviewed
+          let percentageReviewed;
+          const rawPercentage = (truncated / original) * 100;
+          if (rawPercentage > 0 && rawPercentage < 0.1) {
+            percentageReviewed = 0.1;
+          } else {
+            percentageReviewed = Math.round(rawPercentage * 10) / 10; // one decimal place
+          }
+
+          const banner = document.createElement('div');
+          banner.className = 'thinkreview-upgrade-message thinkreview-code-suggestions-upgrade-message';
+          banner.innerHTML = `
+            <div class="thinkreview-upgrade-message-content">
+              <span class="thinkreview-upgrade-icon">⚡</span>
+              <span class="thinkreview-upgrade-text">
+                Code suggestions are based on only ${percentageReviewed}% of this PR due to free tier limits.
+                <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">
+                  Upgrade to one of our premium plans
+                </a>
+                to get code suggestions for the entire PR.
+              </span>
+            </div>
+          `;
+          codeSuggestionsInner.appendChild(banner);
+        }
+      } catch (e) {
+        dbgWarn('Failed to render code suggestions truncation banner:', e);
+      }
+
       const upgradeModule = await import('./utils/code-suggestions-upgrade-message.js');
       const upgradeBox = upgradeModule.createCodeSuggestionsUpgradeMessage();
       codeSuggestionsInner.appendChild(upgradeBox);
@@ -75,7 +117,8 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
     return;
   }
 
-  if (hasSuggestions && canAccessSuggestions) {
+  // For paid users OR Free users without forced truncation, show full code suggestions
+  if (hasSuggestions && (!isFreeLike || !wasForcedTruncated)) {
     // Show Code Suggestions tab in the integrated panel
     if (codeSuggestionsTabBtn) {
       codeSuggestionsTabBtn.classList.remove('gl-hidden');

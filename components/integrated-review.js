@@ -1502,6 +1502,9 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     }
   }
 
+  // Determine if the patch was forcibly truncated due to free-tier limits
+  const wasForcedTruncated = !!(patchSize && patchSize.wasForcedTruncated);
+
   // Render quality scorecard if metrics are available
   if (reviewMetricsContainer) {
     // Clean up previous scorecard event listeners before clearing
@@ -2010,6 +2013,8 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
       review,
       patchContent,
       subscriptionType: subscriptionTypeForDisplay,
+      wasForcedTruncated,
+      patchSize,
       logger: { dbgLog, dbgWarn },
       onExplainSuggestion: (suggestion) => {
         // Build explain message with suggestion context (handleSendMessage switches to Review tab)
