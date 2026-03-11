@@ -47,78 +47,10 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
   const canAccessSuggestions = hasCodeSuggestionsAccess(subscriptionType);
   const isFreeLike = !canAccessSuggestions;
 
-  // If user is effectively on Free tier AND the patch was forcibly truncated due to free-tier limits,
-  // keep existing behavior: show upgrade message instead of full code suggestions, but add
-  // a banner explaining that suggestions are based on only part of the PR.
-  if (hasSuggestions && isFreeLike && wasForcedTruncated) {
-    // Free user with forced truncation: show tab with upgrade + truncation banner
-    if (codeSuggestionsTabBtn) {
-      codeSuggestionsTabBtn.classList.remove('gl-hidden');
-      // Add "New" badge same as paid users
-      if (!codeSuggestionsTabBtn.querySelector('.thinkreview-new-badge')) {
-        try {
-          const badgeModule = await import('./utils/new-badge.js');
-          const badgeCreator = badgeModule?.createNewBadge;
-          if (badgeCreator) {
-            const newBadge = badgeCreator('New');
-            codeSuggestionsTabBtn.appendChild(newBadge);
-          }
-        } catch (error) {
-          dbgWarn('Failed to load badge module for Code Suggestions tab:', error);
-        }
-      }
-    }
-
-    if (codeSuggestionsInner) {
-      codeSuggestionsInner.innerHTML = '';
-
-      // Optional banner explaining partial coverage due to free-tier truncation
-      try {
-        if (patchSize && typeof patchSize.original === 'number' && patchSize.original > 0 && typeof patchSize.truncated === 'number') {
-          const original = patchSize.original;
-          const truncated = patchSize.truncated;
-
-          // Calculate percentages with a minimum visible value of 0.1% when some code was reviewed
-          let percentageReviewed;
-          const rawPercentage = (truncated / original) * 100;
-          if (rawPercentage > 0 && rawPercentage < 0.1) {
-            percentageReviewed = 0.1;
-          } else {
-            percentageReviewed = Math.round(rawPercentage * 10) / 10; // one decimal place
-          }
-
-          const banner = document.createElement('div');
-          banner.className = 'thinkreview-upgrade-message thinkreview-code-suggestions-upgrade-message';
-          banner.innerHTML = `
-            <div class="thinkreview-upgrade-message-content">
-              <span class="thinkreview-upgrade-icon">⚡</span>
-              <span class="thinkreview-upgrade-text">
-                Code suggestions are based on only ${percentageReviewed}% of this PR due to free tier limits.
-                <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">
-                  Upgrade to one of our premium plans
-                </a>
-                to get code suggestions for the entire PR.
-              </span>
-            </div>
-          `;
-          codeSuggestionsInner.appendChild(banner);
-        }
-      } catch (e) {
-        dbgWarn('Failed to render code suggestions truncation banner:', e);
-      }
-
-      const upgradeModule = await import('./utils/code-suggestions-upgrade-message.js');
-      const upgradeBox = upgradeModule.createCodeSuggestionsUpgradeMessage();
-      codeSuggestionsInner.appendChild(upgradeBox);
-    }
-
-    // Do not store for GitLab injection - Free users don't get suggestions
-    delete window.__thinkreview_codeSuggestions;
-    return;
-  }
-
-  // For paid users OR Free users without forced truncation, show full code suggestions
-  if (hasSuggestions && (!isFreeLike || !wasForcedTruncated)) {
+  // Show full code suggestions whenever we have them.
+  // For Free users with forced truncation, we add a banner explaining partial coverage,
+  // but we still show the suggestions themselves.
+  if (hasSuggestions) {
     // Show Code Suggestions tab in the integrated panel
     if (codeSuggestionsTabBtn) {
       codeSuggestionsTabBtn.classList.remove('gl-hidden');
@@ -139,6 +71,43 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
 
     if (codeSuggestionsInner) {
       codeSuggestionsInner.innerHTML = '';
+
+      // For Free + forced-truncated users, show a truncation banner above the suggestions
+      if (isFreeLike && wasForcedTruncated) {
+        try {
+          if (patchSize && typeof patchSize.original === 'number' && patchSize.original > 0 && typeof patchSize.truncated === 'number') {
+            const original = patchSize.original;
+            const truncated = patchSize.truncated;
+
+            // Calculate percentages with a minimum visible value of 0.1% when some code was reviewed
+            let percentageReviewed;
+            const rawPercentage = (truncated / original) * 100;
+            if (rawPercentage > 0 && rawPercentage < 0.1) {
+              percentageReviewed = 0.1;
+            } else {
+              percentageReviewed = Math.round(rawPercentage * 10) / 10; // one decimal place
+            }
+
+            const banner = document.createElement('div');
+            banner.className = 'thinkreview-upgrade-message thinkreview-code-suggestions-upgrade-message';
+            banner.innerHTML = `
+              <div class="thinkreview-upgrade-message-content">
+                <span class="thinkreview-upgrade-icon">⚡</span>
+                <span class="thinkreview-upgrade-text">
+                  Code suggestions are based on only ${percentageReviewed}% of this PR due to free tier limits.
+                  <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">
+                    Upgrade to one of our premium plans
+                  </a>
+                  to get code suggestions for the entire PR.
+                </span>
+              </div>
+            `;
+            codeSuggestionsInner.appendChild(banner);
+          }
+        } catch (e) {
+          dbgWarn('Failed to render code suggestions truncation banner:', e);
+        }
+      }
       
       // Add GitLab injection toggle control (Beta)
       const toggleContainer = document.createElement('div');
