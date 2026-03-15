@@ -3,7 +3,7 @@
 // Handles visibility, badge, population, and GitLab diff injection storage.
 // Code suggestions feature is only available for Professional and Lite subscription types.
 
-/** Cached analytics module - loaded once on first use */
+/** Cached analytics module - loaded once on first use (use getURL for Firefox content script context) */
 let _analyticsModulePromise = null;
 async function getAnalyticsModule() {
   if (!_analyticsModulePromise) {
@@ -57,7 +57,7 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
       // Add "New" badge next to tab header using same module as other badges
       if (!codeSuggestionsTabBtn.querySelector('.thinkreview-new-badge')) {
         try {
-          const badgeModule = await import('./utils/new-badge.js');
+          const badgeModule = await import(chrome.runtime.getURL('components/utils/new-badge.js'));
           const badgeCreator = badgeModule?.createNewBadge;
           if (badgeCreator) {
             const newBadge = badgeCreator('New');
@@ -185,8 +185,8 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
       codeSuggestionsInner.appendChild(toggleContainer);
       
       const [suggestionModule, copyModule, analyticsModule] = await Promise.all([
-        import('./utils/code-suggestion-element.js'),
-        import('./utils/item-copy-button.js'),
+        import(chrome.runtime.getURL('components/utils/code-suggestion-element.js')),
+        import(chrome.runtime.getURL('components/utils/item-copy-button.js')),
         getAnalyticsModule()
       ]);
       const createCopyButton = copyModule.createCopyButton;

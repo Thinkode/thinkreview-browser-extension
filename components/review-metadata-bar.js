@@ -5,7 +5,7 @@
 let trackUserAction = null;
 (async () => {
   try {
-    const analyticsModule = await import('../utils/analytics-service.js');
+    const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
     trackUserAction = analyticsModule.trackUserAction;
   } catch (error) {
     // Silently fail - analytics shouldn't break the extension
