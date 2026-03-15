@@ -9,6 +9,7 @@ node_modules/
 # Chrome extension build output (if you add a build step)
 dist/
 build/
+build-firefox/
 *.crx
 *.pem
 *.zip
