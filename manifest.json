@@ -1,10 +1,14 @@
 {
   "manifest_version": 3,
-
   "name": "ThinkReview: AI Code Review for GitLab, GitHub, Bitbucket & Azure DevOps",
   "version": "2.0.0",
   "description": "AI Copilot & AI Code Reviews for GitLab, GitHub, Bitbucket and Azure DevOps PRs - Ollama support",
-
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "thinkreview@thinkreview.dev",
+      "strict_min_version": "109.0"
+    }
+  },
   "permissions": [
     "storage", 
     "identity",  
@@ -32,6 +36,7 @@
   "action": {
     "default_icon": {
       "16": "images/icon16.png",
+      "32": "images/icon48.png",
       "48": "images/icon48.png",
       "128": "images/icon128.png"
     }

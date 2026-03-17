@@ -73,7 +73,7 @@ let createNewBadge = null;
 // Cache the badge module loading promise to avoid repeated imports
 const badgeModulePromise = (async () => {
   try {
-    const module = await import('./utils/new-badge.js');
+    const module = await import(chrome.runtime.getURL('components/utils/new-badge.js'));
     createNewBadge = module.createNewBadge;
     dbgLog('Badge utils loaded');
     return module;
@@ -85,7 +85,7 @@ const badgeModulePromise = (async () => {
 
 async function initFormattingUtils() {
   try {
-    const module = await import('./utils/formatting.js');
+    const module = await import(chrome.runtime.getURL('components/utils/formatting.js'));
     markdownToHtml = module.markdownToHtml;
     preprocessAIResponse = module.preprocessAIResponse;
     applySimpleSyntaxHighlighting = module.applySimpleSyntaxHighlighting;
@@ -102,7 +102,7 @@ let showCopyErrorFeedback = null;
 
 async function initCopyButtonUtils() {
   try {
-    const module = await import('./utils/item-copy-button.js');
+    const module = await import(chrome.runtime.getURL('components/utils/item-copy-button.js'));
     createCopyButton = module.createCopyButton;
     copyItemContent = module.copyItemContent;
     attachCopyButtonToItem = module.attachCopyButtonToItem;
@@ -136,7 +136,7 @@ window.updateLoaderStage = updateLoaderStage;
 async function initReviewPromptComponent() {
   try {
     // Dynamic import to avoid module loading issues
-    const module = await import('./review-prompt/review-prompt.js');
+    const module = await import(chrome.runtime.getURL('components/review-prompt/review-prompt.js'));
     reviewPrompt = new module.ReviewPrompt({
       threshold: 5, // Show prompt after 5 daily reviews
       chromeStoreUrl: 'https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn/reviews',
@@ -495,13 +495,14 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Initialize resize functionality
   initializeResizeHandle(container);
 
-  // Mount the layout settings widget in the header actions
+  // Mount the layout settings widget in the header actions (use getURL so it loads from extension origin in content script context e.g. Firefox)
   try {
-    const { mountLayoutSettingsWidget } = await import('./popup-modules/layout-settings-widget.js');
+    const layoutWidgetUrl = chrome.runtime.getURL('components/popup-modules/layout-settings-widget.js');
+    const { mountLayoutSettingsWidget } = await import(layoutWidgetUrl);
     const headerActionsEl = container.querySelector('.thinkreview-header-actions');
     await mountLayoutSettingsWidget(headerActionsEl);
   } catch (error) {
-    // Silently fail — layout widget is non-critical
+    dbgWarn('Failed to mount layout settings widget:', error);
   }
 
   // Delegate copy handler to panel only (avoids document-level listener; improves perf when interacting with GitLab diff)
@@ -521,7 +522,7 @@ async function createIntegratedReviewPanel(patchUrl) {
       
       // Show score popup when panel is minimized
       try {
-        const scorePopupModule = await import('./popup-modules/score-popup.js');
+        const scorePopupModule = await import(chrome.runtime.getURL('components/popup-modules/score-popup.js'));
         scorePopupModule.showScorePopupIfMinimized();
       } catch (error) {
         // Silently fail if module not available
@@ -532,7 +533,7 @@ async function createIntegratedReviewPanel(patchUrl) {
         const reviewLoading = document.getElementById('review-loading');
         const isLoading = reviewLoading && !reviewLoading.classList.contains('gl-hidden');
         if (isLoading) {
-          const loadingModule = await import('./popup-modules/button-loading-indicator.js');
+          const loadingModule = await import(chrome.runtime.getURL('components/popup-modules/button-loading-indicator.js'));
           loadingModule.showButtonLoadingIndicator();
         }
       } catch (error) {
@@ -1416,7 +1417,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   
   // Hide loading indicator on button when review completes
   try {
-    const loadingModule = await import('./popup-modules/button-loading-indicator.js');
+    const loadingModule = await import(chrome.runtime.getURL('components/popup-modules/button-loading-indicator.js'));
     loadingModule.hideButtonLoadingIndicator();
   } catch (error) {
     // Silently fail if module not available
@@ -1472,7 +1473,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
   // Render patch size / metadata banner (Ollama-specific bar vs cloud bar)
   if (patchSizeBanner) {
     try {
-      const metadataModule = await import('./review-metadata-bar.js');
+      const metadataModule = await import(chrome.runtime.getURL('components/review-metadata-bar.js'));
       if (provider === 'ollama' && ollamaMeta) {
         metadataModule.renderOllamaMetadataBar(patchSizeBanner, ollamaMeta, {
           onSwitchToCloud() {
@@ -1516,7 +1517,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     reviewMetricsContainer.innerHTML = ''; // Clear previous content
     if (review.metrics) {
       try {
-        const scorecardModule = await import('./quality-scorecard.js');
+        const scorecardModule = await import(chrome.runtime.getURL('components/quality-scorecard.js'));
         
         // Define metric click handler
         const handleMetricClick = (metricName, score) => {
@@ -1564,7 +1565,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
 
       let markdown = '';
       try {
-        const module = await import('./utils/review-markdown.js');
+        const module = await import(chrome.runtime.getURL('components/utils/review-markdown.js'));
         markdown = module.buildReviewMarkdown(currentReviewData);
       } catch (error) {
         dbgWarn('Failed to load review markdown utils:', error);
@@ -1620,7 +1621,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     // Show score popup if metrics are available
     if (review.metrics) {
       try {
-        const scorePopupModule = await import('./popup-modules/score-popup.js');
+        const scorePopupModule = await import(chrome.runtime.getURL('components/popup-modules/score-popup.js'));
         scorePopupModule.showScorePopupOnButton(review.metrics.overallScore);
       } catch (error) {
         dbgWarn('Failed to load score popup module:', error);
@@ -1629,7 +1630,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     
     // Show notification indicator
     try {
-      const notificationModule = await import('./popup-modules/button-notification.js');
+      const notificationModule = await import(chrome.runtime.getURL('components/popup-modules/button-notification.js'));
       notificationModule.showButtonNotification();
     } catch (error) {
       dbgWarn('Failed to load button notification module:', error);
@@ -1637,17 +1638,17 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
 
     // Phase 1: Shake trigger for 5s and show first best practice bubble for 5s (if any)
     try {
-      const triggerResolver = await import('./popup-modules/trigger-resolver.js');
+      const triggerResolver = await import(chrome.runtime.getURL('components/popup-modules/trigger-resolver.js'));
       const triggerEl = triggerResolver.getActiveTriggerElement();
       if (triggerEl) {
-        const effectsModule = await import('./popup-modules/completion-effects.js');
+        const effectsModule = await import(chrome.runtime.getURL('components/popup-modules/completion-effects.js'));
         effectsModule.runTriggerShake(triggerEl);
       }
       if (review.bestPractices && review.bestPractices.length > 0) {
         const first = review.bestPractices[0];
         const text = typeof first === 'string' ? first.trim() : (first && typeof first === 'object' && first.description ? String(first.description).trim() : String(first).trim());
         if (text && triggerEl) {
-          const bubbleModule = await import('./popup-modules/completion-message-bubble.js');
+          const bubbleModule = await import(chrome.runtime.getURL('components/popup-modules/completion-message-bubble.js'));
           bubbleModule.showBubble(triggerEl, text, 5000); /* 5 seconds */
         }
       }
@@ -2008,7 +2009,7 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
 
   // Handle code suggestions tab (modularized)
   try {
-    const codeSuggestionsModule = await import('./code-suggestions-tab.js');
+    const codeSuggestionsModule = await import(chrome.runtime.getURL('components/code-suggestions-tab.js'));
     await codeSuggestionsModule.updateCodeSuggestionsTab({
       review,
       patchContent,
@@ -2072,7 +2073,7 @@ function showIntegratedReviewError(message) {
   // Hide loading indicator on button when error occurs
   (async () => {
     try {
-      const loadingModule = await import('./popup-modules/button-loading-indicator.js');
+      const loadingModule = await import(chrome.runtime.getURL('components/popup-modules/button-loading-indicator.js'));
       loadingModule.hideButtonLoadingIndicator();
     } catch (error) {
       // Silently fail if module not available

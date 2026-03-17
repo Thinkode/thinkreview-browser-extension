@@ -34,26 +34,26 @@ export const HONEYBADGER_API_KEY = ${JSON.stringify(HONEYBADGER_API_KEY)};
   console.log('📝 Injected env into utils/env-config.js')
 }
 
-function createBuildDirectory () {
-  const buildDir = path.join(process.cwd(), 'build')
-  
+function createBuildDirectory (forFirefox = false) {
+  const dirName = forFirefox ? 'build-firefox' : 'build'
+  const buildDir = path.join(process.cwd(), dirName)
+
   // Clean and create build directory
   if (fs.existsSync(buildDir)) {
     fs.rmSync(buildDir, { recursive: true, force: true })
   }
   fs.mkdirSync(buildDir, { recursive: true })
-  
-  console.log('🧹 Cleaned build directory')
+
+  console.log('🧹 Cleaned build directory:', dirName)
   return buildDir
 }
 
-function copyProjectFiles (buildDir) {
+function copyProjectFiles (buildDir, excludeBuildDirs = ['build']) {
   const projectDir = process.cwd()
-  
+
   // Files and directories to exclude from the build
   const excludePatterns = [
     'node_modules',
-    'build',
     '.git',
     '.github',
     'scripts',
@@ -62,7 +62,8 @@ function copyProjectFiles (buildDir) {
     '.eslintrc.json',
     '.gitignore',
     'README.md',
-    'ARCHITECTURE.md'
+    'ARCHITECTURE.md',
+    ...excludeBuildDirs
   ]
   
   console.log('📦 Copying entire project...')
@@ -73,6 +74,11 @@ function copyProjectFiles (buildDir) {
   for (const item of items) {
     // Skip excluded items
     if (excludePatterns.includes(item)) {
+      console.log(`⏭️  Skipping ${item}`)
+      continue
+    }
+    // Skip zip files (e.g. production zip from previous build)
+    if (item.endsWith('.zip')) {
       console.log(`⏭️  Skipping ${item}`)
       continue
     }
@@ -92,17 +98,66 @@ function copyProjectFiles (buildDir) {
   }
 }
 
-function build () {
+// AMO requires extension name ≤ 45 characters (Chrome allows longer)
+const FIREFOX_NAME_MAX_LENGTH = 45
+const FIREFOX_SHORT_NAME = 'ThinkReview: Chat with your Pull Requests'
+
+/** Write Firefox-compatible manifest (background.scripts + optional_host_permissions format). */
+function writeFirefoxManifest (buildDir) {
+  const manifestPath = path.join(buildDir, 'manifest.json')
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+  manifest.background = {
+    scripts: ['background.js'],
+    type: 'module'
+  }
+  // Use short name for Firefox (AMO limit 45 chars)
+  if ((manifest.name || '').length > FIREFOX_NAME_MAX_LENGTH) {
+    manifest.name = FIREFOX_SHORT_NAME
+    console.log('🦊 Set Firefox name to:', manifest.name, `(${manifest.name.length} chars)`)
+  }
+  // background.type (module) requires Firefox 112+
+  const gecko = manifest.browser_specific_settings?.gecko
+  if (gecko) {
+    gecko.strict_min_version = '112.0'
+    console.log('🦊 Set gecko.strict_min_version to 112.0 (required for background.type)')
+    // AMO requires data_collection_permissions (built-in consent from Firefox 140+)
+    gecko.data_collection_permissions = {
+      required: ['websiteContent'],
+      optional: ['technicalAndInteraction']
+    }
+    console.log('🦊 Set gecko.data_collection_permissions')
+  }
+  // Firefox rejects Chrome-style "http://*:*/*" and "https://*:*/*"; use <all_urls> instead
+  if (Array.isArray(manifest.optional_host_permissions)) {
+    const hasWildcard = manifest.optional_host_permissions.some(
+      p => p === 'http://*:*/*' || p === 'https://*:*/*'
+    )
+    if (hasWildcard) {
+      manifest.optional_host_permissions = ['<all_urls>']
+    }
+  }
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
+  console.log('🦊 Wrote Firefox-compatible manifest (background.scripts, optional_host_permissions)')
+}
+
+function build (forFirefox = false) {
   try {
-    console.log('🚀 Building extension...')
-    
-const buildDir = createBuildDirectory()
-    copyProjectFiles(buildDir)
+    console.log(forFirefox ? '🦊 Building extension for Firefox...' : '🚀 Building extension...')
+
+    const excludeBuildDirs = forFirefox ? ['build', 'build-firefox'] : ['build', 'build-firefox']
+    const buildDir = createBuildDirectory(forFirefox)
+    copyProjectFiles(buildDir, excludeBuildDirs)
     writeEnvConfig(buildDir)
+
+    if (forFirefox) {
+      writeFirefoxManifest(buildDir)
+    }
 
     console.log('✅ Build completed successfully!')
     console.log(`📦 Extension files ready in: ${buildDir}`)
-    
+    if (forFirefox) {
+      console.log('   Load this folder in Firefox via about:debugging → Load Temporary Add-on')
+    }
   } catch (error) {
     console.error('❌ Build failed:', error.message)
     process.exit(1)
@@ -110,7 +165,8 @@ const buildDir = createBuildDirectory()
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  build()
+  const forFirefox = process.argv[2] === 'firefox' || process.env.BUILD_FIREFOX === '1'
+  build(forFirefox)
 }
 
 export { build }
