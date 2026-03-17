@@ -57,6 +57,17 @@ jobs:
           GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
           HONEYBADGER_API_KEY: ${{ secrets.HONEYBADGER_API_KEY }}
 
+      - name: Build Firefox extension zip
+        id: firefox_zip
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm run build:firefox:zip
+          echo "path=thinkreview-firefox-v${VERSION}.zip" >> "$GITHUB_OUTPUT"
+        env:
+          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
+          GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
+          HONEYBADGER_API_KEY: ${{ secrets.HONEYBADGER_API_KEY }}
+
       - name: Archive extension
         id: archive
         run: |
@@ -71,7 +82,9 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: ThinkReview Extension ${{ github.ref_name }}
-          files: ${{ steps.archive.outputs.zip_path }}
+          files: |
+            ${{ steps.archive.outputs.zip_path }}
+            ${{ steps.firefox_zip.outputs.path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
