@@ -77,6 +77,11 @@ function copyProjectFiles (buildDir, excludeBuildDirs = ['build']) {
       console.log(`⏭️  Skipping ${item}`)
       continue
     }
+    // Skip zip files (e.g. production zip from previous build)
+    if (item.endsWith('.zip')) {
+      console.log(`⏭️  Skipping ${item}`)
+      continue
+    }
     
     const srcPath = path.join(projectDir, item)
     const destPath = path.join(buildDir, item)
@@ -93,6 +98,10 @@ function copyProjectFiles (buildDir, excludeBuildDirs = ['build']) {
   }
 }
 
+// AMO requires extension name ≤ 45 characters (Chrome allows longer)
+const FIREFOX_NAME_MAX_LENGTH = 45
+const FIREFOX_SHORT_NAME = 'ThinkReview: Chat with your Pull Requests'
+
 /** Write Firefox-compatible manifest (background.scripts + optional_host_permissions format). */
 function writeFirefoxManifest (buildDir) {
   const manifestPath = path.join(buildDir, 'manifest.json')
@@ -100,6 +109,23 @@ function writeFirefoxManifest (buildDir) {
   manifest.background = {
     scripts: ['background.js'],
     type: 'module'
+  }
+  // Use short name for Firefox (AMO limit 45 chars)
+  if ((manifest.name || '').length > FIREFOX_NAME_MAX_LENGTH) {
+    manifest.name = FIREFOX_SHORT_NAME
+    console.log('🦊 Set Firefox name to:', manifest.name, `(${manifest.name.length} chars)`)
+  }
+  // background.type (module) requires Firefox 112+
+  const gecko = manifest.browser_specific_settings?.gecko
+  if (gecko) {
+    gecko.strict_min_version = '112.0'
+    console.log('🦊 Set gecko.strict_min_version to 112.0 (required for background.type)')
+    // AMO requires data_collection_permissions (built-in consent from Firefox 140+)
+    gecko.data_collection_permissions = {
+      required: ['websiteContent'],
+      optional: ['technicalAndInteraction']
+    }
+    console.log('🦊 Set gecko.data_collection_permissions')
   }
   // Firefox rejects Chrome-style "http://*:*/*" and "https://*:*/*"; use <all_urls> instead
   if (Array.isArray(manifest.optional_host_permissions)) {
