@@ -259,7 +259,7 @@
               </svg>
             </div>
             <div class="platform-card-info">
-              <span class="platform-card-name">Bitbucket</span>
+              <span class="platform-card-name">Bitbucket Cloud</span>
               <span class="platform-badge platform-badge-setup" id="badge-bitbucket">⚙ Setup needed</span>
             </div>
           </button>
@@ -508,45 +508,38 @@
             </div>
           </div>
 
-          <!-- Optional PAT for cloud -->
-          <div class="optional-pat-section">
-            <button class="optional-pat-toggle" id="azure-cloud-pat-toggle" aria-expanded="false">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-              Add Personal Access Token (optional)
-            </button>
-            <div id="azure-cloud-pat-body" class="optional-pat-body" style="display:none;">
-              <p class="help-text">A PAT may be required when using the extension on private repositories or with specific organisational policies.</p>
-              <div class="token-input-section">
-                <input type="password" id="azure-token-input" placeholder="Enter your Azure DevOps PAT" class="token-input">
-                <button id="save-token-btn" class="save-token-btn">Save</button>
-              </div>
-              <div id="token-status" class="token-status"></div>
-              <p class="help-text">
-                Go to Azure DevOps → User Settings → <strong>Personal Access Tokens</strong> → create a new token with <em>Code (read)</em> scope.
-              </p>
-            </div>
-          </div>
         </div>
 
         <!-- Self-hosted section (mandatory PAT) -->
         <div class="platform-subsection platform-subsection--required" id="azure-server-subsection">
           <div class="subsection-required-badge">Setup required</div>
           <h4 class="subsection-title">Azure DevOps Server (Self-Hosted)</h4>
-          <p class="settings-description">On-premises or self-hosted Azure DevOps? Both a custom domain and a PAT are required.</p>
+          <p class="settings-description">On-premises or self-hosted Azure DevOps? Follow these steps to get started:</p>
           <div class="wizard-steps wizard-steps--compact">
             <div class="wizard-step wizard-step--compact" style="--step-delay:0s">
               <div class="wizard-step-num">1</div>
-              <span>Enter your custom domain below (e.g. <code>devops.mycompany.com</code>)</span>
+              <span>In Azure DevOps, go to <strong>User Settings → Personal Access Tokens</strong> and create a token with <em>Code (read)</em> scope</span>
             </div>
             <div class="wizard-step wizard-step--compact" style="--step-delay:0.15s">
               <div class="wizard-step-num">2</div>
-              <span>Go to <strong>User Settings → Personal Access Tokens</strong> and create a token with <em>Code (read)</em> scope</span>
+              <span>Paste your PAT in the field below and click <strong>Save Token</strong></span>
             </div>
             <div class="wizard-step wizard-step--compact" style="--step-delay:0.3s">
               <div class="wizard-step-num">3</div>
-              <span>Paste your PAT below and save — then navigate to any PR on your instance</span>
+              <span>Enter your custom domain (e.g. <code>devops.mycompany.com</code>) and click <strong>Add</strong></span>
+            </div>
+            <div class="wizard-step wizard-step--compact" style="--step-delay:0.45s">
+              <div class="wizard-step-num">4</div>
+              <span>Navigate to any pull request on your instance — ThinkReview activates automatically</span>
             </div>
           </div>
+
+          <div class="token-input-section" style="margin-top:12px;">
+            <input type="password" id="azure-token-input" placeholder="Enter your Azure DevOps Personal Access Token" class="token-input">
+            <button id="save-token-btn" class="save-token-btn">Save Token</button>
+          </div>
+          <div id="token-status" class="token-status"></div>
+
           <div class="domain-input-section" style="margin-top:10px;">
             <input type="text" id="azure-domain-input" placeholder="e.g., devops.mycompany.com" class="domain-input">
             <button id="add-azure-domain-btn" class="add-domain-btn">Add</button>
@@ -570,7 +563,7 @@
           <div class="platform-view-icon platform-view-icon--bitbucket">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M.778 1.213a.768.768 0 00-.768.892l3.263 19.81c.084.5.515.868 1.022.873H19.95a.772.772 0 00.77-.646l3.27-20.03a.768.768 0 00-.768-.891L.778 1.213zM14.52 15.53H9.522L8.17 8.466h7.561l-1.211 7.064z"/></svg>
           </div>
-          <h3>Bitbucket</h3>
+          <h3>Bitbucket Cloud</h3>
         </div>
 
         <div class="platform-subsection platform-subsection--required">

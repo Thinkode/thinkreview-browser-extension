@@ -665,16 +665,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize collapsible AI Provider header
   initializeAIProviderCollapsible();
 
-  // Initialize Azure cloud PAT optional toggle
-  const azureCloudPatToggle = document.getElementById('azure-cloud-pat-toggle');
-  if (azureCloudPatToggle) {
-    azureCloudPatToggle.addEventListener('click', () => {
-      const expanded = azureCloudPatToggle.getAttribute('aria-expanded') === 'true';
-      azureCloudPatToggle.setAttribute('aria-expanded', String(!expanded));
-      const body = document.getElementById('azure-cloud-pat-body');
-      if (body) body.style.display = expanded ? 'none' : 'block';
-    });
-  }
 });
 
 // Domain Management Functionality
