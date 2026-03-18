@@ -18,6 +18,36 @@ chrome.runtime.setUninstallURL('https://thinkreview.dev/goodbye.html', () => {
 const AUTH_TOKEN_KEY = 'oauth_token';
 const AUTH_USER_KEY = 'oauth_user';
 
+// Rate limiter for OPEN_EXTENSION_PAGE — max 3 opens per 60 seconds
+const OPEN_PAGE_RATE_LIMIT = { max: 3, windowMs: 60 * 1000 };
+const openPageRateLimit = { count: 0, windowStart: 0 };
+
+const OPEN_PAGE_ALLOWED_ORIGINS = [
+  'thinkreview.dev',
+  'portal.thinkreview.dev',
+  'app.thinkreview.dev'
+];
+
+function isAllowedOpenPageOrigin(senderOrigin) {
+  try {
+    const hostname = new URL(senderOrigin).hostname;
+    return OPEN_PAGE_ALLOWED_ORIGINS.includes(hostname);
+  } catch {
+    return false;
+  }
+}
+
+function checkOpenPageRateLimit() {
+  const now = Date.now();
+  if (now - openPageRateLimit.windowStart > OPEN_PAGE_RATE_LIMIT.windowMs) {
+    openPageRateLimit.count = 0;
+    openPageRateLimit.windowStart = now;
+  }
+  if (openPageRateLimit.count >= OPEN_PAGE_RATE_LIMIT.max) return false;
+  openPageRateLimit.count++;
+  return true;
+}
+
 function getEmailFromStorage(storageResult) {
   try {
     const parsed = JSON.parse(storageResult.user);
@@ -524,12 +554,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Handle request to open extension page in a new tab
   if (message.type === 'OPEN_EXTENSION_PAGE') {
+    if (!sender.origin || !isAllowedOpenPageOrigin(sender.origin)) {
+      dbgWarn('OPEN_EXTENSION_PAGE rejected: unauthorized origin', sender.origin);
+      sendResponse({ success: false, error: 'Unauthorized origin' });
+      return true;
+    }
+
+    if (!checkOpenPageRateLimit()) {
+      dbgWarn('OPEN_EXTENSION_PAGE rejected: rate limit exceeded');
+      sendResponse({ success: false, error: 'Rate limit exceeded' });
+      return true;
+    }
+
     dbgLog('Opening extension page in new tab with auto sign-in');
-    
-    // Get the extension popup URL with auto sign-in parameter
     const extensionUrl = chrome.runtime.getURL('popup.html') + '?autoSignIn=true';
-    
-    // Open in a new tab
     chrome.tabs.create({ url: extensionUrl }, (tab) => {
       if (chrome.runtime.lastError) {
         dbgWarn('Error opening extension page:', chrome.runtime.lastError);
@@ -946,7 +984,7 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
       });
       
       dbgLog('Webapp auth synced successfully');
-      
+    
       // Notify popup to refresh if it's open
       try {
         chrome.runtime.sendMessage({

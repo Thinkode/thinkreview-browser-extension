@@ -51,7 +51,24 @@
   
   function initializeContentScript() {
     if (!originValidatorLoaded) return;
-    
+
+    // Listen for request to open extension page — runs on any domain (including localhost)
+    // so the button works in dev environments too. Low-risk: only opens a new tab.
+    window.addEventListener('thinkreview-open-extension', () => {
+      dbgLog('Received open-extension event from webapp');
+      try {
+        chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_PAGE' }, (response) => {
+          if (chrome.runtime.lastError) {
+            dbgWarn('Failed to open extension page:', chrome.runtime.lastError);
+          } else {
+            dbgLog('Open extension page response:', response);
+          }
+        });
+      } catch (error) {
+        dbgError('Error sending open-extension message:', error);
+      }
+    });
+
     const currentOrigin = window.location.hostname;
     const isAllowedOrigin = isValidOrigin(currentOrigin);
   

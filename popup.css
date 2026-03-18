@@ -627,7 +627,7 @@ input:focus {
     transition: none;
   }
   
-  .footer-button {
+  .footer-chip {
     transition: none;
   }
 }
@@ -647,36 +647,80 @@ input:focus {
 /* Footer styles */
 .app-footer {
   margin-top: 20px;
-  padding-top: 10px;
+  padding-top: 12px;
   border-top: 1px solid #e1e4e8;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.footer-buttons-left {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.footer-button {
-  padding: 4px 8px;
-  background-color: #f6f8fa;
-  color: #6b4fbb;
-  border: 1px solid #e1e4e8;
-  border-radius: 4px;
+.footer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 14px;
   font-size: 12px;
+  font-family: 'Roboto', arial, sans-serif;
+  font-weight: 500;
   cursor: pointer;
-  text-align: center;
-  transition: background-color 0.2s;
+  white-space: nowrap;
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  line-height: 1;
 }
 
-.footer-button:hover {
-  background-color: #6b4fbb;
-  color: white;
+.footer-chip svg {
+  flex-shrink: 0;
+}
+
+.footer-chip--help {
+  background: #fff8e1;
+  color: #e65100;
+  border: 1px solid #ffe082;
+}
+
+.footer-chip--help:hover {
+  background: #ffecb3;
+  border-color: #f57f17;
+  box-shadow: 0 2px 6px rgba(245, 127, 23, 0.18);
+}
+
+.footer-chip--bug {
+  background: #f1f3f4;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+}
+
+.footer-chip--bug:hover {
+  background: #e8eaed;
+  border-color: #bdc1c6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.footer-chip--privacy {
+  background: #f3f0ff;
+  color: #6b4fbb;
+  border: 1px solid #ddd5f8;
+}
+
+.footer-chip--privacy:hover {
+  background: #ede9ff;
+  border-color: #b39ddb;
+  box-shadow: 0 2px 6px rgba(107, 79, 187, 0.18);
+}
+
+.footer-chip--docs {
+  background: #6b4fbb;
+  color: #fff;
+  border: 1px solid #6b4fbb;
+}
+
+.footer-chip--docs:hover {
+  background: #5a3da8;
+  border-color: #5a3da8;
+  box-shadow: 0 2px 8px rgba(107, 79, 187, 0.35);
 }
 
 /* Button styles */
@@ -974,62 +1018,196 @@ footer {
   border-top: 1px solid #e1e4e8;
 }
 
-.provider-selection {
+/* Provider Cards */
+.provider-cards {
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-bottom: 16px;
 }
 
-.provider-option {
+.provider-card {
+  display: block;
+  border: 2px solid #e1e4e8;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  background: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.provider-card:hover {
+  border-color: #b39ddb;
+  box-shadow: 0 2px 10px rgba(107, 79, 187, 0.1);
+}
+
+.provider-card-radio {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.provider-card-inner {
+  padding: 12px 14px;
+}
+
+.provider-card-top {
   display: flex;
   align-items: center;
-  padding: 12px;
-  border: 2px solid #e9ecef;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background-color: #fff;
+  gap: 10px;
+  margin-bottom: 6px;
 }
 
-.provider-option:hover {
-  border-color: #6b4fbb;
-  background-color: #f8f7fc;
+.provider-card-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.provider-option input[type="radio"] {
-  margin-right: 12px;
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: #6b4fbb;
-}
-
-.provider-option input[type="radio"]:checked ~ .provider-info {
+.provider-card-icon--cloud {
+  background: linear-gradient(135deg, #ede9ff 0%, #ddd5f8 100%);
   color: #6b4fbb;
 }
 
-.provider-option:has(input:checked) {
-  border-color: #6b4fbb;
-  background-color: #f8f7fc;
-  box-shadow: 0 2px 8px rgba(107, 79, 187, 0.15);
+.provider-card-icon--ollama {
+  background: linear-gradient(135deg, #e6f7ee 0%, #d1f0df 100%);
+  color: #2e7d32;
 }
 
-.provider-info {
+.provider-card-title-group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  flex: 1;
 }
 
-.provider-name {
+.provider-card-name {
   font-size: 14px;
-  font-weight: 600;
-  color: #333;
+  font-weight: 700;
+  color: #1a1a2e;
+  line-height: 1;
 }
 
-.provider-desc {
+.provider-card-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  width: fit-content;
+  line-height: 1.4;
+}
+
+.provider-card-badge--cloud {
+  background: #ede9ff;
+  color: #6b4fbb;
+  border: 1px solid #c4b5fd;
+}
+
+.provider-card-badge--ollama {
+  background: #e6f7ee;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.provider-card-check-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e1e4e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.provider-card-desc {
+  font-size: 12px;
+  color: #555;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+  padding-left: 44px;
+}
+
+.provider-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding-left: 44px;
+}
+
+.provider-tag {
   font-size: 11px;
-  color: #666;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.provider-tag--cloud {
+  background: #f3f0ff;
+  color: #6b4fbb;
+  border: 1px solid #ddd5f8;
+}
+
+.provider-tag--ollama {
+  background: #f0faf4;
+  color: #2e7d32;
+  border: 1px solid #c3e6c3;
+}
+
+/* Selected state */
+.provider-card:has(.provider-card-radio:checked) {
+  border-color: #6b4fbb;
+  background: #faf8ff;
+  box-shadow: 0 2px 12px rgba(107, 79, 187, 0.18);
+}
+
+.provider-card:has(#provider-ollama:checked) {
+  border-color: #4caf50;
+  background: #f8fdf9;
+  box-shadow: 0 2px 12px rgba(76, 175, 80, 0.15);
+}
+
+.provider-card:has(.provider-card-radio:checked) .provider-card-check-icon {
+  background: #6b4fbb;
+  color: #fff;
+}
+
+.provider-card:has(#provider-ollama:checked) .provider-card-check-icon {
+  background: #4caf50;
+  color: #fff;
+}
+
+/* Legacy selectors (no :has support fallback) */
+.provider-card.is-selected {
+  border-color: #6b4fbb;
+  background: #faf8ff;
+  box-shadow: 0 2px 12px rgba(107, 79, 187, 0.18);
+}
+
+.provider-card.is-selected .provider-card-check-icon {
+  background: #6b4fbb;
+  color: #fff;
+}
+
+#provider-card-ollama.is-selected {
+  border-color: #4caf50;
+  background: #f8fdf9;
+  box-shadow: 0 2px 12px rgba(76, 175, 80, 0.15);
+}
+
+#provider-card-ollama.is-selected .provider-card-check-icon {
+  background: #4caf50;
+  color: #fff;
 }
 
 /* Ollama Configuration */
@@ -1674,6 +1852,58 @@ footer {
   margin-bottom: 0;
 }
 
+/* Platform view — docs action chips (Not working? / Setup guide) */
+.platform-docs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.platform-docs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-family: 'Roboto', arial, sans-serif;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  line-height: 1;
+}
+
+.platform-docs-btn svg {
+  flex-shrink: 0;
+}
+
+.platform-docs-btn--help {
+  background: #fff8e1;
+  color: #e65100;
+  border: 1px solid #ffe082;
+}
+
+.platform-docs-btn--help:hover {
+  background: #ffecb3;
+  border-color: #f57f17;
+  box-shadow: 0 2px 6px rgba(245, 127, 23, 0.2);
+}
+
+.platform-docs-btn--guide {
+  background: #f3f0ff;
+  color: #6b4fbb;
+  border: 1px solid #ddd5f8;
+}
+
+.platform-docs-btn--guide:hover {
+  background: #ede9ff;
+  border-color: #b39ddb;
+  box-shadow: 0 2px 6px rgba(107, 79, 187, 0.2);
+}
+
 .layout-settings-row {
   display: flex;
   align-items: flex-start;
@@ -1730,3 +1960,326 @@ footer {
   border-left: 2px solid rgba(107, 79, 187, 0.25);
   margin-top: 2px;
 }
+
+/* =====================================================================
+   PLATFORM HOME — cards grid
+   ===================================================================== */
+
+.platform-section-header {
+  margin-bottom: 12px;
+}
+
+.platform-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.platform-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 10px;
+  background: #fff;
+  border: 1.5px solid #e1e4e8;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.18s, box-shadow 0.18s, transform 0.15s;
+  text-align: center;
+  font-family: inherit;
+}
+
+.platform-card:hover {
+  border-color: #6b4fbb;
+  box-shadow: 0 3px 12px rgba(107, 79, 187, 0.14);
+  transform: translateY(-2px);
+}
+
+.platform-card:active {
+  transform: translateY(0);
+}
+
+
+.platform-card-icon {
+  color: #24292e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #f6f8fa;
+}
+
+.platform-card-icon--gitlab  { color: #e24329; background: #fff4f2; }
+.platform-card-icon--azure   { color: #0078d4; background: #e8f3fb; }
+.platform-card-icon--bitbucket { color: #0052cc; background: #e8f0fc; }
+
+.platform-card-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.platform-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #24292e;
+}
+
+.platform-card-subtitle {
+  font-size: 10px;
+  color: #666;
+  margin-top: -2px;
+}
+
+.platform-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.platform-badge-ready {
+  background: #e6f4ea;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.platform-badge-setup {
+  background: #fff8e1;
+  color: #f57f17;
+  border: 1px solid #ffe082;
+}
+
+/* Collapsible AI Provider header */
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.collapsible-chevron {
+  color: #666;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.collapsible-header[aria-expanded="true"] .collapsible-chevron {
+  transform: rotate(180deg);
+}
+
+.collapsible-body {
+  padding-top: 10px;
+}
+
+/* =====================================================================
+   PLATFORM DETAIL VIEW — slide-in
+   ===================================================================== */
+
+@keyframes slideInFromRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInFromLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.platform-view {
+  animation: slideInFromRight 0.22s ease-out;
+}
+
+.platform-home-returning {
+  animation: slideInFromLeft 0.22s ease-out;
+}
+
+.platform-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  color: #6b4fbb;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0 0 12px 0;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+
+.platform-back-btn:hover { opacity: 0.75; }
+
+.platform-view-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.platform-view-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #24292e;
+}
+
+.platform-view-icon {
+  color: #24292e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #f6f8fa;
+  flex-shrink: 0;
+}
+
+.platform-view-icon--gitlab  { color: #e24329; background: #fff4f2; }
+.platform-view-icon--azure   { color: #0078d4; background: #e8f3fb; }
+.platform-view-icon--bitbucket { color: #0052cc; background: #e8f0fc; }
+
+/* =====================================================================
+   WIZARD CARD
+   ===================================================================== */
+
+.wizard-card {
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.wizard-card--ready {
+  background: #f0faf4;
+  border: 1.5px solid #a5d6a7;
+}
+
+.wizard-ready-badge {
+  display: inline-block;
+  background: #2e7d32;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-bottom: 6px;
+}
+
+.wizard-ready-desc {
+  font-size: 12px;
+  color: #4a4a4a;
+  margin: 0 0 10px 0;
+}
+
+/* =====================================================================
+   WIZARD STEPS — animated
+   ===================================================================== */
+
+@keyframes wizardStepIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.wizard-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wizard-steps--compact {
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.wizard-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: #333;
+  animation: wizardStepIn 0.35s ease-out both;
+  animation-delay: var(--step-delay, 0s);
+}
+
+.wizard-step--compact {
+  font-size: 12px;
+}
+
+.wizard-step-num {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6b4fbb 0%, #9b7de8 100%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.wizard-step--compact .wizard-step-num {
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+}
+
+.wizard-step code {
+  background: #f0f0f0;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 11px;
+  font-family: monospace;
+}
+
+/* =====================================================================
+   PLATFORM SUBSECTIONS
+   ===================================================================== */
+
+.platform-subsection {
+  border: 1.5px solid #e1e4e8;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+  background: #fafbfc;
+}
+
+.platform-subsection--required {
+  border-color: #ffe082;
+  background: #fffdf0;
+}
+
+.subsection-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #24292e;
+  margin: 0 0 6px 0;
+}
+
+.subsection-required-badge {
+  display: inline-block;
+  background: #f57f17;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 20px;
+  margin-bottom: 6px;
+}
+

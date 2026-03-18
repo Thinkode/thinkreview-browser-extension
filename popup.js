@@ -630,10 +630,52 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const privacyFaqBtn = document.getElementById('privacy-faq-btn');
   if (privacyFaqBtn) {
-    privacyFaqBtn.addEventListener('click', () => {
+    privacyFaqBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('privacy_faq_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://thinkreview.dev/privacy-faqs.html' });
     });
   }
+
+  // Platform "Not working?" chips — platform-specific event names
+  const platformNotWorkingLinks = [
+    { id: 'not-working-github',    event: 'not_working_clicked_github' },
+    { id: 'not-working-gitlab',    event: 'not_working_clicked_gitlab' },
+    { id: 'not-working-azure',     event: 'not_working_clicked_azure' },
+    { id: 'not-working-bitbucket', event: 'not_working_clicked_bitbucket' },
+  ];
+  platformNotWorkingLinks.forEach(({ id, event }) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('click', async () => {
+        try {
+          const { trackUserAction } = await import('./utils/analytics-service.js');
+          trackUserAction(event, { context: 'popup' }).catch(() => {});
+        } catch (e) { /* silent */ }
+      });
+    }
+  });
+
+  // Platform "Setup guide" chips
+  const platformSetupGuideLinks = [
+    { id: 'setup-guide-github',    event: 'setup_guide_opened_github' },
+    { id: 'setup-guide-gitlab',    event: 'setup_guide_opened_gitlab' },
+    { id: 'setup-guide-azure',     event: 'setup_guide_opened_azure' },
+    { id: 'setup-guide-bitbucket', event: 'setup_guide_opened_bitbucket' },
+  ];
+  platformSetupGuideLinks.forEach(({ id, event }) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('click', async () => {
+        try {
+          const { trackUserAction } = await import('./utils/analytics-service.js');
+          trackUserAction(event, { context: 'popup' }).catch(() => {});
+        } catch (e) { /* silent */ }
+      });
+    }
+  });
   
   // Set up the Manage Subscription button
   const cancelSubscriptionBtn = document.getElementById('cancel-subscription-btn');
@@ -658,6 +700,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Initialize AI Provider settings
   initializeAIProviderSettings();
+
+  // Initialize platform navigation (cards + back buttons + status badges)
+  initializePlatformNavigation();
+
+  // Initialize collapsible AI Provider header
+  initializeAIProviderCollapsible();
+
 });
 
 // Domain Management Functionality
@@ -1681,6 +1730,7 @@ async function loadAIProviderSettings() {
     if (providerRadio) {
       providerRadio.checked = true;
     }
+    updateProviderCardSelection(provider);
     
     // Show/hide Ollama config based on provider
     const ollamaConfig = document.getElementById('ollama-config');
@@ -1720,8 +1770,16 @@ async function loadAIProviderSettings() {
   }
 }
 
+function updateProviderCardSelection(provider) {
+  const cloudCard = document.getElementById('provider-card-cloud');
+  const ollamaCard = document.getElementById('provider-card-ollama');
+  if (cloudCard) cloudCard.classList.toggle('is-selected', provider === 'cloud');
+  if (ollamaCard) ollamaCard.classList.toggle('is-selected', provider === 'ollama');
+}
+
 function handleProviderChange(event) {
   const provider = event.target.value;
+  updateProviderCardSelection(provider);
   const ollamaConfig = document.getElementById('ollama-config');
   
   if (ollamaConfig) {
@@ -2137,3 +2195,150 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
+
+// =====================================================================
+// PLATFORM NAVIGATION
+// =====================================================================
+
+const PLATFORM_IDS = ['github', 'gitlab', 'azure', 'bitbucket'];
+
+// Card definitions: id → { platform view to open, optional scroll target id }
+const PLATFORM_CARDS = [
+  { cardId: 'card-github-com',          platform: 'github',    scrollTarget: null },
+  { cardId: 'card-github-enterprise',   platform: 'github',    scrollTarget: 'github-enterprise-subsection' },
+  { cardId: 'card-gitlab-com',          platform: 'gitlab',    scrollTarget: null },
+  { cardId: 'card-gitlab-self-managed', platform: 'gitlab',    scrollTarget: 'gitlab-self-managed-subsection' },
+  { cardId: 'card-azure-cloud',         platform: 'azure',     scrollTarget: null },
+  { cardId: 'card-azure-server',        platform: 'azure',     scrollTarget: 'azure-server-subsection' },
+  { cardId: 'card-bitbucket',           platform: 'bitbucket', scrollTarget: null },
+];
+
+function initializePlatformNavigation() {
+  // Platform card click → show detail view, optionally scroll to subsection
+  PLATFORM_CARDS.forEach(({ cardId, platform, scrollTarget }) => {
+    const card = document.getElementById(cardId);
+    if (card) {
+      card.addEventListener('click', () => showPlatformView(platform, scrollTarget));
+    }
+  });
+
+  // Back buttons → return to platform home
+  document.querySelectorAll('[data-back]').forEach(btn => {
+    btn.addEventListener('click', () => showPlatformHome());
+  });
+
+  // Compute and render status badges on load
+  computePlatformStatuses();
+}
+
+function showPlatformHome() {
+  const home = document.getElementById('platform-home');
+  if (home) {
+    home.style.display = 'block';
+    home.classList.remove('platform-home-returning');
+    void home.offsetWidth; // force reflow to restart animation
+    home.classList.add('platform-home-returning');
+  }
+  PLATFORM_IDS.forEach(platform => {
+    const view = document.getElementById(`platform-view-${platform}`);
+    if (view) view.style.display = 'none';
+  });
+  // Refresh badges when returning home
+  computePlatformStatuses();
+}
+
+function showPlatformView(platform, scrollTarget = null) {
+  const home = document.getElementById('platform-home');
+  if (home) home.style.display = 'none';
+
+  PLATFORM_IDS.forEach(p => {
+    const view = document.getElementById(`platform-view-${p}`);
+    if (view) {
+      if (p === platform) {
+        view.style.display = 'block';
+        // Restart animation
+        view.style.animation = 'none';
+        void view.offsetWidth;
+        view.style.animation = '';
+        // Scroll to subsection if specified
+        if (scrollTarget) {
+          requestAnimationFrame(() => {
+            const target = document.getElementById(scrollTarget);
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+        }
+      } else {
+        view.style.display = 'none';
+      }
+    }
+  });
+}
+
+async function computePlatformStatuses() {
+  try {
+    const result = await chrome.storage.local.get([
+      'azureToken',
+      'customDomains',           // GitLab custom domains
+      'azureCustomDomains',      // Azure on-prem domains
+      'githubEnterpriseDomains',
+      'bitbucketToken',
+      'bitbucketEmail',
+      'bitbucketEnabled',
+    ]);
+
+    // Cloud variants: always ready, no setup required
+    setBadge('github-com',  'ready');
+    setBadge('gitlab-com',  'ready');
+    setBadge('azure-cloud', 'ready');
+
+    // GitHub Enterprise Server: ready once at least one domain is saved
+    const ghesdomains = result.githubEnterpriseDomains;
+    const ghesReady = Array.isArray(ghesdomains) && ghesdomains.length > 0;
+    setBadge('github-enterprise', ghesReady ? 'ready' : 'setup');
+
+    // GitLab Self-Managed: ready once at least one custom domain is saved
+    const gitlabDomains = result.customDomains;
+    const gitlabSMReady = Array.isArray(gitlabDomains) && gitlabDomains.length > 0;
+    setBadge('gitlab-self-managed', gitlabSMReady ? 'ready' : 'setup');
+
+    // Azure DevOps Server: ready once at least one custom domain is saved
+    const azureDomains = result.azureCustomDomains;
+    const azureServerReady = Array.isArray(azureDomains) && azureDomains.length > 0;
+    setBadge('azure-server', azureServerReady ? 'ready' : 'setup');
+
+    // Bitbucket: requires explicit permission grant + token
+    const bitbucketConfigured = result.bitbucketEnabled &&
+      (result.bitbucketToken || result.bitbucketEmail);
+    setBadge('bitbucket', bitbucketConfigured ? 'ready' : 'setup');
+  } catch (err) {
+    dbgWarn('Error computing platform statuses:', err);
+  }
+}
+
+function setBadge(platform, status) {
+  const badge = document.getElementById(`badge-${platform}`);
+  if (!badge) return;
+  if (status === 'ready') {
+    badge.textContent = '✓ Ready';
+    badge.className = 'platform-badge platform-badge-ready';
+  } else {
+    badge.textContent = '⚙ Setup needed';
+    badge.className = 'platform-badge platform-badge-setup';
+  }
+}
+
+// =====================================================================
+// COLLAPSIBLE AI PROVIDER SECTION
+// =====================================================================
+
+function initializeAIProviderCollapsible() {
+  const toggle = document.getElementById('ai-provider-toggle');
+  const body = document.getElementById('ai-provider-body');
+  if (!toggle || !body) return;
+
+  toggle.addEventListener('click', () => {
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', String(!expanded));
+    body.style.display = expanded ? 'none' : 'block';
+  });
+}
