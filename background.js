@@ -25,8 +25,7 @@ const openPageRateLimit = { count: 0, windowStart: 0 };
 const OPEN_PAGE_ALLOWED_ORIGINS = [
   'thinkreview.dev',
   'portal.thinkreview.dev',
-  'app.thinkreview.dev',
-  'localhost',
+  'app.thinkreview.dev'
 ];
 
 function isAllowedOpenPageOrigin(senderOrigin) {
