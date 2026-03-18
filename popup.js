@@ -1688,6 +1688,7 @@ async function loadAIProviderSettings() {
     if (providerRadio) {
       providerRadio.checked = true;
     }
+    updateProviderCardSelection(provider);
     
     // Show/hide Ollama config based on provider
     const ollamaConfig = document.getElementById('ollama-config');
@@ -1727,8 +1728,16 @@ async function loadAIProviderSettings() {
   }
 }
 
+function updateProviderCardSelection(provider) {
+  const cloudCard = document.getElementById('provider-card-cloud');
+  const ollamaCard = document.getElementById('provider-card-ollama');
+  if (cloudCard) cloudCard.classList.toggle('is-selected', provider === 'cloud');
+  if (ollamaCard) ollamaCard.classList.toggle('is-selected', provider === 'ollama');
+}
+
 function handleProviderChange(event) {
   const provider = event.target.value;
+  updateProviderCardSelection(provider);
   const ollamaConfig = document.getElementById('ollama-config');
   
   if (ollamaConfig) {
