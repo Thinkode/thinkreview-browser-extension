@@ -947,6 +947,9 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
       
       dbgLog('Webapp auth synced successfully');
       
+      // Open the extension popup in a new tab so user lands directly in setup wizard
+      chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
+
       // Notify popup to refresh if it's open
       try {
         chrome.runtime.sendMessage({
@@ -973,6 +976,9 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
         lastSynced: Date.now()
       });
       
+      // Open the extension popup in a new tab so user lands directly in setup wizard
+      chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
+
       // Notify popup to refresh if it's open
       try {
         chrome.runtime.sendMessage({

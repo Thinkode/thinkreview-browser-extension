@@ -1730,3 +1730,364 @@ footer {
   border-left: 2px solid rgba(107, 79, 187, 0.25);
   margin-top: 2px;
 }
+
+/* =====================================================================
+   PLATFORM HOME — cards grid
+   ===================================================================== */
+
+.platform-section-header {
+  margin-bottom: 12px;
+}
+
+.platform-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.platform-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 10px;
+  background: #fff;
+  border: 1.5px solid #e1e4e8;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.18s, box-shadow 0.18s, transform 0.15s;
+  text-align: center;
+  font-family: inherit;
+}
+
+.platform-card:hover {
+  border-color: #6b4fbb;
+  box-shadow: 0 3px 12px rgba(107, 79, 187, 0.14);
+  transform: translateY(-2px);
+}
+
+.platform-card:active {
+  transform: translateY(0);
+}
+
+
+.platform-card-icon {
+  color: #24292e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #f6f8fa;
+}
+
+.platform-card-icon--gitlab  { color: #e24329; background: #fff4f2; }
+.platform-card-icon--azure   { color: #0078d4; background: #e8f3fb; }
+.platform-card-icon--bitbucket { color: #0052cc; background: #e8f0fc; }
+
+.platform-card-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.platform-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #24292e;
+}
+
+.platform-card-subtitle {
+  font-size: 10px;
+  color: #666;
+  margin-top: -2px;
+}
+
+.platform-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.platform-badge-ready {
+  background: #e6f4ea;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.platform-badge-setup {
+  background: #fff8e1;
+  color: #f57f17;
+  border: 1px solid #ffe082;
+}
+
+/* Collapsible AI Provider header */
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.collapsible-chevron {
+  color: #666;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.collapsible-header[aria-expanded="true"] .collapsible-chevron {
+  transform: rotate(180deg);
+}
+
+.collapsible-body {
+  padding-top: 10px;
+}
+
+/* =====================================================================
+   PLATFORM DETAIL VIEW — slide-in
+   ===================================================================== */
+
+@keyframes slideInFromRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInFromLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.platform-view {
+  animation: slideInFromRight 0.22s ease-out;
+}
+
+.platform-home-returning {
+  animation: slideInFromLeft 0.22s ease-out;
+}
+
+.platform-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  color: #6b4fbb;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0 0 12px 0;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+
+.platform-back-btn:hover { opacity: 0.75; }
+
+.platform-view-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.platform-view-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #24292e;
+}
+
+.platform-view-icon {
+  color: #24292e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #f6f8fa;
+  flex-shrink: 0;
+}
+
+.platform-view-icon--gitlab  { color: #e24329; background: #fff4f2; }
+.platform-view-icon--azure   { color: #0078d4; background: #e8f3fb; }
+.platform-view-icon--bitbucket { color: #0052cc; background: #e8f0fc; }
+
+/* =====================================================================
+   WIZARD CARD
+   ===================================================================== */
+
+.wizard-card {
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.wizard-card--ready {
+  background: #f0faf4;
+  border: 1.5px solid #a5d6a7;
+}
+
+.wizard-ready-badge {
+  display: inline-block;
+  background: #2e7d32;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-bottom: 6px;
+}
+
+.wizard-ready-desc {
+  font-size: 12px;
+  color: #4a4a4a;
+  margin: 0 0 10px 0;
+}
+
+/* =====================================================================
+   WIZARD STEPS — animated
+   ===================================================================== */
+
+@keyframes wizardStepIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.wizard-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wizard-steps--compact {
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.wizard-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: #333;
+  animation: wizardStepIn 0.35s ease-out both;
+  animation-delay: var(--step-delay, 0s);
+}
+
+.wizard-step--compact {
+  font-size: 12px;
+}
+
+.wizard-step-num {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6b4fbb 0%, #9b7de8 100%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.wizard-step--compact .wizard-step-num {
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+}
+
+.wizard-step code {
+  background: #f0f0f0;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 11px;
+  font-family: monospace;
+}
+
+/* =====================================================================
+   PLATFORM SUBSECTIONS
+   ===================================================================== */
+
+.platform-subsection {
+  border: 1.5px solid #e1e4e8;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+  background: #fafbfc;
+}
+
+.platform-subsection--required {
+  border-color: #ffe082;
+  background: #fffdf0;
+}
+
+.subsection-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #24292e;
+  margin: 0 0 6px 0;
+}
+
+.subsection-required-badge {
+  display: inline-block;
+  background: #f57f17;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 20px;
+  margin-bottom: 6px;
+}
+
+/* =====================================================================
+   OPTIONAL PAT TOGGLE (Azure DevOps Cloud)
+   ===================================================================== */
+
+.optional-pat-section {
+  margin-top: 12px;
+  border-top: 1px solid #c8e6c9;
+  padding-top: 10px;
+}
+
+.optional-pat-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  color: #2e7d32;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+
+.optional-pat-toggle svg {
+  transition: transform 0.2s;
+}
+
+.optional-pat-toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.optional-pat-toggle:hover { opacity: 0.75; }
+
+.optional-pat-body {
+  padding-top: 10px;
+}
