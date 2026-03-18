@@ -627,7 +627,7 @@ input:focus {
     transition: none;
   }
   
-  .footer-button {
+  .footer-chip {
     transition: none;
   }
 }
@@ -647,36 +647,80 @@ input:focus {
 /* Footer styles */
 .app-footer {
   margin-top: 20px;
-  padding-top: 10px;
+  padding-top: 12px;
   border-top: 1px solid #e1e4e8;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.footer-buttons-left {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.footer-button {
-  padding: 4px 8px;
-  background-color: #f6f8fa;
-  color: #6b4fbb;
-  border: 1px solid #e1e4e8;
-  border-radius: 4px;
+.footer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 14px;
   font-size: 12px;
+  font-family: 'Roboto', arial, sans-serif;
+  font-weight: 500;
   cursor: pointer;
-  text-align: center;
-  transition: background-color 0.2s;
+  white-space: nowrap;
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  line-height: 1;
 }
 
-.footer-button:hover {
-  background-color: #6b4fbb;
-  color: white;
+.footer-chip svg {
+  flex-shrink: 0;
+}
+
+.footer-chip--help {
+  background: #fff8e1;
+  color: #e65100;
+  border: 1px solid #ffe082;
+}
+
+.footer-chip--help:hover {
+  background: #ffecb3;
+  border-color: #f57f17;
+  box-shadow: 0 2px 6px rgba(245, 127, 23, 0.18);
+}
+
+.footer-chip--bug {
+  background: #f1f3f4;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+}
+
+.footer-chip--bug:hover {
+  background: #e8eaed;
+  border-color: #bdc1c6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.footer-chip--privacy {
+  background: #f3f0ff;
+  color: #6b4fbb;
+  border: 1px solid #ddd5f8;
+}
+
+.footer-chip--privacy:hover {
+  background: #ede9ff;
+  border-color: #b39ddb;
+  box-shadow: 0 2px 6px rgba(107, 79, 187, 0.18);
+}
+
+.footer-chip--docs {
+  background: #6b4fbb;
+  color: #fff;
+  border: 1px solid #6b4fbb;
+}
+
+.footer-chip--docs:hover {
+  background: #5a3da8;
+  border-color: #5a3da8;
+  box-shadow: 0 2px 8px rgba(107, 79, 187, 0.35);
 }
 
 /* Button styles */
@@ -1806,6 +1850,58 @@ footer {
   text-align: right;
   margin-top: 8px;
   margin-bottom: 0;
+}
+
+/* Platform view — docs action chips (Not working? / Setup guide) */
+.platform-docs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.platform-docs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-family: 'Roboto', arial, sans-serif;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  line-height: 1;
+}
+
+.platform-docs-btn svg {
+  flex-shrink: 0;
+}
+
+.platform-docs-btn--help {
+  background: #fff8e1;
+  color: #e65100;
+  border: 1px solid #ffe082;
+}
+
+.platform-docs-btn--help:hover {
+  background: #ffecb3;
+  border-color: #f57f17;
+  box-shadow: 0 2px 6px rgba(245, 127, 23, 0.2);
+}
+
+.platform-docs-btn--guide {
+  background: #f3f0ff;
+  color: #6b4fbb;
+  border: 1px solid #ddd5f8;
+}
+
+.platform-docs-btn--guide:hover {
+  background: #ede9ff;
+  border-color: #b39ddb;
+  box-shadow: 0 2px 6px rgba(107, 79, 187, 0.2);
 }
 
 .layout-settings-row {

@@ -630,10 +630,52 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const privacyFaqBtn = document.getElementById('privacy-faq-btn');
   if (privacyFaqBtn) {
-    privacyFaqBtn.addEventListener('click', () => {
+    privacyFaqBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('privacy_faq_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://thinkreview.dev/privacy-faqs.html' });
     });
   }
+
+  // Platform "Not working?" chips — platform-specific event names
+  const platformNotWorkingLinks = [
+    { id: 'not-working-github',    event: 'not_working_clicked_github' },
+    { id: 'not-working-gitlab',    event: 'not_working_clicked_gitlab' },
+    { id: 'not-working-azure',     event: 'not_working_clicked_azure' },
+    { id: 'not-working-bitbucket', event: 'not_working_clicked_bitbucket' },
+  ];
+  platformNotWorkingLinks.forEach(({ id, event }) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('click', async () => {
+        try {
+          const { trackUserAction } = await import('./utils/analytics-service.js');
+          trackUserAction(event, { context: 'popup' }).catch(() => {});
+        } catch (e) { /* silent */ }
+      });
+    }
+  });
+
+  // Platform "Setup guide" chips
+  const platformSetupGuideLinks = [
+    { id: 'setup-guide-github',    event: 'setup_guide_opened_github' },
+    { id: 'setup-guide-gitlab',    event: 'setup_guide_opened_gitlab' },
+    { id: 'setup-guide-azure',     event: 'setup_guide_opened_azure' },
+    { id: 'setup-guide-bitbucket', event: 'setup_guide_opened_bitbucket' },
+  ];
+  platformSetupGuideLinks.forEach(({ id, event }) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('click', async () => {
+        try {
+          const { trackUserAction } = await import('./utils/analytics-service.js');
+          trackUserAction(event, { context: 'popup' }).catch(() => {});
+        } catch (e) { /* silent */ }
+      });
+    }
+  });
   
   // Set up the Manage Subscription button
   const cancelSubscriptionBtn = document.getElementById('cancel-subscription-btn');
