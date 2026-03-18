@@ -29,9 +29,9 @@ const OPEN_PAGE_ALLOWED_ORIGINS = [
   'localhost',
 ];
 
-function isAllowedOpenPageOrigin(senderUrl) {
+function isAllowedOpenPageOrigin(senderOrigin) {
   try {
-    const hostname = new URL(senderUrl).hostname;
+    const hostname = new URL(senderOrigin).hostname;
     return OPEN_PAGE_ALLOWED_ORIGINS.includes(hostname);
   } catch {
     return false;
@@ -555,8 +555,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Handle request to open extension page in a new tab
   if (message.type === 'OPEN_EXTENSION_PAGE') {
-    if (!sender.url || !isAllowedOpenPageOrigin(sender.url)) {
-      dbgWarn('OPEN_EXTENSION_PAGE rejected: unauthorized origin', sender.url);
+    if (!sender.origin || !isAllowedOpenPageOrigin(sender.origin)) {
+      dbgWarn('OPEN_EXTENSION_PAGE rejected: unauthorized origin', sender.origin);
       sendResponse({ success: false, error: 'Unauthorized origin' });
       return true;
     }
