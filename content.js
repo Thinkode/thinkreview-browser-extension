@@ -838,7 +838,7 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
             <div class="gl-alert-content">
               <div class="gl-alert-title">Daily Review Limit Reached</div>
               <div class="gl-mb-3">
-                You've used ${reviewCount} reviews today, which exceeds the free plan daily limit of ${dailyLimit} reviews.
+                You've used ${reviewCount} of ${dailyLimit} free reviews today. Your limit resets daily — come back tomorrow for more reviews, or unlock unlimited reviews by upgrading now.
               </div>
             </div>
           </div>
