@@ -139,22 +139,24 @@ export class AzureDevOpsFetcher {
       }
     };
 
-    // Process each changed file (diffs/commits returns "changes", iterations/changes returns "changeEntries")
-    const entries = changes.changeEntries || changes.changes || [];
-    for (const change of entries) {
-      try {
-        // Skip folder entries; only files get per-file diff requests
-        if (change.item?.isFolder) {
-          continue;
+    // Process changed files in concurrent batches.
+    // diffs/commits returns "changes"; iterations/changes returns "changeEntries".
+    // Folder entries are skipped – only actual files get per-file diff requests.
+    const CONCURRENT_FILES = 5;
+    const entries = (changes.changeEntries || changes.changes || []).filter(c => !c.item?.isFolder);
+
+    for (let i = 0; i < entries.length; i += CONCURRENT_FILES) {
+      const batch = entries.slice(i, i + CONCURRENT_FILES);
+      const results = await Promise.allSettled(
+        batch.map(change => this.processFileChange(change, commits, prDetails))
+      );
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+          formattedPatch.files.push(result.value);
+          formattedPatch.totalLines += result.value.linesAdded + result.value.linesRemoved;
+        } else if (result.status === 'rejected') {
+          dbgWarn('Error processing file change:', result.reason);
         }
-        const fileChange = await this.processFileChange(change, commits, prDetails);
-        if (fileChange) {
-          formattedPatch.files.push(fileChange);
-          formattedPatch.totalLines += fileChange.linesAdded + fileChange.linesRemoved;
-        }
-      } catch (error) {
-        dbgWarn('Error processing file change:', error);
-        // Continue with other files
       }
     }
 

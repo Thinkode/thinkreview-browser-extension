@@ -430,9 +430,9 @@ export class AzureDevOpsAPI {
    * @param {string} filePath - File path
    * @param {string} oldContent - Old file content
    * @param {string} newContent - New file content
-   * @returns {string} Unified diff (---/+++ and hunks) or ''
+   * @returns {Promise<string>} Unified diff (---/+++ and hunks) or ''
    */
-  createSimpleDiff(filePath, oldContent, newContent) {
+  async createSimpleDiff(filePath, oldContent, newContent) {
     const oldStr = oldContent ?? '';
     const newStr = newContent ?? '';
 
@@ -441,6 +441,10 @@ export class AzureDevOpsAPI {
       return '';
     }
     try {
+      // Yield to the browser event loop before the synchronous diff computation so
+      // UI interactions (e.g. opening/closing the review panel) remain responsive
+      // while diffs are being computed for each file.
+      await new Promise(resolve => setTimeout(resolve, 0));
       const opts = Diff.FILE_HEADERS_ONLY ? { headerOptions: Diff.FILE_HEADERS_ONLY } : {};
       const patch = Diff.createTwoFilesPatch(`a/${filePath}`, `b/${filePath}`, oldStr, newStr, '', '', opts);
       return patch || '';
@@ -500,36 +504,32 @@ export class AzureDevOpsAPI {
       dbgLog('Fetching Git file diff:', { baseCommit, targetCommit, filePath, changeType });
       
       const endpoint = `git/repositories/${this.repositoryId}/items`;
-      const params = new URLSearchParams({
+      const targetParams = new URLSearchParams({
         path: filePath,
         version: targetCommit,
         versionType: 'commit',
         includeContent: 'true'
       });
+      const baseParams = new URLSearchParams({
+        path: filePath,
+        version: baseCommit,
+        versionType: 'commit',
+        includeContent: 'true'
+      });
 
-      const response = await this.makeRequest(`${endpoint}?${params}`);
-      const data = await response.json();
-      
-      const targetContent = data.content || '';
-      
-      // For 'add' the file didn't exist in base commit - don't request it (would 404)
-      let baseContent = '';
-      if (changeType !== 'add') {
-        try {
-          const baseResponse = await this.makeRequest(`${endpoint}?${new URLSearchParams({
-            path: filePath,
-            version: baseCommit,
-            versionType: 'commit',
-            includeContent: 'true'
-          })}`);
-          const baseData = await baseResponse.json();
-          baseContent = baseData.content || '';
-        } catch (baseError) {
-          baseContent = '';
-        }
-      }
-      
-      const diff = this.createSimpleDiff(filePath, baseContent, targetContent);
+      // Fetch target and base content in parallel to halve per-file wait time.
+      // For 'add' the file didn't exist in the base commit – skip that request to avoid 404.
+      const [targetResult, baseResult] = await Promise.all([
+        this.makeRequest(`${endpoint}?${targetParams}`).then(r => r.json()).catch(() => ({ content: '' })),
+        changeType !== 'add'
+          ? this.makeRequest(`${endpoint}?${baseParams}`).then(r => r.json()).catch(() => ({ content: '' }))
+          : Promise.resolve({ content: '' })
+      ]);
+
+      const targetContent = targetResult.content || '';
+      const baseContent = baseResult.content || '';
+
+      const diff = await this.createSimpleDiff(filePath, baseContent, targetContent);
       return diff;
     } catch (error) {
       dbgWarn('Failed to get Git file diff:', error);
