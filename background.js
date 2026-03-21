@@ -5,6 +5,9 @@
 import { CloudService } from './services/cloud-service.js';
 import { OllamaService } from './services/ollama-service.js';
 import { isValidOrigin } from './utils/origin-validator.js';
+import './vendor/diff.min.js';
+import { azureDevOpsFetcher } from './services/azure-devops-fetcher.js';
+import { AzureDevOpsAuthError } from './services/azure-devops-api.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { fetchPatchContent } from './services/bitbucket-api.js';
@@ -27,6 +30,15 @@ const OPEN_PAGE_ALLOWED_ORIGINS = [
   'portal.thinkreview.dev',
   'app.thinkreview.dev'
 ];
+
+// Azure fetcher/API use singleton state, so serialize requests to avoid cross-tab races.
+let azureFetchQueue = Promise.resolve();
+
+function runAzureFetchTask(taskFn) {
+  const run = azureFetchQueue.then(taskFn, taskFn);
+  azureFetchQueue = run.catch(() => {});
+  return run;
+}
 
 function isAllowedOpenPageOrigin(senderOrigin) {
   try {
@@ -470,6 +482,48 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           currentCount: err.currentCount,
           provider: settings.aiProvider || 'cloud'
         });
+      }
+    })();
+    return true; // Keep channel open
+  }
+
+  // Handle request to fetch Azure DevOps PR patch in background
+  if (message.type === 'FETCH_AZURE_DEVOPS_PATCH') {
+    const { prInfo, azureToken } = message;
+    (async () => {
+      try {
+        if (!prInfo || !prInfo.prId) {
+          throw new Error('Invalid Azure DevOps pull request information');
+        }
+        if (!azureToken || typeof azureToken !== 'string') {
+          throw new Error('Azure DevOps token is missing');
+        }
+
+        const result = await runAzureFetchTask(async () => {
+          await azureDevOpsFetcher.init(prInfo, azureToken);
+          const changes = await azureDevOpsFetcher.fetchCodeChanges();
+          const content = azureDevOpsFetcher.toPatchString(changes);
+          return {
+            content,
+            fileCount: changes?.files?.length || 0,
+            totalLines: changes?.totalLines || 0
+          };
+        });
+
+        sendResponse({ success: true, ...result });
+      } catch (error) {
+        if (error instanceof AzureDevOpsAuthError) {
+          sendResponse({
+            success: false,
+            isAuthError: true,
+            error: error.message,
+            detailMessage: error.details?.userMessage || error.details?.rawMessage || error.message
+          });
+          return;
+        }
+
+        dbgWarn('Error fetching Azure DevOps patch in background:', error);
+        sendResponse({ success: false, error: error?.message || String(error) });
       }
     })();
     return true; // Keep channel open

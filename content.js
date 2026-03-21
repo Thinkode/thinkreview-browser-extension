@@ -69,8 +69,6 @@ document.addEventListener('thinkreview-ollama-model-changed', async (e) => {
 
 // Import platform detection services
 let platformDetector = null;
-let azureDevOpsFetcher = null;
-let AzureDevOpsAuthError = null;
 
 // Import Azure DevOps token error module
 let azureDevOpsTokenError = null;
@@ -87,13 +85,8 @@ async function initializePlatformDetection() {
     const storage = await chrome.storage.local.get(['azureDevOpsDomains']);
     platformDetector.setAzureDevOpsCustomDomains(storage.azureDevOpsDomains || []);
     
-    // Dynamically import Azure DevOps fetcher if needed
-    const fetcherModule = await import(chrome.runtime.getURL('services/azure-devops-fetcher.js'));
-    azureDevOpsFetcher = fetcherModule.azureDevOpsFetcher;
-    
     // Dynamically import Azure DevOps API module for error handling
     const apiModule = await import(chrome.runtime.getURL('services/azure-devops-api.js'));
-    AzureDevOpsAuthError = apiModule.AzureDevOpsAuthError;
 
     // Run server version detection only for on-prem/custom domains (skip dev.azure.com and visualstudio.com)
     const hostname = window.location.hostname || '';
@@ -981,7 +974,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       reviewId = getGitHubPRId();
       
     } else if (platformDetector && platformDetector.isOnAzureDevOpsPRPage()) {
-      // Azure DevOps: fetch via API
+      // Azure DevOps: fetch via background script to keep content script responsive
         dbgLog('Starting Azure DevOps code fetch');
         const azureToken = await getAzureDevOpsToken();
         if (!azureToken) {
@@ -1003,32 +996,40 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
         });
         
         try {
-          dbgLog('Initializing Azure DevOps fetcher');
-          await azureDevOpsFetcher.init(prInfo, azureToken);
-          
-          dbgLog('Fetching code changes');
-          const changes = await azureDevOpsFetcher.fetchCodeChanges();
-          codeContent = azureDevOpsFetcher.toPatchString(changes);
+          const azureResponse = await new Promise((resolve) => {
+            chrome.runtime.sendMessage(
+              {
+                type: 'FETCH_AZURE_DEVOPS_PATCH',
+                prInfo,
+                azureToken
+              },
+              resolve
+            );
+          });
+
+          if (!azureResponse || !azureResponse.success) {
+            if (azureResponse?.isAuthError) {
+              dbgLog('Azure DevOps token authentication/access failed, showing token error UI');
+              if (azureDevOpsTokenError) {
+                const detailMessage = azureResponse.detailMessage || azureResponse.error;
+                azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader, detailMessage);
+              } else {
+                throw new Error('Azure DevOps token is invalid or expired. Please update your Personal Access Token in the extension popup.');
+              }
+              return;
+            }
+
+            throw new Error(azureResponse?.error || 'Failed to fetch Azure DevOps changes');
+          }
+
+          codeContent = azureResponse.content;
           reviewId = prInfo.prId;
           
           dbgLog('Azure DevOps changes fetched:', {
-            fileCount: changes.files.length,
-            totalLines: changes.totalLines
+            fileCount: azureResponse.fileCount || 0,
+            totalLines: azureResponse.totalLines || 0
           });
         } catch (error) {
-          // Check if it's an authentication/access error
-          if (AzureDevOpsAuthError && error instanceof AzureDevOpsAuthError) {
-            dbgLog('Azure DevOps token authentication/access failed, showing token error UI');
-            if (azureDevOpsTokenError) {
-              const detailMessage = error.details?.userMessage || error.details?.rawMessage || error.message;
-              azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader, detailMessage);
-            } else {
-              // Fallback if module not loaded
-              throw new Error('Azure DevOps token is invalid or expired. Please update your Personal Access Token in the extension popup.');
-            }
-            return;
-          }
-          // Re-throw other errors
           throw error;
         }
       
