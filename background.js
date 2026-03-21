@@ -36,7 +36,9 @@ let azureFetchQueue = Promise.resolve();
 
 function runAzureFetchTask(taskFn) {
   const run = azureFetchQueue.then(taskFn);
-  azureFetchQueue = run.catch(() => {});
+  azureFetchQueue = run.catch((err) => {
+    dbgError('Azure fetch queue task failed:', err);
+  });
   return run;
 }
 
