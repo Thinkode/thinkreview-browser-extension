@@ -35,7 +35,7 @@ const OPEN_PAGE_ALLOWED_ORIGINS = [
 let azureFetchQueue = Promise.resolve();
 
 function runAzureFetchTask(taskFn) {
-  const run = azureFetchQueue.then(taskFn, taskFn);
+  const run = azureFetchQueue.then(taskFn);
   azureFetchQueue = run.catch(() => {});
   return run;
 }
