@@ -5,6 +5,7 @@
 import { CloudService } from './services/cloud-service.js';
 import { OllamaService } from './services/ollama-service.js';
 import { isValidOrigin } from './utils/origin-validator.js';
+import './vendor/diff.min.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { fetchPatchContent } from './services/bitbucket-api.js';
@@ -27,6 +28,25 @@ const OPEN_PAGE_ALLOWED_ORIGINS = [
   'portal.thinkreview.dev',
   'app.thinkreview.dev'
 ];
+
+function createUnifiedDiffInBackground(filePath, oldContent, newContent) {
+  const oldStr = oldContent ?? '';
+  const newStr = newContent ?? '';
+  const diffLib = globalThis.Diff || null;
+
+  if (!diffLib || typeof diffLib.createTwoFilesPatch !== 'function') {
+    dbgWarn('Background diff generation unavailable: Diff.createTwoFilesPatch not loaded');
+    return '';
+  }
+
+  try {
+    const opts = diffLib.FILE_HEADERS_ONLY ? { headerOptions: diffLib.FILE_HEADERS_ONLY } : {};
+    return diffLib.createTwoFilesPatch(`a/${filePath}`, `b/${filePath}`, oldStr, newStr, '', '', opts) || '';
+  } catch (error) {
+    dbgWarn('Background diff generation failed:', error);
+    return '';
+  }
+}
 
 function isAllowedOpenPageOrigin(senderOrigin) {
   try {
@@ -518,6 +538,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: false, error: error.message });
       }
     })();
+    return true;
+  }
+
+  if (message.type === 'CREATE_TWO_FILES_PATCH') {
+    const { filePath, oldContent, newContent } = message;
+    if (!filePath || typeof filePath !== 'string') {
+      sendResponse({ success: false, error: 'Invalid filePath' });
+      return true;
+    }
+
+    const patch = createUnifiedDiffInBackground(filePath, oldContent, newContent);
+    sendResponse({ success: true, patch });
     return true;
   }
 

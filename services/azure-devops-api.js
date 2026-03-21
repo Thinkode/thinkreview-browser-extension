@@ -3,11 +3,6 @@
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 import { getRequestApiVersion, DEFAULT_API_VERSION } from './azure-api-versions/index.js';
 
-// jsdiff (vendor/diff.min.js) exposes global Diff when loaded before this script; used for memory-efficient line diff
-const Diff = (typeof self !== 'undefined' && self.Diff) || (typeof globalThis !== 'undefined' && globalThis.Diff) || null;
-
-
-
 /**
  * Custom error class for Azure DevOps authentication failures
  */
@@ -425,29 +420,45 @@ export class AzureDevOpsAPI {
 
 
   /**
-   * Create a unified diff for LLM/backend using jsdiff (vendor/diff.min.js).
-   * Returns empty string if jsdiff is not loaded or createTwoFilesPatch throws.
+   * Create a unified diff for LLM/backend in background.js to keep UI responsive.
+   * Returns empty string on transport/runtime errors.
    * @param {string} filePath - File path
    * @param {string} oldContent - Old file content
    * @param {string} newContent - New file content
-   * @returns {string} Unified diff (---/+++ and hunks) or ''
+   * @returns {Promise<string>} Unified diff (---/+++ and hunks) or ''
    */
-  createSimpleDiff(filePath, oldContent, newContent) {
+  async createSimpleDiff(filePath, oldContent, newContent) {
     const oldStr = oldContent ?? '';
     const newStr = newContent ?? '';
 
-    if (!Diff || typeof Diff.createTwoFilesPatch !== 'function') {
-      dbgWarn('createSimpleDiff: jsdiff not loaded (vendor/diff.min.js); cannot compute diff');
+    if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) {
+      dbgWarn('createSimpleDiff: extension runtime messaging unavailable');
       return '';
     }
-    try {
-      const opts = Diff.FILE_HEADERS_ONLY ? { headerOptions: Diff.FILE_HEADERS_ONLY } : {};
-      const patch = Diff.createTwoFilesPatch(`a/${filePath}`, `b/${filePath}`, oldStr, newStr, '', '', opts);
-      return patch || '';
-    } catch (e) {
-      dbgWarn('createSimpleDiff: createTwoFilesPatch failed', e);
-      return '';
-    }
+
+    return await new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        {
+          type: 'CREATE_TWO_FILES_PATCH',
+          filePath,
+          oldContent: oldStr,
+          newContent: newStr
+        },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            dbgWarn('createSimpleDiff: background message failed', chrome.runtime.lastError);
+            resolve('');
+            return;
+          }
+          if (!response?.success) {
+            dbgWarn('createSimpleDiff: background patch generation failed', response?.error);
+            resolve('');
+            return;
+          }
+          resolve(response.patch || '');
+        }
+      );
+    });
   }
 
   /**
@@ -529,7 +540,7 @@ export class AzureDevOpsAPI {
         }
       }
       
-      const diff = this.createSimpleDiff(filePath, baseContent, targetContent);
+      const diff = await this.createSimpleDiff(filePath, baseContent, targetContent);
       return diff;
     } catch (error) {
       dbgWarn('Failed to get Git file diff:', error);
