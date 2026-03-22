@@ -1268,6 +1268,25 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   color: #e0e0e0;
   border-bottom-color: #6b4fbb;
 }
+
+/* Code Suggestions tab — notification-style count of returned suggestions */
+#gitlab-mr-integrated-review .thinkreview-tab-btn .thinkreview-code-suggestions-tab-count {
+  margin-left: 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: #ffffff;
+  background: #dc2626;
+  border-radius: 9px;
+  box-sizing: border-box;
+}
+
 #gitlab-mr-integrated-review .thinkreview-tab-panels {
   display: flex;
   flex-direction: column;
