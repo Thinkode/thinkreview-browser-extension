@@ -811,76 +811,81 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
   
   // Hide login prompt
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
-  
-  // Create upgrade message
-  const reviewSummary = document.getElementById('review-summary');
-  if (reviewSummary) {
-    // Load subscription section styles
-    if (!document.getElementById('subscription-styles')) {
-      const linkEl = document.createElement('link');
-      linkEl.id = 'subscription-styles';
-      linkEl.rel = 'stylesheet';
-      linkEl.href = chrome.runtime.getURL('components/subscription-section.css');
-      document.head.appendChild(linkEl);
-    }
-    
-    // Load subscription section HTML via background (avoids page CSP blocking fetch to chrome-extension://)
-    chrome.runtime.sendMessage(
-      { type: 'GET_EXTENSION_RESOURCE', path: 'components/subscription-section.html' },
-      (response) => {
-        if (chrome.runtime.lastError || !response?.success) {
-          dbgWarn('Error loading subscription section:', response?.error || chrome.runtime.lastError?.message);
-          return;
-        }
-        const html = response.content;
-        reviewSummary.innerHTML = `
-          <div class="gl-alert gl-alert-warning">
-            <div class="gl-alert-content">
-              <div class="gl-alert-title">Daily Review Limit Reached</div>
-              <div class="gl-mb-3">
-                You've used ${reviewCount} of ${dailyLimit} free reviews today. Your limit resets daily — come back tomorrow for more reviews, or unlock unlimited reviews by upgrading now.
-              </div>
+
+  if (!reviewContent) return;
+
+  // Hide all existing review UI (tabs, sections, chat input) so only the
+  // upgrade message is visible and nothing remains interactive.
+  const tabsWrapper = reviewContent.querySelector('.thinkreview-tabs-wrapper');
+  const chatInputContainer = document.getElementById('chat-input-container');
+  if (tabsWrapper) tabsWrapper.classList.add('gl-hidden');
+  if (chatInputContainer) chatInputContainer.classList.add('gl-hidden');
+
+  // Remove a previously injected upgrade wrapper if the function is called again
+  const existingWrapper = document.getElementById('upgrade-message-wrapper');
+  if (existingWrapper) existingWrapper.remove();
+
+  // Create a dedicated full-panel upgrade container
+  const upgradeWrapper = document.createElement('div');
+  upgradeWrapper.id = 'upgrade-message-wrapper';
+
+  // Load subscription section styles
+  if (!document.getElementById('subscription-styles')) {
+    const linkEl = document.createElement('link');
+    linkEl.id = 'subscription-styles';
+    linkEl.rel = 'stylesheet';
+    linkEl.href = chrome.runtime.getURL('components/subscription-section.css');
+    document.head.appendChild(linkEl);
+  }
+
+  // Load subscription section HTML via background (avoids page CSP blocking fetch to chrome-extension://)
+  chrome.runtime.sendMessage(
+    { type: 'GET_EXTENSION_RESOURCE', path: 'components/subscription-section.html' },
+    (response) => {
+      if (chrome.runtime.lastError || !response?.success) {
+        dbgWarn('Error loading subscription section:', response?.error || chrome.runtime.lastError?.message);
+        return;
+      }
+      const html = response.content;
+      upgradeWrapper.innerHTML = `
+        <div class="gl-alert gl-alert-warning">
+          <div class="gl-alert-content">
+            <div class="gl-alert-title">Daily Review Limit Reached</div>
+            <div class="gl-mb-3">
+              You've used ${reviewCount} of ${dailyLimit} free reviews today. Your limit resets daily — come back tomorrow for more reviews, or unlock unlimited reviews by upgrading now.
             </div>
           </div>
-          ${html}
-        `;
-        
-        // Add direct event listener to the upgrade button (simple redirect)
-        const upgradeBtn = document.getElementById('upgrade-btn');
-        if (upgradeBtn) {
-          upgradeBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            
-            // Track upgrade button click
-            try {
-              const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
-              trackUserAction('upgrade_button_clicked', {
-                context: 'subscription_section',
-                location: 'integrated_panel',
-                source: 'daily_limit'
-              }).catch(() => {}); // Silently fail
-            } catch (error) {
-              // Silently fail - analytics shouldn't break the extension
-            }
-            
-            const subscriptionPortalUrl = 'https://portal.thinkreview.dev/subscription';
-            window.open(subscriptionPortalUrl, '_blank');
-          });
-        }
+        </div>
+        ${html}
+      `;
+
+      // Add direct event listener to the upgrade button (simple redirect)
+      const upgradeBtn = upgradeWrapper.querySelector('#upgrade-btn');
+      if (upgradeBtn) {
+        upgradeBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+
+          // Track upgrade button click
+          try {
+            const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+            trackUserAction('upgrade_button_clicked', {
+              context: 'subscription_section',
+              location: 'integrated_panel',
+              source: 'daily_limit'
+            }).catch(() => {}); // Silently fail
+          } catch (error) {
+            // Silently fail - analytics shouldn't break the extension
+          }
+
+          const subscriptionPortalUrl = 'https://portal.thinkreview.dev/subscription';
+          window.open(subscriptionPortalUrl, '_blank');
+        });
       }
-    );
-    
-    // Event listeners are now handled within the fetch promise
-  }
-  
-  // Clear other sections
-  const reviewSuggestions = document.getElementById('review-suggestions');
-  const reviewSecurity = document.getElementById('review-security');
-  const reviewPractices = document.getElementById('review-practices');
-  
-  if (reviewSuggestions) reviewSuggestions.innerHTML = '';
-  if (reviewSecurity) reviewSecurity.innerHTML = '';
-  if (reviewPractices) reviewPractices.innerHTML = '';
+    }
+  );
+
+  // Prepend so it appears at the top of the content area
+  reviewContent.insertBefore(upgradeWrapper, reviewContent.firstChild);
 }
 
 /** Dummy Azure DevOps token used when none is set in storage (>25 chars to satisfy length checks). */
