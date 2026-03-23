@@ -953,8 +953,6 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
         const taglineEl = card.querySelector('.plan-tagline');
         const offerEl = card.querySelector('.plan-offer');
         const featuresEl = card.querySelector('.plan-features');
-        const modelsSection = card.querySelector('[data-plan-models-section]');
-        const modelsListEl = card.querySelector('.plan-model-highlights');
         const ctaBtn = card.querySelector('.upgrade-btn');
 
         const period = plan.period || 'month';
@@ -986,22 +984,6 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
             li.textContent = String(feature);
             featuresEl.appendChild(li);
           });
-        }
-
-        const modelHighlights = Array.isArray(plan.modelHighlights) ? plan.modelHighlights : [];
-        if (modelsSection && modelsListEl) {
-          if (modelHighlights.length > 0) {
-            modelsSection.classList.remove('gl-hidden');
-            modelsListEl.innerHTML = '';
-            modelHighlights.forEach((name) => {
-              const li = document.createElement('li');
-              li.textContent = String(name);
-              modelsListEl.appendChild(li);
-            });
-          } else {
-            modelsSection.classList.add('gl-hidden');
-            modelsListEl.innerHTML = '';
-          }
         }
 
         if (ctaBtn) {

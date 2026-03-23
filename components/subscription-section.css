@@ -94,31 +94,6 @@
   margin: 3px 0;
 }
 
-.plan-models-section {
-  margin-top: 8px;
-}
-
-.plan-models-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #a0aec0;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  margin-bottom: 4px;
-}
-
-.plan-model-highlights {
-  margin: 0;
-  padding-left: 16px;
-  color: #cbd5e0;
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-.plan-model-highlights li {
-  margin: 2px 0;
-}
-
 .upgrade-btn {
   width: 100%;
   padding: 12px 24px;
