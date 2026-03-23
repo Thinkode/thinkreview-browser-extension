@@ -959,10 +959,39 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
         const currency = plan.currency || 'USD';
         const price = Number.isFinite(Number(plan.price)) ? Number(plan.price) : null;
         const discountPercent = Number(plan.discountPercent || 0);
+        const showDiscountedPrice =
+          plan.hasDiscount &&
+          discountPercent > 0 &&
+          discountPercent < 100 &&
+          price !== null &&
+          price > 0;
 
         if (nameEl) nameEl.textContent = plan.name || `Plan ${idx + 1}`;
         if (priceEl) {
-          priceEl.textContent = price !== null ? `$${price}/${period}` : `${currency}/${period}`;
+          priceEl.textContent = '';
+          const suffix = `/${period}`;
+          const formatAmount = (n) => {
+            const rounded = Math.round(n * 100) / 100;
+            return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+          };
+          if (price !== null) {
+            if (showDiscountedPrice) {
+              const discountedRaw = price * (1 - discountPercent / 100);
+              const discounted = Math.round(discountedRaw * 100) / 100;
+              const currentSpan = document.createElement('span');
+              currentSpan.className = 'plan-price-current';
+              currentSpan.textContent = `$${formatAmount(discounted)}${suffix}`;
+              const originalSpan = document.createElement('span');
+              originalSpan.className = 'plan-price-original';
+              originalSpan.textContent = `$${formatAmount(price)}${suffix}`;
+              priceEl.appendChild(originalSpan);
+              priceEl.appendChild(currentSpan);
+            } else {
+              priceEl.textContent = `$${formatAmount(price)}${suffix}`;
+            }
+          } else {
+            priceEl.textContent = `${currency}/${period}`;
+          }
         }
         if (taglineEl) taglineEl.textContent = plan.tagline || '';
 

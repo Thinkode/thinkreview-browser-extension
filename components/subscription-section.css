@@ -53,9 +53,28 @@
 }
 
 .plan-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 6px;
   color: #cbd5e0;
   font-size: 13px;
   font-weight: 600;
+  text-align: right;
+}
+
+.plan-price-current {
+  color: #e2e8f0;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.plan-price-original {
+  text-decoration: line-through;
+  color: #a0aec0;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .plan-tagline {
