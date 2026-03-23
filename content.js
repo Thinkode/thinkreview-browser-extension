@@ -1011,7 +1011,7 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
         if (offerEl) {
           if (plan.hasDiscount && discountPercent > 0) {
             offerEl.classList.remove('gl-hidden');
-            offerEl.textContent = `${discountPercent}% off${plan.discountCode ? ` (${plan.discountCode})` : ''}`;
+            offerEl.textContent = `${discountPercent}% off`;
           } else {
             offerEl.classList.add('gl-hidden');
             offerEl.textContent = '';
