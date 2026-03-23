@@ -36,6 +36,7 @@
   display: flex;
   gap: 10px;
   margin-top: 12px;
+  flex-shrink: 0;
 }
 
 .subscription-plans {
@@ -45,10 +46,15 @@
 }
 
 .subscription-plan-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   border: 1px solid #4a5568;
   border-radius: 6px;
   background: #1f2937;
   padding: 12px;
+  /* Grid row stretch gives equal card heights; flex pushes CTA to the same baseline row */
+  align-self: stretch;
 }
 
 .plan-header {
@@ -89,6 +95,14 @@
   font-weight: 500;
 }
 
+.plan-billed {
+  font-size: 11px;
+  color: #a0aec0;
+  text-align: right;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
 .plan-tagline {
   color: #a0aec0;
   margin-top: 6px;
@@ -108,6 +122,8 @@
 }
 
 .plan-features {
+  flex: 1 1 auto;
+  min-height: 0;
   margin: 10px 0 0;
   padding-left: 16px;
   color: #cbd5e0;

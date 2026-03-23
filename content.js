@@ -963,12 +963,14 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
 
         const nameEl = card.querySelector('.plan-name');
         const priceEl = card.querySelector('.plan-price');
+        const billedEl = card.querySelector('.plan-billed');
         const taglineEl = card.querySelector('.plan-tagline');
         const offerEl = card.querySelector('.plan-offer');
         const featuresEl = card.querySelector('.plan-features');
         const ctaBtn = card.querySelector('.upgrade-btn');
 
         const period = plan.period || 'month';
+        const isAnnualInterval = String(plan.interval || '').toLowerCase() === 'annual';
         const currency = plan.currency || 'USD';
         const price = Number.isFinite(Number(plan.price)) ? Number(plan.price) : null;
         const discountPercent = Number(plan.discountPercent || 0);
@@ -1004,6 +1006,15 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
             }
           } else {
             priceEl.textContent = `${currency}/${period}`;
+          }
+        }
+        if (billedEl) {
+          if (isAnnualInterval) {
+            billedEl.textContent = 'Billed annually';
+            billedEl.classList.remove('gl-hidden');
+          } else {
+            billedEl.textContent = '';
+            billedEl.classList.add('gl-hidden');
           }
         }
         if (taglineEl) taglineEl.textContent = plan.tagline || '';
