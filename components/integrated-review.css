@@ -218,7 +218,21 @@
   display: flex;
   flex-direction: column;
   flex-grow: 1;
+  min-height: 0; /* Let flex child shrink so inner scroll regions get a bounded height */
   overflow: hidden; /* Prevent content from overflowing card-body */
+}
+
+/* Upgrade prompt sits outside #review-scroll-container; scroll the content area here */
+#gitlab-mr-integrated-review #review-content:has(#upgrade-message-wrapper) {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#upgrade-message-wrapper {
+  margin: 0;
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 #review-scroll-container {

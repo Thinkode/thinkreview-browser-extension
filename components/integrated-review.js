@@ -138,13 +138,13 @@ async function initReviewPromptComponent() {
     // Dynamic import to avoid module loading issues
     const module = await import(chrome.runtime.getURL('components/review-prompt/review-prompt.js'));
     reviewPrompt = new module.ReviewPrompt({
-      threshold: 5, // Show prompt after 5 daily reviews
+      threshold: 5, // Show prompt after 5 total reviews
       chromeStoreUrl: 'https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn/reviews',
       feedbackUrl: 'https://thinkreview.dev/extension-feedback.html'
     });
     reviewPrompt.init('review-prompt-container');
     window.reviewPrompt = reviewPrompt; // Make accessible globally
-    dbgLog('Review prompt component initialized with daily threshold of 5');
+    dbgLog('Review prompt component initialized with total review threshold of 5');
   } catch (error) {
     dbgWarn('Failed to initialize review prompt component:', error);
   }

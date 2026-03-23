@@ -5,7 +5,7 @@ import { dbgLog, dbgWarn, dbgError } from '../../utils/logger.js';
  */
 // Configuration
 const REVIEW_PROMPT_CONFIG = {
-  threshold: 5, // Show prompt after 5 daily reviews
+  threshold: 5, // Show prompt after 5 total reviews
   chromeStoreUrl: 'https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn/reviews',
   feedbackUrl: 'https://thinkreview.dev/extension-feedback.html', // Updated to new extension-specific feedback form
   storageKeys: {
@@ -89,16 +89,16 @@ class ReviewPrompt {
   }
 
   /**
-   * Get the current daily review count from storage
-   * @returns {Promise<number>} - Current daily review count
+   * Get the total review count from storage
+   * @returns {Promise<number>} - Total review count across all time
    */
   async getCurrentReviewCount() {
     return new Promise((resolve) => {
-      // Get todayReviewCount from storage
+      // Get total reviewCount from storage (not daily count)
       // This is kept up-to-date by the background service and incremented after each review
-      chrome.storage.local.get([this.config.storageKeys.todayReviewCount], (result) => {
-        const count = result[this.config.storageKeys.todayReviewCount] || 0;
-        dbgLog('Got todayReviewCount from storage:', count);
+      chrome.storage.local.get([this.config.storageKeys.reviewCount], (result) => {
+        const count = result[this.config.storageKeys.reviewCount] || 0;
+        dbgLog('Got total reviewCount from storage:', count);
         resolve(count);
       });
     });
@@ -111,7 +111,7 @@ class ReviewPrompt {
   async checkAndShow() {
     try {
       const reviewCount = await this.getCurrentReviewCount();
-      dbgLog('Current review count:', reviewCount, '| Threshold:', this.config.threshold);
+      dbgLog('Total review count:', reviewCount, '| Threshold:', this.config.threshold);
       
       // Get lastFeedbackPromptInteraction from storage
       const lastFeedbackPromptInteraction = await new Promise((resolve) => {
