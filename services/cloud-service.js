@@ -1005,7 +1005,7 @@ export class CloudService {
   /**
    * Get daily-limit upgrade prompt configuration from Remote Config (via cloud function).
    * @param {string} email - User's email for authentication
-   * @returns {Promise<Object>} - { prompt, allowDiscounts, plans[] }
+   * @returns {Promise<Object>} - { prompt, allowDiscounts, plans[], promotionalMessage? }
    */
   static async getUpgradePromptConfig(email) {
     dbgLog('Fetching upgrade prompt config:', { email });
@@ -1037,7 +1037,8 @@ export class CloudService {
     return {
       prompt: data.prompt || {},
       allowDiscounts: data.allowDiscounts !== false,
-      plans: data.plans
+      plans: data.plans,
+      promotionalMessage: typeof data.promotionalMessage === 'string' ? data.promotionalMessage : ''
     };
   }
 

@@ -783,7 +783,6 @@ function showLoginPrompt() {
 
 
 
-
 /**
  * Shows an upgrade message in the integrated review panel
  * @param {number} reviewCount - The number of reviews used today
@@ -853,6 +852,7 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
           title: 'Upgrade to one of our premium plans',
           description: 'Get unlimited reviews, review larger PRs, choose your AI model, customize review rules, and more'
         },
+        promotionalMessage: '',
         plans: [
           {
             name: 'Lite',
@@ -938,6 +938,19 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
       const descriptionEl = upgradeWrapper.querySelector('#subscription-description');
       if (titleEl) titleEl.textContent = upgradeConfig.prompt.title || fallbackConfig.prompt.title;
       if (descriptionEl) descriptionEl.textContent = upgradeConfig.prompt.description || fallbackConfig.prompt.description;
+
+      const promotionEl = upgradeWrapper.querySelector('#subscription-promotion');
+      const promoText =
+        typeof upgradeConfig.promotionalMessage === 'string' ? upgradeConfig.promotionalMessage.trim() : '';
+      if (promotionEl) {
+        if (promoText) {
+          promotionEl.textContent = promoText;
+          promotionEl.classList.remove('gl-hidden');
+        } else {
+          promotionEl.textContent = '';
+          promotionEl.classList.add('gl-hidden');
+        }
+      }
 
       const plans = Array.isArray(upgradeConfig.plans) ? upgradeConfig.plans.slice(0, 2) : fallbackConfig.plans;
       const cards = upgradeWrapper.querySelectorAll('.subscription-plan-card');

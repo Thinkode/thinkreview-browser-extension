@@ -20,6 +20,18 @@
   line-height: 1.4;
 }
 
+.subscription-promotion {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fbd38d;
+  background: rgba(237, 137, 54, 0.12);
+  border: 1px solid rgba(237, 137, 54, 0.35);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
 .subscription-buttons {
   display: flex;
   gap: 10px;
