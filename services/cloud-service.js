@@ -1008,7 +1008,7 @@ export class CloudService {
    * @returns {Promise<Object>} - { prompt, allowDiscounts, plans[], promotionalMessage? }
    */
   static async getUpgradePromptConfig(email) {
-    dbgLog('Fetching upgrade prompt config:', { email });
+    dbgLog('Fetching upgrade prompt config');
 
     if (!email) {
       throw new Error('Email is required');
@@ -1028,7 +1028,10 @@ export class CloudService {
     }
 
     const data = await response.json();
-    dbgLog('GetUpgradePromptConfig response:', data);
+    dbgLog('GetUpgradePromptConfig response:', {
+      status: data.status,
+      planCount: Array.isArray(data.plans) ? data.plans.length : 0
+    });
 
     if (data.status !== 'success' || !Array.isArray(data.plans)) {
       throw new Error('Invalid response format from getUpgradePromptConfig');
