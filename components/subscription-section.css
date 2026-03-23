@@ -95,12 +95,6 @@
   padding: 2px 8px;
 }
 
-.plan-features-scroll {
-  max-height: 200px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
 .plan-features {
   margin: 10px 0 0;
   padding-left: 16px;
