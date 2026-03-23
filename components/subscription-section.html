@@ -1,11 +1,41 @@
 <!-- Subscription Upgrade Section -->
 <div id="subscription-section" class="subscription-section">
-  <h3 class="settings-title">Upgrade to one of our premium plans</h3>
-  <p class="settings-description">Get unlimited reviews, review larger PRs, choose your AI model, customize review rules, and more</p>
-  
-  <div class="subscription-buttons">
-    <button id="upgrade-btn" class="upgrade-btn">
-      Start with a free trial
-    </button>
+  <h3 id="subscription-title" class="settings-title">Upgrade to one of our premium plans</h3>
+  <p id="subscription-description" class="settings-description">Get unlimited reviews, review larger PRs, choose your AI model, customize review rules, and more</p>
+
+  <div id="subscription-plans" class="subscription-plans">
+    <div class="subscription-plan-card" data-plan-index="0">
+      <div class="plan-header">
+        <div class="plan-name"></div>
+        <div class="plan-price"></div>
+      </div>
+      <div class="plan-tagline"></div>
+      <div class="plan-offer gl-hidden"></div>
+      <ul class="plan-features plan-features-scroll"></ul>
+      <div class="plan-models-section gl-hidden" data-plan-models-section>
+        <div class="plan-models-label">Sample models</div>
+        <ul class="plan-model-highlights plan-features-scroll"></ul>
+      </div>
+      <div class="subscription-buttons">
+        <button class="upgrade-btn" data-plan-index="0"></button>
+      </div>
+    </div>
+
+    <div class="subscription-plan-card" data-plan-index="1">
+      <div class="plan-header">
+        <div class="plan-name"></div>
+        <div class="plan-price"></div>
+      </div>
+      <div class="plan-tagline"></div>
+      <div class="plan-offer gl-hidden"></div>
+      <ul class="plan-features plan-features-scroll"></ul>
+      <div class="plan-models-section gl-hidden" data-plan-models-section>
+        <div class="plan-models-label">Sample models</div>
+        <ul class="plan-model-highlights plan-features-scroll"></ul>
+      </div>
+      <div class="subscription-buttons">
+        <button class="upgrade-btn" data-plan-index="1"></button>
+      </div>
+    </div>
   </div>
 </div>

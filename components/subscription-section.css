@@ -26,6 +26,99 @@
   margin-top: 12px;
 }
 
+.subscription-plans {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.subscription-plan-card {
+  border: 1px solid #4a5568;
+  border-radius: 6px;
+  background: #1f2937;
+  padding: 12px;
+}
+
+.plan-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.plan-name {
+  color: #e2e8f0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.plan-price {
+  color: #cbd5e0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.plan-tagline {
+  color: #a0aec0;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.plan-offer {
+  margin-top: 8px;
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #2f855a;
+  background: rgba(72, 187, 120, 0.16);
+  border: 1px solid rgba(72, 187, 120, 0.35);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.plan-features-scroll {
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.plan-features {
+  margin: 10px 0 0;
+  padding-left: 16px;
+  color: #cbd5e0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.plan-features li {
+  margin: 3px 0;
+}
+
+.plan-models-section {
+  margin-top: 8px;
+}
+
+.plan-models-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a0aec0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 4px;
+}
+
+.plan-model-highlights {
+  margin: 0;
+  padding-left: 16px;
+  color: #cbd5e0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.plan-model-highlights li {
+  margin: 2px 0;
+}
+
 .upgrade-btn {
   width: 100%;
   padding: 12px 24px;
@@ -38,6 +131,12 @@
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
+}
+
+@media (max-width: 860px) {
+  .subscription-plans {
+    grid-template-columns: 1fr;
+  }
 }
 
 .upgrade-btn:hover {

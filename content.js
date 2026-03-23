@@ -841,46 +841,192 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
   // Load subscription section HTML via background (avoids page CSP blocking fetch to chrome-extension://)
   chrome.runtime.sendMessage(
     { type: 'GET_EXTENSION_RESOURCE', path: 'components/subscription-section.html' },
-    (response) => {
+    async (response) => {
       if (chrome.runtime.lastError || !response?.success) {
         dbgWarn('Error loading subscription section:', response?.error || chrome.runtime.lastError?.message);
         return;
       }
+      const fallbackConfig = {
+        prompt: {
+          limitTitle: 'Daily Review Limit Reached',
+          limitBody: "You've used {reviewCount} of {dailyLimit} free reviews today. Your limit resets daily - come back tomorrow for more reviews, or unlock unlimited reviews by upgrading now.",
+          title: 'Upgrade to one of our premium plans',
+          description: 'Get unlimited reviews, review larger PRs, choose your AI model, customize review rules, and more'
+        },
+        plans: [
+          {
+            name: 'Lite',
+            interval: 'monthly',
+            price: 10,
+            period: 'month',
+            currency: 'USD',
+            ctaText: 'Choose Lite',
+            features: ['15 reviews per day', 'Bigger PR analysis', 'Lite flagship models'],
+            checkoutUrl: 'https://portal.thinkreview.dev/subscription',
+            hasDiscount: false
+          },
+          {
+            name: 'Professional',
+            interval: 'monthly',
+            price: 15,
+            period: 'month',
+            currency: 'USD',
+            ctaText: 'Choose Professional',
+            features: ['25 reviews per day', 'Premium AI models', 'Priority support'],
+            checkoutUrl: 'https://portal.thinkreview.dev/subscription',
+            hasDiscount: false
+          }
+        ]
+      };
+
+      let upgradeConfig = fallbackConfig;
+      try {
+        const cloudModule = await import(chrome.runtime.getURL('services/cloud-service.js'));
+        const storageData = await new Promise((resolve) => {
+          chrome.storage.local.get(['userData', 'user'], resolve);
+        });
+
+        let email = storageData?.userData?.email || null;
+        if (!email && storageData?.user) {
+          try {
+            const parsedUser = JSON.parse(storageData.user);
+            email = parsedUser?.email || null;
+          } catch (parseError) {
+            dbgWarn('Failed to parse user data for upgrade config:', parseError);
+          }
+        }
+
+        if (email) {
+          const remoteConfig = await cloudModule.CloudService.getUpgradePromptConfig(email);
+          if (remoteConfig && Array.isArray(remoteConfig.plans) && remoteConfig.plans.length > 0) {
+            upgradeConfig = {
+              ...fallbackConfig,
+              ...remoteConfig,
+              prompt: {
+                ...fallbackConfig.prompt,
+                ...(remoteConfig.prompt || {})
+              }
+            };
+          }
+        }
+      } catch (configError) {
+        dbgWarn('Error fetching upgrade prompt config, using fallback:', configError);
+      }
+
+      const safeBody = String(upgradeConfig.prompt.limitBody || fallbackConfig.prompt.limitBody)
+        .replace('{reviewCount}', String(reviewCount))
+        .replace('{dailyLimit}', String(dailyLimit));
+      const safeLimitTitle = String(upgradeConfig.prompt.limitTitle || fallbackConfig.prompt.limitTitle);
+
       const html = response.content;
       upgradeWrapper.innerHTML = `
         <div class="gl-alert gl-alert-warning">
           <div class="gl-alert-content">
-            <div class="gl-alert-title">Daily Review Limit Reached</div>
-            <div class="gl-mb-3">
-              You've used ${reviewCount} of ${dailyLimit} free reviews today. Your limit resets daily — come back tomorrow for more reviews, or unlock unlimited reviews by upgrading now.
-            </div>
+            <div class="gl-alert-title" id="upgrade-limit-title"></div>
+            <div class="gl-mb-3" id="upgrade-limit-body"></div>
           </div>
         </div>
         ${html}
       `;
 
-      // Add direct event listener to the upgrade button (simple redirect)
-      const upgradeBtn = upgradeWrapper.querySelector('#upgrade-btn');
-      if (upgradeBtn) {
-        upgradeBtn.addEventListener('click', async (e) => {
-          e.preventDefault();
+      const limitTitleEl = upgradeWrapper.querySelector('#upgrade-limit-title');
+      const limitBodyEl = upgradeWrapper.querySelector('#upgrade-limit-body');
+      if (limitTitleEl) limitTitleEl.textContent = safeLimitTitle;
+      if (limitBodyEl) limitBodyEl.textContent = safeBody;
 
-          // Track upgrade button click
-          try {
-            const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
-            trackUserAction('upgrade_button_clicked', {
-              context: 'subscription_section',
-              location: 'integrated_panel',
-              source: 'daily_limit'
-            }).catch(() => {}); // Silently fail
-          } catch (error) {
-            // Silently fail - analytics shouldn't break the extension
+      const titleEl = upgradeWrapper.querySelector('#subscription-title');
+      const descriptionEl = upgradeWrapper.querySelector('#subscription-description');
+      if (titleEl) titleEl.textContent = upgradeConfig.prompt.title || fallbackConfig.prompt.title;
+      if (descriptionEl) descriptionEl.textContent = upgradeConfig.prompt.description || fallbackConfig.prompt.description;
+
+      const plans = Array.isArray(upgradeConfig.plans) ? upgradeConfig.plans.slice(0, 2) : fallbackConfig.plans;
+      const cards = upgradeWrapper.querySelectorAll('.subscription-plan-card');
+      cards.forEach((card, idx) => {
+        const plan = plans[idx];
+        if (!plan) {
+          card.classList.add('gl-hidden');
+          return;
+        }
+
+        const nameEl = card.querySelector('.plan-name');
+        const priceEl = card.querySelector('.plan-price');
+        const taglineEl = card.querySelector('.plan-tagline');
+        const offerEl = card.querySelector('.plan-offer');
+        const featuresEl = card.querySelector('.plan-features');
+        const modelsSection = card.querySelector('[data-plan-models-section]');
+        const modelsListEl = card.querySelector('.plan-model-highlights');
+        const ctaBtn = card.querySelector('.upgrade-btn');
+
+        const period = plan.period || 'month';
+        const currency = plan.currency || 'USD';
+        const price = Number.isFinite(Number(plan.price)) ? Number(plan.price) : null;
+        const discountPercent = Number(plan.discountPercent || 0);
+
+        if (nameEl) nameEl.textContent = plan.name || `Plan ${idx + 1}`;
+        if (priceEl) {
+          priceEl.textContent = price !== null ? `$${price}/${period}` : `${currency}/${period}`;
+        }
+        if (taglineEl) taglineEl.textContent = plan.tagline || '';
+
+        if (offerEl) {
+          if (plan.hasDiscount && discountPercent > 0) {
+            offerEl.classList.remove('gl-hidden');
+            offerEl.textContent = `${discountPercent}% off${plan.discountCode ? ` (${plan.discountCode})` : ''}`;
+          } else {
+            offerEl.classList.add('gl-hidden');
+            offerEl.textContent = '';
           }
+        }
 
-          const subscriptionPortalUrl = 'https://portal.thinkreview.dev/subscription';
-          window.open(subscriptionPortalUrl, '_blank');
-        });
-      }
+        if (featuresEl) {
+          featuresEl.innerHTML = '';
+          const features = Array.isArray(plan.features) ? plan.features : [];
+          features.forEach((feature) => {
+            const li = document.createElement('li');
+            li.textContent = String(feature);
+            featuresEl.appendChild(li);
+          });
+        }
+
+        const modelHighlights = Array.isArray(plan.modelHighlights) ? plan.modelHighlights : [];
+        if (modelsSection && modelsListEl) {
+          if (modelHighlights.length > 0) {
+            modelsSection.classList.remove('gl-hidden');
+            modelsListEl.innerHTML = '';
+            modelHighlights.forEach((name) => {
+              const li = document.createElement('li');
+              li.textContent = String(name);
+              modelsListEl.appendChild(li);
+            });
+          } else {
+            modelsSection.classList.add('gl-hidden');
+            modelsListEl.innerHTML = '';
+          }
+        }
+
+        if (ctaBtn) {
+          ctaBtn.textContent = plan.ctaText || 'Choose Plan';
+          ctaBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+
+            try {
+              const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+              trackUserAction('upgrade_button_clicked', {
+                context: 'subscription_section',
+                location: 'integrated_panel',
+                source: 'daily_limit',
+                planId: plan.id || null,
+                interval: plan.interval || null
+              }).catch(() => {});
+            } catch (error) {
+              // Silently fail - analytics should never break CTA
+            }
+
+            const destinationUrl = plan.checkoutUrl || 'https://portal.thinkreview.dev/subscription';
+            window.open(destinationUrl, '_blank');
+          });
+        }
+      });
     }
   );
 

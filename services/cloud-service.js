@@ -12,6 +12,7 @@ const GET_USER_DATA_URL = `${CLOUD_FUNCTIONS_BASE_URL}/ThinkReviewGetUserData`;
 const GET_USER_SUBSCRIPTION_DATA_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getUserSubscriptionDataThinkReview`;
 const TRACK_REVIEW_PROMPT_INTERACTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackReviewPromptInteractionHTTP`;
 const GET_REVIEW_PROMPT_MESSAGES_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getReviewPromptMessagesThinkReview`;
+const GET_UPGRADE_PROMPT_CONFIG_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getUpgradePromptConfigThinkReview`;
 const CREATE_CHECKOUT_SESSION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/createCheckoutSessionThinkReview`;
 const CANCEL_SUBSCRIPTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/cancelSubscriptionThinkReview`;
 const CONVERSATIONAL_REVIEW_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview`;
@@ -999,6 +1000,45 @@ export class CloudService {
       dbgWarn('Error fetching review prompt messages:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get daily-limit upgrade prompt configuration from Remote Config (via cloud function).
+   * @param {string} email - User's email for authentication
+   * @returns {Promise<Object>} - { prompt, allowDiscounts, plans[] }
+   */
+  static async getUpgradePromptConfig(email) {
+    dbgLog('Fetching upgrade prompt config:', { email });
+
+    if (!email) {
+      throw new Error('Email is required');
+    }
+
+    const response = await fetch(GET_UPGRADE_PROMPT_CONFIG_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    dbgLog('GetUpgradePromptConfig response:', data);
+
+    if (data.status !== 'success' || !Array.isArray(data.plans)) {
+      throw new Error('Invalid response format from getUpgradePromptConfig');
+    }
+
+    return {
+      prompt: data.prompt || {},
+      allowDiscounts: data.allowDiscounts !== false,
+      plans: data.plans
+    };
   }
 
   /**
