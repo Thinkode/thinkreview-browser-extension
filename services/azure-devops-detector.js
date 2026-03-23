@@ -260,25 +260,41 @@ export class AzureDevOpsDetector {
   }
 
   /**
-   * Extract project name from URL
-   * Project is always the first segment after the org: /{org}/{project}/... or /{org}/{project}/{team}/_git/...
-   * Returns null only when path is /{org}/_git/{repo} (no project segment).
-   * @returns {string|null} Project name, or null when URL is /{org}/_git/{repo}
+   * Extract project name from URL.
+   *
+   * URL shapes by host type:
+   *   visualstudio.com  → org is subdomain; path = /{project}/_git/{repo}/...   → pathParts[0] is project
+   *   dev.azure.com     → org is pathParts[0]; path = /{org}/{project}/_git/...  → pathParts[1] is project
+   *   on-prem/custom    → collection is pathParts[0]; path = /{coll}/_git/{repo} or /{coll}/{project}/_git/...
+   *                       → pathParts[1] is project (null when it equals '_git')
+   *
+   * @returns {string|null} Project name, or null when it cannot be determined from the URL
    */
   extractProject() {
     const pathname = window.location.pathname;
+    const hostname = window.location.hostname;
     const pathParts = pathname.split('/').filter(Boolean);
 
-    // Must have at least org and something before or at _git
-    if (pathParts.length < 2) return null;
-
-    // First segment is org/collection; second is project when present
-    // URL shapes: /{org}/_git/{repo} or /{org}/{project}/_git/{repo} or /{org}/{project}/{team}/_git/{repo}
-    const segmentAfterOrg = pathParts[1];
-    if (segmentAfterOrg === '_git') {
+    // visualstudio.com: org is the subdomain, so the path starts with the project
+    if (hostname.includes('visualstudio.com')) {
+      // Path: /{project}/_git/{repo}/...
+      if (pathParts.length >= 1 && pathParts[0] !== '_git') {
+        return pathParts[0];
+      }
       return null;
     }
-    return segmentAfterOrg;
+
+    // dev.azure.com: path is /{org}/{project}/_git/{repo}/...
+    if (hostname.includes('dev.azure.com')) {
+      if (pathParts.length < 2) return null;
+      const segmentAfterOrg = pathParts[1];
+      return segmentAfterOrg === '_git' ? null : segmentAfterOrg;
+    }
+
+    // On-prem / custom domain: path is /{collection}/_git/{repo} or /{collection}/{project}/_git/{repo}
+    if (pathParts.length < 2) return null;
+    const segmentAfterOrg = pathParts[1];
+    return segmentAfterOrg === '_git' ? null : segmentAfterOrg;
   }
 
   /**
