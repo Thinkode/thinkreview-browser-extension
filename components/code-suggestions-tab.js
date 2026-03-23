@@ -1,6 +1,6 @@
 // code-suggestions-tab.js
 // Module for the Code Suggestions tab in the integrated review panel.
-// Handles visibility, badge, population, and GitLab diff injection storage.
+// Handles visibility, suggestion count on tab, population, and GitLab diff injection storage.
 // Code suggestions feature is only available for Professional and Lite subscription types.
 
 /** Cached analytics module - loaded once on first use (use getURL for Firefox content script context) */
@@ -54,19 +54,17 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
     // Show Code Suggestions tab in the integrated panel
     if (codeSuggestionsTabBtn) {
       codeSuggestionsTabBtn.classList.remove('gl-hidden');
-      // Add "New" badge next to tab header using same module as other badges
-      if (!codeSuggestionsTabBtn.querySelector('.thinkreview-new-badge')) {
-        try {
-          const badgeModule = await import(chrome.runtime.getURL('components/utils/new-badge.js'));
-          const badgeCreator = badgeModule?.createNewBadge;
-          if (badgeCreator) {
-            const newBadge = badgeCreator('New');
-            codeSuggestionsTabBtn.appendChild(newBadge);
-          }
-        } catch (error) {
-          dbgWarn('Failed to load badge module for Code Suggestions tab:', error);
-        }
+      codeSuggestionsTabBtn.querySelectorAll('.thinkreview-new-badge').forEach((el) => el.remove());
+
+      const suggestionCount = review.codeSuggestions.length;
+      let countEl = codeSuggestionsTabBtn.querySelector('.thinkreview-code-suggestions-tab-count');
+      if (!countEl) {
+        countEl = document.createElement('span');
+        countEl.className = 'thinkreview-code-suggestions-tab-count';
+        codeSuggestionsTabBtn.appendChild(countEl);
       }
+      countEl.textContent = suggestionCount > 99 ? '99+' : String(suggestionCount);
+      countEl.setAttribute('aria-label', `${suggestionCount} code suggestion${suggestionCount === 1 ? '' : 's'}`);
     }
 
     if (codeSuggestionsInner) {
@@ -286,7 +284,10 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
     }
   } else {
     // No code suggestions - hide tab and clear
-    if (codeSuggestionsTabBtn) codeSuggestionsTabBtn.classList.add('gl-hidden');
+    if (codeSuggestionsTabBtn) {
+      codeSuggestionsTabBtn.classList.add('gl-hidden');
+      codeSuggestionsTabBtn.querySelectorAll('.thinkreview-new-badge, .thinkreview-code-suggestions-tab-count').forEach((el) => el.remove());
+    }
     if (codeSuggestionsInner) codeSuggestionsInner.innerHTML = '';
     delete window.__thinkreview_codeSuggestions;
 
