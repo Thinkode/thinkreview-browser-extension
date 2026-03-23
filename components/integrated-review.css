@@ -221,6 +221,13 @@
   overflow: hidden; /* Prevent content from overflowing card-body */
 }
 
+#upgrade-message-wrapper {
+  margin: auto;
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 #review-scroll-container {
   flex-grow: 1;
   min-height: 0; /* Allow flex shrink so overflow/scroll works */
