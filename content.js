@@ -911,21 +911,30 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
         .replace('{dailyLimit}', String(dailyLimit));
       const safeLimitTitle = String(upgradeConfig.prompt.limitTitle || fallbackConfig.prompt.limitTitle);
 
-      const html = response.content;
-      upgradeWrapper.innerHTML = `
-        <div class="gl-alert gl-alert-warning">
-          <div class="gl-alert-content">
-            <div class="gl-alert-title" id="upgrade-limit-title"></div>
-            <div class="gl-mb-3" id="upgrade-limit-body"></div>
-          </div>
-        </div>
-        ${html}
-      `;
+      // Build the alert box with DOM APIs (no innerHTML) to avoid XSS risks.
+      const alertBox = document.createElement('div');
+      alertBox.className = 'gl-alert gl-alert-warning';
+      const alertContent = document.createElement('div');
+      alertContent.className = 'gl-alert-content';
+      const limitTitleEl = document.createElement('div');
+      limitTitleEl.className = 'gl-alert-title';
+      limitTitleEl.id = 'upgrade-limit-title';
+      limitTitleEl.textContent = safeLimitTitle;
+      const limitBodyEl = document.createElement('div');
+      limitBodyEl.className = 'gl-mb-3';
+      limitBodyEl.id = 'upgrade-limit-body';
+      limitBodyEl.textContent = safeBody;
+      alertContent.appendChild(limitTitleEl);
+      alertContent.appendChild(limitBodyEl);
+      alertBox.appendChild(alertContent);
+      upgradeWrapper.appendChild(alertBox);
 
-      const limitTitleEl = upgradeWrapper.querySelector('#upgrade-limit-title');
-      const limitBodyEl = upgradeWrapper.querySelector('#upgrade-limit-body');
-      if (limitTitleEl) limitTitleEl.textContent = safeLimitTitle;
-      if (limitBodyEl) limitBodyEl.textContent = safeBody;
+      // Parse the subscription section HTML from the bundle and append its nodes.
+      const parser = new DOMParser();
+      const subscriptionDoc = parser.parseFromString(response.content, 'text/html');
+      Array.from(subscriptionDoc.body.childNodes).forEach((node) => {
+        upgradeWrapper.appendChild(document.adoptNode(node));
+      });
 
       const titleEl = upgradeWrapper.querySelector('#subscription-title');
       const descriptionEl = upgradeWrapper.querySelector('#subscription-description');
@@ -1023,7 +1032,7 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
         }
 
         if (featuresEl) {
-          featuresEl.innerHTML = '';
+          featuresEl.replaceChildren();
           const features = Array.isArray(plan.features) ? plan.features : [];
           features.forEach((feature) => {
             const li = document.createElement('li');
@@ -1204,21 +1213,30 @@ function showPrSizeUpgradeMessage(patchSize) {
         dbgWarn('Error fetching upgrade prompt config, using fallback:', configError);
       }
 
-      const html = response.content;
-      upgradeWrapper.innerHTML = `
-        <div class="gl-alert gl-alert-warning">
-          <div class="gl-alert-content">
-            <div class="gl-alert-title" id="upgrade-limit-title"></div>
-            <div class="gl-mb-3" id="upgrade-limit-body"></div>
-          </div>
-        </div>
-        ${html}
-      `;
+      // Build the alert box with DOM APIs (no innerHTML) to avoid XSS risks.
+      const alertBox = document.createElement('div');
+      alertBox.className = 'gl-alert gl-alert-warning';
+      const alertContent = document.createElement('div');
+      alertContent.className = 'gl-alert-content';
+      const limitTitleEl = document.createElement('div');
+      limitTitleEl.className = 'gl-alert-title';
+      limitTitleEl.id = 'upgrade-limit-title';
+      limitTitleEl.textContent = limitTitle;
+      const limitBodyEl = document.createElement('div');
+      limitBodyEl.className = 'gl-mb-3';
+      limitBodyEl.id = 'upgrade-limit-body';
+      limitBodyEl.textContent = limitBody;
+      alertContent.appendChild(limitTitleEl);
+      alertContent.appendChild(limitBodyEl);
+      alertBox.appendChild(alertContent);
+      upgradeWrapper.appendChild(alertBox);
 
-      const limitTitleEl = upgradeWrapper.querySelector('#upgrade-limit-title');
-      const limitBodyEl = upgradeWrapper.querySelector('#upgrade-limit-body');
-      if (limitTitleEl) limitTitleEl.textContent = limitTitle;
-      if (limitBodyEl) limitBodyEl.textContent = limitBody;
+      // Parse the subscription section HTML from the bundle and append its nodes.
+      const parser = new DOMParser();
+      const subscriptionDoc = parser.parseFromString(response.content, 'text/html');
+      Array.from(subscriptionDoc.body.childNodes).forEach((node) => {
+        upgradeWrapper.appendChild(document.adoptNode(node));
+      });
 
       const titleEl = upgradeWrapper.querySelector('#subscription-title');
       const descriptionEl = upgradeWrapper.querySelector('#subscription-description');
@@ -1316,7 +1334,7 @@ function showPrSizeUpgradeMessage(patchSize) {
         }
 
         if (featuresEl) {
-          featuresEl.innerHTML = '';
+          featuresEl.replaceChildren();
           const features = Array.isArray(plan.features) ? plan.features : [];
           features.forEach((feature) => {
             const li = document.createElement('li');
