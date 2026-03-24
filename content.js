@@ -1062,6 +1062,298 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
   reviewContent.insertBefore(upgradeWrapper, reviewContent.firstChild);
 }
 
+/**
+ * Show the full upgrade prompt when a PR exceeds free-tier size limits.
+ * Mirrors showUpgradeMessage but with a PR-size-specific top message.
+ * @param {Object} patchSize - { original, truncated, wasForcedTruncated, ... } from backend
+ */
+function showPrSizeUpgradeMessage(patchSize) {
+  if (typeof stopEnhancedLoader === 'function') {
+    stopEnhancedLoader();
+  }
+
+  const reviewLoading = document.getElementById('review-loading');
+  const reviewContent = document.getElementById('review-content');
+  const reviewError = document.getElementById('review-error');
+  const loginPrompt = document.getElementById('review-login-prompt');
+
+  if (reviewLoading) reviewLoading.classList.add('gl-hidden');
+  if (reviewContent) reviewContent.classList.remove('gl-hidden');
+  if (reviewError) reviewError.classList.add('gl-hidden');
+  if (loginPrompt) loginPrompt.classList.add('gl-hidden');
+
+  if (!reviewContent) return;
+
+  const tabsWrapper = reviewContent.querySelector('.thinkreview-tabs-wrapper');
+  const chatInputContainer = document.getElementById('chat-input-container');
+  if (tabsWrapper) tabsWrapper.classList.add('gl-hidden');
+  if (chatInputContainer) chatInputContainer.classList.add('gl-hidden');
+
+  const existingWrapper = document.getElementById('upgrade-message-wrapper');
+  if (existingWrapper) existingWrapper.remove();
+
+  const upgradeWrapper = document.createElement('div');
+  upgradeWrapper.id = 'upgrade-message-wrapper';
+
+  if (!document.getElementById('subscription-styles')) {
+    const linkEl = document.createElement('link');
+    linkEl.id = 'subscription-styles';
+    linkEl.rel = 'stylesheet';
+    linkEl.href = chrome.runtime.getURL('components/subscription-section.css');
+    document.head.appendChild(linkEl);
+  }
+
+  // Build the PR-size-specific top message
+  const formatSize = (bytes) => {
+    if (typeof bytes !== 'number' || Number.isNaN(bytes)) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const original = patchSize?.original || 0;
+  const truncated = patchSize?.truncated || 0;
+  const originalSizeFormatted = formatSize(original);
+
+  let percentageExceedsLimit;
+  if (original > 0 && truncated > 0) {
+    const rawExceeds = ((original - truncated) / truncated) * 100;
+    percentageExceedsLimit = Math.round(rawExceeds * 10) / 10;
+  } else {
+    percentageExceedsLimit = null;
+  }
+
+  const exceedsText = percentageExceedsLimit !== null
+    ? ` and exceeds the free plan limit by ${percentageExceedsLimit}%`
+    : '';
+
+  const limitTitle = 'PR Size Exceeds Free Plan Limits';
+  const limitBody = `This PR is ${originalSizeFormatted}${exceedsText}. Upgrade to a premium plan to review giant PRs up to 40K lines of code.`;
+
+  chrome.runtime.sendMessage(
+    { type: 'GET_EXTENSION_RESOURCE', path: 'components/subscription-section.html' },
+    async (response) => {
+      if (chrome.runtime.lastError || !response?.success) {
+        dbgWarn('Error loading subscription section:', response?.error || chrome.runtime.lastError?.message);
+        return;
+      }
+
+      const fallbackConfig = {
+        prompt: {
+          title: 'Upgrade to one of our premium plans',
+          description: 'Get unlimited reviews, review larger PRs up to 40K lines, choose your AI model, customize review rules, and more'
+        },
+        promotionalMessage: '',
+        plans: [
+          {
+            name: 'Lite',
+            interval: 'monthly',
+            price: 10,
+            period: 'month',
+            currency: 'USD',
+            ctaText: 'Choose Lite',
+            features: ['15 reviews per day', 'Bigger PR analysis', 'Lite flagship models'],
+            checkoutUrl: 'https://portal.thinkreview.dev/subscription',
+            hasDiscount: false
+          },
+          {
+            name: 'Professional',
+            interval: 'monthly',
+            price: 15,
+            period: 'month',
+            currency: 'USD',
+            ctaText: 'Choose Professional',
+            features: ['25 reviews per day', 'Premium AI models', 'Priority support'],
+            checkoutUrl: 'https://portal.thinkreview.dev/subscription',
+            hasDiscount: false
+          }
+        ]
+      };
+
+      let upgradeConfig = fallbackConfig;
+      try {
+        const cloudModule = await import(chrome.runtime.getURL('services/cloud-service.js'));
+        const storageData = await new Promise((resolve) => {
+          chrome.storage.local.get(['userData', 'user'], resolve);
+        });
+
+        let email = storageData?.userData?.email || null;
+        if (!email && storageData?.user) {
+          try {
+            const parsedUser = JSON.parse(storageData.user);
+            email = parsedUser?.email || null;
+          } catch (parseError) {
+            dbgWarn('Failed to parse user data for upgrade config:', parseError);
+          }
+        }
+
+        if (email) {
+          const remoteConfig = await cloudModule.CloudService.getUpgradePromptConfig(email);
+          if (remoteConfig && Array.isArray(remoteConfig.plans) && remoteConfig.plans.length > 0) {
+            upgradeConfig = {
+              ...fallbackConfig,
+              ...remoteConfig,
+              prompt: {
+                ...fallbackConfig.prompt,
+                ...(remoteConfig.prompt || {})
+              }
+            };
+          }
+        }
+      } catch (configError) {
+        dbgWarn('Error fetching upgrade prompt config, using fallback:', configError);
+      }
+
+      const html = response.content;
+      upgradeWrapper.innerHTML = `
+        <div class="gl-alert gl-alert-warning">
+          <div class="gl-alert-content">
+            <div class="gl-alert-title" id="upgrade-limit-title"></div>
+            <div class="gl-mb-3" id="upgrade-limit-body"></div>
+          </div>
+        </div>
+        ${html}
+      `;
+
+      const limitTitleEl = upgradeWrapper.querySelector('#upgrade-limit-title');
+      const limitBodyEl = upgradeWrapper.querySelector('#upgrade-limit-body');
+      if (limitTitleEl) limitTitleEl.textContent = limitTitle;
+      if (limitBodyEl) limitBodyEl.textContent = limitBody;
+
+      const titleEl = upgradeWrapper.querySelector('#subscription-title');
+      const descriptionEl = upgradeWrapper.querySelector('#subscription-description');
+      if (titleEl) titleEl.textContent = upgradeConfig.prompt.title || fallbackConfig.prompt.title;
+      if (descriptionEl) descriptionEl.textContent = upgradeConfig.prompt.description || fallbackConfig.prompt.description;
+
+      const promotionEl = upgradeWrapper.querySelector('#subscription-promotion');
+      const promoText =
+        typeof upgradeConfig.promotionalMessage === 'string' ? upgradeConfig.promotionalMessage.trim() : '';
+      if (promotionEl) {
+        if (promoText) {
+          promotionEl.textContent = promoText;
+          promotionEl.classList.remove('gl-hidden');
+        } else {
+          promotionEl.textContent = '';
+          promotionEl.classList.add('gl-hidden');
+        }
+      }
+
+      const plans = Array.isArray(upgradeConfig.plans) ? upgradeConfig.plans.slice(0, 2) : fallbackConfig.plans;
+      const cards = upgradeWrapper.querySelectorAll('.subscription-plan-card');
+      cards.forEach((card, idx) => {
+        const plan = plans[idx];
+        if (!plan) {
+          card.classList.add('gl-hidden');
+          return;
+        }
+
+        const nameEl = card.querySelector('.plan-name');
+        const priceEl = card.querySelector('.plan-price');
+        const billedEl = card.querySelector('.plan-billed');
+        const taglineEl = card.querySelector('.plan-tagline');
+        const offerEl = card.querySelector('.plan-offer');
+        const featuresEl = card.querySelector('.plan-features');
+        const ctaBtn = card.querySelector('.upgrade-btn');
+
+        const period = plan.period || 'month';
+        const isAnnualInterval = String(plan.interval || '').toLowerCase() === 'annual';
+        const currency = plan.currency || 'USD';
+        const price = Number.isFinite(Number(plan.price)) ? Number(plan.price) : null;
+        const discountPercent = Number(plan.discountPercent || 0);
+        const showDiscountedPrice =
+          plan.hasDiscount &&
+          discountPercent > 0 &&
+          discountPercent < 100 &&
+          price !== null &&
+          price > 0;
+
+        if (nameEl) nameEl.textContent = plan.name || `Plan ${idx + 1}`;
+        if (priceEl) {
+          priceEl.textContent = '';
+          const suffix = `/${period}`;
+          const formatAmount = (n) => {
+            const rounded = Math.round(n * 100) / 100;
+            return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+          };
+          if (price !== null) {
+            if (showDiscountedPrice) {
+              const discountedRaw = price * (1 - discountPercent / 100);
+              const discounted = Math.round(discountedRaw * 100) / 100;
+              const currentSpan = document.createElement('span');
+              currentSpan.className = 'plan-price-current';
+              currentSpan.textContent = `$${formatAmount(discounted)}${suffix}`;
+              const originalSpan = document.createElement('span');
+              originalSpan.className = 'plan-price-original';
+              originalSpan.textContent = `$${formatAmount(price)}${suffix}`;
+              priceEl.appendChild(originalSpan);
+              priceEl.appendChild(currentSpan);
+            } else {
+              priceEl.textContent = `$${formatAmount(price)}${suffix}`;
+            }
+          } else {
+            priceEl.textContent = `${currency}/${period}`;
+          }
+        }
+        if (billedEl) {
+          if (isAnnualInterval) {
+            billedEl.textContent = 'Billed annually';
+            billedEl.classList.remove('gl-hidden');
+          } else {
+            billedEl.textContent = '';
+            billedEl.classList.add('gl-hidden');
+          }
+        }
+        if (taglineEl) taglineEl.textContent = plan.tagline || '';
+
+        if (offerEl) {
+          if (plan.hasDiscount && discountPercent > 0) {
+            offerEl.classList.remove('gl-hidden');
+            offerEl.textContent = `${discountPercent}% off`;
+          } else {
+            offerEl.classList.add('gl-hidden');
+            offerEl.textContent = '';
+          }
+        }
+
+        if (featuresEl) {
+          featuresEl.innerHTML = '';
+          const features = Array.isArray(plan.features) ? plan.features : [];
+          features.forEach((feature) => {
+            const li = document.createElement('li');
+            li.textContent = String(feature);
+            featuresEl.appendChild(li);
+          });
+        }
+
+        if (ctaBtn) {
+          ctaBtn.textContent = plan.ctaText || 'Choose Plan';
+          ctaBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+
+            try {
+              const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+              trackUserAction('upgrade_button_clicked', {
+                context: 'subscription_section',
+                location: 'integrated_panel',
+                source: 'pr_size_limit',
+                planId: plan.id || null,
+                interval: plan.interval || null
+              }).catch(() => {});
+            } catch (error) {
+              // Silently fail - analytics should never break CTA
+            }
+
+            const destinationUrl = plan.checkoutUrl || 'https://portal.thinkreview.dev/subscription';
+            window.open(destinationUrl, '_blank');
+          });
+        }
+      });
+    }
+  );
+
+  reviewContent.insertBefore(upgradeWrapper, reviewContent.firstChild);
+}
+
 /** Dummy Azure DevOps token used when none is set in storage (>25 chars to satisfy length checks). */
 const DUMMY_AZURE_DEVOPS_TOKEN = 'thinkreview-azure-no-token-placeholder';
 
@@ -1354,7 +1646,18 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     if (filterSummaryText) {
       data.review.summary = (data.review.summary || '') + '\n\n' + filterSummaryText;
     }
-    
+
+    // If the patch was force-truncated due to free-tier limits, show the full upgrade prompt
+    // instead of the partial review, similar to how daily limit exceeded is handled.
+    if (data.patchSize?.wasForcedTruncated) {
+      const subStorage = await new Promise((resolve) => chrome.storage.local.get(['userSubscriptionData'], resolve));
+      const subType = (subStorage.userSubscriptionData?.userSubscriptionType || 'Free').toString().trim().toLowerCase();
+      if (subType === 'free') {
+        dbgLog('PR size exceeds free-tier limits, showing upgrade prompt');
+        showPrSizeUpgradeMessage(data.patchSize);
+        return;
+      }
+    }
 
     // Display the review results with patchSize, subscriptionType, modelUsed, cached status, provider, and ollamaMeta if available
     displayIntegratedReview(data.review, codeContent, data.patchSize, data.subscriptionType, data.modelUsed, data.cached, bgResponse.provider, data.ollamaMeta);

@@ -73,11 +73,6 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
   const excludedFileNames = Array.isArray(patchSize.excludedFileNames)
     ? patchSize.excludedFileNames.map(sanitizeFileName).filter(Boolean)
     : [];
-  const wasForcedTruncated = patchSize.wasForcedTruncated || false;
-  // Check if subscriptionType is 'free' (case-insensitive comparison, handle null/undefined)
-  const isFreeSubscription = subscriptionType && subscriptionType.toLowerCase() === 'free';
-  const showUpgradeMessage = wasForcedTruncated && isFreeSubscription;
-
   // Create main banner container
   const banner = document.createElement('div');
   banner.className = 'thinkreview-patch-size-banner';
@@ -263,62 +258,6 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
     }
 
     banner.appendChild(details);
-  }
-
-  // Add upgrade message if forced truncation occurred and user is on free tier
-  if (showUpgradeMessage) {
-    // Calculate percentages with a minimum visible value of 0.1% when some code was reviewed
-    let percentageReviewed;
-    if (patchSize.original > 0) {
-      const rawPercentage = (patchSize.truncated / patchSize.original) * 100;
-      if (rawPercentage > 0 && rawPercentage < 0.1) {
-        percentageReviewed = 0.1;
-      } else {
-        percentageReviewed = Math.round(rawPercentage * 10) / 10; // one decimal place
-      }
-    } else {
-      percentageReviewed = 100;
-    }
-    
-    // Format sizes for display
-    const truncatedSizeFormatted = formatSize(patchSize.truncated);
-    const originalSizeFormatted = formatSize(patchSize.original);
-    
-    // Randomly select one of the upgrade messages with percentage and sizes
-    const upgradeMessages = [
-      `Only ${percentageReviewed}% of this PR was reviewed (${truncatedSizeFormatted}/${originalSizeFormatted}) due to free tier limits. <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">Upgrade to one of our premium plans</a> to get a full review of this PR.`,
-      `Only ${percentageReviewed}% of your patch was reviewed (${truncatedSizeFormatted}/${originalSizeFormatted}) due to free tier limits. <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">Upgrade to one of our premium plans</a> to review your entire patch.`,
-      `This review covers ${percentageReviewed}% of your code changes (${truncatedSizeFormatted}/${originalSizeFormatted}) due to free tier limits. <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">Upgrade to one of our premium plans</a> to get a complete review of this PR.`
-    ];
-    
-    const randomMessage = upgradeMessages[Math.floor(Math.random() * upgradeMessages.length)];
-    
-    const upgradeMessage = document.createElement('div');
-    upgradeMessage.className = 'thinkreview-upgrade-message';
-    upgradeMessage.innerHTML = `
-      <div class="thinkreview-upgrade-message-content">
-        <span class="thinkreview-upgrade-icon">⚡</span>
-        <span class="thinkreview-upgrade-text">
-          ${randomMessage}
-        </span>
-      </div>
-    `;
-    banner.appendChild(upgradeMessage);
-    
-    // Add tracking to upgrade links in the message
-    const upgradeLinks = upgradeMessage.querySelectorAll('.thinkreview-upgrade-link');
-    upgradeLinks.forEach(link => {
-      link.addEventListener('click', (e) => {
-        // Track upgrade link click
-        if (trackUserAction) {
-          trackUserAction('upgrade_link_clicked', {
-            context: 'upgrade_message',
-            location: 'metadata_bar',
-            source: 'truncation_limit'
-          }).catch(() => {}); // Silently fail
-        }
-      });
-    });
   }
 
   container.appendChild(banner);

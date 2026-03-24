@@ -70,42 +70,6 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
     if (codeSuggestionsInner) {
       codeSuggestionsInner.innerHTML = '';
 
-      // For Free + forced-truncated users, show a truncation banner above the suggestions
-      if (isFreeLike && wasForcedTruncated) {
-        try {
-          if (patchSize && typeof patchSize.original === 'number' && patchSize.original > 0 && typeof patchSize.truncated === 'number') {
-            const original = patchSize.original;
-            const truncated = patchSize.truncated;
-
-            // Calculate percentages with a minimum visible value of 0.1% when some code was reviewed
-            let percentageReviewed;
-            const rawPercentage = (truncated / original) * 100;
-            if (rawPercentage > 0 && rawPercentage < 0.1) {
-              percentageReviewed = 0.1;
-            } else {
-              percentageReviewed = Math.round(rawPercentage * 10) / 10; // one decimal place
-            }
-
-            const banner = document.createElement('div');
-            banner.className = 'thinkreview-upgrade-message thinkreview-code-suggestions-upgrade-message';
-            banner.innerHTML = `
-              <div class="thinkreview-upgrade-message-content">
-                <span class="thinkreview-upgrade-icon">⚡</span>
-                <span class="thinkreview-upgrade-text">
-                  Code suggestions are based on only ${percentageReviewed}% of this PR due to free tier limits.
-                  <a href="https://portal.thinkreview.dev/subscription" target="_blank" class="thinkreview-upgrade-link">
-                    Upgrade to one of our premium plans
-                  </a>
-                  to get code suggestions for the entire PR.
-                </span>
-              </div>
-            `;
-            codeSuggestionsInner.appendChild(banner);
-          }
-        } catch (e) {
-          dbgWarn('Failed to render code suggestions truncation banner:', e);
-        }
-      }
       
       // Add GitLab injection toggle control (Beta)
       const toggleContainer = document.createElement('div');
