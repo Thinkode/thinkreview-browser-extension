@@ -1393,7 +1393,17 @@ async function handleSendMessage(messageText) {
   }
 }
 
-async function displayIntegratedReview(review, patchContent, patchSize = null, subscriptionType = null, modelUsed = null, isCached = false, provider = null, ollamaMeta = null) {
+async function displayIntegratedReview(
+  review,
+  patchContent,
+  patchSize = null,
+  subscriptionType = null,
+  modelUsed = null,
+  isCached = false,
+  provider = null,
+  ollamaMeta = null,
+  integrationOpts = null
+) {
   // Store review data for copy-all functionality
   currentReviewData = review;
 
@@ -2035,6 +2045,27 @@ async function displayIntegratedReview(review, patchContent, patchSize = null, s
     });
   } catch (error) {
     dbgWarn('Failed to update code suggestions tab:', error);
+  }
+
+  try {
+    const enabledFromApi = integrationOpts?.enabledReviewAgents;
+    let enabledReviewAgents = Array.isArray(enabledFromApi) ? enabledFromApi : null;
+    if (!enabledReviewAgents || enabledReviewAgents.length === 0) {
+      const st = await chrome.storage.local.get(['enabledReviewAgents']);
+      if (Array.isArray(st.enabledReviewAgents) && st.enabledReviewAgents.length > 0) {
+        enabledReviewAgents = st.enabledReviewAgents;
+      }
+    }
+    const agentTabs = await import(chrome.runtime.getURL('components/agent-review-tabs.js'));
+    await agentTabs.mountAgentReviewTabs({
+      enabledReviewAgents: enabledReviewAgents || [],
+      patchContent,
+      mrId: integrationOpts?.mrId ?? null,
+      provider: integrationOpts?.provider ?? provider ?? 'cloud',
+      logger: { dbgLog, dbgWarn }
+    });
+  } catch (error) {
+    dbgWarn('Failed to mount agent review tabs:', error);
   }
 }
 
