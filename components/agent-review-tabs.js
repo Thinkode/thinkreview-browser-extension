@@ -84,11 +84,19 @@ export async function mountAgentReviewTabs(opts) {
     panel.dataset.agentId = agent.id;
 
     const inner = document.createElement('div');
-    inner.className = 'thinkreview-agent-tab-inner gl-p-4';
+    inner.className = 'thinkreview-agent-tab-inner';
     inner.innerHTML =
-      '<div class="thinkreview-agent-loading gl-display-flex gl-align-items-center gl-gap-3">' +
-      '<span class="gl-spinner gl-spinner-md"></span>' +
-      '<span>Agent running…</span>' +
+      '<div class="thinkreview-agent-loading">' +
+        '<div class="thinkreview-agent-state-icon-wrap">' +
+          '<span class="thinkreview-agent-spinner-ring"></span>' +
+          '<svg class="thinkreview-agent-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>' +
+            '<path d="M18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/>' +
+          '</svg>' +
+        '</div>' +
+        '<div class="thinkreview-agent-state-title">Agent Running</div>' +
+        '<div class="thinkreview-agent-state-subtitle">Analyzing your code changes\u2026</div>' +
+        '<div class="thinkreview-agent-state-bar"><div class="thinkreview-agent-state-bar-fill"></div></div>' +
       '</div>';
     panel.appendChild(inner);
     panelsWrap.appendChild(panel);
@@ -100,7 +108,16 @@ export async function mountAgentReviewTabs(opts) {
         const inner = panel.querySelector('.thinkreview-agent-tab-inner');
         if (inner) {
           inner.innerHTML =
-            '<p class="thinkreview-section-content">Could not load agent review. Try refreshing the page.</p>';
+            '<div class="thinkreview-agent-error">' +
+              '<div class="thinkreview-agent-error-icon-wrap">' +
+                '<svg class="thinkreview-agent-error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+                  '<circle cx="12" cy="12" r="9"/>' +
+                  '<path d="M12 8v4m0 4h.01"/>' +
+                '</svg>' +
+              '</div>' +
+              '<div class="thinkreview-agent-state-title">Could Not Load</div>' +
+              '<div class="thinkreview-agent-state-subtitle">The agent review failed to load. Refresh the page to try again.</div>' +
+            '</div>';
         }
       });
       return;
@@ -117,16 +134,36 @@ export async function mountAgentReviewTabs(opts) {
       const row = byId.get(agentId);
       if (!row) {
         inner.innerHTML =
-          '<p class="thinkreview-section-content">No result returned for this agent.</p>';
+          '<div class="thinkreview-agent-error">' +
+            '<div class="thinkreview-agent-error-icon-wrap">' +
+              '<svg class="thinkreview-agent-error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+                '<circle cx="12" cy="12" r="9"/>' +
+                '<path d="M12 8v4m0 4h.01"/>' +
+              '</svg>' +
+            '</div>' +
+            '<div class="thinkreview-agent-state-title">No Result</div>' +
+            '<div class="thinkreview-agent-state-subtitle">No result was returned for this agent.</div>' +
+          '</div>';
         return;
       }
 
       if (row.pending) {
         const extra =
           payload.status === 'timeout'
-            ? ' The server stopped waiting; the agent may still be processing.'
+            ? 'The server stopped waiting; the agent may still be processing.'
             : '';
-        inner.innerHTML = `<p class="thinkreview-section-content">Agent review not ready yet.${extra}</p>`;
+        inner.innerHTML =
+          '<div class="thinkreview-agent-loading">' +
+            '<div class="thinkreview-agent-state-icon-wrap thinkreview-agent-state-icon-wrap--pending">' +
+              '<span class="thinkreview-agent-spinner-ring"></span>' +
+              '<svg class="thinkreview-agent-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+                '<circle cx="12" cy="12" r="9"/>' +
+                '<path d="M12 7v5l3 3"/>' +
+              '</svg>' +
+            '</div>' +
+            '<div class="thinkreview-agent-state-title">Still Processing</div>' +
+            `<div class="thinkreview-agent-state-subtitle">${extra || 'The agent is still working.'} Check back in a moment.</div>` +
+          '</div>';
         return;
       }
 
@@ -135,8 +172,17 @@ export async function mountAgentReviewTabs(opts) {
           ? markdownToHtml(preprocessAIResponse(String(row.skipReason)))
           : '<p>Skipped for this patch.</p>';
         inner.innerHTML =
-          '<div class="thinkreview-agent-skip gl-mb-3"><h5 class="gl-font-weight-bold thinkreview-section-title">Not run</h5>' +
-          `<div class="thinkreview-section-content">${reason}</div></div>`;
+          '<div class="thinkreview-agent-notrun">' +
+            '<div class="thinkreview-agent-notrun-icon-wrap">' +
+              '<svg class="thinkreview-agent-notrun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+                '<circle cx="12" cy="12" r="9"/>' +
+                '<path d="M9 12h6"/>' +
+              '</svg>' +
+            '</div>' +
+            '<span class="thinkreview-agent-notrun-badge">Not Run</span>' +
+            '<div class="thinkreview-agent-notrun-title">Agent Skipped</div>' +
+            `<div class="thinkreview-agent-notrun-reason">${reason}</div>` +
+          '</div>';
         return;
       }
 
