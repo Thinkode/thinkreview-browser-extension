@@ -1488,10 +1488,12 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   margin-bottom: 10px;
 }
 #gitlab-mr-integrated-review .thinkreview-agent-notrun-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #e0e0e0;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 #gitlab-mr-integrated-review .thinkreview-agent-notrun-reason {
   font-size: 12px;
@@ -1507,6 +1509,15 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
 }
 #gitlab-mr-integrated-review .thinkreview-agent-notrun-reason p {
   margin: 0;
+}
+#gitlab-mr-integrated-review .thinkreview-agent-notrun-reason-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 6px;
 }
 
 #gitlab-mr-integrated-review .thinkreview-code-suggestion-separator {

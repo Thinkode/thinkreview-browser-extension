@@ -180,8 +180,11 @@ export async function mountAgentReviewTabs(opts) {
               '</svg>' +
             '</div>' +
             '<span class="thinkreview-agent-notrun-badge">Not Run</span>' +
-            '<div class="thinkreview-agent-notrun-title">Agent Skipped</div>' +
-            `<div class="thinkreview-agent-notrun-reason">${reason}</div>` +
+            '<div class="thinkreview-agent-notrun-reason">' +
+              '<div class="thinkreview-agent-notrun-title">Agent Skipped</div>' +
+              '<span class="thinkreview-agent-notrun-reason-label">Reason</span>' +
+              `${reason}` +
+            '</div>' +
           '</div>';
         return;
       }
@@ -208,6 +211,21 @@ export async function mountAgentReviewTabs(opts) {
       }
       inner.innerHTML = html;
     });
+
+    // Move skipped-agent tabs to the end of the tab bar and panel list
+    const tabButtons = document.getElementById('review-tab-buttons');
+    if (tabButtons) {
+      tabButtons.querySelectorAll('[data-thinkreview-agent-tab]').forEach((btn) => {
+        const tabKey = btn.getAttribute('data-tab');
+        const panel = panelsWrap.querySelector(`[data-thinkreview-agent-panel][data-tab="${tabKey}"]`);
+        const agentId = panel ? panel.dataset.agentId : null;
+        const row = agentId ? byId.get(agentId) : null;
+        if (row && row.relevanceSkipped) {
+          tabButtons.appendChild(btn);
+          panelsWrap.appendChild(panel);
+        }
+      });
+    }
   };
 
   (async () => {
