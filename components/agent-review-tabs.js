@@ -57,6 +57,9 @@ export async function mountAgentReviewTabs(opts) {
   const markdownToHtml = formatting.markdownToHtml;
   const preprocessAIResponse = formatting.preprocessAIResponse;
 
+  const copyBtnModule = await import(chrome.runtime.getURL('components/utils/item-copy-button.js'));
+  const attachCopyButtonToItem = copyBtnModule.attachCopyButtonToItem;
+
   const escapeHtml = (s) =>
     String(s)
       .replace(/&/g, '&amp;')
@@ -274,10 +277,7 @@ export async function mountAgentReviewTabs(opts) {
               });
               
               itemWrapper.appendChild(liContentDiv);
-              
-              if (typeof window.attachCopyButtonToItem === 'function') {
-                window.attachCopyButtonToItem(liContentDiv, itemWrapper);
-              }
+              attachCopyButtonToItem(liContentDiv, itemWrapper);
               
               // Clear original li content and append the wrapper
               li.innerHTML = '';
@@ -323,10 +323,7 @@ export async function mountAgentReviewTabs(opts) {
           });
           
           itemWrapper.appendChild(contentDiv);
-          
-          if (typeof window.attachCopyButtonToItem === 'function') {
-            window.attachCopyButtonToItem(contentDiv, itemWrapper);
-          }
+          attachCopyButtonToItem(contentDiv, itemWrapper);
           
           sectionDiv.appendChild(itemWrapper);
         }
