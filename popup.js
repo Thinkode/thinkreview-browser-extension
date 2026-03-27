@@ -544,7 +544,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const { trackUserAction } = await import('./utils/analytics-service.js');
         trackUserAction('agents_opened', { context: 'popup' }).catch(() => {});
-      } catch (e) { /* silent */ }
+      } catch (e) { dbgError('Failed to track agents_opened action:', e); }
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/agents' });
     });
   }

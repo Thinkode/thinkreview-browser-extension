@@ -6,6 +6,11 @@
 /** Incremented on each mount so stale fetches do not update the DOM after a new review. */
 let agentTabFetchGeneration = 0;
 
+const dbgError = (...args) => {
+  if (typeof window !== 'undefined' && window.dbgError) window.dbgError(...args);
+  else console.error('[AgentReviewTabs]', ...args);
+};
+
 export function sanitizeAgentIdForDom(id) {
   return String(id || 'agent').replace(/[^a-zA-Z0-9]/g, '_');
 }
@@ -38,7 +43,7 @@ export async function renderEmptyAgentState(tabButtons, panelsWrap) {
   try {
     const newBadgeMod = await import(chrome.runtime.getURL('components/utils/new-badge.js'));
     btn.appendChild(newBadgeMod.createNewBadge());
-  } catch (e) { /* silent */ }
+  } catch (e) { dbgError('Failed to load new badge for agent placeholder:', e); }
   tabButtons.appendChild(btn);
 
   const panel = document.createElement('div');
@@ -278,7 +283,7 @@ export function renderAgentSectionContent(sec, processors) {
               context: 'integrated_review_panel',
               category: 'agent_section_item'
             }).catch(() => {});
-          } catch (error) { /* silent */ }
+          } catch (error) { dbgError('Failed to track review item click for agent section:', error); }
           
           const tempDiv = document.createElement('div');
           tempDiv.innerHTML = liContent;
@@ -319,7 +324,7 @@ export function renderAgentSectionContent(sec, processors) {
           context: 'integrated_review_panel',
           category: 'agent_section'
         }).catch(() => {});
-      } catch (error) { /* silent */ }
+      } catch (error) { dbgError('Failed to track review item click for agent section container:', error); }
       
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = sectHtml;
