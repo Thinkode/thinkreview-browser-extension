@@ -6,10 +6,22 @@
 /** Incremented on each mount so stale fetches do not update the DOM after a new review. */
 let agentTabFetchGeneration = 0;
 
-const dbgError = (...args) => {
-  if (typeof window !== 'undefined' && window.dbgError) window.dbgError(...args);
-  else console.error('[AgentReviewTabs]', ...args);
-};
+if (typeof DEBUG === 'undefined') {
+  var DEBUG = false;
+}
+
+// Logger functions - loaded dynamically to avoid module import issues in content scripts
+// Provide fallback functions immediately, then upgrade when logger loads
+// Check if variables already exist to avoid redeclaration errors
+if (typeof dbgLog === 'undefined') {
+  var dbgLog = (...args) => { if (DEBUG) console.log('[ThinkReview Extension]', ...args); };
+}
+if (typeof dbgWarn === 'undefined') {
+  var dbgWarn = (...args) => { if (DEBUG) console.warn('[ThinkReview Extension]', ...args); };
+}
+if (typeof dbgError === 'undefined') {
+  var dbgError = (...args) => { if (DEBUG) console.error('[ThinkReview Extension]', ...args); };
+}
 
 export function sanitizeAgentIdForDom(id) {
   return String(id || 'agent').replace(/[^a-zA-Z0-9]/g, '_');
@@ -54,39 +66,39 @@ export async function renderEmptyAgentState(tabButtons, panelsWrap) {
 
   panel.innerHTML =
     '<div class="thinkreview-agent-tab-scroll">' +
-      '<div class="thinkreview-agent-empty">' +
-        '<div class="thinkreview-agent-empty-icon-wrap">' +
-          '<svg class="thinkreview-agent-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
-            '<path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>' +
-            '<path d="M18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/>' +
-          '</svg>' +
-        '</div>' +
-        '<div class="thinkreview-agent-empty-title">No Agents Added Yet</div>' +
-        '<div class="thinkreview-agent-empty-subtitle">' +
-          'Agents are custom AI reviewers you can configure to run alongside your standard review — ' +
-          'each one focused on a different aspect of your code, like security, performance, or your team\'s specific guidelines.' +
-        '</div>' +
-        '<div class="thinkreview-agent-empty-steps">' +
-          '<div class="thinkreview-agent-empty-step">' +
-            '<span class="thinkreview-agent-empty-step-num">1</span>' +
-            '<span>Go to your agent portal and create a new agent</span>' +
-          '</div>' +
-          '<div class="thinkreview-agent-empty-step">' +
-            '<span class="thinkreview-agent-empty-step-num">2</span>' +
-            '<span>Define its focus area, prompt, and name</span>' +
-          '</div>' +
-          '<div class="thinkreview-agent-empty-step">' +
-            '<span class="thinkreview-agent-empty-step-num">3</span>' +
-            '<span>Re-run your review — the agent tab will appear automatically</span>' +
-          '</div>' +
-        '</div>' +
-        '<a class="thinkreview-agent-empty-cta" href="https://portal.thinkreview.dev/agents" target="_blank" rel="noopener noreferrer">' +
-          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">' +
-            '<path d="M12 5v14M5 12l7 7 7-7"/>' +
-          '</svg>' +
-          'Add an Agent' +
-        '</a>' +
-      '</div>' +
+    '<div class="thinkreview-agent-empty">' +
+    '<div class="thinkreview-agent-empty-icon-wrap">' +
+    '<svg class="thinkreview-agent-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>' +
+    '<path d="M18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/>' +
+    '</svg>' +
+    '</div>' +
+    '<div class="thinkreview-agent-empty-title">No Agents Added Yet</div>' +
+    '<div class="thinkreview-agent-empty-subtitle">' +
+    'Agents are custom AI reviewers you can configure to run alongside your standard review — ' +
+    'each one focused on a different aspect of your code, like security, performance, or your team\'s specific guidelines.' +
+    '</div>' +
+    '<div class="thinkreview-agent-empty-steps">' +
+    '<div class="thinkreview-agent-empty-step">' +
+    '<span class="thinkreview-agent-empty-step-num">1</span>' +
+    '<span>Go to your agent portal and create a new agent</span>' +
+    '</div>' +
+    '<div class="thinkreview-agent-empty-step">' +
+    '<span class="thinkreview-agent-empty-step-num">2</span>' +
+    '<span>Define its focus area, prompt, and name</span>' +
+    '</div>' +
+    '<div class="thinkreview-agent-empty-step">' +
+    '<span class="thinkreview-agent-empty-step-num">3</span>' +
+    '<span>Re-run your review — the agent tab will appear automatically</span>' +
+    '</div>' +
+    '</div>' +
+    '<a class="thinkreview-agent-empty-cta" href="https://portal.thinkreview.dev/agents" target="_blank" rel="noopener noreferrer">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">' +
+    '<path d="M12 5v14M5 12l7 7 7-7"/>' +
+    '</svg>' +
+    'Add an Agent' +
+    '</a>' +
+    '</div>' +
     '</div>';
 
   panelsWrap.appendChild(panel);
@@ -119,18 +131,18 @@ export function renderAgentLoadingTabs(enabledReviewAgents, tabButtons, panelsWr
     inner.className = 'thinkreview-agent-tab-inner';
     inner.innerHTML =
       '<div class="thinkreview-agent-loading">' +
-        '<div class="thinkreview-agent-state-icon-wrap">' +
-          '<span class="thinkreview-agent-spinner-ring"></span>' +
-          '<svg class="thinkreview-agent-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
-            '<path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>' +
-            '<path d="M18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/>' +
-          '</svg>' +
-        '</div>' +
-        '<div class="thinkreview-agent-state-title">Agent Running</div>' +
-        '<div class="thinkreview-agent-state-subtitle">Analyzing your code changes…</div>' +
-        '<div class="thinkreview-agent-state-bar"><div class="thinkreview-agent-state-bar-fill"></div></div>' +
+      '<div class="thinkreview-agent-state-icon-wrap">' +
+      '<span class="thinkreview-agent-spinner-ring"></span>' +
+      '<svg class="thinkreview-agent-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>' +
+      '<path d="M18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/>' +
+      '</svg>' +
+      '</div>' +
+      '<div class="thinkreview-agent-state-title">Agent Running</div>' +
+      '<div class="thinkreview-agent-state-subtitle">Analyzing your code changes…</div>' +
+      '<div class="thinkreview-agent-state-bar"><div class="thinkreview-agent-state-bar-fill"></div></div>' +
       '</div>';
-    
+
     scrollWrap.appendChild(inner);
     panel.appendChild(scrollWrap);
     panelsWrap.appendChild(panel);
@@ -143,14 +155,14 @@ export function handleAgentPayloadError(panelsWrap) {
     if (inner) {
       inner.innerHTML =
         '<div class="thinkreview-agent-error">' +
-          '<div class="thinkreview-agent-error-icon-wrap">' +
-            '<svg class="thinkreview-agent-error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
-              '<circle cx="12" cy="12" r="9"/>' +
-              '<path d="M12 8v4m0 4h.01"/>' +
-            '</svg>' +
-          '</div>' +
-          '<div class="thinkreview-agent-state-title">Could Not Load</div>' +
-          '<div class="thinkreview-agent-state-subtitle">The agent review failed to load. Refresh the page to try again.</div>' +
+        '<div class="thinkreview-agent-error-icon-wrap">' +
+        '<svg class="thinkreview-agent-error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+        '<circle cx="12" cy="12" r="9"/>' +
+        '<path d="M12 8v4m0 4h.01"/>' +
+        '</svg>' +
+        '</div>' +
+        '<div class="thinkreview-agent-state-title">Could Not Load</div>' +
+        '<div class="thinkreview-agent-state-subtitle">The agent review failed to load. Refresh the page to try again.</div>' +
         '</div>';
     }
   });
@@ -160,14 +172,14 @@ export function renderAgentPanelState(inner, row, processors, timeoutInfo) {
   if (!row) {
     inner.innerHTML =
       '<div class="thinkreview-agent-error">' +
-        '<div class="thinkreview-agent-error-icon-wrap">' +
-          '<svg class="thinkreview-agent-error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
-            '<circle cx="12" cy="12" r="9"/>' +
-            '<path d="M12 8v4m0 4h.01"/>' +
-          '</svg>' +
-        '</div>' +
-        '<div class="thinkreview-agent-state-title">No Result</div>' +
-        '<div class="thinkreview-agent-state-subtitle">No result was returned for this agent.</div>' +
+      '<div class="thinkreview-agent-error-icon-wrap">' +
+      '<svg class="thinkreview-agent-error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+      '<circle cx="12" cy="12" r="9"/>' +
+      '<path d="M12 8v4m0 4h.01"/>' +
+      '</svg>' +
+      '</div>' +
+      '<div class="thinkreview-agent-state-title">No Result</div>' +
+      '<div class="thinkreview-agent-state-subtitle">No result was returned for this agent.</div>' +
       '</div>';
     return;
   }
@@ -179,15 +191,15 @@ export function renderAgentPanelState(inner, row, processors, timeoutInfo) {
         : '';
     inner.innerHTML =
       '<div class="thinkreview-agent-loading">' +
-        '<div class="thinkreview-agent-state-icon-wrap thinkreview-agent-state-icon-wrap--pending">' +
-          '<span class="thinkreview-agent-spinner-ring"></span>' +
-          '<svg class="thinkreview-agent-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
-            '<circle cx="12" cy="12" r="9"/>' +
-            '<path d="M12 7v5l3 3"/>' +
-          '</svg>' +
-        '</div>' +
-        '<div class="thinkreview-agent-state-title">Still Processing</div>' +
-        `<div class="thinkreview-agent-state-subtitle">${extra || 'The agent is still working.'} Check back in a moment.</div>` +
+      '<div class="thinkreview-agent-state-icon-wrap thinkreview-agent-state-icon-wrap--pending">' +
+      '<span class="thinkreview-agent-spinner-ring"></span>' +
+      '<svg class="thinkreview-agent-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+      '<circle cx="12" cy="12" r="9"/>' +
+      '<path d="M12 7v5l3 3"/>' +
+      '</svg>' +
+      '</div>' +
+      '<div class="thinkreview-agent-state-title">Still Processing</div>' +
+      `<div class="thinkreview-agent-state-subtitle">${extra || 'The agent is still working.'} Check back in a moment.</div>` +
       '</div>';
     return;
   }
@@ -198,18 +210,18 @@ export function renderAgentPanelState(inner, row, processors, timeoutInfo) {
       : '<p>Skipped for this patch.</p>';
     inner.innerHTML =
       '<div class="thinkreview-agent-notrun">' +
-        '<div class="thinkreview-agent-notrun-icon-wrap">' +
-          '<svg class="thinkreview-agent-notrun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
-            '<circle cx="12" cy="12" r="9"/>' +
-            '<path d="M9 12h6"/>' +
-          '</svg>' +
-        '</div>' +
-        '<span class="thinkreview-agent-notrun-badge">Not Run</span>' +
-        '<div class="thinkreview-agent-notrun-reason">' +
-          '<div class="thinkreview-agent-notrun-title">Agent Skipped</div>' +
-          '<span class="thinkreview-agent-notrun-reason-label">Reason</span>' +
-          `${reason}` +
-        '</div>' +
+      '<div class="thinkreview-agent-notrun-icon-wrap">' +
+      '<svg class="thinkreview-agent-notrun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+      '<circle cx="12" cy="12" r="9"/>' +
+      '<path d="M9 12h6"/>' +
+      '</svg>' +
+      '</div>' +
+      '<span class="thinkreview-agent-notrun-badge">Not Run</span>' +
+      '<div class="thinkreview-agent-notrun-reason">' +
+      '<div class="thinkreview-agent-notrun-title">Agent Skipped</div>' +
+      '<span class="thinkreview-agent-notrun-reason-label">Reason</span>' +
+      `${reason}` +
+      '</div>' +
       '</div>';
     return;
   }
@@ -229,52 +241,52 @@ export function renderAgentPanelState(inner, row, processors, timeoutInfo) {
     const sectionDiv = renderAgentSectionContent(sec, processors);
     contentFragment.appendChild(sectionDiv);
   }
-  
+
   if (row.parseError) {
     const warning = document.createElement('p');
     warning.className = 'gl-text-warning gl-mt-2';
     warning.textContent = 'Some output may be incomplete (parse warning).';
     contentFragment.appendChild(warning);
   }
-  
+
   inner.appendChild(contentFragment);
 }
 
 export function renderAgentSectionContent(sec, processors) {
   const title = sec.title ? String(sec.title) : 'Section';
   const content = sec.content != null ? String(sec.content) : '';
-  
+
   const sectionDiv = document.createElement('div');
   sectionDiv.className = 'thinkreview-agent-section gl-mb-4';
-  
+
   const headerRow = document.createElement('div');
   headerRow.className = 'thinkreview-section-header-row';
   headerRow.innerHTML = `<h5 class="gl-font-weight-bold thinkreview-section-title">${escapeHtml(title)}</h5>`;
   sectionDiv.appendChild(headerRow);
-  
+
   let sectHtml = processors.markdownToHtml(processors.preprocessAIResponse(content));
   sectHtml = sectHtml.replace(/<ul>/g, '<ul class="gl-pl-5 thinkreview-section-list">');
   sectHtml = sectHtml.replace(/<ol>/g, '<ol class="gl-pl-5 thinkreview-section-list">');
-  
+
   const tempContainer = document.createElement('div');
   tempContainer.innerHTML = sectHtml;
   const lists = tempContainer.querySelectorAll('ul.thinkreview-section-list, ol.thinkreview-section-list');
-  
+
   if (lists.length > 0) {
     lists.forEach(list => {
       const listItems = list.querySelectorAll('li');
-      
+
       for (let i = 0; i < listItems.length; i++) {
         const li = listItems[i];
         const liContent = li.innerHTML;
-        
+
         const itemWrapper = document.createElement('div');
         itemWrapper.className = 'thinkreview-item-wrapper';
-        
+
         const liContentDiv = document.createElement('div');
         liContentDiv.className = 'thinkreview-section-content thinkreview-clickable-item';
         liContentDiv.innerHTML = liContent;
-        
+
         liContentDiv.addEventListener('click', async (e) => {
           e.stopPropagation();
           try {
@@ -282,15 +294,15 @@ export function renderAgentSectionContent(sec, processors) {
             analyticsModule.trackUserAction('review_item_clicked', {
               context: 'integrated_review_panel',
               category: 'agent_section_item'
-            }).catch(() => {});
+            }).catch(() => { });
           } catch (error) { dbgError('Failed to track review item click for agent section:', error); }
-          
+
           const tempDiv = document.createElement('div');
           tempDiv.innerHTML = liContent;
           const itemText = (tempDiv.textContent || tempDiv.innerText || '').trim();
-          
+
           const query = `Can you provide more details about this from the agent's ${title} section? ${itemText}`;
-          
+
           try {
             const irModule = await import(chrome.runtime.getURL('components/integrated-review.js'));
             if (irModule && irModule.handleSendMessage) irModule.handleSendMessage(query);
@@ -299,39 +311,39 @@ export function renderAgentSectionContent(sec, processors) {
             if (window.handleSendMessage) window.handleSendMessage(query);
           }
         });
-        
+
         itemWrapper.appendChild(liContentDiv);
         processors.attachCopyButtonToItem(liContentDiv, itemWrapper);
-        
+
         li.innerHTML = '';
         li.appendChild(itemWrapper);
       }
     });
-    
+
     sectionDiv.appendChild(tempContainer);
   } else {
     const itemWrapper = document.createElement('div');
     itemWrapper.className = 'thinkreview-item-wrapper';
-    
+
     const contentDiv = document.createElement('div');
     contentDiv.className = 'thinkreview-section-content thinkreview-clickable-item';
     contentDiv.innerHTML = sectHtml;
-    
+
     contentDiv.addEventListener('click', async () => {
       try {
         const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
         analyticsModule.trackUserAction('review_item_clicked', {
           context: 'integrated_review_panel',
           category: 'agent_section'
-        }).catch(() => {});
+        }).catch(() => { });
       } catch (error) { dbgError('Failed to track review item click for agent section container:', error); }
-      
+
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = sectHtml;
       const itemText = (tempDiv.textContent || tempDiv.innerText || '').trim();
-      
+
       const query = `Can you provide more details about this from the ${title} section? ${itemText}`;
-      
+
       try {
         const irModule = await import(chrome.runtime.getURL('components/integrated-review.js'));
         if (irModule && irModule.handleSendMessage) {
@@ -343,10 +355,10 @@ export function renderAgentSectionContent(sec, processors) {
         if (window.handleSendMessage) window.handleSendMessage(query);
       }
     });
-    
+
     itemWrapper.appendChild(contentDiv);
     processors.attachCopyButtonToItem(contentDiv, itemWrapper);
-    
+
     sectionDiv.appendChild(itemWrapper);
   }
 
@@ -378,8 +390,8 @@ export function sortAgentTabs(tabButtons, panelsWrap, byId) {
  */
 export async function mountAgentReviewTabs(opts) {
   const { enabledReviewAgents, patchContent, mrId, provider, logger = {} } = opts;
-  const dbgLog = logger.dbgLog || (() => {});
-  const dbgWarn = logger.dbgWarn || (() => {});
+  const dbgLog = logger.dbgLog || (() => { });
+  const dbgWarn = logger.dbgWarn || (() => { });
 
   const myGeneration = ++agentTabFetchGeneration;
 
@@ -433,7 +445,7 @@ export async function mountAgentReviewTabs(opts) {
 
       const row = byId.get(agentId);
       const timeoutInfo = payload.status === 'timeout';
-      
+
       renderAgentPanelState(inner, row, processors, timeoutInfo);
     });
 
