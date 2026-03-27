@@ -206,7 +206,7 @@ export function renderAgentPanelState(inner, row, processors, timeoutInfo) {
 
   if (row.relevanceSkipped) {
     const reason = row.skipReason
-      ? processors.markdownToHtml(processors.preprocessAIResponse(String(row.skipReason)))
+      ? processors.markdownToHtml(processors.preprocessAIResponse(escapeHtml(String(row.skipReason))))
       : '<p>Skipped for this patch.</p>';
     inner.innerHTML =
       '<div class="thinkreview-agent-notrun">' +
