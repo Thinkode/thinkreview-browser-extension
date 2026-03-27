@@ -1424,6 +1424,9 @@ async function displayIntegratedReview(
   
   // Stop the enhanced loader
   stopEnhancedLoader();
+
+  // Ensure the Review tab is active (panel may have been on a different tab when the loader started)
+  switchToReviewTab();
   
   // Hide loading indicator on button when review completes
   try {
