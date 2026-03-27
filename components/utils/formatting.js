@@ -125,15 +125,22 @@ export function markdownToHtml(markdown) {
     .replace(/^# (.*$)/gim, '<h1>$1</h1>')
     // Blockquotes
     .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
-    // Lists
-    .replace(/^[\s]*[-*]\s+(.*$)/gim, '<li>$1</li>')
+    // Unordered lists (- or *)
+    .replace(/^[\s]*[-*]\s+(.*$)/gim, '<li data-list-type="ul">$1</li>')
+    // Ordered lists (1. 2. etc.)
+    .replace(/^[\s]*\d+\.\s+(.*$)/gim, '<li data-list-type="ol">$1</li>')
     // Line breaks (only for non-code content)
     .replace(/\n/g, '<br>');
 
-  // Wrap sequences of list items into <ul>
-  html = html.replace(/(?:<br>)*(<li>[\s\S]*?<\/li>)(?:(?:<br>)+<li>[\s\S]*?<\/li>)+(?:<br>)*/g,
+  // Wrap sequences of UL list items into <ul>
+  html = html.replace(/(?:<br>)*(<li data-list-type="ul">[\s\S]*?<\/li>)(?:(?:<br>)+<li data-list-type="ul">[\s\S]*?<\/li>)+(?:<br>)*/g,
     (m) => `<ul>${m.replace(/<br>/g, '')}</ul>`);
-  html = html.replace(/(^|<br>)(<li>[\s\S]*?<\/li>)(?=$|<br>)/g, (m, pre, item) => `${pre}<ul>${item}</ul>`);
+  html = html.replace(/(^|<br>)(<li data-list-type="ul">[\s\S]*?<\/li>)(?=$|<br>)/g, (m, pre, item) => `${pre}<ul>${item}</ul>`);
+
+  // Wrap sequences of OL list items into <ol>
+  html = html.replace(/(?:<br>)*(<li data-list-type="ol">[\s\S]*?<\/li>)(?:(?:<br>)+<li data-list-type="ol">[\s\S]*?<\/li>)+(?:<br>)*/g,
+    (m) => `<ol>${m.replace(/<br>/g, '')}</ol>`);
+  html = html.replace(/(^|<br>)(<li data-list-type="ol">[\s\S]*?<\/li>)(?=$|<br>)/g, (m, pre, item) => `${pre}<ol>${item}</ol>`);
 
   // Restore code blocks and wrap with header/copy button
   html = html.replace(/__THINKREVIEW_CODE_BLOCK_(\d+)__/g, (match, id) => {

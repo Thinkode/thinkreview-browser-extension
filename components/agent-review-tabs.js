@@ -83,6 +83,10 @@ export async function mountAgentReviewTabs(opts) {
     panel.setAttribute('data-thinkreview-agent-panel', '1');
     panel.dataset.agentId = agent.id;
 
+    // SCROLL WRAPPER
+    const scrollWrap = document.createElement('div');
+    scrollWrap.className = 'thinkreview-agent-tab-scroll';
+
     const inner = document.createElement('div');
     inner.className = 'thinkreview-agent-tab-inner';
     inner.innerHTML =
@@ -98,7 +102,9 @@ export async function mountAgentReviewTabs(opts) {
         '<div class="thinkreview-agent-state-subtitle">Analyzing your code changes\u2026</div>' +
         '<div class="thinkreview-agent-state-bar"><div class="thinkreview-agent-state-bar-fill"></div></div>' +
       '</div>';
-    panel.appendChild(inner);
+    
+    scrollWrap.appendChild(inner);
+    panel.appendChild(scrollWrap);
     panelsWrap.appendChild(panel);
   }
 
@@ -197,19 +203,145 @@ export async function mountAgentReviewTabs(opts) {
         return;
       }
 
-      let html = '';
+      // Clear the loading/error HTML
+      inner.innerHTML = '';
+      
+      const contentFragment = document.createDocumentFragment();
+
       for (const sec of sections) {
         const title = sec.title ? String(sec.title) : 'Section';
         const content = sec.content != null ? String(sec.content) : '';
-        html += `<div class="thinkreview-agent-section gl-mb-4">`;
-        html += `<h5 class="gl-font-weight-bold thinkreview-section-title">${escapeHtml(title)}</h5>`;
-        html += `<div class="thinkreview-section-content">${markdownToHtml(preprocessAIResponse(content))}</div>`;
-        html += `</div>`;
+        
+        const sectionDiv = document.createElement('div');
+        sectionDiv.className = 'thinkreview-agent-section gl-mb-4';
+        
+        const headerRow = document.createElement('div');
+        headerRow.className = 'thinkreview-section-header-row';
+        headerRow.innerHTML = `<h5 class="gl-font-weight-bold thinkreview-section-title">${escapeHtml(title)}</h5>`;
+        sectionDiv.appendChild(headerRow);
+        
+        // Ensure lists inside agent sections match the style of main review lists
+        let sectHtml = markdownToHtml(preprocessAIResponse(content));
+        sectHtml = sectHtml.replace(/<ul>/g, '<ul class="gl-pl-5 thinkreview-section-list">');
+        sectHtml = sectHtml.replace(/<ol>/g, '<ol class="gl-pl-5 thinkreview-section-list">');
+        
+        // Check if there are lists in the markdown output
+        const tempContainer = document.createElement('div');
+        tempContainer.innerHTML = sectHtml;
+        const lists = tempContainer.querySelectorAll('ul.thinkreview-section-list, ol.thinkreview-section-list');
+        
+        if (lists.length > 0) {
+          // If there are lists, make each list item a clickable item
+          lists.forEach(list => {
+            const listItems = list.querySelectorAll('li');
+            
+            // For each li, we need to create the wrapper structure
+            for (let i = 0; i < listItems.length; i++) {
+              const li = listItems[i];
+              const liContent = li.innerHTML;
+              
+              const itemWrapper = document.createElement('div');
+              itemWrapper.className = 'thinkreview-item-wrapper';
+              
+              const liContentDiv = document.createElement('div');
+              liContentDiv.className = 'thinkreview-section-content thinkreview-clickable-item';
+              liContentDiv.innerHTML = liContent;
+              
+              // Add click listener
+              liContentDiv.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                try {
+                  const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+                  analyticsModule.trackUserAction('review_item_clicked', {
+                    context: 'integrated_review_panel',
+                    category: 'agent_section_item'
+                  }).catch(() => {});
+                } catch (error) { /* silent */ }
+                
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = liContent;
+                const itemText = (tempDiv.textContent || tempDiv.innerText || '').trim();
+                
+                const query = `Can you provide more details about this from the agent's ${title} section? ${itemText}`;
+                
+                try {
+                  const irModule = await import(chrome.runtime.getURL('components/integrated-review.js'));
+                  if (irModule && irModule.handleSendMessage) irModule.handleSendMessage(query);
+                  else if (window.handleSendMessage) window.handleSendMessage(query);
+                } catch (err) {
+                  if (window.handleSendMessage) window.handleSendMessage(query);
+                }
+              });
+              
+              itemWrapper.appendChild(liContentDiv);
+              
+              if (typeof window.attachCopyButtonToItem === 'function') {
+                window.attachCopyButtonToItem(liContentDiv, itemWrapper);
+              }
+              
+              // Clear original li content and append the wrapper
+              li.innerHTML = '';
+              li.appendChild(itemWrapper);
+            }
+          });
+          
+          sectionDiv.appendChild(tempContainer);
+        } else {
+          // If no lists, make the whole section clickable as before
+          const itemWrapper = document.createElement('div');
+          itemWrapper.className = 'thinkreview-item-wrapper';
+          
+          const contentDiv = document.createElement('div');
+          contentDiv.className = 'thinkreview-section-content thinkreview-clickable-item';
+          contentDiv.innerHTML = sectHtml;
+          
+          contentDiv.addEventListener('click', async () => {
+            try {
+              const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+              analyticsModule.trackUserAction('review_item_clicked', {
+                context: 'integrated_review_panel',
+                category: 'agent_section'
+              }).catch(() => {});
+            } catch (error) { /* silent */ }
+            
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = sectHtml;
+            const itemText = (tempDiv.textContent || tempDiv.innerText || '').trim();
+            
+            const query = `Can you provide more details about this from the ${title} section? ${itemText}`;
+            
+            try {
+              const irModule = await import(chrome.runtime.getURL('components/integrated-review.js'));
+              if (irModule && irModule.handleSendMessage) {
+                irModule.handleSendMessage(query);
+              } else if (window.handleSendMessage) {
+                window.handleSendMessage(query);
+              }
+            } catch (e) {
+              if (window.handleSendMessage) window.handleSendMessage(query);
+            }
+          });
+          
+          itemWrapper.appendChild(contentDiv);
+          
+          if (typeof window.attachCopyButtonToItem === 'function') {
+            window.attachCopyButtonToItem(contentDiv, itemWrapper);
+          }
+          
+          sectionDiv.appendChild(itemWrapper);
+        }
+        
+        contentFragment.appendChild(sectionDiv);
       }
+      
       if (row.parseError) {
-        html += '<p class="gl-text-warning gl-mt-2">Some output may be incomplete (parse warning).</p>';
+        const warning = document.createElement('p');
+        warning.className = 'gl-text-warning gl-mt-2';
+        warning.textContent = 'Some output may be incomplete (parse warning).';
+        contentFragment.appendChild(warning);
       }
-      inner.innerHTML = html;
+      
+      inner.appendChild(contentFragment);
     });
 
     // Move skipped-agent tabs to the end of the tab bar and panel list

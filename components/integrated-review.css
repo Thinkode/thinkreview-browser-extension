@@ -1322,6 +1322,14 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
 #gitlab-mr-integrated-review .thinkreview-tab-panel.active {
   display: flex;
 }
+
+#gitlab-mr-integrated-review .thinkreview-agent-tab-scroll {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+}
+
 #gitlab-mr-integrated-review .thinkreview-code-suggestions-scroll {
   overflow-y: auto;
   padding: 12px;
@@ -1946,6 +1954,23 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   color: #ffffff;
   font-weight: 600;
   margin-bottom: 8px;
+}
+
+/* Agent tab section titles — more prominent with a bordered pill style */
+#gitlab-mr-integrated-review .thinkreview-agent-section .thinkreview-section-title {
+  display: block;
+  margin-top: 16px;
+  margin-bottom: 10px;
+  padding: 6px 12px 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c5b3ff;
+  background-color: rgba(107, 79, 187, 0.15);
+  border: 1px solid rgba(107, 79, 187, 0.45);
+  border-left: 3px solid #8c6be8;
+  border-radius: 4px;
 }
 
 #gitlab-mr-integrated-review .thinkreview-section-content {
