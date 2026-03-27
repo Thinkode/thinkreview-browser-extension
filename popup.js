@@ -538,6 +538,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
   
+  const agentsBtn = document.getElementById('agents-btn');
+  if (agentsBtn) {
+    agentsBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('agents_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
+      chrome.tabs.create({ url: 'https://portal.thinkreview.dev/agents' });
+    });
+  }
+  
   const analyticsBtn = document.getElementById('analytics-btn');
   if (analyticsBtn) {
     analyticsBtn.addEventListener('click', async () => {

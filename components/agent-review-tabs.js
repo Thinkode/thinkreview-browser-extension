@@ -58,6 +58,10 @@ export async function mountAgentReviewTabs(opts) {
     btn.setAttribute('data-tab', 'agent_empty_placeholder');
     btn.setAttribute('data-thinkreview-agent-tab', '1');
     btn.textContent = 'Agents';
+    try {
+      const newBadgeMod = await import(chrome.runtime.getURL('components/utils/new-badge.js'));
+      btn.appendChild(newBadgeMod.createNewBadge());
+    } catch (e) { /* silent */ }
     tabButtons.appendChild(btn);
 
     const panel = document.createElement('div');
@@ -119,6 +123,12 @@ export async function mountAgentReviewTabs(opts) {
   const copyBtnModule = await import(chrome.runtime.getURL('components/utils/item-copy-button.js'));
   const attachCopyButtonToItem = copyBtnModule.attachCopyButtonToItem;
 
+  let createNewBadge = null;
+  try {
+    const newBadgeMod = await import(chrome.runtime.getURL('components/utils/new-badge.js'));
+    createNewBadge = newBadgeMod.createNewBadge;
+  } catch (e) { /* silent — badge is cosmetic */ }
+
   const escapeHtml = (s) =>
     String(s)
       .replace(/&/g, '&amp;')
@@ -136,6 +146,7 @@ export async function mountAgentReviewTabs(opts) {
     btn.setAttribute('data-tab', tabKey);
     btn.setAttribute('data-thinkreview-agent-tab', '1');
     btn.textContent = agent.name || 'Agent';
+    if (createNewBadge) btn.appendChild(createNewBadge());
     tabButtons.appendChild(btn);
 
     const panel = document.createElement('div');
