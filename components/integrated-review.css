@@ -1973,6 +1973,10 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   border-radius: 4px;
 }
 
+#gitlab-mr-integrated-review .thinkreview-agent-section .thinkreview-section-title::after {
+  content: ':';
+}
+
 #gitlab-mr-integrated-review .thinkreview-section-content {
   color: var(--thinkreview-text-secondary);
   line-height: 1.5;
