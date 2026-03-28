@@ -23,6 +23,8 @@ if (typeof dbgError === 'undefined') {
   var dbgError = (...args) => { if (DEBUG) console.error('[ThinkReview Extension]', ...args); };
 }
 
+import { getAgentIcon } from './utils/agent-icon.js';
+
 export function sanitizeAgentIdForDom(id) {
   return String(id || 'agent').replace(/[^a-zA-Z0-9]/g, '_');
 }
@@ -68,10 +70,7 @@ export async function renderEmptyAgentState(tabButtons, panelsWrap) {
     '<div class="thinkreview-agent-tab-scroll">' +
     '<div class="thinkreview-agent-empty">' +
     '<div class="thinkreview-agent-empty-icon-wrap">' +
-    '<svg class="thinkreview-agent-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
-    '<path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>' +
-    '<path d="M18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/>' +
-    '</svg>' +
+    getAgentIcon('thinkreview-agent-empty-icon', '24', '24') +
     '</div>' +
     '<div class="thinkreview-agent-empty-title">No Agents Added Yet</div>' +
     '<div class="thinkreview-agent-empty-subtitle">' +
@@ -93,9 +92,7 @@ export async function renderEmptyAgentState(tabButtons, panelsWrap) {
     '</div>' +
     '</div>' +
     '<a class="thinkreview-agent-empty-cta" href="https://portal.thinkreview.dev/agents" target="_blank" rel="noopener noreferrer">' +
-    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">' +
-    '<path d="M12 5v14M5 12l7 7 7-7"/>' +
-    '</svg>' +
+    getAgentIcon('', '14', '14', 'flex-shrink:0') +
     'Add an Agent' +
     '</a>' +
     '</div>' +
@@ -133,10 +130,7 @@ export function renderAgentLoadingTabs(enabledReviewAgents, tabButtons, panelsWr
       '<div class="thinkreview-agent-loading">' +
       '<div class="thinkreview-agent-state-icon-wrap">' +
       '<span class="thinkreview-agent-spinner-ring"></span>' +
-      '<svg class="thinkreview-agent-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
-      '<path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>' +
-      '<path d="M18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/>' +
-      '</svg>' +
+      getAgentIcon('thinkreview-agent-state-icon', '24', '24') +
       '</div>' +
       '<div class="thinkreview-agent-state-title">Agent Running</div>' +
       '<div class="thinkreview-agent-state-subtitle">Analyzing your code changes…</div>' +
