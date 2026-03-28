@@ -1356,8 +1356,22 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     }
     
 
-    // Display the review results with patchSize, subscriptionType, modelUsed, cached status, provider, and ollamaMeta if available
-    displayIntegratedReview(data.review, codeContent, data.patchSize, data.subscriptionType, data.modelUsed, data.cached, bgResponse.provider, data.ollamaMeta);
+    // Display the review results (use filtered patch — same string as reviewPatchCode_1_1 for agent checksums)
+    displayIntegratedReview(
+      data.review,
+      filteredCodeContent,
+      data.patchSize,
+      data.subscriptionType,
+      data.modelUsed,
+      data.cached,
+      bgResponse.provider,
+      data.ollamaMeta,
+      {
+        enabledReviewAgents: data.enabledReviewAgents,
+        mrId: reviewId,
+        provider: bgResponse.provider
+      }
+    );
     
     // Handle code suggestions injection for GitLab
     if (Array.isArray(data.review.codeSuggestions) && data.review.codeSuggestions.length > 0) {

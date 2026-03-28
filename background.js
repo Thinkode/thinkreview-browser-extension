@@ -472,6 +472,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           // Review tracking is now handled automatically by the cloud function reviewPatchCode_1_1
           dbgLog('Review completed for MR:', mrId);
         }
+
+        // Refresh ThinkReviewGetUserData (enabledReviewAgents, counts) without blocking the review response
+        (async () => {
+          try {
+            const storageResult = await chrome.storage.local.get(['userData', 'user']);
+            let email = storageResult.userData?.email || null;
+            if (!email && storageResult.user) {
+              try {
+                const parsed = JSON.parse(storageResult.user);
+                if (parsed?.email) email = parsed.email;
+              } catch {
+                /* ignore */
+              }
+            }
+            const userData = await CloudService.refreshUserData();
+            const toStore = { ...userData };
+            if (email) {
+              const subscriptionData = await CloudService.getUserSubscriptionData(email);
+              if (subscriptionData) toStore.userSubscriptionData = subscriptionData;
+            }
+            await chrome.storage.local.set(toStore);
+            dbgLog('Post-review user data refresh stored');
+          } catch (refreshErr) {
+            dbgWarn('Post-review user data refresh failed:', refreshErr?.message || refreshErr);
+          }
+        })();
         
         sendResponse({ success: true, data, provider: 'cloud' });
       } catch (err) {
@@ -487,6 +513,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     })();
     return true; // Keep channel open
+  }
+
+  if (message.type === 'FETCH_AGENT_REVIEWS_FOR_PATCH') {
+    const { patchContent, mrId } = message;
+    (async () => {
+      try {
+        const storageResult = await chrome.storage.local.get(['userData', 'user']);
+        let email = storageResult.userData?.email || null;
+        if (!email && storageResult.user) {
+          try {
+            const parsed = JSON.parse(storageResult.user);
+            if (parsed?.email) email = parsed.email;
+          } catch {
+            /* ignore */
+          }
+        }
+        if (!email) {
+          sendResponse({ success: false, error: 'Not logged in' });
+          return;
+        }
+        if (!patchContent || typeof patchContent !== 'string') {
+          sendResponse({ success: false, error: 'Missing patch content' });
+          return;
+        }
+        const payload = await CloudService.fetchAgentReviewsForPatch(email, patchContent, mrId);
+        sendResponse({ success: true, data: payload });
+      } catch (err) {
+        dbgWarn('FETCH_AGENT_REVIEWS_FOR_PATCH error:', err);
+        sendResponse({ success: false, error: err?.message || String(err) });
+      }
+    })();
+    return true;
   }
 
   // Handle request to fetch Azure DevOps PR patch in background
@@ -693,7 +751,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Store subscription data and review prompt fields in chrome.storage
         const toStore = {
           todayReviewCount: userData.todayReviewCount || 0,
-          lastFeedbackPromptInteraction: userData.lastFeedbackPromptInteraction || null
+          lastFeedbackPromptInteraction: userData.lastFeedbackPromptInteraction || null,
+          enabledReviewAgents: Array.isArray(userData.enabledReviewAgents) ? userData.enabledReviewAgents : []
         };
         if (subscriptionData) toStore.userSubscriptionData = subscriptionData;
         chrome.storage.local.set(toStore, () => {
@@ -712,7 +771,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           cancellationRequested: userData.cancellationRequested || false,
           planInterval: userData.planInterval || null,
           lastFeedbackPromptInteraction: userData.lastFeedbackPromptInteraction || null,
-          lastReviewDate: userData.lastReviewDate || null
+          lastReviewDate: userData.lastReviewDate || null,
+          enabledReviewAgents: Array.isArray(userData.enabledReviewAgents) ? userData.enabledReviewAgents : []
         };
         if (subscriptionData) responseUserData.userSubscriptionData = subscriptionData;
         sendResponse({ status: 'success', userData: responseUserData });

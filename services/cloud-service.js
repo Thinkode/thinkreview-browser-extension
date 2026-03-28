@@ -9,6 +9,7 @@ const REVIEW_CODE_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode_1_1`;
 const SYNC_REVIEWS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/syncCodeReviews`;
 const GET_REVIEW_COUNT_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getReviewCount`;
 const GET_USER_DATA_URL = `${CLOUD_FUNCTIONS_BASE_URL}/ThinkReviewGetUserData`;
+const GET_AGENT_REVIEWS_FOR_PATCH_URL = `${CLOUD_FUNCTIONS_BASE_URL}/ThinkReviewGetAgentReviewsForPatch`;
 const GET_USER_SUBSCRIPTION_DATA_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getUserSubscriptionDataThinkReview`;
 const TRACK_REVIEW_PROMPT_INTERACTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackReviewPromptInteractionHTTP`;
 const GET_REVIEW_PROMPT_MESSAGES_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getReviewPromptMessagesThinkReview`;
@@ -353,6 +354,39 @@ export class CloudService {
   }
 
   /**
+   * Wait (server-side poll) for agent review documents for this patch checksum.
+   * @param {string} email
+   * @param {string} patchContent - Same string sent to reviewPatchCode_1_1
+   * @param {string|null} mrId
+   * @returns {Promise<Object>} - { status, patchChecksum, agents, pendingAgentIds?, missingAgentIds? }
+   */
+  static async fetchAgentReviewsForPatch(email, patchContent, mrId = null) {
+    if (!email || !patchContent) {
+      dbgWarn('fetchAgentReviewsForPatch: missing email or patch');
+      return null;
+    }
+    try {
+      const body = { email, patchContent };
+      if (mrId != null && mrId !== '') {
+        body.mrId = mrId;
+      }
+      const response = await fetch(GET_AGENT_REVIEWS_FOR_PATCH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`HTTP ${response.status}: ${text}`);
+      }
+      return await response.json();
+    } catch (error) {
+      dbgWarn('fetchAgentReviewsForPatch failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Send patch content and conversation history to the backend for a conversational code review response.
    * @param {string} patchContent - The patch content in git diff format.
    * @param {Array<Object>} conversationHistory - The history of the conversation.
@@ -657,7 +691,8 @@ export class CloudService {
           stripeSubscriptionType: null,
           currentPlanValidTo: null,
           cancellationRequested: false,
-          planInterval: null
+          planInterval: null,
+          enabledReviewAgents: []
         };
       }
       
@@ -693,7 +728,8 @@ export class CloudService {
           cancellationRequested: false,
           planInterval: null,
           stripeCanceledDate: null,
-          lastFeedbackPromptInteraction: null
+          lastFeedbackPromptInteraction: null,
+          enabledReviewAgents: []
         };
       }
 
@@ -748,7 +784,8 @@ export class CloudService {
         isUserOnInitialTrial: subscriptionData?.isUserOnInitialTrial ?? false,
         initialTrialEndDate: subscriptionData?.initialTrialEndDate || null,
         cancellationRequestedActivePlan: subscriptionData?.cancellationRequestedActivePlan ?? false,
-        userSubscriptionStatus: subscriptionData?.userSubscriptionStatus || null
+        userSubscriptionStatus: subscriptionData?.userSubscriptionStatus || null,
+        enabledReviewAgents: Array.isArray(data.enabledReviewAgents) ? data.enabledReviewAgents : []
       };
     } catch (error) {
       dbgWarn('Error getting user data:', error);
@@ -761,7 +798,8 @@ export class CloudService {
         currentPlanValidTo: null,
         cancellationRequested: false,
         planInterval: null,
-        stripeCanceledDate: null
+        stripeCanceledDate: null,
+        enabledReviewAgents: []
       };
     }
   }
@@ -875,7 +913,8 @@ export class CloudService {
           reviewCount: data.reviewCount || 0,
           todayReviewCount: data.todayReviewCount || 0,
           lastReviewDate: data.lastReviewDate || null,
-          lastFeedbackPromptInteraction: data.lastFeedbackPromptInteraction || null
+          lastFeedbackPromptInteraction: data.lastFeedbackPromptInteraction || null,
+          enabledReviewAgents: Array.isArray(data.enabledReviewAgents) ? data.enabledReviewAgents : []
         };
       } else {
         throw new Error('Invalid response from server');
