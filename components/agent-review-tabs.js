@@ -345,14 +345,17 @@ export function renderAgentSectionContent(sec, processors) {
       const query = `Can you provide more details about this from the ${title} section? ${itemText}`;
 
       try {
-        const irModule = await import(chrome.runtime.getURL('components/integrated-review.js'));
-        if (irModule && irModule.handleSendMessage) {
-          irModule.handleSendMessage(query);
-        } else if (window.handleSendMessage) {
+        if (window.handleSendMessage) {
           window.handleSendMessage(query);
+        } else {
+          // Fallback: dispatch a CustomEvent that the integrated review script can listen for
+          const event = new CustomEvent('thinkreview:sendMessage', {
+            detail: { query }
+          });
+          window.dispatchEvent(event);
         }
       } catch (e) {
-        if (window.handleSendMessage) window.handleSendMessage(query);
+        dbgError('Failed to route review item click into chat flow:', e);
       }
     });
 
