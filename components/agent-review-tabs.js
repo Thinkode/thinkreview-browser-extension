@@ -303,12 +303,14 @@ export function renderAgentSectionContent(sec, processors) {
 
           const query = `Can you provide more details about this from the agent's ${title} section? ${itemText}`;
 
-          try {
-            const irModule = await import(chrome.runtime.getURL('components/integrated-review.js'));
-            if (irModule && irModule.handleSendMessage) irModule.handleSendMessage(query);
-            else if (window.handleSendMessage) window.handleSendMessage(query);
-          } catch (err) {
-            if (window.handleSendMessage) window.handleSendMessage(query);
+          const sendMessageHandler = (typeof window !== 'undefined' && typeof window.handleSendMessage === 'function')
+            ? window.handleSendMessage
+            : null;
+
+          if (sendMessageHandler) {
+            sendMessageHandler(query);
+          } else {
+            dbgWarn('handleSendMessage is not available on window; cannot send query for agent section item.');
           }
         });
 
