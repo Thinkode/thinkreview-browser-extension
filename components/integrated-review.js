@@ -272,6 +272,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Load refresh icon from centralized icons.js (use extension URL for content script context)
   const iconsModule = await import(chrome.runtime.getURL('assets/icons.js'));
   const refreshIconSvg = iconsModule.REFRESH_ICON_SVG;
+  const settingsIconSvg = iconsModule.SETTINGS_ICON_SVG;
   // Get logo URL
   const logoUrl = chrome.runtime.getURL('images/icon16.png');
   // Create the container for the review panel
@@ -317,6 +318,12 @@ async function createIntegratedReviewPanel(patchUrl) {
             <option value="Romanian">Română</option>
             <option value="Italian">Italiano</option>
           </select>
+          <span class="thinkreview-settings-btn-wrapper">
+            <button id="thinkreview-settings-btn" class="thinkreview-settings-btn" aria-label="Open extension settings" title="Settings">
+              ${settingsIconSvg}
+            </button>
+            <span class="thinkreview-settings-tooltip" aria-hidden="true">Settings</span>
+          </span>
           <button id="bug-report-btn" class="thinkreview-bug-report-btn" title="Report a Bug">
             Report a 🐞
           </button>
@@ -641,6 +648,34 @@ async function createIntegratedReviewPanel(patchUrl) {
     // No need to update the toggle icon in the header - it stays as a down arrow
   }
   
+  // Add event listener for the settings button
+  const settingsButton = container.querySelector('#thinkreview-settings-btn');
+  if (settingsButton) {
+    const settingsWrapper = container.querySelector('.thinkreview-settings-btn-wrapper');
+    let settingsTooltipTimeout;
+    const settingsTooltipEl = settingsWrapper?.querySelector('.thinkreview-settings-tooltip');
+    if (settingsWrapper && settingsTooltipEl) {
+      settingsWrapper.addEventListener('mouseenter', () => {
+        settingsTooltipTimeout = setTimeout(() => settingsTooltipEl.classList.add('thinkreview-tooltip-visible'), 200);
+      });
+      settingsWrapper.addEventListener('mouseleave', () => {
+        clearTimeout(settingsTooltipTimeout);
+        settingsTooltipEl.classList.remove('thinkreview-tooltip-visible');
+      });
+    }
+    settingsButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule.trackUserAction('settings_opened', {
+          context: 'integrated_panel',
+          location: 'header'
+        }).catch(() => {});
+      } catch (_) { /* silent */ }
+      chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_POPUP' });
+    });
+  }
+
   // Add event listener for the bug report button first
   const bugReportButton = document.getElementById('bug-report-btn');
   if (bugReportButton) {
@@ -734,7 +769,9 @@ async function createIntegratedReviewPanel(patchUrl) {
           e.target.id === 'language-selector' ||
           e.target.closest('#language-selector') ||
           e.target.id === 'thinkreview-layout-btn' ||
-          e.target.closest('#thinkreview-layout-btn')) {
+          e.target.closest('#thinkreview-layout-btn') ||
+          e.target.id === 'thinkreview-settings-btn' ||
+          e.target.closest('#thinkreview-settings-btn')) {
         return; // Don't block these events
       }
       e.stopPropagation();
