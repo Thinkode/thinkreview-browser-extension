@@ -1464,6 +1464,10 @@ async function displayIntegratedReview(
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
   reviewContent.classList.remove('gl-hidden');
 
+  // Clean up any previously shown upgrade/limit message so the review UI is
+  // fully restored when the API returns a success (e.g. after daily count resets).
+  clearUpgradeMessage(reviewContent);
+
   // Update subscription type in header (Free, Lite, Premium, Teams)
   // Always read from storage (getUserSubscriptionDataThinkReview) - stored by background via REFRESH_USER_DATA_STORAGE / GET_USER_DATA_WITH_SUBSCRIPTION
   const storage = await chrome.storage.local.get(['userSubscriptionData']);
@@ -2070,6 +2074,27 @@ async function displayIntegratedReview(
   } catch (error) {
     dbgWarn('Failed to mount agent review tabs:', error);
   }
+}
+
+/**
+ * Removes the upgrade/limit message UI injected by showUpgradeMessage() and
+ * restores the tabs and chat input that it hid.
+ * Safe to call even when no upgrade message is present.
+ * @param {HTMLElement} [reviewContent] - The #review-content element. If omitted, looked up from the DOM.
+ */
+function clearUpgradeMessage(reviewContent) {
+  const wrapper = document.getElementById('upgrade-message-wrapper');
+  if (wrapper) {
+    wrapper.remove();
+    dbgLog('clearUpgradeMessage: removed stale upgrade message wrapper');
+  }
+  const content = reviewContent || document.getElementById('review-content');
+  if (content) {
+    const tabsWrapper = content.querySelector('.thinkreview-tabs-wrapper');
+    if (tabsWrapper) tabsWrapper.classList.remove('gl-hidden');
+  }
+  const chatInputContainer = document.getElementById('chat-input-container');
+  if (chatInputContainer) chatInputContainer.classList.remove('gl-hidden');
 }
 
 /**
