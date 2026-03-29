@@ -322,9 +322,16 @@ export class CloudService {
               limitError.currentCount = errorData.currentCount;
               throw limitError;
             }
+            if (errorData.message === 'PR-size-limit-exceeded') {
+              const patchTooLargeError = new Error('PR size limit exceeded for free tier');
+              patchTooLargeError.isPatchTooLarge = true;
+              patchTooLargeError.patchSize = errorData.patchSize;
+              patchTooLargeError.maxPatchSize = errorData.maxPatchSize;
+              throw patchTooLargeError;
+            }
           } catch (parseError) {
-            // If not the limit exceeded error, fall through to generic error
-            if (parseError.isLimitExceeded) {
+            // Re-throw typed errors; fall through to generic error for everything else
+            if (parseError.isLimitExceeded || parseError.isPatchTooLarge) {
               throw parseError;
             }
           }

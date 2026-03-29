@@ -506,6 +506,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           success: false, 
           error: err.message,
           isLimitExceeded: err.isLimitExceeded || false,
+          isPatchTooLarge: err.isPatchTooLarge || false,
+          patchSize: err.patchSize,
+          maxPatchSize: err.maxPatchSize,
           dailyLimit: err.dailyLimit,
           currentCount: err.currentCount,
           provider: settings.aiProvider || 'cloud'
