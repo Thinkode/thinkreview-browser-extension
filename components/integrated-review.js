@@ -324,9 +324,12 @@ async function createIntegratedReviewPanel(patchUrl) {
             </button>
             <span class="thinkreview-settings-tooltip" aria-hidden="true">Settings</span>
           </span>
-          <button id="bug-report-btn" class="thinkreview-bug-report-btn" title="Report a Bug">
-            Report a 🐞
-          </button>
+          <span class="thinkreview-bug-report-btn-wrapper">
+            <button id="bug-report-btn" class="thinkreview-bug-report-btn" aria-label="Report a Bug">
+              🐞
+            </button>
+            <span class="thinkreview-bug-report-tooltip" aria-hidden="true">Report a Bug</span>
+          </span>
         </div>
       </div>
       <div class="thinkreview-card-body">
@@ -682,7 +685,6 @@ async function createIntegratedReviewPanel(patchUrl) {
     bugReportButton.addEventListener('click', async (e) => {
       e.stopPropagation(); // Prevent triggering the header click event
       dbgLog('Bug report button clicked');
-      
       // Track bug report button click
       try {
         const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
@@ -691,7 +693,6 @@ async function createIntegratedReviewPanel(patchUrl) {
           location: 'header'
         }).catch(() => {});
       } catch (error) { /* silent */ }
-      
       window.open('https://thinkreview.dev/bug-report', '_blank');
     });
   }
