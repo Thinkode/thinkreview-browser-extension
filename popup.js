@@ -1748,10 +1748,10 @@ async function loadAIProviderSettings() {
     if (ollamaConfig) {
       ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
     }
-    // Show/hide "Start review automatically" only when Ollama is selected
+    // Show "Start review automatically" for all providers
     const autoStartSection = document.getElementById('auto-start-review-section');
     if (autoStartSection) {
-      autoStartSection.style.display = provider === 'ollama' ? 'flex' : 'none';
+      autoStartSection.style.display = 'flex';
     }
     
     // Load Ollama config values
@@ -1798,7 +1798,7 @@ function handleProviderChange(event) {
   }
   const autoStartSection = document.getElementById('auto-start-review-section');
   if (autoStartSection) {
-    autoStartSection.style.display = provider === 'ollama' ? 'flex' : 'none';
+    autoStartSection.style.display = 'flex';
   }
   
   // Auto-save provider selection
