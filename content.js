@@ -779,9 +779,11 @@ function showLoginPrompt() {
 /**
  * Shows an upgrade message in the integrated review panel
  * @param {number} reviewCount - The number of reviews used today
- * @param {number} dailyLimit - The daily review limit (optional, defaults to 15)
+ * @param {number} dailyLimit - The daily review limit (optional, defaults to 3)
+ * @param {Object|null} limitOverride - Optional override for the limit title/body (e.g. for PR size errors).
+ *   If provided, { title: string, body: string } will be used instead of the remote config / fallback values.
  */
-function showUpgradeMessage(reviewCount, dailyLimit = 15) {
+function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
   // Stop the enhanced loader if it's running
   if (typeof stopEnhancedLoader === 'function') {
     stopEnhancedLoader();
@@ -906,10 +908,14 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
         dbgWarn('Error fetching upgrade prompt config, using fallback:', configError);
       }
 
-      const safeBody = String(upgradeConfig.prompt.limitBody || fallbackConfig.prompt.limitBody)
-        .replace('{reviewCount}', String(reviewCount))
-        .replace('{dailyLimit}', String(dailyLimit));
-      const safeLimitTitle = String(upgradeConfig.prompt.limitTitle || fallbackConfig.prompt.limitTitle);
+      const safeBody = limitOverride
+        ? String(limitOverride.body)
+        : String(upgradeConfig.prompt.limitBody || fallbackConfig.prompt.limitBody)
+            .replace('{reviewCount}', String(reviewCount))
+            .replace('{dailyLimit}', String(dailyLimit));
+      const safeLimitTitle = limitOverride
+        ? String(limitOverride.title)
+        : String(upgradeConfig.prompt.limitTitle || fallbackConfig.prompt.limitTitle);
 
       const html = response.content;
       upgradeWrapper.innerHTML = `
@@ -1060,6 +1066,22 @@ function showUpgradeMessage(reviewCount, dailyLimit = 15) {
 
   // Prepend so it appears at the top of the content area
   reviewContent.insertBefore(upgradeWrapper, reviewContent.firstChild);
+}
+
+/**
+ * Shows a PR size limit upgrade message for free-tier users whose PR exceeds the max patch size.
+ * Reuses the full upgrade prompt UI but with a hardcoded message specific to PR size limits.
+ * The subscription plans section (title, description, plan cards) still comes from remote config.
+ * @param {number} patchSize - The actual patch size in bytes
+ * @param {number} maxPatchSize - The maximum allowed patch size in bytes for the free tier
+ */
+function showPatchTooLargeMessage(patchSize, maxPatchSize) {
+  const patchSizeKB = Math.round(patchSize / 1024);
+  const maxPatchSizeKB = Math.round(maxPatchSize / 1024);
+  showUpgradeMessage(0, 0, {
+    title: 'PR Too Large for Free Plan',
+    body: `Your PR is ${patchSizeKB} KB, which exceeds the ${maxPatchSizeKB} KB limit for free accounts. Upgrade to review larger PRs with more powerful AI models.`
+  });
 }
 
 /** Dummy Azure DevOps token used when none is set in storage (>25 chars to satisfy length checks). */
@@ -1316,6 +1338,15 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     });
 
     if (!bgResponse || !bgResponse.success) {
+      // Check if it's a free-tier PR size limit exceeded error
+      if (bgResponse?.isPatchTooLarge) {
+        dbgLog('PR patch too large for free tier');
+        showPatchTooLargeMessage(
+          bgResponse.patchSize || 0,
+          bgResponse.maxPatchSize || 50000
+        );
+        return; // Exit early, don't show error
+      }
       // Check if it's a daily limit exceeded error
       if (bgResponse?.isLimitExceeded) {
         dbgLog('Daily review limit exceeded');
