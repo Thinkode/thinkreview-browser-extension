@@ -537,14 +537,8 @@ async function checkAndTriggerReviewForNewPR() {
  */
 function getAutoStartReview() {
   return new Promise((resolve) => {
-    chrome.storage.local.get(['autoStartReview', 'aiProvider'], (result) => {
-      const provider = result.aiProvider || 'cloud';
-      // Cloud AI: always auto-start (setting is only shown for Ollama)
-      if (provider !== 'ollama') {
-        resolve(true);
-        return;
-      }
-      // Ollama: respect the "Start review automatically" option
+    chrome.storage.local.get(['autoStartReview'], (result) => {
+      // Respect the "Start review automatically" option for all providers
       resolve(result.autoStartReview !== false);
     });
   });

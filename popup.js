@@ -729,13 +729,25 @@ function initializeAutoStartReviewSettings() {
   const onRadio = document.getElementById('auto-start-review-on');
   const offRadio = document.getElementById('auto-start-review-off');
   if (onRadio) {
-    onRadio.addEventListener('change', () => {
-      if (onRadio.checked) chrome.storage.local.set({ autoStartReview: true });
+    onRadio.addEventListener('change', async () => {
+      if (onRadio.checked) {
+        chrome.storage.local.set({ autoStartReview: true });
+        try {
+          const { trackUserAction } = await import('./utils/analytics-service.js');
+          trackUserAction('auto_start_review_enabled', { context: 'popup' }).catch(() => {});
+        } catch (e) { /* silent */ }
+      }
     });
   }
   if (offRadio) {
-    offRadio.addEventListener('change', () => {
-      if (offRadio.checked) chrome.storage.local.set({ autoStartReview: false });
+    offRadio.addEventListener('change', async () => {
+      if (offRadio.checked) {
+        chrome.storage.local.set({ autoStartReview: false });
+        try {
+          const { trackUserAction } = await import('./utils/analytics-service.js');
+          trackUserAction('auto_start_review_disabled', { context: 'popup' }).catch(() => {});
+        } catch (e) { /* silent */ }
+      }
     });
   }
   setupAutoStartInfoTooltips();
@@ -1748,10 +1760,10 @@ async function loadAIProviderSettings() {
     if (ollamaConfig) {
       ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
     }
-    // Show/hide "Start review automatically" only when Ollama is selected
+    // Show "Start review automatically" for all providers
     const autoStartSection = document.getElementById('auto-start-review-section');
     if (autoStartSection) {
-      autoStartSection.style.display = provider === 'ollama' ? 'flex' : 'none';
+      autoStartSection.style.display = 'flex';
     }
     
     // Load Ollama config values
@@ -1798,7 +1810,7 @@ function handleProviderChange(event) {
   }
   const autoStartSection = document.getElementById('auto-start-review-section');
   if (autoStartSection) {
-    autoStartSection.style.display = provider === 'ollama' ? 'flex' : 'none';
+    autoStartSection.style.display = 'flex';
   }
   
   // Auto-save provider selection

@@ -772,30 +772,64 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   transition: color 0.2s ease;
 }
 
+/* Wrapper for bug report button + fast tooltip */
+#gitlab-mr-integrated-review .thinkreview-bug-report-btn-wrapper {
+  position: relative;
+  display: inline-flex;
+  margin-right: 0;
+}
+
+#gitlab-mr-integrated-review .thinkreview-bug-report-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e1e4e8;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  z-index: var(--thinkreview-z-tooltip);
+}
+
+#gitlab-mr-integrated-review .thinkreview-bug-report-tooltip.thinkreview-tooltip-visible {
+  opacity: 1;
+}
+
 #gitlab-mr-integrated-review .thinkreview-bug-report-btn {
   background: none;
   border: none;
   color: white;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 2px;
+  padding: 6px;
+  border-radius: 4px;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
-  opacity: 0.6;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.7;
+  width: 28px;
+  height: 28px;
 }
 
 #gitlab-mr-integrated-review .thinkreview-bug-report-btn:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-  color: white;
+  background-color: rgba(107, 79, 187, 0.2);
   opacity: 1;
-  transform: scale(1.02);
+  transform: scale(1.1);
 }
 
 #gitlab-mr-integrated-review .thinkreview-bug-report-btn:active {
   transform: scale(0.95);
+  background-color: rgba(107, 79, 187, 0.3);
 }
 
 /* Wrapper for copy-all button + fast tooltip */
@@ -936,6 +970,73 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
 }
 
 #gitlab-mr-integrated-review .thinkreview-regenerate-btn:active {
+  transform: scale(0.95);
+  background-color: rgba(107, 79, 187, 0.3);
+}
+
+/* Wrapper for settings button + fast tooltip */
+#gitlab-mr-integrated-review .thinkreview-settings-btn-wrapper {
+  position: relative;
+  display: inline-flex;
+  margin-right: 4px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-settings-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e1e4e8;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  z-index: var(--thinkreview-z-tooltip);
+}
+
+#gitlab-mr-integrated-review .thinkreview-settings-tooltip.thinkreview-tooltip-visible {
+  opacity: 1;
+}
+
+#gitlab-mr-integrated-review .thinkreview-settings-btn {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  width: 28px;
+  height: 28px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-settings-btn:hover {
+  background-color: rgba(107, 79, 187, 0.2);
+  color: white;
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+#gitlab-mr-integrated-review .thinkreview-settings-btn svg {
+  transition: transform 0.4s ease;
+}
+
+#gitlab-mr-integrated-review .thinkreview-settings-btn:hover svg {
+  transform: rotate(60deg);
+}
+
+#gitlab-mr-integrated-review .thinkreview-settings-btn:active {
   transform: scale(0.95);
   background-color: rgba(107, 79, 187, 0.3);
 }
@@ -2194,8 +2295,9 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   background-color: rgba(107, 79, 187, 0.3);
 }
 
-/* Ensure clickable items maintain list-item display */
-#gitlab-mr-integrated-review .thinkreview-clickable-item {
+/* Ensure clickable list items maintain list-item display (scoped to li only) */
+#gitlab-mr-integrated-review li.thinkreview-clickable-item,
+#gitlab-mr-integrated-review .thinkreview-item-content.thinkreview-clickable-item {
   display: list-item !important;
 }
 
