@@ -99,6 +99,19 @@ export async function renderEmptyAgentState(tabButtons, panelsWrap) {
     '</div>';
 
   panelsWrap.appendChild(panel);
+
+  const ctaLink = panel.querySelector('.thinkreview-agent-empty-cta');
+  if (ctaLink) {
+    ctaLink.addEventListener('click', async () => {
+      try {
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule.trackUserAction('add_agent_cta_clicked', {
+          context: 'integrated_panel',
+          location: 'agent_empty_state'
+        }).catch(() => {});
+      } catch (e) { dbgError('Failed to track add_agent_cta_clicked:', e); }
+    });
+  }
 }
 
 export function renderAgentLoadingTabs(enabledReviewAgents, tabButtons, panelsWrap) {

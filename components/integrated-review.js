@@ -591,6 +591,19 @@ async function createIntegratedReviewPanel(patchUrl) {
             dbgWarn('Failed to load analytics module:', e);
           }
         })();
+      } else if (btn.hasAttribute('data-thinkreview-agent-tab')) {
+        (async () => {
+          try {
+            const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+            analyticsModule.trackUserAction('agent_tab_clicked', {
+              context: 'integrated_panel',
+              location: 'tab_switch',
+              tab_id: tab
+            }).catch(() => {});
+          } catch (e) {
+            dbgWarn('Failed to load analytics module:', e);
+          }
+        })();
       }
     });
   }
