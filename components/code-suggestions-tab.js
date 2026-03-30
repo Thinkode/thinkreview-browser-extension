@@ -173,7 +173,14 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
       checkbox.addEventListener('change', async () => {
         await chrome.storage.local.set({ gitlabInjectionEnabled: checkbox.checked });
         dbgLog(`GitLab injection ${checkbox.checked ? 'enabled' : 'disabled'}`);
-        
+        try {
+          const analyticsModule = await getAnalyticsModule();
+          analyticsModule.trackUserAction('gitlab_diff_suggestions_toggled', {
+            context: 'code_suggestions_tab',
+            location: 'integrated_panel',
+            enabled: checkbox.checked
+          }).catch(() => {});
+        } catch (e) { /* silent */ }
         // Update stored suggestions flag
         if (window.__thinkreview_codeSuggestions) {
           window.__thinkreview_codeSuggestions.injectionEnabled = checkbox.checked;
