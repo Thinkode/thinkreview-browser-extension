@@ -7,9 +7,11 @@ export function preprocessAIResponse(response) {
   if (!response) return '';
   let cleaned = response;
   
-  // Remove outer markdown code blocks if present
-  cleaned = cleaned.replace(/```markdown\n([\s\S]*?)\n```/g, '$1');
-  cleaned = cleaned.replace(/```markdown\n([\s\S]*?)$/g, '$1');
+  // Remove outer markdown code blocks if present.
+  // Use greedy matching so that inner fenced code blocks (e.g. ```css ... ```) are
+  // not mistaken for the closing fence of the outer ```markdown wrapper.
+  cleaned = cleaned.replace(/```markdown\n([\s\S]*)\n```/g, '$1');
+  cleaned = cleaned.replace(/```markdown\n([\s\S]*)$/g, '$1');
   
   // Strip any accidental HTML tags or malformed syntax highlighting from AI response
   // This prevents broken HTML like 'class="token comment"' without proper <span> tags
