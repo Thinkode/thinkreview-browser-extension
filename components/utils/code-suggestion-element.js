@@ -94,6 +94,7 @@ export function createCodeSuggestionElement(suggestion) {
   codeBlock.style.fontSize = '12px';
   codeBlock.style.fontFamily = 'monospace';
   codeBlock.style.whiteSpace = 'pre';
+  codeBlock.style.minWidth = 'max-content';
 
   const codeText = document.createTextNode(suggestedCode || '');
   codeBlock.appendChild(codeText);
