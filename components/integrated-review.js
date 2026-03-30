@@ -318,17 +318,17 @@ async function createIntegratedReviewPanel(patchUrl) {
             <option value="Romanian">Română</option>
             <option value="Italian">Italiano</option>
           </select>
-          <span class="thinkreview-settings-btn-wrapper">
-            <button id="thinkreview-settings-btn" class="thinkreview-settings-btn" aria-label="Open extension settings" title="Settings">
-              ${settingsIconSvg}
-            </button>
-            <span class="thinkreview-settings-tooltip" aria-hidden="true">Settings</span>
-          </span>
           <span class="thinkreview-bug-report-btn-wrapper">
             <button id="bug-report-btn" class="thinkreview-bug-report-btn" aria-label="Report a Bug">
               🐞
             </button>
             <span class="thinkreview-bug-report-tooltip" aria-hidden="true">Report a Bug</span>
+          </span>
+          <span class="thinkreview-settings-btn-wrapper">
+            <button id="thinkreview-settings-btn" class="thinkreview-settings-btn" aria-label="Open extension settings" title="Settings">
+              ${settingsIconSvg}
+            </button>
+            <span class="thinkreview-settings-tooltip" aria-hidden="true">Settings</span>
           </span>
         </div>
       </div>
@@ -682,6 +682,18 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Add event listener for the bug report button first
   const bugReportButton = document.getElementById('bug-report-btn');
   if (bugReportButton) {
+    const bugWrapper = container.querySelector('.thinkreview-bug-report-btn-wrapper');
+    const bugTooltipEl = bugWrapper?.querySelector('.thinkreview-bug-report-tooltip');
+    if (bugWrapper && bugTooltipEl) {
+      let bugTooltipTimeout;
+      bugWrapper.addEventListener('mouseenter', () => {
+        bugTooltipTimeout = setTimeout(() => bugTooltipEl.classList.add('thinkreview-tooltip-visible'), 200);
+      });
+      bugWrapper.addEventListener('mouseleave', () => {
+        clearTimeout(bugTooltipTimeout);
+        bugTooltipEl.classList.remove('thinkreview-tooltip-visible');
+      });
+    }
     bugReportButton.addEventListener('click', async (e) => {
       e.stopPropagation(); // Prevent triggering the header click event
       dbgLog('Bug report button clicked');
