@@ -461,6 +461,17 @@
           </div>
           <div id="github-enterprise-domain-list" class="domain-list"></div>
         </div>
+
+        <!-- GitHub Token (For Deep AI Context) -->
+        <div class="platform-subsection" id="github-token-subsection" style="margin-top:16px;">
+          <h4 class="subsection-title">Agent Context Token (Optional)</h4>
+          <p class="settings-description">Adding a GitHub Personal Access Token (classic or fine-grained with read access) allows ThinkReview's multi-agent system to read entire repository files for better context.</p>
+          <div class="token-input-section" style="margin-top:12px;">
+            <input type="password" id="github-token-input" placeholder="Enter your GitHub Personal Access Token" class="token-input">
+            <button id="save-github-token-btn" class="save-token-btn">Save Token</button>
+          </div>
+          <div id="github-token-status" class="token-status"></div>
+        </div>
         <div class="platform-docs-actions">
           <a id="not-working-github" href="https://thinkreview.dev/docs/troubleshooting#ai-button-not-visible" target="_blank" rel="noopener noreferrer" class="platform-docs-btn platform-docs-btn--help">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -537,6 +548,17 @@
             <button id="add-domain-btn" class="add-domain-btn">Add</button>
           </div>
           <div id="domain-list" class="domain-list"></div>
+        </div>
+
+        <!-- GitLab Token (For Deep AI Context) -->
+        <div class="platform-subsection" id="gitlab-token-subsection" style="margin-top:16px;">
+          <h4 class="subsection-title">Agent Context Token (Optional)</h4>
+          <p class="settings-description">Adding a GitLab Personal Access Token (with read_api scope) allows ThinkReview's multi-agent system to read entire repository files for better context.</p>
+          <div class="token-input-section" style="margin-top:12px;">
+            <input type="password" id="gitlab-token-input" placeholder="Enter your GitLab Personal Access Token" class="token-input">
+            <button id="save-gitlab-token-btn" class="save-token-btn">Save Token</button>
+          </div>
+          <div id="gitlab-token-status" class="token-status"></div>
         </div>
         <div class="platform-docs-actions">
           <a id="not-working-gitlab" href="https://thinkreview.dev/docs/troubleshooting#ai-button-not-visible" target="_blank" rel="noopener noreferrer" class="platform-docs-btn platform-docs-btn--help">
