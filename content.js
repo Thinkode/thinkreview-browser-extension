@@ -9,7 +9,6 @@ if (typeof DEBUG === 'undefined') {
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_REVIEW_DELAY = 500;
 const MAX_PATCH_SIZE_FALLBACK = 50_000;
-const FREE_TIER_PATCH_SIZE_LIMIT = 40_000;
 
 // Logger functions - loaded dynamically to avoid module import issues in content scripts
 // Provide fallback functions immediately, then upgrade when logger loads
