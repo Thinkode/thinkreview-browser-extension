@@ -6,6 +6,11 @@ if (typeof DEBUG === 'undefined') {
   var DEBUG = false;
 }
 
+// Timing constants (in milliseconds)
+const TIMEOUT_AUTO_REVIEW_DELAY = 500;
+const MAX_PATCH_SIZE_FALLBACK = 50_000;
+const FREE_TIER_PATCH_SIZE_LIMIT = 40_000;
+
 // Logger functions - loaded dynamically to avoid module import issues in content scripts
 // Provide fallback functions immediately, then upgrade when logger loads
 // Check if variables already exist to avoid redeclaration errors
@@ -523,7 +528,7 @@ async function checkAndTriggerReviewForNewPR() {
     // Trigger new review only if auto-start is enabled
     const autoStart = await getAutoStartReview();
     if (autoStart && isSupportedPage()) {
-      setTimeout(() => fetchAndDisplayCodeReview(false, true), 500);
+      setTimeout(() => fetchAndDisplayCodeReview(false, true), TIMEOUT_AUTO_REVIEW_DELAY);
     }
   } else if (currentPRId === null && newPRId) {
     // First time detecting a PR - just track it
@@ -1355,7 +1360,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         dbgLog('PR patch too large for free tier');
         showPatchTooLargeMessage(
           bgResponse.patchSize || 0,
-          bgResponse.maxPatchSize || 50000
+          bgResponse.maxPatchSize || MAX_PATCH_SIZE_FALLBACK
         );
         return; // Exit early, don't show error
       }

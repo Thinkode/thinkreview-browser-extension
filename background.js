@@ -1,6 +1,9 @@
 // background.js
 // Handles patch storage, downloads, and communication with content/popup
 
+// Patch size constants (in bytes)
+const FREE_TIER_PATCH_SIZE_LIMIT = 40_000;
+
 // Import services statically since dynamic imports aren't allowed in service workers
 import { CloudService } from './services/cloud-service.js';
 import { OllamaService } from './services/ollama-service.js';
@@ -235,8 +238,8 @@ async function trackOllamaReview(patchContent, mrId, mrUrl, reviewData, model) {
     
     // Calculate patch size
     const originalPatchSize = patchContent.length;
-    const wasTruncated = originalPatchSize > 40000;
-    const truncatedPatchSize = wasTruncated ? 40000 : originalPatchSize;
+    const wasTruncated = originalPatchSize > FREE_TIER_PATCH_SIZE_LIMIT;
+    const truncatedPatchSize = wasTruncated ? FREE_TIER_PATCH_SIZE_LIMIT : originalPatchSize;
     
     const patchSize = {
       original: originalPatchSize,

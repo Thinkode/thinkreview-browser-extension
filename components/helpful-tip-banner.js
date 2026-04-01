@@ -3,8 +3,12 @@
  * Handles styles injection, HTML generation, and settings button click handling.
  */
 
+// UI identifiers
 const STYLES_ID = 'helpful-tip-styles';
 const BUTTON_ID = 'helpful-tip-settings-btn';
+
+// Timing constants (in milliseconds)
+const ANALYTICS_IMPORT_TIMEOUT = 5000;
 
 /**
  * Injects the tip banner styles into the document head (once only).
