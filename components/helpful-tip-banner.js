@@ -81,7 +81,15 @@ export function getHTML() {
 export function wireSettingsButton(container) {
   const btn = container.querySelector(`#${BUTTON_ID}`);
   if (btn) {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        trackUserAction('helpful_tip_banner_settings_clicked', {
+          context: 'upgrade_prompt',
+          location: 'integrated_panel'
+        }).catch(() => {});
+      } catch (_) { /* silent */ }
+
       chrome.runtime.sendMessage({
         type: 'OPEN_EXTENSION_POPUP',
         scrollTo: 'auto-start-review-section'
