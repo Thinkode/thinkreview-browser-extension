@@ -1,6 +1,13 @@
 // popup.js
 // Shows patch status and recent patches
 
+// Timing constants (in milliseconds)
+const TIMEOUT_AUTO_SIGNIN_WAIT = 500;
+const TIMEOUT_SETTINGS_SCROLL = 400;
+const TIMEOUT_HIGHLIGHT_ANIMATION = 2500;
+const TIMEOUT_CLEAR_TOKEN_STATUS = 5000;
+const TIMEOUT_TOAST_VISIBILITY = 1500;
+
 // Import modules for better modularity
 import { subscriptionStatus } from './components/popup-modules/subscription-status.js';
 import { reviewCount } from './components/popup-modules/review-count.js';
@@ -388,7 +395,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         dbgWarn('Could not find google-signin element for auto sign-in');
       }
-    }, 500); // Wait for component to be fully loaded
+    }, TIMEOUT_AUTO_SIGNIN_WAIT); // Wait for component to be fully loaded
+  }
+
+  // Check if we should scroll to a specific settings section
+  const scrollToParam = urlParams.get('scrollTo');
+  if (scrollToParam) {
+    dbgLog('scrollTo param detected:', scrollToParam);
+    // Wait for auth + provider settings to finish loading before scrolling
+    setTimeout(() => {
+      const target = document.getElementById(scrollToParam);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('settings-scroll-highlight');
+        setTimeout(() => target.classList.remove('settings-scroll-highlight'), TIMEOUT_HIGHLIGHT_ANIMATION);
+      } else {
+        dbgWarn('scrollTo target not found:', scrollToParam);
+      }
+    }, TIMEOUT_SETTINGS_SCROLL);
   }
   
   // Subscription component will be initialized when it's loaded
@@ -655,7 +679,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     { id: 'not-working-github',    event: 'not_working_clicked_github' },
     { id: 'not-working-gitlab',    event: 'not_working_clicked_gitlab' },
     { id: 'not-working-azure',     event: 'not_working_clicked_azure' },
-    { id: 'not-working-bitbucket', event: 'not_working_clicked_bitbucket' },
   ];
   platformNotWorkingLinks.forEach(({ id, event }) => {
     const el = document.getElementById(id);
