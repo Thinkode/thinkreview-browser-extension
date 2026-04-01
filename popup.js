@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         dbgWarn('scrollTo target not found:', scrollToParam);
       }
-    }, 1500);
+    }, 400);
   }
   
   // Subscription component will be initialized when it's loaded
