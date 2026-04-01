@@ -1,10 +1,10 @@
 /**
- * Manages the upgrade prompt tip banner that guides users to toggle auto review settings.
+ * Manages the helpful tip banner that guides users to toggle auto review settings.
  * Handles styles injection, HTML generation, and settings button click handling.
  */
 
-const STYLES_ID = 'upgrade-tip-styles';
-const BUTTON_ID = 'upgrade-tip-settings-btn';
+const STYLES_ID = 'helpful-tip-styles';
+const BUTTON_ID = 'helpful-tip-settings-btn';
 
 /**
  * Injects the tip banner styles into the document head (once only).
@@ -17,7 +17,7 @@ export function injectStyles() {
   const styleEl = document.createElement('style');
   styleEl.id = STYLES_ID;
   styleEl.textContent = `
-    .upgrade-tip-banner {
+    .helpful-tip-banner {
       display: flex;
       align-items: flex-start;
       gap: 8px;
@@ -27,18 +27,18 @@ export function injectStyles() {
       padding: 10px 12px;
       margin: 0 0 10px;
     }
-    .upgrade-tip-icon {
+    .helpful-tip-icon {
       font-size: 14px;
       flex-shrink: 0;
       margin-top: 1px;
     }
-    .upgrade-tip-text {
+    .helpful-tip-text {
       font-size: 12px;
       color: #a0aec0;
       line-height: 1.4;
       flex: 1;
     }
-    .upgrade-tip-settings-btn {
+    .helpful-tip-settings-btn {
       flex-shrink: 0;
       padding: 5px 10px;
       border-radius: 4px;
@@ -51,7 +51,7 @@ export function injectStyles() {
       white-space: nowrap;
       transition: background 0.15s, border-color 0.15s;
     }
-    .upgrade-tip-settings-btn:hover {
+    .helpful-tip-settings-btn:hover {
       background: #3d4a5e;
       border-color: #6b4fbb;
       color: #e2e8f0;
@@ -66,10 +66,10 @@ export function injectStyles() {
  */
 export function getHTML() {
   return `
-    <div class="upgrade-tip-banner">
-      <span class="upgrade-tip-icon">💡</span>
-      <span class="upgrade-tip-text">Tip: You can toggle auto review for review to start manually to control your daily review credits.</span>
-      <button id="${BUTTON_ID}" class="upgrade-tip-settings-btn">Go to Settings</button>
+    <div class="helpful-tip-banner">
+      <span class="helpful-tip-icon">💡</span>
+      <span class="helpful-tip-text">Tip: You can toggle auto review for review to start manually to control your daily review credits.</span>
+      <button id="${BUTTON_ID}" class="helpful-tip-settings-btn">Go to Settings</button>
     </div>
   `;
 }

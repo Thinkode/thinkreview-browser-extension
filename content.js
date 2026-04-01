@@ -828,7 +828,7 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
   }
 
   // Load and initialize upgrade tip banner module
-  const tipBannerModule = await import(chrome.runtime.getURL('components/upgrade-tip-banner.js'));
+  const tipBannerModule = await import(chrome.runtime.getURL('components/helpful-tip-banner.js'));
   tipBannerModule.injectStyles();
 
   // Load subscription section HTML via background (avoids page CSP blocking fetch to chrome-extension://)
