@@ -68,7 +68,7 @@ export function getHTML() {
   return `
     <div class="helpful-tip-banner">
       <span class="helpful-tip-icon">💡</span>
-      <span class="helpful-tip-text">Tip: You can toggle auto review for review to start manually to control your daily review credits.</span>
+      <span class="helpful-tip-text">You can switch the auto-review setting to manual mode to better manage your daily review credits.</span>
       <button id="${BUTTON_ID}" class="helpful-tip-settings-btn">Go to Settings</button>
     </div>
   `;
