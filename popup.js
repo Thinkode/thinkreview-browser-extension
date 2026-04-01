@@ -655,7 +655,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     { id: 'not-working-github',    event: 'not_working_clicked_github' },
     { id: 'not-working-gitlab',    event: 'not_working_clicked_gitlab' },
     { id: 'not-working-azure',     event: 'not_working_clicked_azure' },
-    { id: 'not-working-bitbucket', event: 'not_working_clicked_bitbucket' },
   ];
   platformNotWorkingLinks.forEach(({ id, event }) => {
     const el = document.getElementById(id);
