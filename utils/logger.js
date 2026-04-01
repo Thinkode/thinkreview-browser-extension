@@ -5,7 +5,7 @@
 import { reportError, reportMessage, isInitialized } from './honeybadger-service.js';
 
 // Debug toggle: set to false to disable console logs in production
-const DEBUG = true;
+const DEBUG = false;
 
 /**
  * Extract the calling filename from stack trace
