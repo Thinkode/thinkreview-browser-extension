@@ -3,97 +3,89 @@
  * Handles styles injection, HTML generation, and settings button click handling.
  */
 
-const UpgradeTipBanner = (() => {
-  const STYLES_ID = 'upgrade-tip-styles';
-  const BUTTON_ID = 'upgrade-tip-settings-btn';
+const STYLES_ID = 'upgrade-tip-styles';
+const BUTTON_ID = 'upgrade-tip-settings-btn';
 
-  /**
-   * Injects the tip banner styles into the document head (once only).
-   */
-  function injectStyles() {
-    if (document.getElementById(STYLES_ID)) {
-      return;
+/**
+ * Injects the tip banner styles into the document head (once only).
+ */
+export function injectStyles() {
+  if (document.getElementById(STYLES_ID)) {
+    return;
+  }
+
+  const styleEl = document.createElement('style');
+  styleEl.id = STYLES_ID;
+  styleEl.textContent = `
+    .upgrade-tip-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      background: rgba(99, 179, 237, 0.08);
+      border: 1px solid rgba(99, 179, 237, 0.25);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin: 0 0 10px;
     }
+    .upgrade-tip-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .upgrade-tip-text {
+      font-size: 12px;
+      color: #a0aec0;
+      line-height: 1.4;
+      flex: 1;
+    }
+    .upgrade-tip-settings-btn {
+      flex-shrink: 0;
+      padding: 5px 10px;
+      border-radius: 4px;
+      border: 1px solid #4a5568;
+      background: #2d3748;
+      color: #cbd5e0;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .upgrade-tip-settings-btn:hover {
+      background: #3d4a5e;
+      border-color: #6b4fbb;
+      color: #e2e8f0;
+    }
+  `;
+  document.head.appendChild(styleEl);
+}
 
-    const styleEl = document.createElement('style');
-    styleEl.id = STYLES_ID;
-    styleEl.textContent = `
-      .upgrade-tip-banner {
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        background: rgba(99, 179, 237, 0.08);
-        border: 1px solid rgba(99, 179, 237, 0.25);
-        border-radius: 6px;
-        padding: 10px 12px;
-        margin: 0 0 10px;
-      }
-      .upgrade-tip-icon {
-        font-size: 14px;
-        flex-shrink: 0;
-        margin-top: 1px;
-      }
-      .upgrade-tip-text {
-        font-size: 12px;
-        color: #a0aec0;
-        line-height: 1.4;
-        flex: 1;
-      }
-      .upgrade-tip-settings-btn {
-        flex-shrink: 0;
-        padding: 5px 10px;
-        border-radius: 4px;
-        border: 1px solid #4a5568;
-        background: #2d3748;
-        color: #cbd5e0;
-        font-size: 11px;
-        font-weight: 600;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: background 0.15s, border-color 0.15s;
-      }
-      .upgrade-tip-settings-btn:hover {
-        background: #3d4a5e;
-        border-color: #6b4fbb;
-        color: #e2e8f0;
-      }
-    `;
-    document.head.appendChild(styleEl);
-  }
+/**
+ * Returns the HTML markup for the tip banner.
+ * @returns {string} HTML string for the banner
+ */
+export function getHTML() {
+  return `
+    <div class="upgrade-tip-banner">
+      <span class="upgrade-tip-icon">💡</span>
+      <span class="upgrade-tip-text">Tip: You can toggle auto review for review to start manually to control your daily review credits.</span>
+      <button id="${BUTTON_ID}" class="upgrade-tip-settings-btn">Go to Settings</button>
+    </div>
+  `;
+}
 
-  /**
-   * Returns the HTML markup for the tip banner.
-   * @returns {string} HTML string for the banner
-   */
-  function getHTML() {
-    return `
-      <div class="upgrade-tip-banner">
-        <span class="upgrade-tip-icon">💡</span>
-        <span class="upgrade-tip-text">Tip: You can toggle auto review to manual review to control your daily review credits.</span>
-        <button id="${BUTTON_ID}" class="upgrade-tip-settings-btn">Go to Settings</button>
-      </div>
-    `;
-  }
-
-  /**
-   * Wires the settings button click event to open the popup with deep-link.
-   * @param {HTMLElement} container - The parent container of the banner
-   */
-  function wireSettingsButton(container) {
-    const btn = container.querySelector(`#${BUTTON_ID}`);
-    if (btn) {
-      btn.addEventListener('click', () => {
-        chrome.runtime.sendMessage({ 
-          type: 'OPEN_EXTENSION_POPUP', 
-          scrollTo: 'auto-start-review-section' 
-        });
+/**
+ * Wires the settings button click event to open the popup with deep-link.
+ * @param {HTMLElement} container - The parent container of the banner
+ */
+export function wireSettingsButton(container) {
+  const btn = container.querySelector(`#${BUTTON_ID}`);
+  if (btn) {
+    btn.addEventListener('click', () => {
+      chrome.runtime.sendMessage({
+        type: 'OPEN_EXTENSION_POPUP',
+        scrollTo: 'auto-start-review-section'
       });
-    }
+    });
   }
-
-  return {
-    injectStyles,
-    getHTML,
-    wireSettingsButton
-  };
-})();
+}

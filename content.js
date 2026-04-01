@@ -778,7 +778,7 @@ function showLoginPrompt() {
  * @param {Object|null} limitOverride - Optional override for the limit title/body (e.g. for PR size errors).
  *   If provided, { title: string, body: string } will be used instead of the remote config / fallback values.
  */
-function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
+async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
   // Stop the enhanced loader if it's running
   if (typeof stopEnhancedLoader === 'function') {
     stopEnhancedLoader();
@@ -829,7 +829,7 @@ function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
 
   // Load and initialize upgrade tip banner module
   const tipBannerModule = await import(chrome.runtime.getURL('components/upgrade-tip-banner.js'));
-  tipBannerModule.UpgradeTipBanner.injectStyles();
+  tipBannerModule.injectStyles();
 
   // Load subscription section HTML via background (avoids page CSP blocking fetch to chrome-extension://)
   chrome.runtime.sendMessage(
@@ -918,7 +918,7 @@ function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
 
       const html = response.content;
       upgradeWrapper.innerHTML = `
-        ${tipBannerModule.UpgradeTipBanner.getHTML()}
+        ${tipBannerModule.getHTML()}
         <div class="gl-alert gl-alert-warning">
           <div class="gl-alert-content">
             <div class="gl-alert-title" id="upgrade-limit-title"></div>
@@ -1062,7 +1062,7 @@ function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
         }
       });
 
-      tipBannerModule.UpgradeTipBanner.wireSettingsButton(upgradeWrapper);
+      tipBannerModule.wireSettingsButton(upgradeWrapper);
     }
   );
 
