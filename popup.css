@@ -1526,6 +1526,16 @@ footer {
   visibility: visible;
 }
 
+@keyframes settings-highlight-pulse {
+  0%, 100% { background-color: transparent; }
+  20%, 80% { background-color: rgba(107, 79, 187, 0.15); }
+}
+
+.settings-scroll-highlight {
+  animation: settings-highlight-pulse 2.5s ease;
+  border-radius: 6px;
+}
+
 .domain-input-section {
   display: flex;
   gap: 8px;

@@ -882,8 +882,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'OPEN_EXTENSION_POPUP') {
     dbgLog('Opening extension popup for Azure DevOps token configuration');
     
-    // Open the extension popup page in a new tab
-    const extensionUrl = chrome.runtime.getURL('popup.html');
+    // Open the extension popup page in a new tab (optionally deep-linking to a section)
+    let extensionUrl = chrome.runtime.getURL('popup.html');
+    if (message.scrollTo) {
+      extensionUrl += `?scrollTo=${encodeURIComponent(message.scrollTo)}`;
+    }
     
     chrome.tabs.create({ url: extensionUrl }, (tab) => {
       if (chrome.runtime.lastError) {

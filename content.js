@@ -827,6 +827,54 @@ function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
     document.head.appendChild(linkEl);
   }
 
+  // Inject tip banner styles once
+  if (!document.getElementById('upgrade-tip-styles')) {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'upgrade-tip-styles';
+    styleEl.textContent = `
+      .upgrade-tip-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        background: rgba(99, 179, 237, 0.08);
+        border: 1px solid rgba(99, 179, 237, 0.25);
+        border-radius: 6px;
+        padding: 10px 12px;
+        margin: 0 0 10px;
+      }
+      .upgrade-tip-icon {
+        font-size: 14px;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .upgrade-tip-text {
+        font-size: 12px;
+        color: #a0aec0;
+        line-height: 1.4;
+        flex: 1;
+      }
+      .upgrade-tip-settings-btn {
+        flex-shrink: 0;
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: 1px solid #4a5568;
+        background: #2d3748;
+        color: #cbd5e0;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .upgrade-tip-settings-btn:hover {
+        background: #3d4a5e;
+        border-color: #6b4fbb;
+        color: #e2e8f0;
+      }
+    `;
+    document.head.appendChild(styleEl);
+  }
+
   // Load subscription section HTML via background (avoids page CSP blocking fetch to chrome-extension://)
   chrome.runtime.sendMessage(
     { type: 'GET_EXTENSION_RESOURCE', path: 'components/subscription-section.html' },
@@ -914,6 +962,11 @@ function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
 
       const html = response.content;
       upgradeWrapper.innerHTML = `
+        <div class="upgrade-tip-banner">
+          <span class="upgrade-tip-icon">💡</span>
+          <span class="upgrade-tip-text">Tip: You can toggle auto review to manual review to control your daily review credits.</span>
+          <button id="upgrade-tip-settings-btn" class="upgrade-tip-settings-btn">Go to Settings</button>
+        </div>
         <div class="gl-alert gl-alert-warning">
           <div class="gl-alert-content">
             <div class="gl-alert-title" id="upgrade-limit-title"></div>
@@ -1056,6 +1109,13 @@ function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
           });
         }
       });
+
+      const tipSettingsBtn = upgradeWrapper.querySelector('#upgrade-tip-settings-btn');
+      if (tipSettingsBtn) {
+        tipSettingsBtn.addEventListener('click', () => {
+          chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_POPUP', scrollTo: 'auto-start-review-section' });
+        });
+      }
     }
   );
 

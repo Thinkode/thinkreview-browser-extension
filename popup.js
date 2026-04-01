@@ -390,6 +390,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }, 500); // Wait for component to be fully loaded
   }
+
+  // Check if we should scroll to a specific settings section
+  const scrollToParam = urlParams.get('scrollTo');
+  if (scrollToParam) {
+    dbgLog('scrollTo param detected:', scrollToParam);
+    // Wait for auth + provider settings to finish loading before scrolling
+    setTimeout(() => {
+      const target = document.getElementById(scrollToParam);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('settings-scroll-highlight');
+        setTimeout(() => target.classList.remove('settings-scroll-highlight'), 2500);
+      } else {
+        dbgWarn('scrollTo target not found:', scrollToParam);
+      }
+    }, 1500);
+  }
   
   // Subscription component will be initialized when it's loaded
   
