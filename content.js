@@ -52,7 +52,7 @@ let currentPRId = null;
 document.addEventListener('thinkreview-switch-to-cloud', async () => {
   await chrome.storage.local.set({ aiProvider: 'cloud' });
   if (typeof fetchAndDisplayCodeReview === 'function') {
-    fetchAndDisplayCodeReview(true);
+    fetchAndDisplayCodeReview(true, false);
   }
 });
 
@@ -63,7 +63,7 @@ document.addEventListener('thinkreview-ollama-model-changed', async (e) => {
   const config = ollamaConfig || { url: 'http://localhost:11434', model: '' };
   await chrome.storage.local.set({ ollamaConfig: { ...config, model } });
   if (typeof fetchAndDisplayCodeReview === 'function') {
-    fetchAndDisplayCodeReview(true);
+    fetchAndDisplayCodeReview(true, false);
   }
 });
 
@@ -523,7 +523,7 @@ async function checkAndTriggerReviewForNewPR() {
     // Trigger new review only if auto-start is enabled
     const autoStart = await getAutoStartReview();
     if (autoStart && isSupportedPage()) {
-      setTimeout(() => fetchAndDisplayCodeReview(), 500);
+      setTimeout(() => fetchAndDisplayCodeReview(false, true), 500);
     }
   } else if (currentPRId === null && newPRId) {
     // First time detecting a PR - just track it
@@ -594,9 +594,10 @@ async function injectIntegratedReviewPanel(opts = {}) {
   currentPRId = getCurrentPRId();
   
   // Trigger the code review only when: user explicitly requested (button click) or auto-start is enabled
-  const shouldTrigger = opts.triggerReview === true || await getAutoStartReview();
-  if (shouldTrigger) {
-    fetchAndDisplayCodeReview();
+  if (opts.triggerReview === true) {
+    fetchAndDisplayCodeReview(false, false);
+  } else if (await getAutoStartReview()) {
+    fetchAndDisplayCodeReview(false, true);
   }
 }
 
@@ -1103,7 +1104,7 @@ async function getAzureDevOpsToken() {
  * Fetches code changes and sends them for AI review
  * Supports both GitLab (patch) and Azure DevOps (API) platforms
  */
-async function fetchAndDisplayCodeReview(forceRegenerate = false) {
+async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggered = false) {
   // If already processing a review, ignore this request
   if (isReviewInProgress) {
     return;
@@ -1317,6 +1318,16 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     
     // Get platform for sending to background script
     const platform = getCurrentPlatform();
+
+    // For auto-triggered reviews, run the decision maker before calling the cloud function
+    if (isAutoTriggered) {
+      const { shouldProceedWithAutoReview } = await import(chrome.runtime.getURL('services/autoReviewDecisionMaker.js'));
+      const decision = shouldProceedWithAutoReview(filteredCodeContent, { platform, mrId: reviewId });
+      if (!decision.proceed) {
+        dbgLog('Auto review skipped by autoReviewDecisionMaker:', decision.reason, decision.details);
+        return;
+      }
+    }
     
     // Send the code content for review via background script (avoids CSP fetch issues)
     const bgResponse = await new Promise((resolve) => {
@@ -1580,7 +1591,7 @@ async function toggleReviewPanel() {
     
     // If no review has been generated yet (no content and no error), trigger the review
     if (!hasReview && !hasError && !isReviewInProgress) {
-      fetchAndDisplayCodeReview();
+      fetchAndDisplayCodeReview(false, false);
     }
   } else {
     // If panel is already visible, minimize it (even if review is in progress)
