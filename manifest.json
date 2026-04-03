@@ -10,13 +10,12 @@
     }
   },
   "permissions": [
-    "storage", 
-    "identity",  
-    "webNavigation", 
-    "scripting", 
+    "storage",
+    "identity",
+    "webNavigation",
+    "scripting",
     "activeTab"
   ],
-
   "host_permissions": [
     "https://gitlab.com/*",
     "https://github.com/*",
@@ -48,7 +47,10 @@
         "https://portal.thinkreview.dev/*",
         "https://app.thinkreview.dev/*"
       ],
-      "js": ["vendor/honeybadger.ext.min.js", "content-webapp-auth.js"],
+      "js": [
+        "vendor/honeybadger.ext.min.js",
+        "content-webapp-auth.js"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     }
@@ -60,8 +62,26 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["patch-viewer.html", "patch-viewer.js", "patch-viewer.css", "icons/*", "images/*", "components/*", "components/integrated-review.css", "components/review-prompt/*", "services/*", "services/ollama-service.js", "utils/*", "assets/*", "stripe-redirect.html","stripe-redirect.js", "onboarding.html", "onboarding.js","components/subscription-section.html","components/subscription-section.css", "vendor/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "patch-viewer.html",
+        "patch-viewer.js",
+        "patch-viewer.css",
+        "icons/*",
+        "images/*",
+        "components/*",
+        "components/integrated-review.css",
+        "components/review-prompt/*",
+        "services/*",
+        "services/ollama-service.js",
+        "utils/*",
+        "assets/*",
+        "components/subscription-section.html",
+        "components/subscription-section.css",
+        "vendor/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "content_security_policy": {
