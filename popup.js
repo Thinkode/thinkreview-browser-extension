@@ -359,9 +359,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up Azure DevOps settings
   initializeAzureSettings();
   
-  // Set up GitHub and GitLab agent tokens
-  initializeGitHubSettings();
-  initializeGitLabSettings();
   // Check if we should auto-trigger sign-in (from content script)
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('autoSignIn') === 'true') {
@@ -1701,120 +1698,6 @@ function clearTokenStatus() {
   if (statusDiv) {
     statusDiv.textContent = '';
     statusDiv.className = 'token-status';
-  }
-}
-
-// GitHub Settings Functionality
-function initializeGitHubSettings(){
-  loadGitHubToken();
-  const saveButton=document.getElementById('save-github-token-btn');
-  const tokenInput=document.getElementById('github-token-input');
-  if(saveButton)saveButton.addEventListener('click',saveGitHubToken);
-  if(tokenInput){tokenInput.addEventListener('keypress',(event)=>{if(event.key==='Enter')saveGitHubToken();});}
-}
-async function loadGitHubToken() {
-  try {
-    const result = await chrome.storage.local.get(['githubToken']);
-    const token = result.githubToken;
-    const tokenInput = document.getElementById('github-token-input');
-    const statusDiv = document.getElementById('github-token-status');
-    if (token) {
-      if (statusDiv) { statusDiv.textContent = ''; statusDiv.className = 'token-status'; }
-      if (tokenInput) {
-        tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
-        tokenInput.type = 'password';
-      }
-    } else {
-      if (statusDiv) { statusDiv.textContent = 'No token configured (Optional)'; statusDiv.className = 'token-status info'; }
-    }
-  } catch (error) {
-    dbgWarn('Error loading GitHub token:', error);
-  }
-}
-async function saveGitHubToken() {
-  const tokenInput = document.getElementById('github-token-input');
-  const saveButton = document.getElementById('save-github-token-btn');
-  const statusDiv = document.getElementById('github-token-status');
-  if (!tokenInput || !saveButton || !statusDiv) return;
-  const tokenRaw = tokenInput.value.trim();
-  const stored = await chrome.storage.local.get(['githubToken']);
-  const existingToken = stored.githubToken && String(stored.githubToken).trim() ? stored.githubToken.trim() : '';
-  const token = (tokenRaw === '••••••••••••••••••••••••••••••••••••••••••••••••••' && existingToken) ? existingToken : tokenRaw;
-  const originalButtonText = saveButton.textContent;
-  try {
-    saveButton.textContent = 'Saving...';
-    saveButton.disabled = true;
-    await chrome.storage.local.set({ githubToken: token });
-    statusDiv.textContent = 'Token saved successfully';
-    statusDiv.className = 'token-status success';
-    setTimeout(() => { statusDiv.textContent = ''; statusDiv.className = 'token-status'; }, 5000);
-    tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
-    tokenInput.type = 'password';
-    dbgLog('GitHub token saved successfully');
-  } catch (error) {
-    dbgWarn('Error saving GitHub token:', error);
-    statusDiv.textContent = 'Error saving token. Please try again.';
-    statusDiv.className = 'token-status error';
-  } finally {
-    saveButton.disabled = false;
-    saveButton.textContent = originalButtonText;
-  }
-}
-
-// GitLab Settings Functionality
-function initializeGitLabSettings(){
-  loadGitLabToken();
-  const saveButton=document.getElementById('save-gitlab-token-btn');
-  const tokenInput=document.getElementById('gitlab-token-input');
-  if(saveButton)saveButton.addEventListener('click',saveGitLabToken);
-  if(tokenInput){tokenInput.addEventListener('keypress',(event)=>{if(event.key==='Enter')saveGitLabToken();});}
-}
-async function loadGitLabToken() {
-  try {
-    const result = await chrome.storage.local.get(['gitlabToken']);
-    const token = result.gitlabToken;
-    const tokenInput = document.getElementById('gitlab-token-input');
-    const statusDiv = document.getElementById('gitlab-token-status');
-    if (token) {
-      if (statusDiv) { statusDiv.textContent = ''; statusDiv.className = 'token-status'; }
-      if (tokenInput) {
-        tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
-        tokenInput.type = 'password';
-      }
-    } else {
-      if (statusDiv) { statusDiv.textContent = 'No token configured (Optional)'; statusDiv.className = 'token-status info'; }
-    }
-  } catch (error) {
-    dbgWarn('Error loading GitLab token:', error);
-  }
-}
-async function saveGitLabToken() {
-  const tokenInput = document.getElementById('gitlab-token-input');
-  const saveButton = document.getElementById('save-gitlab-token-btn');
-  const statusDiv = document.getElementById('gitlab-token-status');
-  if (!tokenInput || !saveButton || !statusDiv) return;
-  const tokenRaw = tokenInput.value.trim();
-  const stored = await chrome.storage.local.get(['gitlabToken']);
-  const existingToken = stored.gitlabToken && String(stored.gitlabToken).trim() ? stored.gitlabToken.trim() : '';
-  const token = (tokenRaw === '••••••••••••••••••••••••••••••••••••••••••••••••••' && existingToken) ? existingToken : tokenRaw;
-  const originalButtonText = saveButton.textContent;
-  try {
-    saveButton.textContent = 'Saving...';
-    saveButton.disabled = true;
-    await chrome.storage.local.set({ gitlabToken: token });
-    statusDiv.textContent = 'Token saved successfully';
-    statusDiv.className = 'token-status success';
-    setTimeout(() => { statusDiv.textContent = ''; statusDiv.className = 'token-status'; }, 5000);
-    tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
-    tokenInput.type = 'password';
-    dbgLog('GitLab token saved successfully');
-  } catch (error) {
-    dbgWarn('Error saving GitLab token:', error);
-    statusDiv.textContent = 'Error saving token. Please try again.';
-    statusDiv.className = 'token-status error';
-  } finally {
-    saveButton.disabled = false;
-    saveButton.textContent = originalButtonText;
   }
 }
 
