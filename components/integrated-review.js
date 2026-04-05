@@ -1417,7 +1417,7 @@ async function handleSendMessage(messageText) {
         banner.className = 'thinkreview-context-banner context-full';
         banner.innerHTML = `
           <span class="thinkreview-context-icon">✓</span>
-          <span class="thinkreview-context-label">Full repository context active — ThinkReview can read files across your codebase for deeper, more accurate reviews.</span>
+          <span class="thinkreview-context-label">Full repository context active — ThinkReview can read files across your codebase for deeper, more accurate answers.</span>
         `;
       } else {
         banner.className = 'thinkreview-context-banner context-patch';
