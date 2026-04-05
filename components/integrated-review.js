@@ -1409,6 +1409,27 @@ async function handleSendMessage(messageText) {
     appendToChatLog('ai', responseText, rawResponseText);
     conversationHistory.push({ role: 'model', content: responseText });
 
+    // Append context banner once, right after the first AI message
+    if (chatLog && !chatLog.querySelector('.thinkreview-context-banner')) {
+      const contextType = aiResponse.contextType || 'patch_only';
+      const banner = document.createElement('div');
+      if (contextType === 'full_repo') {
+        banner.className = 'thinkreview-context-banner context-full';
+        banner.innerHTML = `
+          <span class="thinkreview-context-icon">✓</span>
+          <span class="thinkreview-context-label">Full repository context active — ThinkReview can read files across your codebase for deeper, more accurate reviews.</span>
+        `;
+      } else {
+        banner.className = 'thinkreview-context-banner context-patch';
+        banner.innerHTML = `
+          <span class="thinkreview-context-icon">ℹ</span>
+          <span class="thinkreview-context-label">This review uses patch-only context. Give ThinkReview access to your full repository for significantly better review quality.</span>
+          <a href="https://portal.thinkreview.dev/credentials" target="_blank" rel="noopener noreferrer" class="thinkreview-context-upgrade-btn">Try full context →</a>
+        `;
+      }
+      chatLog.appendChild(banner);
+    }
+
   } catch (error) {
     // Log error details for debugging, but don't show the full error to users
     // if (error.isRateLimit) {
