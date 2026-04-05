@@ -14,12 +14,11 @@ const GET_UPGRADE_PROMPT_CONFIG_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getUpgradePro
 const CREATE_CHECKOUT_SESSION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/createCheckoutSessionThinkReview`;
 const CANCEL_SUBSCRIPTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/cancelSubscriptionThinkReview`;
 const CONVERSATIONAL_REVIEW_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview`;
-const CONVERSATIONAL_REVIEW_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview_1_2`;
+const CONVERSATIONAL_REVIEW_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview_1_1`;
 const TRACK_CUSTOM_DOMAINS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackCustomDomainsThinkReview`;
 const STORE_LAYOUT_SETTINGS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/storeLayoutSettingsThinkReview`;
 const LOG_AZURE_DEVOPS_VERSION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/logAzureDevOpsVersionThinkReview`;
 const SUBMIT_REVIEW_FEEDBACK_URL = `${CLOUD_FUNCTIONS_BASE_URL}/submitReviewFeedback`;
-const STORE_PAT_URL = `${CLOUD_FUNCTIONS_BASE_URL}/storePATThinkReview`;
 
 /**
  * Cloud Service for GitLab MR Reviews
@@ -1553,55 +1552,6 @@ export class CloudService {
     } catch (error) {
       dbgWarn('Error submitting feedback:', error);
       throw error;
-    }
-  }
-
-  /**
-   * Sync a platform personal access token to Firestore so the cloud function
-   * can use it for tool-calling during conversational reviews.
-   * Path: Users_Reviews/{userId}/Settings/PAT
-   *
-   * @param {"github"|"gitlab"|"bitbucket"|"azureDevOps"} platform
-   * @param {string} pat - The token value (may be empty string to clear)
-   * @returns {Promise<void>}
-   */
-  static async storePAT(platform, pat) {
-    try {
-      const storageData = await new Promise((resolve) => {
-        chrome.storage.local.get(['userData', 'user'], (result) => resolve(result));
-      });
-
-      let email = null;
-      if (storageData.userData && storageData.userData.email) {
-        email = storageData.userData.email;
-      } else if (storageData.user) {
-        try {
-          const parsed = JSON.parse(storageData.user);
-          if (parsed && parsed.email) email = parsed.email;
-        } catch (e) {
-          dbgWarn('storePAT: Failed to parse user data:', e);
-        }
-      }
-
-      if (!email) {
-        dbgWarn('storePAT: No user email in storage — skipping Firestore sync');
-        return;
-      }
-
-      const response = await fetch(STORE_PAT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, platform, pat })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        dbgWarn(`storePAT: HTTP ${response.status}: ${errorText}`);
-      } else {
-        dbgLog(`storePAT: synced ${platform} PAT to Firestore`);
-      }
-    } catch (err) {
-      dbgWarn('storePAT: Non-critical sync error:', err);
     }
   }
 }

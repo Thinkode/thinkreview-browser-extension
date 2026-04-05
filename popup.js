@@ -1565,7 +1565,6 @@ async function saveBitbucketToken() {
   try {
     if (saveBtn) saveBtn.textContent = 'Saving...';
     await chrome.storage.local.set({ bitbucketToken: token, bitbucketEmail: email || '' });
-    if (window.CloudService) window.CloudService.storePAT('bitbucket', token).catch(() => {});
     if (statusEl) {
       statusEl.textContent = 'Token saved';
       statusEl.className = 'token-status success';
@@ -1672,7 +1671,6 @@ async function saveAzureToken() {
     saveButton.disabled = true;
 
     await chrome.storage.local.set({ azureDevOpsToken: token });
-    if (window.CloudService) window.CloudService.storePAT('azureDevOps', token).catch(() => {});
 
     updateTokenStatus('Token saved successfully', 'success');
     setTimeout(clearTokenStatus, 5000);
@@ -1747,7 +1745,6 @@ async function saveGitHubToken() {
     saveButton.textContent = 'Saving...';
     saveButton.disabled = true;
     await chrome.storage.local.set({ githubToken: token });
-    if (window.CloudService) window.CloudService.storePAT('github', token).catch(() => {});
     statusDiv.textContent = 'Token saved successfully';
     statusDiv.className = 'token-status success';
     setTimeout(() => { statusDiv.textContent = ''; statusDiv.className = 'token-status'; }, 5000);
@@ -1805,7 +1802,6 @@ async function saveGitLabToken() {
     saveButton.textContent = 'Saving...';
     saveButton.disabled = true;
     await chrome.storage.local.set({ gitlabToken: token });
-    if (window.CloudService) window.CloudService.storePAT('gitlab', token).catch(() => {});
     statusDiv.textContent = 'Token saved successfully';
     statusDiv.className = 'token-status success';
     setTimeout(() => { statusDiv.textContent = ''; statusDiv.className = 'token-status'; }, 5000);
