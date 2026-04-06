@@ -13,14 +13,39 @@ let trackUserAction = null;
 })();
 
 /**
+ * Human-readable label for the merge/pull request being reviewed (e.g. MR !12, PR #34).
+ * @param {string|null|undefined} platform - 'gitlab' | 'github' | 'bitbucket' | 'azure-devops' | other
+ * @param {string|number|null|undefined} mrId - MR/PR identifier from the host
+ * @returns {string|null}
+ */
+export function formatReviewRequestLabel(platform, mrId) {
+  if (mrId == null || mrId === '') return null;
+  const id = String(mrId).trim();
+  if (!id) return null;
+  if (platform === 'gitlab') return `MR !${id}`;
+  if (platform === 'github' || platform === 'bitbucket' || platform === 'azure-devops') {
+    return `PR #${id}`;
+  }
+  return `PR #${id}`;
+}
+
+/**
  * Render the review metadata bar (patch size banner)
  * @param {HTMLElement} container - The container element for the banner
  * @param {Object|null} patchSize - Patch size information from backend
  * @param {string|null} subscriptionType - User's subscription type ('Professional', 'Teams', or 'Free')
  * @param {string|null} modelUsed - Model used for the review
  * @param {boolean} isCached - Whether the review was retrieved from cache
+ * @param {string|null} reviewRequestLabel - e.g. MR !12 or PR #34 from {@link formatReviewRequestLabel}
  */
-export function renderReviewMetadataBar(container, patchSize, subscriptionType = null, modelUsed = null, isCached = false) {
+export function renderReviewMetadataBar(
+  container,
+  patchSize,
+  subscriptionType = null,
+  modelUsed = null,
+  isCached = false,
+  reviewRequestLabel = null
+) {
   if (!container) return;
 
   // Clear previous content
@@ -109,6 +134,9 @@ export function renderReviewMetadataBar(container, patchSize, subscriptionType =
   
   // Build banner text with HTML elements to support the cached info icon
   const textParts = [];
+  if (reviewRequestLabel) {
+    textParts.push(reviewRequestLabel);
+  }
   textParts.push(`Original patch: ${originalSize}`);
   
   if (filesExcluded > 0) {
@@ -342,8 +370,9 @@ function formatCharsAsSize(chars) {
  * @param {HTMLElement} container - The container element for the banner
  * @param {Object|null} ollamaMeta - { patchSizeChars, patchSentChars, wasTruncated, model }
  * @param {Object} callbacks - { onSwitchToCloud(), getModels?(): Promise<Array<{name:string}>>, onModelChange?(modelName: string) }
+ * @param {string|null} [reviewRequestLabel] - e.g. MR !12 or PR #34
  */
-export function renderOllamaMetadataBar(container, ollamaMeta, callbacks = {}) {
+export function renderOllamaMetadataBar(container, ollamaMeta, callbacks = {}, reviewRequestLabel = null) {
   if (!container) return;
 
   container.innerHTML = '';
@@ -368,6 +397,10 @@ export function renderOllamaMetadataBar(container, ollamaMeta, callbacks = {}) {
   content.className = 'thinkreview-patch-size-content';
   const patchSizeStr = formatCharsAsSize(patchSizeChars);
   const truncatedSizeStr = formatCharsAsSize(patchSentChars);
+  if (reviewRequestLabel) {
+    content.appendChild(document.createTextNode(reviewRequestLabel));
+    content.appendChild(document.createTextNode(' • '));
+  }
   content.appendChild(document.createTextNode(`Original patch: ${patchSizeStr}`));
   if (wasTruncated && truncatedSizeStr) {
     content.appendChild(document.createTextNode(' • '));

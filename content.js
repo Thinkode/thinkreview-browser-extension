@@ -1416,7 +1416,8 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       {
         enabledReviewAgents: data.enabledReviewAgents,
         mrId: reviewId,
-        provider: bgResponse.provider
+        provider: bgResponse.provider,
+        platform
       }
     );
     

@@ -1554,28 +1554,44 @@ async function displayIntegratedReview(
   if (patchSizeBanner) {
     try {
       const metadataModule = await import(chrome.runtime.getURL('components/review-metadata-bar.js'));
+      const reviewRequestLabel = metadataModule.formatReviewRequestLabel(
+        integrationOpts?.platform ?? null,
+        integrationOpts?.mrId ?? null
+      );
       if (provider === 'ollama' && ollamaMeta) {
-        metadataModule.renderOllamaMetadataBar(patchSizeBanner, ollamaMeta, {
-          onSwitchToCloud() {
-            document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
-          },
-          getModels() {
-            return new Promise((resolve) => {
-              chrome.runtime.sendMessage({ type: 'GET_OLLAMA_MODELS' }, (response) => {
-                if (chrome.runtime.lastError || !response) {
-                  resolve([]);
-                  return;
-                }
-                resolve(response.models || []);
+        metadataModule.renderOllamaMetadataBar(
+          patchSizeBanner,
+          ollamaMeta,
+          {
+            onSwitchToCloud() {
+              document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
+            },
+            getModels() {
+              return new Promise((resolve) => {
+                chrome.runtime.sendMessage({ type: 'GET_OLLAMA_MODELS' }, (response) => {
+                  if (chrome.runtime.lastError || !response) {
+                    resolve([]);
+                    return;
+                  }
+                  resolve(response.models || []);
+                });
               });
-            });
+            },
+            onModelChange(modelName) {
+              document.dispatchEvent(new CustomEvent('thinkreview-ollama-model-changed', { detail: { model: modelName } }));
+            }
           },
-          onModelChange(modelName) {
-            document.dispatchEvent(new CustomEvent('thinkreview-ollama-model-changed', { detail: { model: modelName } }));
-          }
-        });
+          reviewRequestLabel
+        );
       } else {
-        metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionTypeForDisplay, modelUsed, isCached);
+        metadataModule.renderReviewMetadataBar(
+          patchSizeBanner,
+          patchSize,
+          subscriptionTypeForDisplay,
+          modelUsed,
+          isCached,
+          reviewRequestLabel
+        );
       }
     } catch (error) {
       dbgWarn('Failed to load review metadata bar:', error);
