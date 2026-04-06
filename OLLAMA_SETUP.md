@@ -62,6 +62,8 @@ ollama pull deepseek-coder:6.7b    # Code-focused, 4GB
 
 **Where to run these commands:** use a real shell on your computer — **Terminal** (macOS), your terminal app (**Linux**), **Windows PowerShell**, or **Command Prompt**. Do not paste them into the browser’s developer console; the extension talks to Ollama from your machine, and Ollama must be started with the right environment on that same machine.
 
+**Firefox browser (Mozilla):** in the commands below, replace `chrome-extension://*` with `moz-extension://*` in `OLLAMA_ORIGINS`.
+
 **Note:** The `killall` / `OLLAMA_ORIGINS="..." ollama serve` style commands below are for **macOS and Linux**. **Windows** uses different commands (`taskkill`, `set` / `$env:`) — see **Option A — Windows** below.
 
 **Option A — Quick start (one-time), macOS & Linux:**

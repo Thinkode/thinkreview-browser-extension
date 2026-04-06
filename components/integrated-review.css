@@ -3331,6 +3331,35 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   }
 }
 
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-firefox-note {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 12px;
+  line-height: 1.45;
+  color: #6c757d;
+  text-align: left;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-firefox-note code {
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.06);
+  word-break: break-all;
+}
+
+@media (prefers-color-scheme: dark) {
+  #gitlab-mr-integrated-review .thinkreview-ollama-cors-firefox-note {
+    color: #adb5bd;
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+
+  #gitlab-mr-integrated-review .thinkreview-ollama-cors-firefox-note code {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
 #gitlab-mr-integrated-review .thinkreview-ollama-cors-steps-intro {
   margin: 0 0 14px;
   font-size: 13px;

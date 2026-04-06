@@ -88,6 +88,19 @@ export function isOllamaProviderFailureMessage(message) {
   return /ollama/i.test(message);
 }
 
+/** Shown as a small footnote; main copy rows stay on chrome-extension://* */
+export const OLLAMA_ORIGINS_FIREFOX_NOTE =
+  'Firefox browser: replace chrome-extension://* with moz-extension://* in the commands above.';
+
+/**
+ * Small Mozilla/Firefox note for the review error panel (after Chrome-oriented copy rows).
+ * @returns {string}
+ */
+export function getOllamaFirefoxOriginsNoteHtml() {
+  return `
+    <p class="thinkreview-ollama-cors-firefox-note" role="note"><strong>Firefox browser:</strong> replace <code>chrome-extension://*</code> with <code>moz-extension://*</code> in the commands above.</p>`;
+}
+
 /**
  * Call-to-action to switch AI provider to cloud and regenerate (dispatched via data-thinkreview-action on the button).
  * @returns {string}
@@ -137,7 +150,9 @@ ${OLLAMA_CORS_START_COMMAND_WIN_PS}
 **Windows (Command Prompt)**
 \`\`\`cmd
 ${OLLAMA_CORS_START_COMMAND_WIN_CMD}
-\`\`\``;
+\`\`\`
+
+_${OLLAMA_ORIGINS_FIREFOX_NOTE}_`;
 }
 
 /**
@@ -167,6 +182,7 @@ export function getOllamaCorsHelpHtml() {
       ${corsCopyRow('ps-start')}
       <p class="thinkreview-ollama-cors-sublabel">Windows (Command Prompt)</p>
       ${corsCopyRow('cmd-start')}
+      ${getOllamaFirefoxOriginsNoteHtml()}
     </div>
   `;
 }

@@ -2176,6 +2176,9 @@ function showCorsInstructions() {
         </button>
       </div>
       
+      <div style="margin-top: 6px; font-size: 11px; line-height: 1.45; color: #64748b;">
+        <strong>Firefox browser:</strong> replace <code style="font-size:10px;">chrome-extension://*</code> with <code style="font-size:10px;">moz-extension://*</code> in the commands above.
+      </div>
       <div style="margin-top: 8px; padding: 8px; background: #f0f9ff; border-left: 3px solid #0ea5e9; font-size: 10px; color: #0c4a6e; border-radius: 2px;">
         💡 <strong>Command Prompt:</strong> use <code style="background: #e0f2fe; padding: 2px 4px; border-radius: 2px;">taskkill</code> / <code style="background: #e0f2fe; padding: 2px 4px; border-radius: 2px;">set OLLAMA_ORIGINS=...</code> — see <a href="https://github.com/Thinkode/thinkreview-browser-extension/blob/main/OLLAMA_SETUP.md" target="_blank" style="color: #0ea5e9; text-decoration: underline;">OLLAMA_SETUP.md</a> for CMD steps and making <code style="background: #e0f2fe; padding: 2px 4px; border-radius: 2px;">OLLAMA_ORIGINS</code> permanent.
       </div>
