@@ -24,7 +24,7 @@ export function formatReviewRequestLabel(platform, mrId) {
   if (!id) return null;
   switch (platform) {
     case 'gitlab':
-      return `MR !${id}`;
+      return `MR #${id}`;
     case 'github':
     case 'bitbucket':
     case 'azure-devops':
