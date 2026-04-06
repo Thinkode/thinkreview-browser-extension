@@ -49,8 +49,8 @@ setTimeout(() => {
 // Track if a review request is in progress to prevent duplicates
 let isReviewInProgress = false;
 
-// Track current PR ID for detecting navigation to new PRs
-let currentPRId = null;
+// Track current PR/MR review context (host + repo scope + id) for SPA navigation
+let currentReviewContextKey = null;
 
 // Listen for Ollama metadata bar actions (switch to cloud, change model)
 document.addEventListener('thinkreview-switch-to-cloud', async () => {
@@ -445,14 +445,61 @@ function getCurrentPRId() {
 }
 
 /**
+ * Stable key for the open PR/MR on SPAs: same numeric id in another repo must not match.
+ * @returns {string|null}
+ */
+function getCurrentReviewContextKey() {
+  if (!platformDetector || !isSupportedPage()) {
+    return null;
+  }
+  const host = (window.location.hostname || '').toLowerCase();
+  const { platform, pageInfo: pi } = platformDetector.detectPlatform();
+  if (!pi) return null;
+
+  if (platform === 'github') {
+    const id = pi.prId || getGitHubPRId();
+    if (!id) return null;
+    let repoScope = pi.repository?.fullName || '';
+    if (!repoScope) {
+      const m = window.location.pathname.match(/\/([^/]+)\/([^/]+)\/pull\/\d+/);
+      repoScope = m ? `${m[1]}/${m[2]}` : '';
+    }
+    return `github:${host}:${repoScope}:${id}`;
+  }
+  if (platform === 'azure-devops') {
+    const id = pi.prId;
+    if (!id) return null;
+    const org = pi.organization || '';
+    const project = pi.project || '';
+    const repoScope = pi.repository?.fullName || pi.repository?.name || '';
+    return `azure-devops:${host}:${org}:${project}:${repoScope}:${id}`;
+  }
+  if (platform === 'gitlab') {
+    const id = pi.mrId || getMergeRequestId();
+    if (!id) return null;
+    const repoScope = pi.repository?.fullName || '';
+    return `gitlab:${host}:${repoScope}:${id}`;
+  }
+  if (platform === 'bitbucket') {
+    const id = pi.prId;
+    if (!id) return null;
+    const repoScope =
+      pi.repository?.fullName ||
+      (pi.workspace && pi.repoSlug ? `${pi.workspace}/${pi.repoSlug}` : '');
+    return `bitbucket:${host}:${repoScope}:${id}`;
+  }
+  return null;
+}
+
+/**
  * Check if we've navigated to a new PR and trigger review if needed
  */
 async function checkAndTriggerReviewForNewPR() {
   // Only check if we're on a supported page (PR page)
   if (!isSupportedPage()) {
     // Not on a PR page - reset tracking and hide score popup
-    if (currentPRId !== null) {
-      currentPRId = null;
+    if (currentReviewContextKey !== null) {
+      currentReviewContextKey = null;
       
       // Clear patch content and conversation history when leaving PR page
       if (typeof window.clearPatchContentAndHistory === 'function') {
@@ -493,13 +540,13 @@ async function checkAndTriggerReviewForNewPR() {
     return;
   }
   
-  const newPRId = getCurrentPRId();
+  const newContextKey = getCurrentReviewContextKey();
   
-  // Check if we've navigated to a different PR
-  if (newPRId && newPRId !== currentPRId) {
+  // Check if we've navigated to a different PR (repo + id, not number alone)
+  if (newContextKey && newContextKey !== currentReviewContextKey) {
     dbgLog('Detected new PR page:', {
-      oldId: currentPRId,
-      newId: newPRId
+      oldKey: currentReviewContextKey,
+      newKey: newContextKey
     });
     
     // Clear patch content and conversation history from previous PR to free up memory
@@ -507,8 +554,8 @@ async function checkAndTriggerReviewForNewPR() {
       window.clearPatchContentAndHistory();
     }
     
-    // Update tracked PR ID
-    currentPRId = newPRId;
+    // Update tracked review context
+    currentReviewContextKey = newContextKey;
     
     // Ensure panel is minimized
     if (!panel.classList.contains('thinkreview-panel-minimized-to-button')) {
@@ -529,9 +576,9 @@ async function checkAndTriggerReviewForNewPR() {
     if (autoStart && isSupportedPage()) {
       setTimeout(() => fetchAndDisplayCodeReview(false, true), TIMEOUT_AUTO_REVIEW_DELAY);
     }
-  } else if (currentPRId === null && newPRId) {
+  } else if (currentReviewContextKey === null && newContextKey) {
     // First time detecting a PR - just track it
-    currentPRId = newPRId;
+    currentReviewContextKey = newContextKey;
   }
 }
 
@@ -559,8 +606,8 @@ async function injectIntegratedReviewPanel(opts = {}) {
   // Check if the panel already exists
   if (panel) {
     dbgLog('Integrated review panel already exists');
-    // Check if we've navigated to a new PR
-    checkAndTriggerReviewForNewPR();
+    // Check if we've navigated to a new PR (await so button clicks use updated context)
+    await checkAndTriggerReviewForNewPR();
     return;
   }
   
@@ -594,8 +641,8 @@ async function injectIntegratedReviewPanel(opts = {}) {
     }
   }
   
-  // Track current PR ID
-  currentPRId = getCurrentPRId();
+  // Track current PR/MR context (host + repo scope + id)
+  currentReviewContextKey = getCurrentReviewContextKey();
   
   // Trigger the code review only when: user explicitly requested (button click) or auto-start is enabled
   if (opts.triggerReview === true) {
@@ -1527,9 +1574,12 @@ async function toggleReviewPanel() {
   
   if (!panel) {
     // If panel doesn't exist yet, create it and trigger review (user clicked AI Review button)
-    injectIntegratedReviewPanel({ triggerReview: true });
+    await injectIntegratedReviewPanel({ triggerReview: true });
     return;
   }
+
+  // Sync SPA navigation before expand/minimize so stale reviews are cleared even if the URL poll has not fired yet
+  await checkAndTriggerReviewForNewPR();
   
   // Toggle the panel state
   if (panel.classList.contains('thinkreview-panel-minimized-to-button')) {
