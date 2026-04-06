@@ -22,11 +22,16 @@ export function formatReviewRequestLabel(platform, mrId) {
   if (mrId == null || mrId === '') return null;
   const id = String(mrId).trim();
   if (!id) return null;
-  if (platform === 'gitlab') return `MR !${id}`;
-  if (platform === 'github' || platform === 'bitbucket' || platform === 'azure-devops') {
-    return `PR #${id}`;
+  switch (platform) {
+    case 'gitlab':
+      return `MR !${id}`;
+    case 'github':
+    case 'bitbucket':
+    case 'azure-devops':
+      return `PR #${id}`;
+    default:
+      return `ID: ${id}`;
   }
-  return `PR #${id}`;
 }
 
 /**
