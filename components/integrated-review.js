@@ -35,10 +35,16 @@ if (typeof dbgError === 'undefined') {
 })();
 
 let ollamaBrowserExtensionCorsMessageModulePromise = null;
+let ollamaCorsHelpModuleVersionLoaded = null;
 function getOllamaBrowserExtensionCorsMessageModule() {
-  return (ollamaBrowserExtensionCorsMessageModulePromise ??= import(
-    chrome.runtime.getURL('components/ollama-browser-extension-cors-message.js')
-  ));
+  const ver =
+    (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '0';
+  if (ollamaCorsHelpModuleVersionLoaded !== ver) {
+    ollamaBrowserExtensionCorsMessageModulePromise = null;
+    ollamaCorsHelpModuleVersionLoaded = ver;
+  }
+  const url = `${chrome.runtime.getURL('components/ollama-browser-extension-cors-message.js')}?v=${encodeURIComponent(ver)}`;
+  return (ollamaBrowserExtensionCorsMessageModulePromise ??= import(url));
 }
 
 // Import the CSS for the integrated review panel
@@ -2280,15 +2286,28 @@ async function showIntegratedReviewError(message) {
 
   if (showOllamaUnifiedHelp && ollamaModule) {
     reviewErrorMessage.classList.add('thinkreview-error-message--rich');
-    reviewErrorMessage.innerHTML = ollamaModule.getOllamaCorsHelpHtml();
-    if (ollamaModule.attachOllamaCorsHelpCopyButtons) {
-      ollamaModule.attachOllamaCorsHelpCopyButtons(reviewErrorMessage);
+    try {
+      if (typeof ollamaModule.appendOllamaCorsHelp === 'function') {
+        ollamaModule.appendOllamaCorsHelp(reviewErrorMessage);
+        if (ollamaModule.attachOllamaCorsHelpCopyButtons) {
+          ollamaModule.attachOllamaCorsHelpCopyButtons(reviewErrorMessage);
+        }
+        reviewErrorMessage
+          .querySelector('[data-thinkreview-action="switch-to-cloud-ai"]')
+          ?.addEventListener('click', () => {
+            document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
+          });
+      } else {
+        dbgWarn('Ollama help module missing appendOllamaCorsHelp; reload the page after updating the extension.');
+        reviewErrorMessage.classList.remove('thinkreview-error-message--rich');
+        reviewErrorMessage.textContent =
+          message || 'Ollama connection issue. Reload the page if the help panel is blank after an extension update.';
+      }
+    } catch (e) {
+      dbgWarn('appendOllamaCorsHelp failed:', e);
+      reviewErrorMessage.classList.remove('thinkreview-error-message--rich');
+      reviewErrorMessage.textContent = message || 'Ollama connection issue.';
     }
-    reviewErrorMessage
-      .querySelector('[data-thinkreview-action="switch-to-cloud-ai"]')
-      ?.addEventListener('click', () => {
-        document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
-      });
   } else {
     reviewErrorMessage.classList.remove('thinkreview-error-message--rich');
     reviewErrorMessage.textContent = message || 'Failed to load code review.';
