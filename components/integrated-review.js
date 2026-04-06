@@ -1454,14 +1454,7 @@ async function handleSendMessage(messageText) {
     } else if (error.message && error.message.includes('Ollama')) {
       try {
         const mod = await getOllamaBrowserExtensionCorsMessageModule();
-        if (mod.isOllamaBrowserExtension403Error(error.message)) {
-          errorMessage = mod.getOllamaCorsHelpMarkdown();
-        } else {
-          const detail = String(error.message).replace(/```/g, "'''");
-          errorMessage =
-            'There was a problem with **local Ollama**. For instant reviews without a local server, open the **ThinkReview** popup, choose **Cloud** under **AI Provider**, and try again.\n\n' +
-            `Details:\n\`\`\`\n${detail}\n\`\`\``;
-        }
+        errorMessage = mod.getOllamaCorsHelpMarkdown();
       } catch {
         /* keep default errorMessage */
       }
@@ -2283,29 +2276,22 @@ async function showIntegratedReviewError(message) {
     }
   }
 
-  const isOllama403 = !!(message && ollamaModule?.isOllamaBrowserExtension403Error?.(message));
-  const isOllamaOther = !!(message && ollamaModule?.isOllamaProviderFailureMessage?.(message) && !isOllama403);
+  const showOllamaUnifiedHelp = !!(message && ollamaModule?.isOllamaProviderFailureMessage?.(message));
 
-  if (isOllama403 && ollamaModule) {
+  if (showOllamaUnifiedHelp && ollamaModule) {
     reviewErrorMessage.classList.add('thinkreview-error-message--rich');
     reviewErrorMessage.innerHTML = ollamaModule.getOllamaCorsHelpHtml();
     if (ollamaModule.attachOllamaCorsHelpCopyButtons) {
       ollamaModule.attachOllamaCorsHelpCopyButtons(reviewErrorMessage);
     }
-  } else if (isOllamaOther && ollamaModule) {
-    reviewErrorMessage.classList.add('thinkreview-error-message--rich');
-    reviewErrorMessage.innerHTML = ollamaModule.getOllamaGenericErrorDisplayHtml(message);
-  } else {
-    reviewErrorMessage.classList.remove('thinkreview-error-message--rich');
-    reviewErrorMessage.textContent = message || 'Failed to load code review.';
-  }
-
-  if (isOllama403 || isOllamaOther) {
     reviewErrorMessage
       .querySelector('[data-thinkreview-action="switch-to-cloud-ai"]')
       ?.addEventListener('click', () => {
         document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
       });
+  } else {
+    reviewErrorMessage.classList.remove('thinkreview-error-message--rich');
+    reviewErrorMessage.textContent = message || 'Failed to load code review.';
   }
 
   reviewError.classList.remove('gl-hidden');

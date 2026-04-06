@@ -79,27 +79,6 @@ export function attachOllamaCorsHelpCopyButtons(container) {
 }
 
 /**
- * True when Ollama returned HTTP 403 from the API (common when CORS / origins block the extension).
- * @param {string} [message]
- * @returns {boolean}
- */
-export function isOllamaBrowserExtension403Error(message) {
-  if (!message || typeof message !== 'string') return false;
-  return (
-    message.includes('Ollama API error (403)') ||
-    (message.includes('Ollama error:') && message.includes('API error (403)'))
-  );
-}
-
-function escapeHtmlOllama(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-/**
  * True when the review error text refers to Ollama (local provider), including connection, CORS, and model errors.
  * @param {string} [message]
  * @returns {boolean}
@@ -122,58 +101,6 @@ export function getOllamaSwitchToCloudCalloutHtml() {
 }
 
 /**
- * Polished HTML for non-CORS Ollama errors shown in the integrated panel.
- * @param {string} message - Raw error string from OllamaService / background
- * @returns {string}
- */
-export function getOllamaGenericErrorDisplayHtml(message) {
-  const callout = getOllamaSwitchToCloudCalloutHtml();
-  const raw = message || '';
-
-  if (/Cannot connect to Ollama at the configured URL/i.test(raw)) {
-    const urlMatch = raw.match(/Try accessing\s+([^\s]+)\s+in your browser/i);
-    const url = urlMatch ? escapeHtmlOllama(urlMatch[1].trim()) : 'http://localhost:11434';
-    return `
-    <div class="thinkreview-ollama-error-polished">
-      <p class="thinkreview-ollama-error-polished-title">Couldn’t connect to Ollama</p>
-      <p class="thinkreview-ollama-error-polished-lead">ThinkReview couldn’t reach your local Ollama server using the URL in your extension settings. Make sure Ollama is running and the base URL is correct.</p>
-      <ul class="thinkreview-ollama-error-polished-list">
-        <li><strong>Start Ollama</strong> — run <code>ollama serve</code> or open the Ollama app</li>
-        <li><strong>Check settings</strong> — open ThinkReview settings and verify the Ollama URL</li>
-        <li><strong>Test in your browser</strong> — try <strong>${url}</strong></li>
-      </ul>
-    </div>${callout}`;
-  }
-
-  if (/Cannot connect to Ollama\. Please ensure/i.test(raw)) {
-    return `
-    <div class="thinkreview-ollama-error-polished">
-      <p class="thinkreview-ollama-error-polished-title">Couldn’t connect to Ollama</p>
-      <p class="thinkreview-ollama-error-polished-lead">Your local Ollama server didn’t respond. Start Ollama and confirm the URL in extension settings, then try again.</p>
-      <ul class="thinkreview-ollama-error-polished-list">
-        <li>Run <code>ollama serve</code> or launch the Ollama desktop app</li>
-        <li>Verify the Ollama URL under ThinkReview settings</li>
-      </ul>
-    </div>${callout}`;
-  }
-
-  if (/^Model error:/i.test(raw) || /Make sure the selected model is installed/i.test(raw)) {
-    return `
-    <div class="thinkreview-ollama-error-polished">
-      <p class="thinkreview-ollama-error-polished-title">Ollama model issue</p>
-      <p class="thinkreview-ollama-error-polished-lead">There was a problem with the model you selected. Details below.</p>
-      <pre class="thinkreview-ollama-error-raw">${escapeHtmlOllama(raw)}</pre>
-    </div>${callout}`;
-  }
-
-  return `
-    <div class="thinkreview-ollama-error-polished">
-      <p class="thinkreview-ollama-error-polished-title">Something went wrong with Ollama</p>
-      <pre class="thinkreview-ollama-error-raw">${escapeHtmlOllama(raw)}</pre>
-    </div>${callout}`;
-}
-
-/**
  * Markdown help for chat (processed by markdownToHtml).
  * @returns {string}
  */
@@ -191,6 +118,10 @@ ${OLLAMA_STOP_COMMAND}
 \`\`\`powershell
 ${OLLAMA_STOP_COMMAND_WIN_PS}
 \`\`\`
+**Windows (Command Prompt)**
+\`\`\`cmd
+${OLLAMA_STOP_COMMAND_WIN_CMD}
+\`\`\`
 
 ##### Step 2: Start Ollama with CORS enabled for browser extensions
 **macOS & Linux**
@@ -201,14 +132,7 @@ ${OLLAMA_CORS_START_COMMAND}
 \`\`\`powershell
 ${OLLAMA_CORS_START_COMMAND_WIN_PS}
 \`\`\`
-
-##### Windows (Command Prompt)
-**Step 1: Stop Ollama**
-\`\`\`cmd
-${OLLAMA_STOP_COMMAND_WIN_CMD}
-\`\`\`
-
-**Step 2: Start Ollama with CORS enabled**
+**Windows (Command Prompt)**
 \`\`\`cmd
 ${OLLAMA_CORS_START_COMMAND_WIN_CMD}
 \`\`\``;
@@ -216,12 +140,13 @@ ${OLLAMA_CORS_START_COMMAND_WIN_CMD}
 
 /**
  * Static HTML for the review error panel (no user input; safe to inject).
- * PowerShell rows sit directly under macOS/Linux for each step; copy buttons match popup behavior.
+ * For each step: macOS/Linux, then PowerShell, then Command Prompt; copy buttons use shared keys.
  * @returns {string}
  */
 export function getOllamaCorsHelpHtml() {
   return `
     <div class="thinkreview-ollama-cors-help">
+      ${getOllamaSwitchToCloudCalloutHtml()}
       <p class="thinkreview-ollama-cors-lead"><strong>Important:</strong> Browser extensions require CORS to be enabled.</p>
       <p class="thinkreview-ollama-cors-where"><strong>Where to run:</strong> use <strong>Terminal</strong> (macOS), your terminal app (<strong>Linux</strong>), <strong>Windows PowerShell</strong>, or <strong>Command Prompt</strong> — not the browser devtools console.</p>
 
@@ -230,19 +155,16 @@ export function getOllamaCorsHelpHtml() {
       ${corsCopyRow('unix-stop')}
       <p class="thinkreview-ollama-cors-sublabel">Windows (PowerShell)</p>
       ${corsCopyRow('ps-stop')}
+      <p class="thinkreview-ollama-cors-sublabel">Windows (Command Prompt)</p>
+      ${corsCopyRow('cmd-stop')}
 
       <p class="thinkreview-ollama-cors-step-title">Step 2: Start Ollama with CORS enabled for browser extensions</p>
       <p class="thinkreview-ollama-cors-sublabel">macOS &amp; Linux</p>
       ${corsCopyRow('unix-start')}
       <p class="thinkreview-ollama-cors-sublabel">Windows (PowerShell)</p>
       ${corsCopyRow('ps-start')}
-
-      <p class="thinkreview-ollama-cors-os-label">Windows (Command Prompt)</p>
-      <p class="thinkreview-ollama-cors-sublabel">Step 1: Stop Ollama</p>
-      ${corsCopyRow('cmd-stop')}
-      <p class="thinkreview-ollama-cors-sublabel">Step 2: Start Ollama with CORS enabled</p>
+      <p class="thinkreview-ollama-cors-sublabel">Windows (Command Prompt)</p>
       ${corsCopyRow('cmd-start')}
-      ${getOllamaSwitchToCloudCalloutHtml()}
     </div>
   `;
 }
