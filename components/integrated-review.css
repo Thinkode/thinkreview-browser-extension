@@ -242,6 +242,10 @@
   padding: 16px;
 }
 
+#gitlab-mr-integrated-review #review-scroll-main {
+  min-height: 0;
+}
+
 /* Dark scrollbar for all scrollable areas inside the panel */
 #gitlab-mr-integrated-review ::-webkit-scrollbar {
   width: 6px;
@@ -3184,14 +3188,20 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   }
 }
 
-/* User-friendly Error Display Styles */
-#gitlab-mr-integrated-review #review-error {
-  padding: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  min-height: 200px;
+/* User-friendly error — inline in Review tab (#review-scroll-container), not full card-body overlay */
+#gitlab-mr-integrated-review #review-scroll-container > #review-error {
+  padding: 0 0 12px;
+  margin: 0 0 4px;
   width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-shrink: 0;
+}
+
+#gitlab-mr-integrated-review #review-scroll-container > #review-error:has(.thinkreview-error-message--rich) {
+  justify-content: center;
 }
 
 #gitlab-mr-integrated-review .thinkreview-error-container {
@@ -3199,14 +3209,22 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   align-items: flex-start;
   gap: 16px;
   max-width: 450px;
-  padding: 20px 24px;
+  padding: 16px 18px;
   background: linear-gradient(135deg, rgba(251, 233, 231, 0.95) 0%, rgba(255, 245, 245, 0.95) 100%);
   border: 2px solid #ff6b6b;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(255, 107, 107, 0.15);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 12px rgba(255, 107, 107, 0.12);
   animation: errorSlideIn 0.3s ease-out;
   margin-right: auto;
+}
+
+#gitlab-mr-integrated-review #review-scroll-container > #review-error:has(.thinkreview-error-message--rich) .thinkreview-error-container {
+  flex-direction: column;
+  align-items: center;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: min(100%, 580px);
+  text-align: center;
 }
 
 @keyframes errorSlideIn {
@@ -3241,6 +3259,12 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   text-align: left;
 }
 
+#gitlab-mr-integrated-review #review-scroll-container > #review-error:has(.thinkreview-error-message--rich) .thinkreview-error-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+}
+
 #gitlab-mr-integrated-review .thinkreview-error-message {
   font-size: 15px;
   line-height: 1.6;
@@ -3260,6 +3284,276 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   
   #gitlab-mr-integrated-review .thinkreview-error-message {
     color: #ff8787;
+  }
+}
+
+/* Ollama CORS / 403 help inside review error panel */
+#gitlab-mr-integrated-review .thinkreview-error-message.thinkreview-error-message--rich {
+  color: #495057;
+  font-weight: 400;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  #gitlab-mr-integrated-review .thinkreview-error-message.thinkreview-error-message--rich {
+    color: #e9ecef;
+  }
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-help {
+  margin: 0;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-lead {
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-where {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #495057;
+}
+
+@media (prefers-color-scheme: dark) {
+  #gitlab-mr-integrated-review .thinkreview-ollama-cors-where {
+    color: #ced4da;
+  }
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-sublabel {
+  margin: 8px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #495057;
+  text-align: left;
+}
+
+@media (prefers-color-scheme: dark) {
+  #gitlab-mr-integrated-review .thinkreview-ollama-cors-sublabel {
+    color: #ced4da;
+  }
+}
+
+#gitlab-mr-integrated-review #review-scroll-container > #review-error:has(.thinkreview-error-message--rich) .thinkreview-ollama-cors-sublabel {
+  text-align: center;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin: 0 0 10px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-code--in-row {
+  flex: 1;
+  min-width: 0;
+  margin: 0 !important;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-copy-btn {
+  flex-shrink: 0;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #3b82f6;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-copy-btn:hover {
+  color: #2563eb;
+  transform: scale(1.08);
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-copy-svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Ollama generic errors + “Switch to Cloud AI” callout (review error panel) */
+#gitlab-mr-integrated-review .thinkreview-ollama-error-polished {
+  text-align: left;
+  max-width: 100%;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-error-polished-title {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #c92a2a;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-error-polished-lead {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #495057;
+  font-weight: 400;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-error-polished-list {
+  margin: 0 0 16px;
+  padding-left: 1.25rem;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #495057;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-error-polished-list code {
+  font-size: 12px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #f1f3f5;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-error-raw {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-align: left;
+  color: #212529;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-error-cloud-fallback {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-error-cloud-fallback-text {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #495057;
+  font-weight: 400;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-switch-to-cloud-btn--inline-error {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  background-color: rgba(107, 79, 187, 0.35);
+  border: 1px solid rgba(107, 79, 187, 0.55);
+  border-radius: 6px;
+  color: #e8deff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-switch-to-cloud-btn--inline-error:hover {
+  background-color: rgba(107, 79, 187, 0.5);
+  border-color: rgba(107, 79, 187, 0.75);
+  color: #f5f0ff;
+  transform: translateY(-1px);
+}
+
+@media (prefers-color-scheme: dark) {
+  #gitlab-mr-integrated-review .thinkreview-ollama-error-polished-title {
+    color: #ff8787;
+  }
+
+  #gitlab-mr-integrated-review .thinkreview-ollama-error-polished-lead,
+  #gitlab-mr-integrated-review .thinkreview-ollama-error-polished-list,
+  #gitlab-mr-integrated-review .thinkreview-ollama-error-cloud-fallback-text {
+    color: #e9ecef;
+  }
+
+  #gitlab-mr-integrated-review .thinkreview-ollama-error-polished-list code {
+    background: #2b3035;
+    color: #e9ecef;
+  }
+
+  #gitlab-mr-integrated-review .thinkreview-ollama-error-raw {
+    background: #2b3035;
+    border-color: #495057;
+    color: #e9ecef;
+  }
+
+  #gitlab-mr-integrated-review .thinkreview-ollama-error-cloud-fallback {
+    border-top-color: rgba(255, 255, 255, 0.12);
+  }
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-os-label {
+  margin: 18px 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1864ab;
+  text-transform: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  #gitlab-mr-integrated-review .thinkreview-ollama-cors-os-label {
+    color: #74c0fc;
+  }
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-step-title {
+  margin: 14px 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #212529;
+}
+
+@media (prefers-color-scheme: dark) {
+  #gitlab-mr-integrated-review .thinkreview-ollama-cors-step-title {
+    color: #f1f3f5;
+  }
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-code {
+  margin: 0 auto 8px;
+  padding: 10px 12px;
+  background: #f1f3f5;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-code code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #212529;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (prefers-color-scheme: dark) {
+  #gitlab-mr-integrated-review .thinkreview-ollama-cors-code {
+    background: #2b3035;
+    border-color: #495057;
+  }
+
+  #gitlab-mr-integrated-review .thinkreview-ollama-cors-code code {
+    color: #e9ecef;
   }
 }
 

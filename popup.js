@@ -2124,7 +2124,9 @@ function showCorsInstructions() {
   if (!statusDiv) return;
   
   const killCommand = 'killall ollama 2>/dev/null || true; killall Ollama 2>/dev/null || true; sleep 2';
+  const killPsCommand = 'Stop-Process -Name ollama -ErrorAction SilentlyContinue; Start-Sleep -Seconds 2';
   const startCommand = 'OLLAMA_ORIGINS="chrome-extension://*" ollama serve';
+  const startPsCommand = '$env:OLLAMA_ORIGINS=\'chrome-extension://*\'; ollama serve';
   
   const copyIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
     <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
@@ -2140,34 +2142,59 @@ function showCorsInstructions() {
     <div style="text-align: left;">
       <div style="font-weight: bold; margin-bottom: 10px; font-size: 14px;">🔒 CORS Error Detected</div>
       <div style="margin-bottom: 10px; font-size: 12px;">Ollama needs CORS enabled for browser extensions.</div>
+      <div style="margin-bottom: 10px; font-size: 11px; line-height: 1.45; color: #64748b;">Run the commands below in <strong>Terminal</strong> (macOS/Linux) or <strong>PowerShell</strong> / <strong>Command Prompt</strong> (Windows) — not in the browser. On Windows, use <code style="font-size:10px;">taskkill</code> / <code style="font-size:10px;">$env:OLLAMA_ORIGINS=...</code> instead of <code style="font-size:10px;">killall</code>; see the setup guide.</div>
       
-      <div style="font-weight: 600; margin-bottom: 6px; font-size: 12px;">1. Stop Ollama</div>
-      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+      <div style="font-weight: 600; margin-bottom: 4px; font-size: 12px;">1. Stop Ollama</div>
+      <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">macOS / Linux</div>
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
         <code style="flex: 1; background: #2a2a2a; padding: 6px 8px; border-radius: 4px; font-size: 10px; color: #00ff00; overflow-x: auto; white-space: nowrap;">${killCommand}</code>
         <button class="cors-copy-btn" data-command-type="kill" style="background: none; border: none; cursor: pointer; padding: 6px; color: #3b82f6; transition: all 0.3s ease-in-out; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Copy">
           ${copyIconSVG}
         </button>
       </div>
+      <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Windows (PowerShell)</div>
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+        <code style="flex: 1; background: #2a2a2a; padding: 6px 8px; border-radius: 4px; font-size: 10px; color: #00ff00; overflow-x: auto; white-space: nowrap;">${killPsCommand}</code>
+        <button class="cors-copy-btn" data-command-type="kill-ps" style="background: none; border: none; cursor: pointer; padding: 6px; color: #3b82f6; transition: all 0.3s ease-in-out; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Copy">
+          ${copyIconSVG}
+        </button>
+      </div>
       
-      <div style="font-weight: 600; margin-bottom: 6px; font-size: 12px;">2. Start with CORS</div>
+      <div style="font-weight: 600; margin-bottom: 4px; font-size: 12px;">2. Start with CORS</div>
+      <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">macOS / Linux</div>
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
         <code style="flex: 1; background: #2a2a2a; padding: 6px 8px; border-radius: 4px; font-size: 10px; color: #00ff00; overflow-x: auto; white-space: nowrap;">${startCommand}</code>
         <button class="cors-copy-btn" data-command-type="start" style="background: none; border: none; cursor: pointer; padding: 6px; color: #3b82f6; transition: all 0.3s ease-in-out; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Copy">
           ${copyIconSVG}
         </button>
       </div>
+      <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Windows (PowerShell)</div>
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <code style="flex: 1; background: #2a2a2a; padding: 6px 8px; border-radius: 4px; font-size: 10px; color: #00ff00; overflow-x: auto; white-space: nowrap;">${startPsCommand}</code>
+        <button class="cors-copy-btn" data-command-type="start-ps" style="background: none; border: none; cursor: pointer; padding: 6px; color: #3b82f6; transition: all 0.3s ease-in-out; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Copy">
+          ${copyIconSVG}
+        </button>
+      </div>
       
       <div style="margin-top: 8px; padding: 8px; background: #f0f9ff; border-left: 3px solid #0ea5e9; font-size: 10px; color: #0c4a6e; border-radius: 2px;">
-        💡 You can make it permanent by exporting <code style="background: #e0f2fe; padding: 2px 4px; border-radius: 2px;">OLLAMA_ORIGINS</code> in your bash/zsh profile. <a href="https://github.com/Thinkode/thinkreview-browser-extension/blob/main/OLLAMA_SETUP.md" target="_blank" style="color: #0ea5e9; text-decoration: underline;">Visit the full setup guide</a> for details.
+        💡 <strong>Command Prompt:</strong> use <code style="background: #e0f2fe; padding: 2px 4px; border-radius: 2px;">taskkill</code> / <code style="background: #e0f2fe; padding: 2px 4px; border-radius: 2px;">set OLLAMA_ORIGINS=...</code> — see <a href="https://github.com/Thinkode/thinkreview-browser-extension/blob/main/OLLAMA_SETUP.md" target="_blank" style="color: #0ea5e9; text-decoration: underline;">OLLAMA_SETUP.md</a> for CMD steps and making <code style="background: #e0f2fe; padding: 2px 4px; border-radius: 2px;">OLLAMA_ORIGINS</code> permanent.
       </div>
     </div>
   `;
   
   // Set the data-command attribute after innerHTML is set (avoids HTML escaping issues)
   const copyButtons = statusDiv.querySelectorAll('.cors-copy-btn');
+  const commandByType = {
+    kill: killCommand,
+    'kill-ps': killPsCommand,
+    start: startCommand,
+    'start-ps': startPsCommand
+  };
+
   copyButtons.forEach(button => {
     const commandType = button.getAttribute('data-command-type');
-    const command = commandType === 'kill' ? killCommand : startCommand;
+    const command = commandByType[commandType];
+    if (command == null) return;
     // Use setAttribute to properly set the attribute value without HTML escaping issues
     button.setAttribute('data-command', command);
     

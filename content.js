@@ -1393,7 +1393,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       const errorMessage = data.review.errorMessage 
         ? `Unable to parse AI response: ${data.review.errorMessage}. Please try regenerating the review.`
         : 'The AI generated a response that could not be parsed. Please try regenerating the review or report this issue at https://thinkreview.dev/bug-report';
-      showIntegratedReviewError(errorMessage);
+      await showIntegratedReviewError(errorMessage);
       return;
     }
     
@@ -1487,7 +1487,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       }
     }
     
-    showIntegratedReviewError(userFriendlyMessage);
+    await showIntegratedReviewError(userFriendlyMessage);
   } finally {
     // Hide loading indicator when review completes
     try {

@@ -60,7 +60,11 @@ ollama pull deepseek-coder:6.7b    # Code-focused, 4GB
 
 **Important:** Browser extensions require CORS to be enabled.
 
-**Option A - Quick Start (One-time):**
+**Where to run these commands:** use a real shell on your computer — **Terminal** (macOS), your terminal app (**Linux**), **Windows PowerShell**, or **Command Prompt**. Do not paste them into the browser’s developer console; the extension talks to Ollama from your machine, and Ollama must be started with the right environment on that same machine.
+
+**Note:** The `killall` / `OLLAMA_ORIGINS="..." ollama serve` style commands below are for **macOS and Linux**. **Windows** uses different commands (`taskkill`, `set` / `$env:`) — see **Option A — Windows** below.
+
+**Option A — Quick start (one-time), macOS & Linux:**
 ```bash
 # Step 1: Stop Ollama
 killall ollama 2>/dev/null || true; killall Ollama 2>/dev/null || true; sleep 2
@@ -69,11 +73,35 @@ killall ollama 2>/dev/null || true; killall Ollama 2>/dev/null || true; sleep 2
 OLLAMA_ORIGINS="chrome-extension://*" ollama serve
 ```
 
-**Option B - Make it Permanent (Recommended):**
+**Option A — Quick start (one-time), Windows:**
+
+Stop the Ollama app if it is running (system tray **Quit**, or use the commands below), then start the server from a terminal with `OLLAMA_ORIGINS` set.
+
+**PowerShell (recommended on Windows):**
+```powershell
+# Step 1: Stop Ollama
+Stop-Process -Name ollama -ErrorAction SilentlyContinue; Start-Sleep -Seconds 2
+
+# Step 2: Start Ollama with CORS enabled for browser extensions
+$env:OLLAMA_ORIGINS='chrome-extension://*'; ollama serve
+```
+
+**Command Prompt:**
+```cmd
+REM Step 1: Stop Ollama
+taskkill /IM ollama.exe /F 2>nul & timeout /t 2 /nobreak >nul
+
+REM Step 2: Start Ollama with CORS enabled for browser extensions
+set OLLAMA_ORIGINS=chrome-extension://* && ollama serve
+```
+
+If `taskkill` reports the process was not found, Ollama may already be stopped — continue with step 2.
+
+**Option B — Make it permanent (recommended):**
 
 Set `OLLAMA_ORIGINS` permanently so you don't need to set it every time you run `ollama serve`:
 
-**macOS/Linux:**
+**macOS & Linux:**
 1. Open your shell configuration file:
    ```bash
    # For Zsh
@@ -146,7 +174,7 @@ Other models may work but are not officially tested.
 ## Troubleshooting
 
 ### Connection Failed (403 Forbidden)
-CORS is not enabled. Use Option A above to restart Ollama with CORS enabled.
+CORS / allowed origins are not set correctly. Use **Option A** above to restart Ollama with `OLLAMA_ORIGINS` (pick the block for **macOS/Linux** or **Windows**).
 
 ### Connection Failed (Cannot Connect)
 1. Verify Ollama is running: `ollama list`
