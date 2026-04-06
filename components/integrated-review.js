@@ -1413,19 +1413,30 @@ async function handleSendMessage(messageText) {
     if (chatLog && !chatLog.querySelector('.thinkreview-context-banner')) {
       const contextType = aiResponse.contextType || 'patch_only';
       const banner = document.createElement('div');
+      const icon = document.createElement('span');
+      const label = document.createElement('span');
+
+      icon.className = 'thinkreview-context-icon';
+      label.className = 'thinkreview-context-label';
+
       if (contextType === 'full_repo') {
         banner.className = 'thinkreview-context-banner context-full';
-        banner.innerHTML = `
-          <span class="thinkreview-context-icon">✓</span>
-          <span class="thinkreview-context-label">Full repository context active — ThinkReview can read files across your codebase for deeper, more accurate answers.</span>
-        `;
+        icon.textContent = '✓';
+        label.textContent = 'Full repository context active — ThinkReview can read files across your codebase for deeper, more accurate answers.';
+        banner.append(icon, label);
       } else {
         banner.className = 'thinkreview-context-banner context-patch';
-        banner.innerHTML = `
-          <span class="thinkreview-context-icon">ℹ</span>
-          <span class="thinkreview-context-label">This review uses patch-only context. Give ThinkReview access to your full repository for significantly better review quality.</span>
-          <a href="https://portal.thinkreview.dev/credentials" target="_blank" rel="noopener noreferrer" class="thinkreview-context-upgrade-btn">Try full context →</a>
-        `;
+        icon.textContent = 'ℹ';
+        label.textContent = 'This review uses patch-only context. Give ThinkReview access to your full repository for significantly better review quality.';
+
+        const upgradeBtn = document.createElement('a');
+        upgradeBtn.href = 'https://portal.thinkreview.dev/credentials';
+        upgradeBtn.target = '_blank';
+        upgradeBtn.rel = 'noopener noreferrer';
+        upgradeBtn.className = 'thinkreview-context-upgrade-btn';
+        upgradeBtn.textContent = 'Try full context →';
+
+        banner.append(icon, label, upgradeBtn);
       }
       chatLog.appendChild(banner);
     }
