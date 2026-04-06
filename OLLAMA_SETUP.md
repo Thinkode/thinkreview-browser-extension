@@ -58,7 +58,7 @@ ollama pull deepseek-coder:6.7b    # Code-focused, 4GB
 
 ### 3. Start Ollama Server with CORS Enabled
 
-**Important:** Browser extensions require CORS to be enabled.
+**Important:** **Ollama** runs on your computer while the extension runs in the browser. The steps below restart Ollama with settings that let extensions connect (including CORS), which fixes many Ollama-related errors.
 
 **Where to run these commands:** use a real shell on your computer — **Terminal** (macOS), your terminal app (**Linux**), **Windows PowerShell**, or **Command Prompt**. Do not paste them into the browser’s developer console; the extension talks to Ollama from your machine, and Ollama must be started with the right environment on that same machine.
 

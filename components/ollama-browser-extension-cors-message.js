@@ -105,9 +105,11 @@ export function getOllamaSwitchToCloudCalloutHtml() {
  * @returns {string}
  */
 export function getOllamaCorsHelpMarkdown() {
-  return `**Important:** Browser extensions require CORS to be enabled.
+  return `**Ollama connection issue**
 
-**Where to run these commands:** use **Terminal** (macOS), your terminal app (**Linux**), **Windows PowerShell**, or **Command Prompt** — not the browser devtools console.
+Need a review right away? Switch to **Cloud AI** in the extension popup (or toolbar) for hosted reviews—no local Ollama required.
+
+**If fixing local Ollama:** run the commands below in **Terminal**, **PowerShell**, or **Command Prompt** on your machine — not in the browser. They restart Ollama with CORS allowed for browser extensions.
 
 ##### Step 1: Stop Ollama
 **macOS & Linux**
@@ -123,7 +125,7 @@ ${OLLAMA_STOP_COMMAND_WIN_PS}
 ${OLLAMA_STOP_COMMAND_WIN_CMD}
 \`\`\`
 
-##### Step 2: Start Ollama with CORS enabled for browser extensions
+##### Step 2: Start Ollama (CORS for extensions)
 **macOS & Linux**
 \`\`\`bash
 ${OLLAMA_CORS_START_COMMAND}
@@ -140,15 +142,15 @@ ${OLLAMA_CORS_START_COMMAND_WIN_CMD}
 
 /**
  * Static HTML for the review error panel (no user input; safe to inject).
- * For each step: macOS/Linux, then PowerShell, then Command Prompt; copy buttons use shared keys.
+ * Order: centered headline, bordered cloud CTA, then CORS restart steps (⚠️ above headline in panel layout).
  * @returns {string}
  */
 export function getOllamaCorsHelpHtml() {
   return `
     <div class="thinkreview-ollama-cors-help">
+      <p class="thinkreview-ollama-error-title">Ollama connection issue</p>
       ${getOllamaSwitchToCloudCalloutHtml()}
-      <p class="thinkreview-ollama-cors-lead"><strong>Important:</strong> Browser extensions require CORS to be enabled.</p>
-      <p class="thinkreview-ollama-cors-where"><strong>Where to run:</strong> use <strong>Terminal</strong> (macOS), your terminal app (<strong>Linux</strong>), <strong>Windows PowerShell</strong>, or <strong>Command Prompt</strong> — not the browser devtools console.</p>
+      <p class="thinkreview-ollama-cors-steps-intro"><strong>Fix local Ollama:</strong> stop and start the server with CORS for extensions. Run on your computer (Terminal, PowerShell, or CMD) — not in the browser.</p>
 
       <p class="thinkreview-ollama-cors-step-title">Step 1: Stop Ollama</p>
       <p class="thinkreview-ollama-cors-sublabel">macOS &amp; Linux</p>
@@ -158,7 +160,7 @@ export function getOllamaCorsHelpHtml() {
       <p class="thinkreview-ollama-cors-sublabel">Windows (Command Prompt)</p>
       ${corsCopyRow('cmd-stop')}
 
-      <p class="thinkreview-ollama-cors-step-title">Step 2: Start Ollama with CORS enabled for browser extensions</p>
+      <p class="thinkreview-ollama-cors-step-title">Step 2: Start Ollama (CORS for extensions)</p>
       <p class="thinkreview-ollama-cors-sublabel">macOS &amp; Linux</p>
       ${corsCopyRow('unix-start')}
       <p class="thinkreview-ollama-cors-sublabel">Windows (PowerShell)</p>

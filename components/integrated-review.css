@@ -3222,13 +3222,14 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   margin-right: auto;
 }
 
-#gitlab-mr-integrated-review #review-scroll-container > #review-error:has(.thinkreview-error-message--rich) .thinkreview-error-container {
+/* Ollama help: ⚠️ centered above headline; steps stay left-aligned */
+#gitlab-mr-integrated-review #review-scroll-container > #review-error:has(.thinkreview-ollama-cors-help) .thinkreview-error-container {
   flex-direction: column;
   align-items: center;
   margin-left: auto;
   margin-right: auto;
   max-width: min(100%, 580px);
-  text-align: center;
+  text-align: left;
 }
 
 @keyframes errorSlideIn {
@@ -3263,10 +3264,12 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   text-align: left;
 }
 
-#gitlab-mr-integrated-review #review-scroll-container > #review-error:has(.thinkreview-error-message--rich) .thinkreview-error-content {
+#gitlab-mr-integrated-review #review-scroll-container > #review-error:has(.thinkreview-ollama-cors-help) .thinkreview-error-content {
   flex: 1 1 auto;
   min-width: 0;
-  text-align: center;
+  width: 100%;
+  align-self: stretch;
+  text-align: left;
 }
 
 #gitlab-mr-integrated-review .thinkreview-error-message {
@@ -3298,6 +3301,10 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   text-align: center;
 }
 
+#gitlab-mr-integrated-review #review-scroll-container > #review-error:has(.thinkreview-ollama-cors-help) .thinkreview-error-message.thinkreview-error-message--rich {
+  text-align: left;
+}
+
 @media (prefers-color-scheme: dark) {
   #gitlab-mr-integrated-review .thinkreview-error-message.thinkreview-error-message--rich {
     color: #e9ecef;
@@ -3308,21 +3315,31 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   margin: 0;
 }
 
-#gitlab-mr-integrated-review .thinkreview-ollama-cors-lead {
-  margin: 0 0 12px;
-  font-size: 15px;
-  line-height: 1.5;
+#gitlab-mr-integrated-review .thinkreview-ollama-error-title {
+  margin: 0 0 14px;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #c92a2a;
+  text-align: center;
+  width: 100%;
 }
 
-#gitlab-mr-integrated-review .thinkreview-ollama-cors-where {
-  margin: 0 0 16px;
+@media (prefers-color-scheme: dark) {
+  #gitlab-mr-integrated-review .thinkreview-ollama-error-title {
+    color: #ff8787;
+  }
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-cors-steps-intro {
+  margin: 0 0 14px;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.45;
   color: #495057;
 }
 
 @media (prefers-color-scheme: dark) {
-  #gitlab-mr-integrated-review .thinkreview-ollama-cors-where {
+  #gitlab-mr-integrated-review .thinkreview-ollama-cors-steps-intro {
     color: #ced4da;
   }
 }
@@ -3339,10 +3356,6 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   #gitlab-mr-integrated-review .thinkreview-ollama-cors-sublabel {
     color: #ced4da;
   }
-}
-
-#gitlab-mr-integrated-review #review-scroll-container > #review-error:has(.thinkreview-error-message--rich) .thinkreview-ollama-cors-sublabel {
-  text-align: center;
 }
 
 #gitlab-mr-integrated-review .thinkreview-ollama-cors-row {
@@ -3388,11 +3401,14 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   height: 18px;
 }
 
-/* Ollama unified help: “Switch to Cloud AI” callout at top of CORS instructions */
+/* Ollama unified help: “Need a review right away?” — bordered callout */
 #gitlab-mr-integrated-review .thinkreview-ollama-error-cloud-fallback {
-  margin-bottom: 18px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+  margin: 0 0 18px;
+  padding: 14px 16px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
   text-align: center;
 }
 
@@ -3442,7 +3458,8 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   }
 
   #gitlab-mr-integrated-review .thinkreview-ollama-error-cloud-fallback {
-    border-bottom-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(0, 0, 0, 0.22);
   }
 }
 
