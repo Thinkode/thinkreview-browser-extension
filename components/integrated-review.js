@@ -1384,7 +1384,7 @@ function createContextBanner(type) {
     label.textContent = 'This review uses patch-only context. Give ThinkReview access to your full repository for significantly better review quality.';
 
     const upgradeBtn = document.createElement('a');
-    upgradeBtn.href = 'https://portal.thinkreview.dev/credentials';
+    upgradeBtn.href = 'https://portal.thinkreview.dev/integrations';
     upgradeBtn.target = '_blank';
     upgradeBtn.rel = 'noopener noreferrer';
     upgradeBtn.className = 'thinkreview-context-upgrade-btn';
