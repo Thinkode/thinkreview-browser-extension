@@ -33,6 +33,20 @@ if (typeof dbgError === 'undefined') {
     dbgWarn('Failed to load logger module, using console fallback:', error);
   }
 })();
+
+let ollamaBrowserExtensionCorsMessageModulePromise = null;
+let ollamaCorsHelpModuleVersionLoaded = null;
+function getOllamaBrowserExtensionCorsMessageModule() {
+  const ver =
+    (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '0';
+  if (ollamaCorsHelpModuleVersionLoaded !== ver) {
+    ollamaBrowserExtensionCorsMessageModulePromise = null;
+    ollamaCorsHelpModuleVersionLoaded = ver;
+  }
+  const url = `${chrome.runtime.getURL('components/ollama-browser-extension-cors-message.js')}?v=${encodeURIComponent(ver)}`;
+  return (ollamaBrowserExtensionCorsMessageModulePromise ??= import(url));
+}
+
 // Import the CSS for the integrated review panel
 const cssURL = chrome.runtime.getURL('components/integrated-review.css');
 const linkElement = document.createElement('link');
@@ -385,6 +399,15 @@ async function createIntegratedReviewPanel(patchUrl) {
             <div class="thinkreview-tab-panels">
               <div class="thinkreview-tab-panel active" id="tab-panel-review" data-tab="review">
           <div id="review-scroll-container">
+            <div id="review-error" class="gl-hidden">
+              <div class="thinkreview-error-container">
+                <div class="thinkreview-error-icon">⚠️</div>
+                <div class="thinkreview-error-content">
+                  <div id="review-error-message" class="thinkreview-error-message">Failed to load code review.</div>
+                </div>
+              </div>
+            </div>
+            <div id="review-scroll-main">
             <div id="review-prompt-container"></div>
             <div id="review-patch-size-banner" class="gl-mb-4 gl-hidden"></div>
             <div id="review-metrics-container" class="gl-mb-4"></div>
@@ -429,6 +452,7 @@ async function createIntegratedReviewPanel(patchUrl) {
               </div>
             </div>
             <div id="chat-log" class="thinkreview-chat-log"></div>
+            </div>
           </div>
               </div>
               <div class="thinkreview-tab-panel" id="tab-panel-code-suggestions" data-tab="code-suggestions">
@@ -444,14 +468,6 @@ async function createIntegratedReviewPanel(patchUrl) {
                 <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-4.995-3.178 11.13-6.483Z"/>
               </svg>
             </button>
-          </div>
-        </div>
-        <div id="review-error" class="gl-hidden">
-          <div class="thinkreview-error-container">
-            <div class="thinkreview-error-icon">⚠️</div>
-            <div class="thinkreview-error-content">
-              <div id="review-error-message" class="thinkreview-error-message">Failed to load code review.</div>
-            </div>
           </div>
         </div>
       </div>
@@ -849,7 +865,9 @@ async function createIntegratedReviewPanel(patchUrl) {
       dbgLog('Language preference updated to:', selectedLanguage);
     });
   }
-  
+
+  getOllamaBrowserExtensionCorsMessageModule().catch(() => {});
+
   return container;
 }
 
@@ -1481,7 +1499,15 @@ async function handleSendMessage(messageText) {
     let errorMessage = 'Sorry, something went wrong. Please try again.';
     if (error.isRateLimit) {
       errorMessage = '🚫 Rate limit reached! You\'ve made too many requests in a short time. Please wait a few minutes before trying again. This helps us provide quality service to all users.';
-    } else if (error.message && (error.message.includes('429') || error.message.includes('403'))) {
+    } else if (error.message && error.message.includes('Ollama')) {
+      try {
+        const mod = await getOllamaBrowserExtensionCorsMessageModule();
+        errorMessage = mod.getOllamaCorsHelpMarkdown();
+      } catch {
+        /* keep default errorMessage */
+      }
+    }
+    if (errorMessage === 'Sorry, something went wrong. Please try again.' && error.message && (error.message.includes('429') || error.message.includes('403'))) {
       // Fallback for errors that might not have the proper error properties
       if (error.message.includes('403')) {
         errorMessage = '🚫 Rate limit reached! You\'ve made too many requests in a short time. Please wait a few minutes before trying again. This helps us provide quality service to all users.';
@@ -1523,7 +1549,7 @@ async function displayIntegratedReview(
     const errorMessage = review.errorMessage 
       ? `Unable to parse AI response: ${review.errorMessage}. Please try regenerating the review.`
       : 'The AI generated a response that could not be parsed. Please try regenerating the review or report this issue at https://thinkreview.dev/bug-report';
-    showIntegratedReviewError(errorMessage);
+    await showIntegratedReviewError(errorMessage);
     return;
   }
   
@@ -1565,6 +1591,8 @@ async function displayIntegratedReview(
   // Hide loading indicator and other states, show the main content area
   reviewLoading.classList.add('gl-hidden');
   reviewError.classList.add('gl-hidden');
+  const reviewScrollMain = document.getElementById('review-scroll-main');
+  if (reviewScrollMain) reviewScrollMain.classList.remove('gl-hidden');
   if (tokenError) tokenError.classList.add('gl-hidden');
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
   reviewContent.classList.remove('gl-hidden');
@@ -1596,28 +1624,44 @@ async function displayIntegratedReview(
   if (patchSizeBanner) {
     try {
       const metadataModule = await import(chrome.runtime.getURL('components/review-metadata-bar.js'));
+      const reviewRequestLabel = metadataModule.formatReviewRequestLabel(
+        integrationOpts?.platform ?? null,
+        integrationOpts?.mrId ?? null
+      );
       if (provider === 'ollama' && ollamaMeta) {
-        metadataModule.renderOllamaMetadataBar(patchSizeBanner, ollamaMeta, {
-          onSwitchToCloud() {
-            document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
-          },
-          getModels() {
-            return new Promise((resolve) => {
-              chrome.runtime.sendMessage({ type: 'GET_OLLAMA_MODELS' }, (response) => {
-                if (chrome.runtime.lastError || !response) {
-                  resolve([]);
-                  return;
-                }
-                resolve(response.models || []);
+        metadataModule.renderOllamaMetadataBar(
+          patchSizeBanner,
+          ollamaMeta,
+          {
+            onSwitchToCloud() {
+              document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
+            },
+            getModels() {
+              return new Promise((resolve) => {
+                chrome.runtime.sendMessage({ type: 'GET_OLLAMA_MODELS' }, (response) => {
+                  if (chrome.runtime.lastError || !response) {
+                    resolve([]);
+                    return;
+                  }
+                  resolve(response.models || []);
+                });
               });
-            });
+            },
+            onModelChange(modelName) {
+              document.dispatchEvent(new CustomEvent('thinkreview-ollama-model-changed', { detail: { model: modelName } }));
+            }
           },
-          onModelChange(modelName) {
-            document.dispatchEvent(new CustomEvent('thinkreview-ollama-model-changed', { detail: { model: modelName } }));
-          }
-        });
+          reviewRequestLabel
+        );
       } else {
-        metadataModule.renderReviewMetadataBar(patchSizeBanner, patchSize, subscriptionTypeForDisplay, modelUsed, isCached);
+        metadataModule.renderReviewMetadataBar(
+          patchSizeBanner,
+          patchSize,
+          subscriptionTypeForDisplay,
+          modelUsed,
+          isCached,
+          reviewRequestLabel
+        );
       }
     } catch (error) {
       dbgWarn('Failed to load review metadata bar:', error);
@@ -2230,10 +2274,10 @@ function showPanelRecoveryMessage() {
 }
 
 /**
- * Shows an error message in the integrated review panel
+ * Shows an error message in the integrated review panel (inline in the Review tab scroll area).
  * @param {string} message - The error message to display
  */
-function showIntegratedReviewError(message) {
+async function showIntegratedReviewError(message) {
   // Hide loading indicator on button when error occurs
   (async () => {
     try {
@@ -2245,11 +2289,12 @@ function showIntegratedReviewError(message) {
   })();
   // Stop the enhanced loader
   stopEnhancedLoader();
-  
+
   const reviewLoading = document.getElementById('review-loading');
   const reviewContent = document.getElementById('review-content');
   const reviewError = document.getElementById('review-error');
   const reviewErrorMessage = document.getElementById('review-error-message');
+  const reviewScrollMain = document.getElementById('review-scroll-main');
   const tokenError = document.getElementById('review-azure-token-error');
   const bitbucketTokenError = document.getElementById('review-bitbucket-token-error');
   const loginPrompt = document.getElementById('review-login-prompt');
@@ -2259,19 +2304,65 @@ function showIntegratedReviewError(message) {
     showPanelRecoveryMessage();
     return;
   }
-  
-  // Hide loading indicator and content
+
+  // Hide loading indicator; keep panel chrome (tabs, chat) — error lives inside the Review scroll area
   reviewLoading.classList.add('gl-hidden');
-  reviewContent.classList.add('gl-hidden');
-  
+  reviewContent.classList.remove('gl-hidden');
+  if (reviewScrollMain) reviewScrollMain.classList.add('gl-hidden');
+
   // Hide other error states
   if (tokenError) tokenError.classList.add('gl-hidden');
   if (bitbucketTokenError) bitbucketTokenError.classList.add('gl-hidden');
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
-  
-  // Display error message (message is already user-friendly from content.js)
-  reviewErrorMessage.textContent = message || 'Failed to load code review.';
+
+  let ollamaModule = null;
+  if (message && /ollama/i.test(message)) {
+    try {
+      ollamaModule = await getOllamaBrowserExtensionCorsMessageModule();
+    } catch (e) {
+      dbgWarn('Failed to load Ollama help module:', e);
+    }
+  }
+
+  const showOllamaUnifiedHelp = !!(message && ollamaModule?.isOllamaProviderFailureMessage?.(message));
+
+  if (showOllamaUnifiedHelp && ollamaModule) {
+    reviewErrorMessage.classList.add('thinkreview-error-message--rich');
+    try {
+      if (typeof ollamaModule.appendOllamaCorsHelp === 'function') {
+        ollamaModule.appendOllamaCorsHelp(reviewErrorMessage);
+        if (ollamaModule.attachOllamaCorsHelpCopyButtons) {
+          ollamaModule.attachOllamaCorsHelpCopyButtons(reviewErrorMessage);
+        }
+        reviewErrorMessage
+          .querySelector('[data-thinkreview-action="switch-to-cloud-ai"]')
+          ?.addEventListener('click', () => {
+            document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
+          });
+      } else {
+        dbgWarn('Ollama help module missing appendOllamaCorsHelp; reload the page after updating the extension.');
+        reviewErrorMessage.classList.remove('thinkreview-error-message--rich');
+        reviewErrorMessage.textContent =
+          message || 'Ollama connection issue. Reload the page if the help panel is blank after an extension update.';
+      }
+    } catch (e) {
+      dbgWarn('appendOllamaCorsHelp failed:', e);
+      reviewErrorMessage.classList.remove('thinkreview-error-message--rich');
+      reviewErrorMessage.textContent = message || 'Ollama connection issue.';
+    }
+  } else {
+    reviewErrorMessage.classList.remove('thinkreview-error-message--rich');
+    reviewErrorMessage.textContent = message || 'Failed to load code review.';
+  }
+
   reviewError.classList.remove('gl-hidden');
+
+  switchToReviewTab();
+
+  const scrollContainer = document.getElementById('review-scroll-container');
+  if (scrollContainer) {
+    scrollContainer.scrollTop = 0;
+  }
 }
 
 /**

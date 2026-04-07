@@ -6,6 +6,10 @@ if (typeof DEBUG === 'undefined') {
   var DEBUG = false;
 }
 
+// Timing constants (in milliseconds)
+const TIMEOUT_AUTO_REVIEW_DELAY = 500;
+const MAX_PATCH_SIZE_FALLBACK = 50_000;
+
 // Logger functions - loaded dynamically to avoid module import issues in content scripts
 // Provide fallback functions immediately, then upgrade when logger loads
 // Check if variables already exist to avoid redeclaration errors
@@ -52,7 +56,7 @@ let currentPRId = null;
 document.addEventListener('thinkreview-switch-to-cloud', async () => {
   await chrome.storage.local.set({ aiProvider: 'cloud' });
   if (typeof fetchAndDisplayCodeReview === 'function') {
-    fetchAndDisplayCodeReview(true);
+    fetchAndDisplayCodeReview(true, false);
   }
 });
 
@@ -63,7 +67,7 @@ document.addEventListener('thinkreview-ollama-model-changed', async (e) => {
   const config = ollamaConfig || { url: 'http://localhost:11434', model: '' };
   await chrome.storage.local.set({ ollamaConfig: { ...config, model } });
   if (typeof fetchAndDisplayCodeReview === 'function') {
-    fetchAndDisplayCodeReview(true);
+    fetchAndDisplayCodeReview(true, false);
   }
 });
 
@@ -523,7 +527,7 @@ async function checkAndTriggerReviewForNewPR() {
     // Trigger new review only if auto-start is enabled
     const autoStart = await getAutoStartReview();
     if (autoStart && isSupportedPage()) {
-      setTimeout(() => fetchAndDisplayCodeReview(), 500);
+      setTimeout(() => fetchAndDisplayCodeReview(false, true), TIMEOUT_AUTO_REVIEW_DELAY);
     }
   } else if (currentPRId === null && newPRId) {
     // First time detecting a PR - just track it
@@ -594,9 +598,10 @@ async function injectIntegratedReviewPanel(opts = {}) {
   currentPRId = getCurrentPRId();
   
   // Trigger the code review only when: user explicitly requested (button click) or auto-start is enabled
-  const shouldTrigger = opts.triggerReview === true || await getAutoStartReview();
-  if (shouldTrigger) {
-    fetchAndDisplayCodeReview();
+  if (opts.triggerReview === true) {
+    fetchAndDisplayCodeReview(false, false);
+  } else if (await getAutoStartReview()) {
+    fetchAndDisplayCodeReview(false, true);
   }
 }
 
@@ -777,7 +782,7 @@ function showLoginPrompt() {
  * @param {Object|null} limitOverride - Optional override for the limit title/body (e.g. for PR size errors).
  *   If provided, { title: string, body: string } will be used instead of the remote config / fallback values.
  */
-function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
+async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
   // Stop the enhanced loader if it's running
   if (typeof stopEnhancedLoader === 'function') {
     stopEnhancedLoader();
@@ -825,6 +830,10 @@ function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
     linkEl.href = chrome.runtime.getURL('components/subscription-section.css');
     document.head.appendChild(linkEl);
   }
+
+  // Load and initialize upgrade tip banner module
+  const tipBannerModule = await import(chrome.runtime.getURL('components/helpful-tip-banner.js'));
+  tipBannerModule.injectStyles();
 
   // Load subscription section HTML via background (avoids page CSP blocking fetch to chrome-extension://)
   chrome.runtime.sendMessage(
@@ -913,6 +922,7 @@ function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
 
       const html = response.content;
       upgradeWrapper.innerHTML = `
+        ${tipBannerModule.getHTML()}
         <div class="gl-alert gl-alert-warning">
           <div class="gl-alert-content">
             <div class="gl-alert-title" id="upgrade-limit-title"></div>
@@ -1055,6 +1065,8 @@ function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
           });
         }
       });
+
+      tipBannerModule.wireSettingsButton(upgradeWrapper);
     }
   );
 
@@ -1103,7 +1115,7 @@ async function getAzureDevOpsToken() {
  * Fetches code changes and sends them for AI review
  * Supports both GitLab (patch) and Azure DevOps (API) platforms
  */
-async function fetchAndDisplayCodeReview(forceRegenerate = false) {
+async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggered = false) {
   // If already processing a review, ignore this request
   if (isReviewInProgress) {
     return;
@@ -1317,6 +1329,16 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
     
     // Get platform for sending to background script
     const platform = getCurrentPlatform();
+
+    // For auto-triggered reviews, run the decision maker before calling the cloud function
+    if (isAutoTriggered) {
+      const { shouldProceedWithAutoReview } = await import(chrome.runtime.getURL('services/autoReviewDecisionMaker.js'));
+      const decision = shouldProceedWithAutoReview(filteredCodeContent, { platform, mrId: reviewId });
+      if (!decision.proceed) {
+        dbgLog('Auto review skipped by autoReviewDecisionMaker:', decision.reason, decision.details);
+        return;
+      }
+    }
     
     // Send the code content for review via background script (avoids CSP fetch issues)
     const bgResponse = await new Promise((resolve) => {
@@ -1337,7 +1359,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
         dbgLog('PR patch too large for free tier');
         showPatchTooLargeMessage(
           bgResponse.patchSize || 0,
-          bgResponse.maxPatchSize || 50000
+          bgResponse.maxPatchSize || MAX_PATCH_SIZE_FALLBACK
         );
         return; // Exit early, don't show error
       }
@@ -1371,7 +1393,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       const errorMessage = data.review.errorMessage 
         ? `Unable to parse AI response: ${data.review.errorMessage}. Please try regenerating the review.`
         : 'The AI generated a response that could not be parsed. Please try regenerating the review or report this issue at https://thinkreview.dev/bug-report';
-      showIntegratedReviewError(errorMessage);
+      await showIntegratedReviewError(errorMessage);
       return;
     }
     
@@ -1394,7 +1416,8 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       {
         enabledReviewAgents: data.enabledReviewAgents,
         mrId: reviewId,
-        provider: bgResponse.provider
+        provider: bgResponse.provider,
+        platform
       }
     );
     
@@ -1464,7 +1487,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false) {
       }
     }
     
-    showIntegratedReviewError(userFriendlyMessage);
+    await showIntegratedReviewError(userFriendlyMessage);
   } finally {
     // Hide loading indicator when review completes
     try {
@@ -1580,7 +1603,7 @@ async function toggleReviewPanel() {
     
     // If no review has been generated yet (no content and no error), trigger the review
     if (!hasReview && !hasError && !isReviewInProgress) {
-      fetchAndDisplayCodeReview();
+      fetchAndDisplayCodeReview(false, false);
     }
   } else {
     // If panel is already visible, minimize it (even if review is in progress)

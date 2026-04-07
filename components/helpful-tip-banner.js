@@ -1,0 +1,103 @@
+/**
+ * Manages the helpful tip banner that guides users to toggle auto review settings.
+ * Handles styles injection, HTML generation, and settings button click handling.
+ */
+
+// UI identifiers
+const STYLES_ID = 'helpful-tip-styles';
+const BUTTON_ID = 'helpful-tip-settings-btn';
+
+// Timing constants (in milliseconds)
+const ANALYTICS_IMPORT_TIMEOUT = 5000;
+
+/**
+ * Injects the tip banner styles into the document head (once only).
+ */
+export function injectStyles() {
+  if (document.getElementById(STYLES_ID)) {
+    return;
+  }
+
+  const styleEl = document.createElement('style');
+  styleEl.id = STYLES_ID;
+  styleEl.textContent = `
+    .helpful-tip-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      background: rgba(99, 179, 237, 0.08);
+      border: 1px solid rgba(99, 179, 237, 0.25);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin: 0 0 10px;
+    }
+    .helpful-tip-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .helpful-tip-text {
+      font-size: 12px;
+      color: #a0aec0;
+      line-height: 1.4;
+      flex: 1;
+    }
+    .helpful-tip-settings-btn {
+      flex-shrink: 0;
+      padding: 5px 10px;
+      border-radius: 4px;
+      border: 1px solid #4a5568;
+      background: #2d3748;
+      color: #cbd5e0;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .helpful-tip-settings-btn:hover {
+      background: #3d4a5e;
+      border-color: #6b4fbb;
+      color: #e2e8f0;
+    }
+  `;
+  document.head.appendChild(styleEl);
+}
+
+/**
+ * Returns the HTML markup for the tip banner.
+ * @returns {string} HTML string for the banner
+ */
+export function getHTML() {
+  return `
+    <div class="helpful-tip-banner">
+      <span class="helpful-tip-icon">💡</span>
+      <span class="helpful-tip-text">You can switch the auto-review setting to manual mode to better manage your daily review credits.</span>
+      <button id="${BUTTON_ID}" class="helpful-tip-settings-btn">Go to Settings</button>
+    </div>
+  `;
+}
+
+/**
+ * Wires the settings button click event to open the popup with deep-link.
+ * @param {HTMLElement} container - The parent container of the banner
+ */
+export function wireSettingsButton(container) {
+  const btn = container.querySelector(`#${BUTTON_ID}`);
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        trackUserAction('helpful_tip_banner_settings_clicked', {
+          context: 'upgrade_prompt',
+          location: 'integrated_panel'
+        }).catch(() => {});
+      } catch (_) { /* silent */ }
+
+      chrome.runtime.sendMessage({
+        type: 'OPEN_EXTENSION_POPUP',
+        scrollTo: 'auto-start-review-section'
+      });
+    });
+  }
+}

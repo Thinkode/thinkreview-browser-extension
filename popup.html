@@ -336,7 +336,7 @@
                       </svg>
                     </div>
                   </div>
-                  <p class="provider-card-desc">Run your own LLM locally. 100% private, no internet needed.</p>
+                  <p class="provider-card-desc">Run your own LLM locally. Requires Setup.</p>
                   <div class="provider-card-tags">
                     <span class="provider-tag provider-tag--ollama">Private</span>
                     <span class="provider-tag provider-tag--ollama">Offline</span>
@@ -470,7 +470,7 @@
             </svg>
             Not working?
           </a>
-          <a id="setup-guide-github" href="https://thinkreview.dev/docs/github-integration" target="_blank" rel="noopener noreferrer" class="platform-docs-btn platform-docs-btn--guide">
+          <a id="setup-guide-github" href="https://thinkreview.dev/docs/github-enterprise-and-gitlab-self-managed" target="_blank" rel="noopener noreferrer" class="platform-docs-btn platform-docs-btn--guide">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
@@ -671,7 +671,7 @@
             </div>
             <div class="wizard-step" style="--step-delay:0.15s">
               <div class="wizard-step-num">2</div>
-              <span>In Bitbucket, go to <strong>Profile → App passwords</strong> and create one with <em>Pull requests: read</em> scope</span>
+              <span>In Bitbucket, go to <strong>Profile → App passwords</strong> and create one with <em>Read Repository access</em> and <em>Read pull requests</em> permissions</span>
             </div>
             <div class="wizard-step" style="--step-delay:0.3s">
               <div class="wizard-step-num">3</div>
@@ -710,20 +710,12 @@
           <p class="help-text">For API tokens use your Atlassian account email + token. For app passwords use your Bitbucket username + app password.</p>
         </div>
         <div class="platform-docs-actions">
-          <a id="not-working-bitbucket" href="https://thinkreview.dev/docs/troubleshooting#ai-button-not-visible" target="_blank" rel="noopener noreferrer" class="platform-docs-btn platform-docs-btn--help">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-              <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
-            Not working?
-          </a>
           <a id="setup-guide-bitbucket" href="https://thinkreview.dev/docs/bitbucket-integration" target="_blank" rel="noopener noreferrer" class="platform-docs-btn platform-docs-btn--guide">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
             </svg>
-            Bitbucket setup guide
+            Step by Step Bitbucket Setup Guide
           </a>
         </div>
       </div><!-- /platform-view-bitbucket -->
