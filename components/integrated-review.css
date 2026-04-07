@@ -3375,6 +3375,9 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   .thinkreview-context-upgrade-btn:hover {
     background-color: #1d4ed8;
     color: #ffffff;
+  }
+}
+
 /* Ollama CORS / 403 help inside review error panel */
 #gitlab-mr-integrated-review .thinkreview-error-message.thinkreview-error-message--rich {
   color: #495057;
