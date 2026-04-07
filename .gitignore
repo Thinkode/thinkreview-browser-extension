@@ -17,6 +17,7 @@ build-firefox/
 # IDE settings
 .vscode/
 .idea/
+.cursor/
 *.sublime-project
 *.sublime-workspace
 
