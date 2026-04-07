@@ -1361,6 +1361,42 @@ function switchToReviewTab() {
 }
 
 /**
+ * Builds the full-repo vs patch-only context banner (DOM only, no innerHTML).
+ * @param {string} type - 'full_repo' or anything else (treated as patch-only).
+ * @returns {HTMLDivElement}
+ */
+function createContextBanner(type) {
+  const banner = document.createElement('div');
+  const icon = document.createElement('span');
+  const label = document.createElement('span');
+
+  icon.className = 'thinkreview-context-icon';
+  label.className = 'thinkreview-context-label';
+
+  if (type === 'full_repo') {
+    banner.className = 'thinkreview-context-banner context-full';
+    icon.textContent = '✓';
+    label.textContent = 'Full repository context active — ThinkReview can read files across your codebase for deeper, more accurate answers.';
+    banner.append(icon, label);
+  } else {
+    banner.className = 'thinkreview-context-banner context-patch';
+    icon.textContent = 'ℹ';
+    label.textContent = 'This review uses patch-only context. Give ThinkReview access to your full repository for significantly better review quality.';
+
+    const upgradeBtn = document.createElement('a');
+    upgradeBtn.href = 'https://portal.thinkreview.dev/credentials';
+    upgradeBtn.target = '_blank';
+    upgradeBtn.rel = 'noopener noreferrer';
+    upgradeBtn.className = 'thinkreview-context-upgrade-btn';
+    upgradeBtn.textContent = 'Try full context →';
+
+    banner.append(icon, label, upgradeBtn);
+  }
+
+  return banner;
+}
+
+/**
  * Handles sending a user message.
  * @param {string} messageText - The text of the user's message.
  */
@@ -1426,6 +1462,12 @@ async function handleSendMessage(messageText) {
     }
     appendToChatLog('ai', responseText, rawResponseText);
     conversationHistory.push({ role: 'model', content: responseText });
+
+    // Append context banner once, right after the first AI message
+    if (chatLog && !chatLog.querySelector('.thinkreview-context-banner')) {
+      const contextType = aiResponse.contextType || 'patch_only';
+      chatLog.appendChild(createContextBanner(contextType));
+    }
 
   } catch (error) {
     // Log error details for debugging, but don't show the full error to users
