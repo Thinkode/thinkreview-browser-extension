@@ -9,7 +9,7 @@ function isDataCenterUrl(url) {
 }
 
 /**
- * Build request headers for Bitbucket API (Basic auth when email+token, Bearer when token only).
+ * Build request headers for Bitbucket Cloud (Basic auth: email + app-password).
  * @param {string|null} token
  * @param {string|null} email
  * @returns {{ 'Accept': string, 'Authorization'?: string }}
@@ -32,6 +32,21 @@ function buildAuthHeaders(token, email) {
 }
 
 /**
+ * Build request headers for Bitbucket Data Center (Bearer auth using HTTP access token).
+ * DC HTTP access tokens are standalone — username is not needed for the Authorization header.
+ * Basic auth is frequently disabled on DC instances; Bearer is the recommended approach.
+ * @param {string|null} token - HTTP access token or password
+ * @param {string|null} username - Stored for reference but not used in Bearer auth
+ * @returns {{ 'Accept': string, 'Authorization'?: string }}
+ */
+function buildDataCenterAuthHeaders(token, username) {
+  const headers = { 'Accept': 'application/json' };
+  if (!token) return headers;
+  headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
+/**
  * Fetch Bitbucket PR patch/diff content (Cloud or Data Center).
  *
  * Cloud flow: parse diff URL -> GET PR API -> use links.diff.href -> GET diff (avoids 302).
@@ -46,12 +61,12 @@ function buildAuthHeaders(token, email) {
 export async function fetchPatchContent(diffUrl, { token, email }) {
   const trimmedToken = token && String(token).trim() ? token.trim() : null;
   const trimmedEmail = (email != null && email !== '' && String(email).trim()) ? String(email).trim() : null;
-  const headers = buildAuthHeaders(trimmedToken, trimmedEmail);
 
   try {
     if (isDataCenterUrl(diffUrl)) {
-      // Bitbucket Data Center: direct GET of the diff endpoint (no redirect needed)
-      dbgLog('Fetching Bitbucket Data Center diff from:', diffUrl, trimmedToken ? '(with auth)' : '(no token)');
+      // Bitbucket Data Center: Bearer token auth (Basic auth is often disabled on DC instances)
+      const headers = buildDataCenterAuthHeaders(trimmedToken, trimmedEmail);
+      dbgLog('Fetching Bitbucket Data Center diff from:', diffUrl, trimmedToken ? '(Bearer auth)' : '(no token)');
       const response = await fetch(diffUrl, { headers: { ...headers, 'Accept': 'text/plain,*/*' } });
       if (!response.ok) {
         const authRequired = response.status === 401 || response.status === 403;
@@ -67,7 +82,8 @@ export async function fetchPatchContent(diffUrl, { token, email }) {
       return { success: true, content: patchContent };
     }
 
-    // Bitbucket Cloud: parse diff URL -> PR API -> follow links.diff.href
+    // Bitbucket Cloud: Basic auth (email + app-password), parse diff URL -> PR API -> follow links.diff.href
+    const headers = buildAuthHeaders(trimmedToken, trimmedEmail);
     const parsed = parseBitbucketPrDiffUrl(diffUrl);
     let urlToFetch = diffUrl;
 

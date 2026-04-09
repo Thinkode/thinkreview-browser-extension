@@ -669,9 +669,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const isDataCenter = typeof url === 'string' && url.includes('/rest/api/1.0/');
       let token, email;
       if (isDataCenter) {
-        const creds = await chrome.storage.local.get(['bitbucketDataCenterToken', 'bitbucketDataCenterUsername']);
+        const creds = await chrome.storage.local.get(['bitbucketDataCenterToken']);
         token = creds.bitbucketDataCenterToken;
-        email = creds.bitbucketDataCenterUsername;
+        email = null; // Bearer auth — no username needed
       } else {
         const creds = await chrome.storage.local.get(['bitbucketToken', 'bitbucketEmail']);
         token = creds.bitbucketToken;

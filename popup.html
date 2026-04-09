@@ -758,7 +758,7 @@
             </div>
             <div class="wizard-step wizard-step--compact" style="--step-delay:0.15s">
               <div class="wizard-step-num">2</div>
-              <span>Enter your Bitbucket <strong>username</strong> and the token below, then click <strong>Save</strong></span>
+              <span>Paste the token below and click <strong>Save</strong> — no username needed, the token authenticates on its own</span>
             </div>
             <div class="wizard-step wizard-step--compact" style="--step-delay:0.3s">
               <div class="wizard-step-num">3</div>
@@ -771,12 +771,11 @@
           </div>
 
           <div class="token-input-section" style="margin-top:12px;">
-            <input type="text" id="bitbucket-dc-username-input" placeholder="Bitbucket username" class="token-input" autocomplete="off">
-            <input type="password" id="bitbucket-dc-token-input" class="token-input" placeholder="Password or HTTP access token" aria-label="Bitbucket Data Center token">
+            <input type="password" id="bitbucket-dc-token-input" class="token-input" placeholder="HTTP access token" aria-label="Bitbucket Data Center HTTP access token">
             <button id="save-bitbucket-dc-token-btn" class="save-token-btn">Save</button>
           </div>
           <div id="bitbucket-dc-token-status" class="token-status"></div>
-          <p class="help-text">Use your Bitbucket username with an HTTP access token (recommended) or your account password.</p>
+          <p class="help-text">Uses Bearer token authentication — works even when Basic Authentication is disabled on the instance.</p>
 
           <div class="domain-input-section" style="margin-top:14px;">
             <input type="text" id="bitbucket-dc-domain-input" placeholder="e.g., bitbucket.mycompany.com" class="domain-input">

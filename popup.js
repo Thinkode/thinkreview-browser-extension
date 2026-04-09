@@ -1630,7 +1630,6 @@ function setupBitbucketDataCenterEventListeners() {
   const domainInput = document.getElementById('bitbucket-dc-domain-input');
   const saveTokenBtn = document.getElementById('save-bitbucket-dc-token-btn');
   const tokenInput = document.getElementById('bitbucket-dc-token-input');
-  const usernameInput = document.getElementById('bitbucket-dc-username-input');
 
   if (addButton && domainInput) {
     addButton.addEventListener('click', addBitbucketDataCenterDomain);
@@ -1642,7 +1641,6 @@ function setupBitbucketDataCenterEventListeners() {
 
   if (saveTokenBtn) saveTokenBtn.addEventListener('click', saveBitbucketDataCenterToken);
   if (tokenInput) tokenInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') saveBitbucketDataCenterToken(); });
-  if (usernameInput) usernameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') saveBitbucketDataCenterToken(); });
 }
 
 async function loadBitbucketDataCenterDomains() {
@@ -1796,16 +1794,14 @@ async function removeBitbucketDataCenterDomain(domain) {
 
 async function loadBitbucketDataCenterToken() {
   try {
-    const result = await chrome.storage.local.get(['bitbucketDataCenterToken', 'bitbucketDataCenterUsername']);
+    const result = await chrome.storage.local.get(['bitbucketDataCenterToken']);
     const token = result.bitbucketDataCenterToken;
-    const username = result.bitbucketDataCenterUsername;
     const statusEl = document.getElementById('bitbucket-dc-token-status');
     const tokenInput = document.getElementById('bitbucket-dc-token-input');
-    const usernameInput = document.getElementById('bitbucket-dc-username-input');
 
     if (token && String(token).trim()) {
       if (statusEl) {
-        statusEl.textContent = 'Credentials saved';
+        statusEl.textContent = 'Token saved';
         statusEl.className = 'token-status success';
       }
       if (tokenInput) {
@@ -1818,9 +1814,6 @@ async function loadBitbucketDataCenterToken() {
         statusEl.className = 'token-status';
       }
     }
-    if (usernameInput) {
-      usernameInput.value = (username != null && username !== undefined) ? String(username) : '';
-    }
   } catch (error) {
     dbgWarn('Error loading Bitbucket Data Center token:', error);
   }
@@ -1828,20 +1821,18 @@ async function loadBitbucketDataCenterToken() {
 
 async function saveBitbucketDataCenterToken() {
   const tokenInput = document.getElementById('bitbucket-dc-token-input');
-  const usernameInput = document.getElementById('bitbucket-dc-username-input');
   const saveBtn = document.getElementById('save-bitbucket-dc-token-btn');
   const statusEl = document.getElementById('bitbucket-dc-token-status');
 
   const tokenRaw = tokenInput?.value?.trim() ?? '';
-  const username = usernameInput?.value?.trim() ?? '';
 
-  const stored = await chrome.storage.local.get(['bitbucketDataCenterToken', 'bitbucketDataCenterUsername']);
+  const stored = await chrome.storage.local.get(['bitbucketDataCenterToken']);
   const existingToken = stored.bitbucketDataCenterToken && String(stored.bitbucketDataCenterToken).trim() ? stored.bitbucketDataCenterToken.trim() : '';
   const token = (tokenRaw === BITBUCKET_DC_TOKEN_MASK && existingToken) ? existingToken : tokenRaw;
 
   if (!token) {
     if (statusEl) {
-      statusEl.textContent = 'Enter a token or password to save';
+      statusEl.textContent = 'Enter an HTTP access token to save';
       statusEl.className = 'token-status error';
     }
     return;
@@ -1849,12 +1840,9 @@ async function saveBitbucketDataCenterToken() {
 
   try {
     if (saveBtn) saveBtn.textContent = 'Saving...';
-    await chrome.storage.local.set({
-      bitbucketDataCenterToken: token,
-      bitbucketDataCenterUsername: username || ''
-    });
+    await chrome.storage.local.set({ bitbucketDataCenterToken: token });
     if (statusEl) {
-      statusEl.textContent = 'Credentials saved';
+      statusEl.textContent = 'Token saved';
       statusEl.className = 'token-status success';
     }
     if (tokenInput) {
