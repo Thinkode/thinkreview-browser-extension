@@ -6,12 +6,19 @@
 
 ## 🎯 What's New
 
+### Full repository access through tool calls 🔗
+
+ThinkReview can now use **tool calls** to work across your **entire repository**—not only the patch—so answers can draw on real file structure, imports, and surrounding code when your integration supports it.
+
+- **Configure integrations:** Connect your host and repo settings in the ThinkReview portal: **[portal.thinkreview.dev/integrations](https://portal.thinkreview.dev/integrations)**.
+- **After setup:** The assistant can explore the repo through tooling where enabled, giving you deeper, context-aware reviews.
+
 ### Clearer “full repository” vs patch-only context 🧭
 
-After you get the first reply in the review chat, ThinkReview now shows a simple banner that explains whether the assistant is using **full repository context** or **patch-only** context.
+After you get the first reply in the review chat, ThinkReview shows a simple banner that explains whether the assistant is using **full repository context** or **patch-only** context.
 
 - **Know what you are getting:** Green state when full-repo tooling is active; informational state when only the diff is in scope.
-- **Easy next step:** When you are on patch-only context, you can open the ThinkReview portal to connect your repo for deeper answers.
+- **Easy next step:** When you are on patch-only context, use **[Integrations](https://portal.thinkreview.dev/integrations)** in the portal to connect your repo for deeper answers.
 
 ---
 
@@ -33,7 +40,7 @@ If you use a **local Ollama** model, connection and browser security (CORS) issu
 ## 🔧 Additional Improvements
 
 - **Leaner extension package:** Removed unused onboarding, Stripe redirect, and other dead pages that were not part of the live install flow—less clutter in the shipped bundle.
-- **Portal link for integrations:** The “full context” path from the review UI now points at the portal **integrations** area for a smoother setup experience.
+- **Portal link for integrations:** The “full context” path from the review UI points at **[Integrations](https://portal.thinkreview.dev/integrations)** for setup and repo connection.
 - **Azure DevOps branding:** Popup and in-extension Azure visuals align with current Azure DevOps artwork.
 
 ---
