@@ -1,7 +1,12 @@
 // bitbucket-api.js
-// Bitbucket API 2.0 service for fetching PR diff/patch. Used by background script (CSP-safe context).
+// Bitbucket API service for fetching PR diff/patch (Cloud and Data Center). Used by background script.
 import { dbgLog, dbgError } from '../utils/logger.js';
 import { parseBitbucketPrDiffUrl, getBitbucketPrApiUrl } from '../utils/bitbucket-api-urls.js';
+
+/** Returns true when diffUrl points to a Bitbucket Data Center REST API endpoint. */
+function isDataCenterUrl(url) {
+  return typeof url === 'string' && url.includes('/rest/api/1.0/');
+}
 
 /**
  * Build request headers for Bitbucket API (Basic auth when email+token, Bearer when token only).
@@ -27,11 +32,15 @@ function buildAuthHeaders(token, email) {
 }
 
 /**
- * Fetch Bitbucket PR patch/diff content.
- * Flow: parse diff URL -> GET PR API -> use links.diff.href -> GET diff body (avoids 302 from direct diff URL).
+ * Fetch Bitbucket PR patch/diff content (Cloud or Data Center).
  *
- * @param {string} diffUrl - Full diff URL e.g. .../repositories/workspace/repo/pullrequests/1/diff
- * @param {{ token: string|null, email: string|null }} credentials - From storage; token/email can be null or empty
+ * Cloud flow: parse diff URL -> GET PR API -> use links.diff.href -> GET diff (avoids 302).
+ * Data Center flow: direct GET of the /rest/api/1.0/...pull-requests/{id}/diff endpoint.
+ *
+ * @param {string} diffUrl - Diff URL (api.bitbucket.org for Cloud; {origin}/rest/api/1.0/... for DC)
+ * @param {{ token: string|null, email: string|null }} credentials
+ *   For Cloud: email = Atlassian account email, token = app password.
+ *   For Data Center: email = username, token = password or personal access token.
  * @returns {Promise<{ success: true, content: string }|{ success: false, error: string, bitbucketAuthRequired: boolean }>}
  */
 export async function fetchPatchContent(diffUrl, { token, email }) {
@@ -40,12 +49,28 @@ export async function fetchPatchContent(diffUrl, { token, email }) {
   const headers = buildAuthHeaders(trimmedToken, trimmedEmail);
 
   try {
+    if (isDataCenterUrl(diffUrl)) {
+      // Bitbucket Data Center: direct GET of the diff endpoint (no redirect needed)
+      dbgLog('Fetching Bitbucket Data Center diff from:', diffUrl, trimmedToken ? '(with auth)' : '(no token)');
+      const response = await fetch(diffUrl, { headers: { ...headers, 'Accept': 'text/plain,*/*' } });
+      if (!response.ok) {
+        const authRequired = response.status === 401 || response.status === 403;
+        const err = new Error(`Failed to fetch Bitbucket Data Center patch: ${response.status} ${response.statusText}`);
+        err.bitbucketAuthRequired = authRequired;
+        throw err;
+      }
+      const patchContent = await response.text();
+      dbgLog('Successfully fetched Bitbucket Data Center diff, length:', patchContent.length);
+      return { success: true, content: patchContent };
+    }
+
+    // Bitbucket Cloud: parse diff URL -> PR API -> follow links.diff.href
     const parsed = parseBitbucketPrDiffUrl(diffUrl);
     let urlToFetch = diffUrl;
 
     if (parsed) {
       const prApiUrl = getBitbucketPrApiUrl(parsed.workspace, parsed.repoSlug, parsed.prId);
-      dbgLog('Fetching Bitbucket PR:', prApiUrl);
+      dbgLog('Fetching Bitbucket Cloud PR:', prApiUrl);
       const prRes = await fetch(prApiUrl, { headers });
       if (!prRes.ok) {
         const authRequired = prRes.status === 401 || prRes.status === 403;
@@ -59,7 +84,7 @@ export async function fetchPatchContent(diffUrl, { token, email }) {
         throw new Error('Bitbucket PR response missing links.diff.href');
       }
       urlToFetch = diffHref;
-      dbgLog('Fetching Bitbucket diff from links.diff.href');
+      dbgLog('Fetching Bitbucket Cloud diff from links.diff.href');
     } else {
       dbgLog('Fetching Bitbucket diff from:', diffUrl, trimmedToken ? '(with auth)' : '(no token)');
     }

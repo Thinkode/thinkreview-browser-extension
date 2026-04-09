@@ -86,8 +86,11 @@ async function initializePlatformDetection() {
     platformDetector.init();
 
     // Load custom Azure DevOps domains so on-prem URLs are detected
-    const storage = await chrome.storage.local.get(['azureDevOpsDomains']);
+    const storage = await chrome.storage.local.get(['azureDevOpsDomains', 'bitbucketDataCenterDomains']);
     platformDetector.setAzureDevOpsCustomDomains(storage.azureDevOpsDomains || []);
+
+    // Load custom Bitbucket Data Center domains
+    platformDetector.setBitbucketCustomDomains(storage.bitbucketDataCenterDomains || []);
     
     // Dynamically import Azure DevOps API module for error handling
     const apiModule = await import(chrome.runtime.getURL('services/azure-devops-api.js'));

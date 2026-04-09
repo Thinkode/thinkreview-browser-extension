@@ -259,7 +259,7 @@
             </div>
           </button>
 
-          <!-- Bitbucket -->
+          <!-- Bitbucket Cloud -->
           <button class="platform-card" id="card-bitbucket" data-platform="bitbucket" data-scroll-target="">
             <div class="platform-card-icon platform-card-icon--bitbucket">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
@@ -269,6 +269,19 @@
             <div class="platform-card-info">
               <span class="platform-card-name">Bitbucket Cloud</span>
               <span class="platform-badge platform-badge-setup" id="badge-bitbucket">⚙ Setup needed</span>
+            </div>
+          </button>
+
+          <!-- Bitbucket Data Center (self-hosted) -->
+          <button class="platform-card" id="card-bitbucket-dc" data-platform="bitbucket-dc" data-scroll-target="">
+            <div class="platform-card-icon platform-card-icon--bitbucket">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M.778 1.213a.768.768 0 00-.768.892l3.263 19.81c.084.5.515.868 1.022.873H19.95a.772.772 0 00.77-.646l3.27-20.03a.768.768 0 00-.768-.891L.778 1.213zM14.52 15.53H9.522L8.17 8.466h7.561l-1.211 7.064z"/>
+              </svg>
+            </div>
+            <div class="platform-card-info">
+              <span class="platform-card-name">Bitbucket Data Center</span>
+              <span class="platform-badge platform-badge-setup" id="badge-bitbucket-dc">⚙ Setup needed</span>
             </div>
           </button>
         </div>
@@ -718,7 +731,70 @@
             Step by Step Bitbucket Setup Guide
           </a>
         </div>
+
       </div><!-- /platform-view-bitbucket -->
+
+
+      <!-- ---- BITBUCKET DATA CENTER (SELF-HOSTED) ---- -->
+      <div id="platform-view-bitbucket-dc" class="platform-view" style="display:none;">
+        <button class="platform-back-btn" data-back>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          All Platforms
+        </button>
+        <div class="platform-view-header">
+          <div class="platform-view-icon platform-view-icon--bitbucket">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M.778 1.213a.768.768 0 00-.768.892l3.263 19.81c.084.5.515.868 1.022.873H19.95a.772.772 0 00.77-.646l3.27-20.03a.768.768 0 00-.768-.891L.778 1.213zM14.52 15.53H9.522L8.17 8.466h7.561l-1.211 7.064z"/></svg>
+          </div>
+          <h3>Bitbucket Data Center</h3>
+        </div>
+
+        <div class="platform-subsection platform-subsection--required">
+          <div class="subsection-required-badge">Setup required</div>
+          <p class="settings-description">Connect ThinkReview to your self-hosted Bitbucket Data Center instance.</p>
+          <div class="wizard-steps wizard-steps--compact">
+            <div class="wizard-step wizard-step--compact" style="--step-delay:0s">
+              <div class="wizard-step-num">1</div>
+              <span>In Bitbucket, go to your <strong>profile → Manage account → HTTP access tokens</strong> and create one with <em>Repository read</em> and <em>Pull request read</em> permissions</span>
+            </div>
+            <div class="wizard-step wizard-step--compact" style="--step-delay:0.15s">
+              <div class="wizard-step-num">2</div>
+              <span>Enter your Bitbucket <strong>username</strong> and the token below, then click <strong>Save</strong></span>
+            </div>
+            <div class="wizard-step wizard-step--compact" style="--step-delay:0.3s">
+              <div class="wizard-step-num">3</div>
+              <span>Enter your instance domain (e.g. <code>bitbucket.mycompany.com</code>) and click <strong>Add</strong> — approve the browser permission prompt</span>
+            </div>
+            <div class="wizard-step wizard-step--compact" style="--step-delay:0.45s">
+              <div class="wizard-step-num">4</div>
+              <span>Navigate to any pull request on your instance — ThinkReview activates automatically</span>
+            </div>
+          </div>
+
+          <div class="token-input-section" style="margin-top:12px;">
+            <input type="text" id="bitbucket-dc-username-input" placeholder="Bitbucket username" class="token-input" autocomplete="off">
+            <input type="password" id="bitbucket-dc-token-input" class="token-input" placeholder="Password or HTTP access token" aria-label="Bitbucket Data Center token">
+            <button id="save-bitbucket-dc-token-btn" class="save-token-btn">Save</button>
+          </div>
+          <div id="bitbucket-dc-token-status" class="token-status"></div>
+          <p class="help-text">Use your Bitbucket username with an HTTP access token (recommended) or your account password.</p>
+
+          <div class="domain-input-section" style="margin-top:14px;">
+            <input type="text" id="bitbucket-dc-domain-input" placeholder="e.g., bitbucket.mycompany.com" class="domain-input">
+            <button id="add-bitbucket-dc-domain-btn" class="add-domain-btn" disabled>Add</button>
+          </div>
+          <div id="bitbucket-dc-domain-list" class="domain-list"></div>
+        </div>
+
+        <div class="platform-docs-actions">
+          <a id="setup-guide-bitbucket-dc" href="https://thinkreview.dev/docs/bitbucket-data-center" target="_blank" rel="noopener noreferrer" class="platform-docs-btn platform-docs-btn--guide">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            Bitbucket Data Center Setup Guide
+          </a>
+        </div>
+      </div><!-- /platform-view-bitbucket-dc -->
 
     </div><!-- /authenticated-content -->
 
