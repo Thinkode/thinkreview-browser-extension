@@ -9,6 +9,69 @@ function isDataCenterUrl(url) {
 }
 
 /**
+ * Convert Bitbucket Data Center diff JSON to unified diff (patch) format.
+ *
+ * DC diff JSON structure:
+ *   { diffs: [ { source, destination, binary, hunks: [ { sourceLine, sourceSpan,
+ *     destinationLine, destinationSpan, context, segments: [ { type, lines: [{ line }] } ] } ] } ] }
+ *
+ * Segment types: CONTEXT → ' ', ADDED → '+', REMOVED → '-'
+ *
+ * @param {Object} diffJson - Parsed JSON from /rest/api/1.0/…/pull-requests/{id}/diff
+ * @returns {string} Unified diff text
+ */
+function convertDataCenterDiffToUnifiedPatch(diffJson) {
+  const output = [];
+  const diffs = diffJson.diffs || diffJson.values || [];
+
+  for (const diff of diffs) {
+    const srcPath = diff.source?.toString ?? null;
+    const dstPath = diff.destination?.toString ?? null;
+    const aPath = srcPath || dstPath || 'unknown';
+    const bPath = dstPath || srcPath || 'unknown';
+
+    output.push(`diff --git a/${aPath} b/${bPath}`);
+
+    if (diff.binary) {
+      output.push(`Binary files a/${aPath} and b/${bPath} differ`);
+      continue;
+    }
+
+    // New / deleted file markers
+    if (!srcPath && dstPath) {
+      output.push('new file mode 100644');
+      output.push('--- /dev/null');
+      output.push(`+++ b/${dstPath}`);
+    } else if (srcPath && !dstPath) {
+      output.push('deleted file mode 100644');
+      output.push(`--- a/${srcPath}`);
+      output.push('+++ /dev/null');
+    } else {
+      output.push(`--- a/${aPath}`);
+      output.push(`+++ b/${bPath}`);
+    }
+
+    for (const hunk of (diff.hunks || [])) {
+      const srcStart  = hunk.sourceLine      ?? 1;
+      const srcSpan   = hunk.sourceSpan      ?? 0;
+      const dstStart  = hunk.destinationLine ?? 1;
+      const dstSpan   = hunk.destinationSpan ?? 0;
+      const ctx       = hunk.context ? ` ${hunk.context}` : '';
+      output.push(`@@ -${srcStart},${srcSpan} +${dstStart},${dstSpan} @@${ctx}`);
+
+      for (const segment of (hunk.segments || [])) {
+        const prefix = segment.type === 'ADDED' ? '+' : segment.type === 'REMOVED' ? '-' : ' ';
+        for (const ln of (segment.lines || [])) {
+          output.push(`${prefix}${ln.line ?? ''}`);
+        }
+      }
+    }
+  }
+
+  return output.join('\n') + (output.length ? '\n' : '');
+}
+
+/**
  * Build request headers for Bitbucket Cloud (Basic auth: email + app-password).
  * @param {string|null} token
  * @param {string|null} email
@@ -64,21 +127,44 @@ export async function fetchPatchContent(diffUrl, { token, email }) {
 
   try {
     if (isDataCenterUrl(diffUrl)) {
-      // Bitbucket Data Center: Bearer token auth (Basic auth is often disabled on DC instances)
+      // Bitbucket Data Center: Bearer token auth; API always returns JSON (not unified diff text)
       const headers = buildDataCenterAuthHeaders(trimmedToken, trimmedEmail);
       dbgLog('Fetching Bitbucket Data Center diff from:', diffUrl, trimmedToken ? '(Bearer auth)' : '(no token)');
-      const response = await fetch(diffUrl, { headers: { ...headers, 'Accept': 'text/plain,*/*' } });
-      if (!response.ok) {
-        const authRequired = response.status === 401 || response.status === 403;
-        let serverMessage = null;
-        try { serverMessage = (await response.text()).trim() || null; } catch (_) {}
-        const err = new Error(`Failed to fetch Bitbucket Data Center patch: ${response.status} ${response.statusText}`);
-        err.bitbucketAuthRequired = authRequired;
-        err.serverMessage = serverMessage;
-        throw err;
+
+      // Collect all file diffs, handling DC pagination (isLastPage / nextPageStart)
+      const allDiffs = [];
+      let fetchUrl = diffUrl;
+      let pageCount = 0;
+      const MAX_PAGES = 20;
+
+      while (fetchUrl && pageCount < MAX_PAGES) {
+        pageCount++;
+        const response = await fetch(fetchUrl, { headers: { ...headers, 'Accept': 'application/json' } });
+        if (!response.ok) {
+          const authRequired = response.status === 401 || response.status === 403;
+          let serverMessage = null;
+          try { serverMessage = (await response.text()).trim() || null; } catch (_) {}
+          const err = new Error(`Failed to fetch Bitbucket Data Center patch: ${response.status} ${response.statusText}`);
+          err.bitbucketAuthRequired = authRequired;
+          err.serverMessage = serverMessage;
+          throw err;
+        }
+
+        const diffJson = await response.json();
+        const pageDiffs = diffJson.diffs || diffJson.values || [];
+        allDiffs.push(...pageDiffs);
+
+        // Advance to next page if available
+        if (!diffJson.isLastPage && diffJson.nextPageStart != null) {
+          const separator = fetchUrl.includes('?') ? '&' : '?';
+          fetchUrl = `${diffUrl}${separator}start=${diffJson.nextPageStart}`;
+        } else {
+          fetchUrl = null;
+        }
       }
-      const patchContent = await response.text();
-      dbgLog('Successfully fetched Bitbucket Data Center diff, length:', patchContent.length);
+
+      const patchContent = convertDataCenterDiffToUnifiedPatch({ diffs: allDiffs });
+      dbgLog('Converted Bitbucket Data Center diff to unified patch, files:', allDiffs.length, 'length:', patchContent.length);
       return { success: true, content: patchContent };
     }
 
