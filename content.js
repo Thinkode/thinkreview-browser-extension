@@ -1264,7 +1264,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         if (authRequired) {
           try {
             const bitbucketTokenErrorModule = await import(chrome.runtime.getURL('components/bitbucket-token-error.js'));
-            bitbucketTokenErrorModule.showBitbucketTokenError(stopEnhancedLoader);
+            bitbucketTokenErrorModule.showBitbucketTokenError(stopEnhancedLoader, bgResponse?.serverMessage || null);
           } catch (e) {
             dbgWarn('Failed to show Bitbucket token error UI:', e);
             throw new Error('Generate a Bitbucket API token for ThinkReview (takes about 60 seconds): https://thinkreview.dev/docs/bitbucket-integration');

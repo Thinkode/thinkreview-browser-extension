@@ -55,8 +55,11 @@ export async function fetchPatchContent(diffUrl, { token, email }) {
       const response = await fetch(diffUrl, { headers: { ...headers, 'Accept': 'text/plain,*/*' } });
       if (!response.ok) {
         const authRequired = response.status === 401 || response.status === 403;
+        let serverMessage = null;
+        try { serverMessage = (await response.text()).trim() || null; } catch (_) {}
         const err = new Error(`Failed to fetch Bitbucket Data Center patch: ${response.status} ${response.statusText}`);
         err.bitbucketAuthRequired = authRequired;
+        err.serverMessage = serverMessage;
         throw err;
       }
       const patchContent = await response.text();
@@ -74,8 +77,11 @@ export async function fetchPatchContent(diffUrl, { token, email }) {
       const prRes = await fetch(prApiUrl, { headers });
       if (!prRes.ok) {
         const authRequired = prRes.status === 401 || prRes.status === 403;
+        let serverMessage = null;
+        try { serverMessage = (await prRes.text()).trim() || null; } catch (_) {}
         const err = new Error(`Failed to fetch Bitbucket PR: ${prRes.status} ${prRes.statusText}`);
         err.bitbucketAuthRequired = authRequired;
+        err.serverMessage = serverMessage;
         throw err;
       }
       const prJson = await prRes.json();
@@ -92,8 +98,11 @@ export async function fetchPatchContent(diffUrl, { token, email }) {
     const response = await fetch(urlToFetch, { headers: { ...headers, 'Accept': 'text/plain,*/*' } });
     if (!response.ok) {
       const authRequired = response.status === 401 || response.status === 403;
+      let serverMessage = null;
+      try { serverMessage = (await response.text()).trim() || null; } catch (_) {}
       const err = new Error(`Failed to fetch Bitbucket patch: ${response.status} ${response.statusText}`);
       err.bitbucketAuthRequired = authRequired;
+      err.serverMessage = serverMessage;
       throw err;
     }
     const patchContent = await response.text();
@@ -106,7 +115,8 @@ export async function fetchPatchContent(diffUrl, { token, email }) {
     return {
       success: false,
       error: error?.message || msg || 'Request failed',
-      bitbucketAuthRequired: authRequired
+      bitbucketAuthRequired: authRequired,
+      serverMessage: error?.serverMessage || null
     };
   }
 }
