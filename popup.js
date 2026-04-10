@@ -895,29 +895,45 @@ async function loadDomains() {
 
 function renderDomainList(domains) {
   const domainList = document.getElementById('domain-list');
-  
+
+  domainList.replaceChildren();
+
   if (domains.length === 0) {
-    domainList.innerHTML = '<div class="no-domains">No custom domains added</div>';
+    const empty = document.createElement('div');
+    empty.className = 'no-domains';
+    empty.textContent = 'No custom domains added';
+    domainList.appendChild(empty);
     return;
   }
-  
-  domainList.innerHTML = domains.map(domain => {
+
+  domains.forEach(domain => {
     const isDefault = DEFAULT_DOMAINS.includes(domain);
     const displayDomain = formatDomainForDisplay(domain);
-    return `
-      <div class="domain-item ${isDefault ? 'default' : ''}">
-        <span class="domain-name">${displayDomain}</span>
-        <div>
-          ${isDefault ? '<span class="default-label">DEFAULT</span>' : ''}
-          ${!isDefault ? `<button class="remove-domain-btn" data-domain="${domain}">Remove</button>` : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
-  
-  // Add event listeners to remove buttons
-  domainList.querySelectorAll('.remove-domain-btn').forEach(button => {
-    button.addEventListener('click', () => removeDomain(button.dataset.domain));
+
+    const item = document.createElement('div');
+    item.className = 'domain-item' + (isDefault ? ' default' : '');
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'domain-name';
+    nameSpan.textContent = displayDomain;
+
+    const actionsDiv = document.createElement('div');
+    if (isDefault) {
+      const defaultLabel = document.createElement('span');
+      defaultLabel.className = 'default-label';
+      defaultLabel.textContent = 'DEFAULT';
+      actionsDiv.appendChild(defaultLabel);
+    } else {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-domain-btn';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', () => removeDomain(domain));
+      actionsDiv.appendChild(removeBtn);
+    }
+
+    item.appendChild(nameSpan);
+    item.appendChild(actionsDiv);
+    domainList.appendChild(item);
   });
 }
 
@@ -1066,27 +1082,44 @@ function renderGitHubEnterpriseDomainList(domains) {
   const domainList = document.getElementById('github-enterprise-domain-list');
   if (!domainList) return;
 
+  domainList.replaceChildren();
+
   if (!domains || domains.length === 0) {
-    domainList.innerHTML = '<div class="no-domains">No custom domains added</div>';
+    const empty = document.createElement('div');
+    empty.className = 'no-domains';
+    empty.textContent = 'No custom domains added';
+    domainList.appendChild(empty);
     return;
   }
 
-  domainList.innerHTML = domains.map(domain => {
+  domains.forEach(domain => {
     const isDefault = GITHUB_ENTERPRISE_DEFAULT_DOMAINS.includes(domain);
     const displayDomain = formatDomainForDisplay(domain);
-    return `
-      <div class="domain-item ${isDefault ? 'default' : ''}">
-        <span class="domain-name">${displayDomain}</span>
-        <div>
-          ${isDefault ? '<span class="default-label">DEFAULT</span>' : ''}
-          ${!isDefault ? `<button class="remove-domain-btn" data-domain="${domain.replace(/"/g, '&quot;')}">Remove</button>` : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
 
-  domainList.querySelectorAll('.remove-domain-btn').forEach(button => {
-    button.addEventListener('click', () => removeGitHubEnterpriseDomain(button.dataset.domain));
+    const item = document.createElement('div');
+    item.className = 'domain-item' + (isDefault ? ' default' : '');
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'domain-name';
+    nameSpan.textContent = displayDomain;
+
+    const actionsDiv = document.createElement('div');
+    if (isDefault) {
+      const defaultLabel = document.createElement('span');
+      defaultLabel.className = 'default-label';
+      defaultLabel.textContent = 'DEFAULT';
+      actionsDiv.appendChild(defaultLabel);
+    } else {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-domain-btn';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', () => removeGitHubEnterpriseDomain(domain));
+      actionsDiv.appendChild(removeBtn);
+    }
+
+    item.appendChild(nameSpan);
+    item.appendChild(actionsDiv);
+    domainList.appendChild(item);
   });
 }
 
@@ -1296,27 +1329,44 @@ function renderAzureDevOpsDomainList(customDomains) {
     ...(customDomains.filter(d => !AZURE_DEFAULT_DOMAINS.includes(d)))
   ];
 
+  domainList.replaceChildren();
+
   if (displayList.length === 0) {
-    domainList.innerHTML = '<div class="no-domains">No custom domains added</div>';
+    const empty = document.createElement('div');
+    empty.className = 'no-domains';
+    empty.textContent = 'No custom domains added';
+    domainList.appendChild(empty);
     return;
   }
 
-  domainList.innerHTML = displayList.map(domain => {
+  displayList.forEach(domain => {
     const isDefault = AZURE_DEFAULT_DOMAINS.includes(domain);
     const displayDomain = formatDomainForDisplay(domain);
-    return `
-      <div class="domain-item ${isDefault ? 'default' : ''}">
-        <span class="domain-name">${displayDomain}</span>
-        <div>
-          ${isDefault ? '<span class="default-label">DEFAULT</span>' : ''}
-          ${!isDefault ? `<button class="remove-domain-btn" data-domain="${domain.replace(/"/g, '&quot;')}">Remove</button>` : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
 
-  domainList.querySelectorAll('.remove-domain-btn').forEach(button => {
-    button.addEventListener('click', () => removeAzureDevOpsDomain(button.dataset.domain));
+    const item = document.createElement('div');
+    item.className = 'domain-item' + (isDefault ? ' default' : '');
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'domain-name';
+    nameSpan.textContent = displayDomain;
+
+    const actionsDiv = document.createElement('div');
+    if (isDefault) {
+      const defaultLabel = document.createElement('span');
+      defaultLabel.className = 'default-label';
+      defaultLabel.textContent = 'DEFAULT';
+      actionsDiv.appendChild(defaultLabel);
+    } else {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-domain-btn';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', () => removeAzureDevOpsDomain(domain));
+      actionsDiv.appendChild(removeBtn);
+    }
+
+    item.appendChild(nameSpan);
+    item.appendChild(actionsDiv);
+    domainList.appendChild(item);
   });
 }
 
@@ -1657,25 +1707,36 @@ function renderBitbucketDataCenterDomainList(domains) {
   const domainList = document.getElementById('bitbucket-dc-domain-list');
   if (!domainList) return;
 
+  domainList.replaceChildren();
+
   if (!domains || domains.length === 0) {
-    domainList.innerHTML = '<div class="no-domains">No custom domains added</div>';
+    const empty = document.createElement('div');
+    empty.className = 'no-domains';
+    empty.textContent = 'No custom domains added';
+    domainList.appendChild(empty);
     return;
   }
 
-  domainList.innerHTML = domains.map(domain => {
+  domains.forEach(domain => {
     const displayDomain = formatDomainForDisplay(domain);
-    return `
-      <div class="domain-item">
-        <span class="domain-name">${displayDomain}</span>
-        <div>
-          <button class="remove-domain-btn" data-domain="${domain.replace(/"/g, '&quot;')}">Remove</button>
-        </div>
-      </div>
-    `;
-  }).join('');
 
-  domainList.querySelectorAll('.remove-domain-btn').forEach(button => {
-    button.addEventListener('click', () => removeBitbucketDataCenterDomain(button.dataset.domain));
+    const item = document.createElement('div');
+    item.className = 'domain-item';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'domain-name';
+    nameSpan.textContent = displayDomain;
+
+    const actionsDiv = document.createElement('div');
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-domain-btn';
+    removeBtn.textContent = 'Remove';
+    removeBtn.addEventListener('click', () => removeBitbucketDataCenterDomain(domain));
+    actionsDiv.appendChild(removeBtn);
+
+    item.appendChild(nameSpan);
+    item.appendChild(actionsDiv);
+    domainList.appendChild(item);
   });
 }
 
