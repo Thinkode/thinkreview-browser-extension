@@ -1,7 +1,11 @@
 // bitbucket-detector.js
-// Detects Bitbucket Cloud pull request pages and extracts relevant information
+// Detects Bitbucket Cloud and Bitbucket Data Center pull request pages and extracts relevant information
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
-import { getBitbucketDiffApiUrl } from '../utils/bitbucket-api-urls.js';
+import {
+  getBitbucketDiffApiUrl,
+  parseBitbucketDataCenterPrPath,
+  getBitbucketDataCenterDiffApiUrl
+} from '../utils/bitbucket-api-urls.js';
 
 /**
  * Parse Bitbucket PR URL path into workspace, repo_slug, and PR id.
@@ -28,12 +32,14 @@ function parseBitbucketPRFromPath(pathname) {
 
 /**
  * Bitbucket Detector Service
- * Handles detection of Bitbucket Cloud pull request pages and extraction of PR information
+ * Handles detection of Bitbucket Cloud and Bitbucket Data Center pull request pages
  */
 export class BitbucketDetector {
   constructor() {
     this.isInitialized = false;
     this.currentPageInfo = null;
+    /** @type {string[]} Normalized hostnames for Bitbucket Data Center instances */
+    this.customDomains = [];
   }
 
   /**
@@ -47,35 +53,63 @@ export class BitbucketDetector {
   }
 
   /**
-   * Check if the current page is on Bitbucket Cloud (bitbucket.org)
+   * Set custom Bitbucket Data Center domains (self-hosted).
+   * @param {string[]} domains - Array of domain URLs or hostnames from storage
+   */
+  setCustomDomains(domains) {
+    this.customDomains = (domains || []).map(d => {
+      try {
+        const hasProtocol = d.startsWith('http://') || d.startsWith('https://');
+        return new URL(hasProtocol ? d : `https://${d}`).hostname;
+      } catch {
+        return d;
+      }
+    }).filter(Boolean);
+    dbgLog('Bitbucket Data Center custom domains set:', this.customDomains);
+  }
+
+  /**
+   * Check if the current hostname is a configured Bitbucket Data Center instance.
+   * @returns {boolean}
+   */
+  isDataCenterDomain() {
+    return this.customDomains.includes(window.location.hostname);
+  }
+
+  /**
+   * Check if the current page is on Bitbucket Cloud (bitbucket.org) or a Data Center instance.
    * @returns {boolean}
    */
   isBitbucketDomain() {
-    const hostname = window.location.hostname;
-    return hostname === 'bitbucket.org';
+    return window.location.hostname === 'bitbucket.org' || this.isDataCenterDomain();
   }
 
   /**
-   * Check if the current page is a Bitbucket pull request page
-   * @returns {boolean} True if the current page is a Bitbucket PR page
+   * Check if the current page is a Bitbucket pull request page (Cloud or Data Center).
+   * @returns {boolean}
    */
   isBitbucketPRPage() {
     const hostname = window.location.hostname;
-    if (hostname !== 'bitbucket.org') {
-      return false;
+
+    if (hostname === 'bitbucket.org') {
+      const prInfo = parseBitbucketPRFromPath(window.location.pathname);
+      const isPRPath = !!prInfo;
+      dbgLog('Bitbucket Cloud PR detection:', { isPRPath, url: window.location.href.substring(0, 100) + '...' });
+      return isPRPath;
     }
-    const prInfo = parseBitbucketPRFromPath(window.location.pathname);
-    const isPRPath = !!prInfo;
-    dbgLog('Bitbucket PR detection:', {
-      isBitbucketDomain: true,
-      isPRPath,
-      url: window.location.href.substring(0, 100) + '...'
-    });
-    return isPRPath;
+
+    if (this.isDataCenterDomain()) {
+      const prInfo = parseBitbucketDataCenterPrPath(window.location.pathname);
+      const isPRPath = !!prInfo;
+      dbgLog('Bitbucket Data Center PR detection:', { isPRPath, url: window.location.href.substring(0, 100) + '...' });
+      return isPRPath;
+    }
+
+    return false;
   }
 
   /**
-   * Extract pull request information from the current page
+   * Extract pull request information from the current page (Cloud or Data Center).
    * @returns {Object|null} Pull request information or null if not found
    */
   extractPRInfo() {
@@ -84,16 +118,45 @@ export class BitbucketDetector {
     }
 
     try {
-      const parsed = parseBitbucketPRFromPath(window.location.pathname);
+      const hostname = window.location.hostname;
+      const isDataCenter = this.isDataCenterDomain();
+
+      if (!isDataCenter) {
+        const parsed = parseBitbucketPRFromPath(window.location.pathname);
+        const prInfo = {
+          url: window.location.href,
+          hostname,
+          prId: parsed.prId,
+          workspace: parsed.workspace,
+          repoSlug: parsed.repoSlug,
+          isDataCenter: false,
+          repository: {
+            name: parsed.repoSlug,
+            fullName: `${parsed.workspace}/${parsed.repoSlug}`
+          },
+          title: this.extractPRTitle(),
+          sourceBranch: this.extractSourceBranch(),
+          targetBranch: this.extractTargetBranch(),
+          status: this.extractPRStatus(),
+          author: this.extractAuthor(),
+          timestamp: Date.now()
+        };
+        dbgLog('Extracted Bitbucket Cloud PR info:', prInfo);
+        return prInfo;
+      }
+
+      const parsed = parseBitbucketDataCenterPrPath(window.location.pathname);
       const prInfo = {
         url: window.location.href,
-        hostname: window.location.hostname,
+        hostname,
         prId: parsed.prId,
-        workspace: parsed.workspace,
+        namespace: parsed.namespace,
+        namespaceType: parsed.namespaceType,
         repoSlug: parsed.repoSlug,
+        isDataCenter: true,
         repository: {
           name: parsed.repoSlug,
-          fullName: `${parsed.workspace}/${parsed.repoSlug}`
+          fullName: `${parsed.namespace}/${parsed.repoSlug}`
         },
         title: this.extractPRTitle(),
         sourceBranch: this.extractSourceBranch(),
@@ -102,8 +165,7 @@ export class BitbucketDetector {
         author: this.extractAuthor(),
         timestamp: Date.now()
       };
-
-      dbgLog('Extracted Bitbucket PR info:', prInfo);
+      dbgLog('Extracted Bitbucket Data Center PR info:', prInfo);
       return prInfo;
     } catch (error) {
       dbgWarn('Error extracting Bitbucket PR info:', error);
@@ -112,12 +174,24 @@ export class BitbucketDetector {
   }
 
   /**
-   * Get the Bitbucket API 2.0 URL for PR diff.
-   * Returns the pullrequests/{id}/diff form; background resolves this to the repository diff
-   * URL (repositories/.../diff/...:commit?from_pullrequest_id=...) via PR API to avoid 302.
-   * @returns {string|null} e.g. https://api.bitbucket.org/2.0/repositories/workspace/repo/pullrequests/1/diff
+   * Get the API URL for fetching the PR diff.
+   * - Cloud: api.bitbucket.org/2.0/repositories/{ws}/{repo}/pullrequests/{id}/diff
+   * - Data Center: {origin}/rest/api/1.0/{projects|users}/{ns}/repos/{repo}/pull-requests/{id}/diff
+   * @returns {string|null}
    */
   getPatchApiUrl() {
+    if (this.isDataCenterDomain()) {
+      const parsed = parseBitbucketDataCenterPrPath(window.location.pathname);
+      if (!parsed) return null;
+      return getBitbucketDataCenterDiffApiUrl(
+        window.location.origin,
+        parsed.namespaceType,
+        parsed.namespace,
+        parsed.repoSlug,
+        parsed.prId
+      );
+    }
+
     const parsed = parseBitbucketPRFromPath(window.location.pathname);
     if (!parsed) return null;
     return getBitbucketDiffApiUrl(parsed.workspace, parsed.repoSlug, parsed.prId);

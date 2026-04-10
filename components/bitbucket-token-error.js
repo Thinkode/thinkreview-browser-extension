@@ -7,8 +7,9 @@ const BITBUCKET_DOCS_URL = 'https://thinkreview.dev/docs/bitbucket-integration';
 /**
  * Shows Bitbucket token configuration error with helpful UI
  * @param {Function} stopEnhancedLoader - Function to stop the enhanced loader if running
+ * @param {string|null} extraInfo - Optional server error message to surface to the user
  */
-export function showBitbucketTokenError(stopEnhancedLoader = null) {
+export function showBitbucketTokenError(stopEnhancedLoader = null, extraInfo = null) {
   if (typeof stopEnhancedLoader === 'function') {
     stopEnhancedLoader();
   }
@@ -30,6 +31,7 @@ export function showBitbucketTokenError(stopEnhancedLoader = null) {
     }
   }
 
+  updateTokenErrorDetails(tokenError, extraInfo);
   tokenError.classList.remove('gl-hidden');
 }
 
@@ -72,6 +74,21 @@ function createTokenErrorElement() {
   description.style.textShadow = '0 1px 2px rgba(0, 0, 0, 0.2)';
   description.textContent = 'Generate a Bitbucket API token for ThinkReview. It takes about 60 seconds.';
   messageContainer.appendChild(description);
+
+  const extraDetails = document.createElement('p');
+  extraDetails.className = 'bitbucket-token-extra';
+  extraDetails.style.display = 'none';
+  extraDetails.style.textAlign = 'left';
+  extraDetails.style.marginBottom = '16px';
+  extraDetails.style.fontSize = '12px';
+  extraDetails.style.color = '#ffb347';
+  extraDetails.style.lineHeight = '1.5';
+  extraDetails.style.background = 'rgba(255, 179, 71, 0.08)';
+  extraDetails.style.border = '1px solid rgba(255, 179, 71, 0.35)';
+  extraDetails.style.borderRadius = '6px';
+  extraDetails.style.padding = '10px 12px';
+  extraDetails.style.wordBreak = 'break-word';
+  messageContainer.appendChild(extraDetails);
 
   tokenError.appendChild(messageContainer);
 
@@ -123,6 +140,26 @@ function createTokenErrorElement() {
 
   tokenError.appendChild(actionContainer);
   return tokenError;
+}
+
+/**
+ * Updates the optional extra details section with the server's error message.
+ * @param {HTMLElement} container - The token error container element
+ * @param {string|null} extraInfo - Raw server message (may be plain text or JSON/HTML)
+ */
+function updateTokenErrorDetails(container, extraInfo) {
+  const extraElement = container.querySelector('.bitbucket-token-extra');
+  if (!extraElement) return;
+
+  if (extraInfo && extraInfo.trim().length > 0) {
+    const trimmed = extraInfo.trim();
+    const displayText = trimmed.length > 400 ? `${trimmed.slice(0, 397)}…` : trimmed;
+    extraElement.textContent = `Server message: ${displayText}`;
+    extraElement.style.display = 'block';
+  } else {
+    extraElement.textContent = '';
+    extraElement.style.display = 'none';
+  }
 }
 
 export function hideBitbucketTokenError() {

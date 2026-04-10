@@ -731,6 +731,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Initialize Bitbucket settings (also called above after Azure)
   initializeBitbucketSettings();
+
+  // Initialize Bitbucket Data Center (self-hosted) settings
+  initializeBitbucketDataCenterSettings();
   
   // Initialize AI Provider settings
   initializeAIProviderSettings();
@@ -892,29 +895,45 @@ async function loadDomains() {
 
 function renderDomainList(domains) {
   const domainList = document.getElementById('domain-list');
-  
+
+  domainList.replaceChildren();
+
   if (domains.length === 0) {
-    domainList.innerHTML = '<div class="no-domains">No custom domains added</div>';
+    const empty = document.createElement('div');
+    empty.className = 'no-domains';
+    empty.textContent = 'No custom domains added';
+    domainList.appendChild(empty);
     return;
   }
-  
-  domainList.innerHTML = domains.map(domain => {
+
+  domains.forEach(domain => {
     const isDefault = DEFAULT_DOMAINS.includes(domain);
     const displayDomain = formatDomainForDisplay(domain);
-    return `
-      <div class="domain-item ${isDefault ? 'default' : ''}">
-        <span class="domain-name">${displayDomain}</span>
-        <div>
-          ${isDefault ? '<span class="default-label">DEFAULT</span>' : ''}
-          ${!isDefault ? `<button class="remove-domain-btn" data-domain="${domain}">Remove</button>` : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
-  
-  // Add event listeners to remove buttons
-  domainList.querySelectorAll('.remove-domain-btn').forEach(button => {
-    button.addEventListener('click', () => removeDomain(button.dataset.domain));
+
+    const item = document.createElement('div');
+    item.className = 'domain-item' + (isDefault ? ' default' : '');
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'domain-name';
+    nameSpan.textContent = displayDomain;
+
+    const actionsDiv = document.createElement('div');
+    if (isDefault) {
+      const defaultLabel = document.createElement('span');
+      defaultLabel.className = 'default-label';
+      defaultLabel.textContent = 'DEFAULT';
+      actionsDiv.appendChild(defaultLabel);
+    } else {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-domain-btn';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', () => removeDomain(domain));
+      actionsDiv.appendChild(removeBtn);
+    }
+
+    item.appendChild(nameSpan);
+    item.appendChild(actionsDiv);
+    domainList.appendChild(item);
   });
 }
 
@@ -1063,27 +1082,44 @@ function renderGitHubEnterpriseDomainList(domains) {
   const domainList = document.getElementById('github-enterprise-domain-list');
   if (!domainList) return;
 
+  domainList.replaceChildren();
+
   if (!domains || domains.length === 0) {
-    domainList.innerHTML = '<div class="no-domains">No custom domains added</div>';
+    const empty = document.createElement('div');
+    empty.className = 'no-domains';
+    empty.textContent = 'No custom domains added';
+    domainList.appendChild(empty);
     return;
   }
 
-  domainList.innerHTML = domains.map(domain => {
+  domains.forEach(domain => {
     const isDefault = GITHUB_ENTERPRISE_DEFAULT_DOMAINS.includes(domain);
     const displayDomain = formatDomainForDisplay(domain);
-    return `
-      <div class="domain-item ${isDefault ? 'default' : ''}">
-        <span class="domain-name">${displayDomain}</span>
-        <div>
-          ${isDefault ? '<span class="default-label">DEFAULT</span>' : ''}
-          ${!isDefault ? `<button class="remove-domain-btn" data-domain="${domain.replace(/"/g, '&quot;')}">Remove</button>` : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
 
-  domainList.querySelectorAll('.remove-domain-btn').forEach(button => {
-    button.addEventListener('click', () => removeGitHubEnterpriseDomain(button.dataset.domain));
+    const item = document.createElement('div');
+    item.className = 'domain-item' + (isDefault ? ' default' : '');
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'domain-name';
+    nameSpan.textContent = displayDomain;
+
+    const actionsDiv = document.createElement('div');
+    if (isDefault) {
+      const defaultLabel = document.createElement('span');
+      defaultLabel.className = 'default-label';
+      defaultLabel.textContent = 'DEFAULT';
+      actionsDiv.appendChild(defaultLabel);
+    } else {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-domain-btn';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', () => removeGitHubEnterpriseDomain(domain));
+      actionsDiv.appendChild(removeBtn);
+    }
+
+    item.appendChild(nameSpan);
+    item.appendChild(actionsDiv);
+    domainList.appendChild(item);
   });
 }
 
@@ -1293,27 +1329,44 @@ function renderAzureDevOpsDomainList(customDomains) {
     ...(customDomains.filter(d => !AZURE_DEFAULT_DOMAINS.includes(d)))
   ];
 
+  domainList.replaceChildren();
+
   if (displayList.length === 0) {
-    domainList.innerHTML = '<div class="no-domains">No custom domains added</div>';
+    const empty = document.createElement('div');
+    empty.className = 'no-domains';
+    empty.textContent = 'No custom domains added';
+    domainList.appendChild(empty);
     return;
   }
 
-  domainList.innerHTML = displayList.map(domain => {
+  displayList.forEach(domain => {
     const isDefault = AZURE_DEFAULT_DOMAINS.includes(domain);
     const displayDomain = formatDomainForDisplay(domain);
-    return `
-      <div class="domain-item ${isDefault ? 'default' : ''}">
-        <span class="domain-name">${displayDomain}</span>
-        <div>
-          ${isDefault ? '<span class="default-label">DEFAULT</span>' : ''}
-          ${!isDefault ? `<button class="remove-domain-btn" data-domain="${domain.replace(/"/g, '&quot;')}">Remove</button>` : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
 
-  domainList.querySelectorAll('.remove-domain-btn').forEach(button => {
-    button.addEventListener('click', () => removeAzureDevOpsDomain(button.dataset.domain));
+    const item = document.createElement('div');
+    item.className = 'domain-item' + (isDefault ? ' default' : '');
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'domain-name';
+    nameSpan.textContent = displayDomain;
+
+    const actionsDiv = document.createElement('div');
+    if (isDefault) {
+      const defaultLabel = document.createElement('span');
+      defaultLabel.className = 'default-label';
+      defaultLabel.textContent = 'DEFAULT';
+      actionsDiv.appendChild(defaultLabel);
+    } else {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-domain-btn';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', () => removeAzureDevOpsDomain(domain));
+      actionsDiv.appendChild(removeBtn);
+    }
+
+    item.appendChild(nameSpan);
+    item.appendChild(actionsDiv);
+    domainList.appendChild(item);
   });
 }
 
@@ -1605,6 +1658,270 @@ async function saveBitbucketToken() {
     }
     if (saveBtn) {
       saveBtn.textContent = 'Save Token';
+      saveBtn.disabled = false;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bitbucket Data Center (self-hosted) domain and credential management
+// ---------------------------------------------------------------------------
+
+const BITBUCKET_DC_TOKEN_MASK = '••••••••••••••••••••••••••••••••••••••••••••••••••';
+
+function initializeBitbucketDataCenterSettings() {
+  loadBitbucketDataCenterDomains();
+  loadBitbucketDataCenterToken();
+  setupBitbucketDataCenterEventListeners();
+}
+
+function setupBitbucketDataCenterEventListeners() {
+  const addButton = document.getElementById('add-bitbucket-dc-domain-btn');
+  const domainInput = document.getElementById('bitbucket-dc-domain-input');
+  const saveTokenBtn = document.getElementById('save-bitbucket-dc-token-btn');
+  const tokenInput = document.getElementById('bitbucket-dc-token-input');
+
+  if (addButton && domainInput) {
+    addButton.addEventListener('click', addBitbucketDataCenterDomain);
+    domainInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addBitbucketDataCenterDomain(); });
+    domainInput.addEventListener('input', () => {
+      addButton.disabled = !validateDomainInput(domainInput.value.trim());
+    });
+  }
+
+  if (saveTokenBtn) saveTokenBtn.addEventListener('click', saveBitbucketDataCenterToken);
+  if (tokenInput) tokenInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') saveBitbucketDataCenterToken(); });
+}
+
+async function loadBitbucketDataCenterDomains() {
+  try {
+    const result = await chrome.storage.local.get(['bitbucketDataCenterDomains']);
+    renderBitbucketDataCenterDomainList(result.bitbucketDataCenterDomains || []);
+  } catch (error) {
+    dbgWarn('Error loading Bitbucket Data Center domains:', error);
+    renderBitbucketDataCenterDomainList([]);
+  }
+}
+
+function renderBitbucketDataCenterDomainList(domains) {
+  const domainList = document.getElementById('bitbucket-dc-domain-list');
+  if (!domainList) return;
+
+  domainList.replaceChildren();
+
+  if (!domains || domains.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'no-domains';
+    empty.textContent = 'No custom domains added';
+    domainList.appendChild(empty);
+    return;
+  }
+
+  domains.forEach(domain => {
+    const displayDomain = formatDomainForDisplay(domain);
+
+    const item = document.createElement('div');
+    item.className = 'domain-item';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'domain-name';
+    nameSpan.textContent = displayDomain;
+
+    const actionsDiv = document.createElement('div');
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-domain-btn';
+    removeBtn.textContent = 'Remove';
+    removeBtn.addEventListener('click', () => removeBitbucketDataCenterDomain(domain));
+    actionsDiv.appendChild(removeBtn);
+
+    item.appendChild(nameSpan);
+    item.appendChild(actionsDiv);
+    domainList.appendChild(item);
+  });
+}
+
+let isAddingBitbucketDCDomain = false;
+
+async function addBitbucketDataCenterDomain() {
+  if (isAddingBitbucketDCDomain) return;
+
+  const domainInput = document.getElementById('bitbucket-dc-domain-input');
+  const addButton = document.getElementById('add-bitbucket-dc-domain-btn');
+  const inputValue = domainInput?.value?.trim()?.toLowerCase() ?? '';
+
+  if (!validateDomainInput(inputValue)) {
+    alert('Please enter a valid domain (e.g., bitbucket.mycompany.com, https://bitbucket.mycompany.com)');
+    return;
+  }
+
+  const domain = normalizeDomain(inputValue);
+
+  try {
+    isAddingBitbucketDCDomain = true;
+    const originalButtonText = addButton?.textContent ?? 'Add';
+    if (addButton) {
+      addButton.textContent = 'Adding...';
+      addButton.disabled = true;
+    }
+
+    const result = await chrome.storage.local.get(['bitbucketDataCenterDomains']);
+    const domains = result.bitbucketDataCenterDomains || [];
+
+    if (domains.includes(domain)) {
+      alert('Domain already exists');
+      if (addButton) {
+        addButton.textContent = originalButtonText;
+        addButton.disabled = false;
+      }
+      return;
+    }
+
+    let originPattern;
+    if (domain.startsWith('http://') || domain.startsWith('https://')) {
+      const url = new URL(domain);
+      originPattern = `${url.protocol}//${url.host}/*`;
+    } else {
+      originPattern = `https://${domain}/*`;
+    }
+
+    dbgLog(`Adding Bitbucket Data Center domain with pattern: ${originPattern}`);
+
+    const granted = await chrome.permissions.request({ origins: [originPattern] });
+    if (!granted) {
+      alert('Permission not granted. The extension needs permission to access this domain.');
+      if (addButton) {
+        addButton.textContent = originalButtonText;
+        addButton.disabled = false;
+      }
+      return;
+    }
+
+    const updatedDomains = [...domains, domain];
+    await chrome.storage.local.set({ bitbucketDataCenterDomains: updatedDomains });
+
+    isUserLoggedIn().then(isLoggedIn => {
+      if (isLoggedIn && window.CloudService) {
+        window.CloudService.trackCustomDomains(domain, 'add')
+          .catch(err => dbgWarn('Error tracking Bitbucket DC domain in cloud (non-critical):', err));
+      }
+    }).catch(err => dbgWarn('Error checking login for DC domain tracking:', err));
+
+    chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
+
+    if (domainInput) domainInput.value = '';
+    if (addButton) {
+      addButton.textContent = originalButtonText;
+      addButton.disabled = true;
+    }
+
+    renderBitbucketDataCenterDomainList(updatedDomains);
+    showMessage('Domain added. Reload your Bitbucket Data Center pages to use AI reviews.', 'success');
+  } catch (error) {
+    dbgWarn('Error adding Bitbucket Data Center domain:', error);
+    alert(`Error adding domain: ${error.message}. Please try again.`);
+    if (addButton) {
+      addButton.textContent = 'Add';
+      addButton.disabled = false;
+    }
+  } finally {
+    isAddingBitbucketDCDomain = false;
+  }
+}
+
+async function removeBitbucketDataCenterDomain(domain) {
+  if (!confirm(`Remove domain "${domain}"?`)) return;
+
+  try {
+    const result = await chrome.storage.local.get(['bitbucketDataCenterDomains']);
+    const domains = result.bitbucketDataCenterDomains || [];
+    const updatedDomains = domains.filter(d => d !== domain);
+    await chrome.storage.local.set({ bitbucketDataCenterDomains: updatedDomains });
+
+    isUserLoggedIn().then(isLoggedIn => {
+      if (isLoggedIn && window.CloudService) {
+        window.CloudService.trackCustomDomains(domain, 'remove')
+          .catch(err => dbgWarn('Error tracking Bitbucket DC domain removal in cloud (non-critical):', err));
+      }
+    }).catch(err => dbgWarn('Error checking login for DC domain tracking:', err));
+
+    chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
+    renderBitbucketDataCenterDomainList(updatedDomains);
+    showMessage('Domain removed successfully!', 'success');
+  } catch (error) {
+    dbgWarn('Error removing Bitbucket Data Center domain:', error);
+    alert('Error removing domain. Please try again.');
+  }
+}
+
+async function loadBitbucketDataCenterToken() {
+  try {
+    const result = await chrome.storage.local.get(['bitbucketDataCenterToken']);
+    const token = result.bitbucketDataCenterToken;
+    const statusEl = document.getElementById('bitbucket-dc-token-status');
+    const tokenInput = document.getElementById('bitbucket-dc-token-input');
+
+    if (token && String(token).trim()) {
+      if (statusEl) {
+        statusEl.textContent = 'Token saved';
+        statusEl.className = 'token-status success';
+      }
+      if (tokenInput) {
+        tokenInput.value = BITBUCKET_DC_TOKEN_MASK;
+        tokenInput.type = 'password';
+      }
+    } else {
+      if (statusEl) {
+        statusEl.textContent = '';
+        statusEl.className = 'token-status';
+      }
+    }
+  } catch (error) {
+    dbgWarn('Error loading Bitbucket Data Center token:', error);
+  }
+}
+
+async function saveBitbucketDataCenterToken() {
+  const tokenInput = document.getElementById('bitbucket-dc-token-input');
+  const saveBtn = document.getElementById('save-bitbucket-dc-token-btn');
+  const statusEl = document.getElementById('bitbucket-dc-token-status');
+
+  const tokenRaw = tokenInput?.value?.trim() ?? '';
+
+  const stored = await chrome.storage.local.get(['bitbucketDataCenterToken']);
+  const existingToken = stored.bitbucketDataCenterToken && String(stored.bitbucketDataCenterToken).trim() ? stored.bitbucketDataCenterToken.trim() : '';
+  const token = (tokenRaw === BITBUCKET_DC_TOKEN_MASK && existingToken) ? existingToken : tokenRaw;
+
+  if (!token) {
+    if (statusEl) {
+      statusEl.textContent = 'Enter an HTTP access token to save';
+      statusEl.className = 'token-status error';
+    }
+    return;
+  }
+
+  try {
+    if (saveBtn) saveBtn.textContent = 'Saving...';
+    await chrome.storage.local.set({ bitbucketDataCenterToken: token });
+    if (statusEl) {
+      statusEl.textContent = 'Token saved';
+      statusEl.className = 'token-status success';
+    }
+    if (tokenInput) {
+      tokenInput.value = BITBUCKET_DC_TOKEN_MASK;
+      tokenInput.type = 'password';
+    }
+    if (saveBtn) {
+      saveBtn.textContent = 'Save';
+      saveBtn.disabled = false;
+    }
+  } catch (error) {
+    dbgWarn('Error saving Bitbucket Data Center token:', error);
+    if (statusEl) {
+      statusEl.textContent = 'Failed to save';
+      statusEl.className = 'token-status error';
+    }
+    if (saveBtn) {
+      saveBtn.textContent = 'Save';
       saveBtn.disabled = false;
     }
   }
@@ -2276,17 +2593,18 @@ document.head.appendChild(style);
 // PLATFORM NAVIGATION
 // =====================================================================
 
-const PLATFORM_IDS = ['github', 'gitlab', 'azure', 'bitbucket'];
+const PLATFORM_IDS = ['github', 'gitlab', 'azure', 'bitbucket', 'bitbucket-dc'];
 
 // Card definitions: id → { platform view to open, optional scroll target id }
 const PLATFORM_CARDS = [
-  { cardId: 'card-github-com',          platform: 'github',    scrollTarget: null },
-  { cardId: 'card-github-enterprise',   platform: 'github',    scrollTarget: 'github-enterprise-subsection' },
-  { cardId: 'card-gitlab-com',          platform: 'gitlab',    scrollTarget: null },
-  { cardId: 'card-gitlab-self-managed', platform: 'gitlab',    scrollTarget: 'gitlab-self-managed-subsection' },
-  { cardId: 'card-azure-cloud',         platform: 'azure',     scrollTarget: null },
-  { cardId: 'card-azure-server',        platform: 'azure',     scrollTarget: 'azure-server-subsection' },
-  { cardId: 'card-bitbucket',           platform: 'bitbucket', scrollTarget: null },
+  { cardId: 'card-github-com',          platform: 'github',        scrollTarget: null },
+  { cardId: 'card-github-enterprise',   platform: 'github',        scrollTarget: 'github-enterprise-subsection' },
+  { cardId: 'card-gitlab-com',          platform: 'gitlab',        scrollTarget: null },
+  { cardId: 'card-gitlab-self-managed', platform: 'gitlab',        scrollTarget: 'gitlab-self-managed-subsection' },
+  { cardId: 'card-azure-cloud',         platform: 'azure',         scrollTarget: null },
+  { cardId: 'card-azure-server',        platform: 'azure',         scrollTarget: 'azure-server-subsection' },
+  { cardId: 'card-bitbucket',           platform: 'bitbucket',     scrollTarget: null },
+  { cardId: 'card-bitbucket-dc',        platform: 'bitbucket-dc',  scrollTarget: null },
 ];
 
 function initializePlatformNavigation() {
@@ -2354,12 +2672,14 @@ async function computePlatformStatuses() {
   try {
     const result = await chrome.storage.local.get([
       'azureToken',
-      'customDomains',           // GitLab custom domains
-      'azureCustomDomains',      // Azure on-prem domains
+      'customDomains',                  // GitLab custom domains
+      'azureCustomDomains',             // Azure on-prem domains
       'githubEnterpriseDomains',
       'bitbucketToken',
       'bitbucketEmail',
       'bitbucketEnabled',
+      'bitbucketDataCenterDomains',
+      'bitbucketDataCenterToken',
     ]);
 
     // Cloud variants: always ready, no setup required
@@ -2382,10 +2702,16 @@ async function computePlatformStatuses() {
     const azureServerReady = Array.isArray(azureDomains) && azureDomains.length > 0;
     setBadge('azure-server', azureServerReady ? 'ready' : 'setup');
 
-    // Bitbucket: requires explicit permission grant + token
+    // Bitbucket Cloud: requires explicit permission grant + token
     const bitbucketConfigured = result.bitbucketEnabled &&
       (result.bitbucketToken || result.bitbucketEmail);
     setBadge('bitbucket', bitbucketConfigured ? 'ready' : 'setup');
+
+    // Bitbucket Data Center: ready when at least one domain is saved with a token
+    const dcDomains = result.bitbucketDataCenterDomains;
+    const dcReady = Array.isArray(dcDomains) && dcDomains.length > 0 &&
+      result.bitbucketDataCenterToken && String(result.bitbucketDataCenterToken).trim();
+    setBadge('bitbucket-dc', dcReady ? 'ready' : 'setup');
   } catch (err) {
     dbgWarn('Error computing platform statuses:', err);
   }

@@ -323,6 +323,14 @@ export class PlatformDetector {
   }
 
   /**
+   * Set custom Bitbucket Data Center domains (self-hosted). Call after init.
+   * @param {string[]} domains - Array of URLs or hostnames from storage (bitbucketDataCenterDomains)
+   */
+  setBitbucketCustomDomains(domains) {
+    bitbucketDetector.setCustomDomains(domains || []);
+  }
+
+  /**
    * Check if we're on an Azure DevOps site (regardless of being on a PR page)
    * @returns {boolean} True if on Azure DevOps domain (built-in or custom)
    */

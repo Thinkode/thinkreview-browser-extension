@@ -86,8 +86,11 @@ async function initializePlatformDetection() {
     platformDetector.init();
 
     // Load custom Azure DevOps domains so on-prem URLs are detected
-    const storage = await chrome.storage.local.get(['azureDevOpsDomains']);
+    const storage = await chrome.storage.local.get(['azureDevOpsDomains', 'bitbucketDataCenterDomains']);
     platformDetector.setAzureDevOpsCustomDomains(storage.azureDevOpsDomains || []);
+
+    // Load custom Bitbucket Data Center domains
+    platformDetector.setBitbucketCustomDomains(storage.bitbucketDataCenterDomains || []);
     
     // Dynamically import Azure DevOps API module for error handling
     const apiModule = await import(chrome.runtime.getURL('services/azure-devops-api.js'));
@@ -1261,7 +1264,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         if (authRequired) {
           try {
             const bitbucketTokenErrorModule = await import(chrome.runtime.getURL('components/bitbucket-token-error.js'));
-            bitbucketTokenErrorModule.showBitbucketTokenError(stopEnhancedLoader);
+            bitbucketTokenErrorModule.showBitbucketTokenError(stopEnhancedLoader, bgResponse?.serverMessage || null);
           } catch (e) {
             dbgWarn('Failed to show Bitbucket token error UI:', e);
             throw new Error('Generate a Bitbucket API token for ThinkReview (takes about 60 seconds): https://thinkreview.dev/docs/bitbucket-integration');

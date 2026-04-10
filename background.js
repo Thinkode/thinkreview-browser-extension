@@ -665,8 +665,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'FETCH_BITBUCKET_PATCH') {
     const { url } = message;
     (async () => {
-      const { bitbucketToken, bitbucketEmail } = await chrome.storage.local.get(['bitbucketToken', 'bitbucketEmail']);
-      const result = await fetchPatchContent(url, { token: bitbucketToken, email: bitbucketEmail });
+      // Use Data Center credentials when the URL points to a self-hosted REST API endpoint
+      const isDataCenter = typeof url === 'string' && url.includes('/rest/api/1.0/');
+      let token, email;
+      if (isDataCenter) {
+        const creds = await chrome.storage.local.get(['bitbucketDataCenterToken']);
+        token = creds.bitbucketDataCenterToken;
+        email = null; // Bearer auth — no username needed
+      } else {
+        const creds = await chrome.storage.local.get(['bitbucketToken', 'bitbucketEmail']);
+        token = creds.bitbucketToken;
+        email = creds.bitbucketEmail;
+      }
+      const result = await fetchPatchContent(url, { token, email });
       sendResponse(result);
     })();
     return true; // Keep channel open
@@ -1203,7 +1214,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Listen for domain changes
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'local' && (changes.gitlabDomains || changes.azureDevOpsDomains || changes.bitbucketAllowed)) {
+  if (namespace === 'local' && (
+    changes.gitlabDomains ||
+    changes.azureDevOpsDomains ||
+    changes.bitbucketAllowed ||
+    changes.bitbucketDataCenterDomains
+  )) {
     dbgLog('Domains changed, updating content scripts');
     updateContentScripts();
   }
@@ -1212,10 +1228,11 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 async function updateContentScripts() {
   try {
     // Get current domains from storage
-    const result = await chrome.storage.local.get(['gitlabDomains', 'azureDevOpsDomains', 'bitbucketAllowed', 'githubEnterpriseDomains']);
+    const result = await chrome.storage.local.get(['gitlabDomains', 'azureDevOpsDomains', 'bitbucketAllowed', 'githubEnterpriseDomains', 'bitbucketDataCenterDomains']);
     const gitlabDomains = result.gitlabDomains || DEFAULT_DOMAINS;
     const customAzureDevOpsDomains = result.azureDevOpsDomains || [];
     const githubEnterpriseDomains = result.githubEnterpriseDomains || [];
+    const bitbucketDataCenterDomains = result.bitbucketDataCenterDomains || [];
 
     // Built-in Azure DevOps domains (always included)
     const builtInAzureDevOpsDomains = [
@@ -1229,7 +1246,7 @@ async function updateContentScripts() {
       ...githubEnterpriseDomains
     ];
 
-    // Add Bitbucket when user has allowed it and we have permission
+    // Add Bitbucket Cloud when user has allowed it and we have permission
     const bitbucketDomains = [];
     if (result.bitbucketAllowed === true) {
       const hasBitbucket = await chrome.permissions.contains({ origins: ['https://bitbucket.org/*'] });
@@ -1238,9 +1255,16 @@ async function updateContentScripts() {
       }
     }
 
-    const allDomains = [...gitlabDomains, ...builtInAzureDevOpsDomains, ...customAzureDevOpsDomains, ...githubDomains, ...bitbucketDomains];
+    const allDomains = [
+      ...gitlabDomains,
+      ...builtInAzureDevOpsDomains,
+      ...customAzureDevOpsDomains,
+      ...githubDomains,
+      ...bitbucketDomains,
+      ...bitbucketDataCenterDomains
+    ];
     const azureMatchAllDomains = new Set([...builtInAzureDevOpsDomains, ...customAzureDevOpsDomains]);
-    const bitbucketMatchAllDomains = new Set(bitbucketDomains);
+    const bitbucketMatchAllDomains = new Set([...bitbucketDomains, ...bitbucketDataCenterDomains]);
     const githubMatchAllHosts = new Set(
       githubDomains
         .filter(d => typeof d === 'string')
@@ -1322,7 +1346,7 @@ async function updateContentScripts() {
       } else {
         // Simple domain provided (e.g., gitlab.com, github.com, devops.companyname.com)
         originPattern = `https://${domain}/*`;
-        if (azureMatchAllDomains.has(domain) || domain === 'github.com' || domain.endsWith('.github.com') || domain === 'bitbucket.org') {
+        if (azureMatchAllDomains.has(domain) || domain === 'github.com' || domain.endsWith('.github.com') || domain === 'bitbucket.org' || bitbucketMatchAllDomains.has(domain)) {
           matchPattern = `https://${domain}/*`;
         } else {
           // GitLab: match merge request pages only
