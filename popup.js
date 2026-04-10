@@ -985,6 +985,7 @@ async function addDomain() {
       alert('Permission not granted. The extension needs permission to access this domain.');
       addButton.textContent = originalButtonText;
       addButton.disabled = false;
+      isAddingDomain = false;
       return;
     }
 
@@ -995,9 +996,10 @@ async function addDomain() {
       alert('Domain already exists');
       addButton.textContent = originalButtonText;
       addButton.disabled = false;
+      isAddingDomain = false;
       return;
     }
-    
+
     // Add the domain to storage
     const updatedDomains = [...domains, domain];
     await chrome.storage.local.set({ gitlabDomains: updatedDomains });
