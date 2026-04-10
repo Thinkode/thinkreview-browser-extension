@@ -961,24 +961,11 @@ async function addDomain() {
     // Set flag to prevent duplicate calls
     isAddingDomain = true;
     
-    // Show loading state
     const addButton = document.getElementById('add-domain-btn');
     const originalButtonText = addButton.textContent;
     addButton.textContent = 'Adding...';
     addButton.disabled = true;
-    
-    // Get current domains
-    const result = await chrome.storage.local.get(['gitlabDomains']);
-    const domains = result.gitlabDomains || DEFAULT_DOMAINS;
-    
-    if (domains.includes(domain)) {
-      alert('Domain already exists');
-      addButton.textContent = originalButtonText;
-      addButton.disabled = false;
-      return;
-    }
-    
-    // Create origin pattern for permission request
+
     let originPattern;
     if (domain.startsWith('http://') || domain.startsWith('https://')) {
       const url = new URL(domain);
@@ -986,16 +973,26 @@ async function addDomain() {
     } else {
       originPattern = `https://${domain}/*`;
     }
-    
+
     dbgLog(`Adding domain with pattern: ${originPattern}`);
-    
-    // Request permission for this domain
+
+    // Firefox requires permissions.request in the same synchronous turn as the click (no await before this).
     const granted = await chrome.permissions.request({
       origins: [originPattern]
     });
-    
+
     if (!granted) {
       alert('Permission not granted. The extension needs permission to access this domain.');
+      addButton.textContent = originalButtonText;
+      addButton.disabled = false;
+      return;
+    }
+
+    const result = await chrome.storage.local.get(['gitlabDomains']);
+    const domains = result.gitlabDomains || DEFAULT_DOMAINS;
+
+    if (domains.includes(domain)) {
+      alert('Domain already exists');
       addButton.textContent = originalButtonText;
       addButton.disabled = false;
       return;
@@ -1147,18 +1144,6 @@ async function addGitHubEnterpriseDomain() {
       addButton.disabled = true;
     }
 
-    const result = await chrome.storage.local.get(['githubEnterpriseDomains']);
-    const domains = result.githubEnterpriseDomains || GITHUB_ENTERPRISE_DEFAULT_DOMAINS;
-
-    if (domains.includes(domain)) {
-      alert('Domain already exists');
-      if (addButton) {
-        addButton.textContent = originalButtonText;
-        addButton.disabled = false;
-      }
-      return;
-    }
-
     let originPattern;
     if (domain.startsWith('http://') || domain.startsWith('https://')) {
       const url = new URL(domain);
@@ -1169,9 +1154,22 @@ async function addGitHubEnterpriseDomain() {
 
     dbgLog(`Adding GitHub Enterprise domain with pattern: ${originPattern}`);
 
+    // Firefox: permissions.request must run before any other await (user-gesture stack).
     const granted = await chrome.permissions.request({ origins: [originPattern] });
     if (!granted) {
       alert('Permission not granted. The extension needs permission to access this domain.');
+      if (addButton) {
+        addButton.textContent = originalButtonText;
+        addButton.disabled = false;
+      }
+      return;
+    }
+
+    const result = await chrome.storage.local.get(['githubEnterpriseDomains']);
+    const domains = result.githubEnterpriseDomains || GITHUB_ENTERPRISE_DEFAULT_DOMAINS;
+
+    if (domains.includes(domain)) {
+      alert('Domain already exists');
       if (addButton) {
         addButton.textContent = originalButtonText;
         addButton.disabled = false;
@@ -1414,18 +1412,6 @@ async function addAzureDevOpsDomain() {
       addButton.disabled = true;
     }
 
-    const result = await chrome.storage.local.get(['azureDevOpsDomains']);
-    const domains = result.azureDevOpsDomains || [];
-
-    if (domains.includes(domain)) {
-      alert('Domain already exists');
-      if (addButton) {
-        addButton.textContent = originalButtonText;
-        addButton.disabled = false;
-      }
-      return;
-    }
-
     let originPattern;
     if (domain.startsWith('http://') || domain.startsWith('https://')) {
       const url = new URL(domain);
@@ -1434,9 +1420,22 @@ async function addAzureDevOpsDomain() {
       originPattern = `https://${domain}/*`;
     }
 
+    // Firefox: permissions.request must run before any other await (user-gesture stack).
     const granted = await chrome.permissions.request({ origins: [originPattern] });
     if (!granted) {
       alert('Permission not granted. The extension needs permission to access this domain.');
+      if (addButton) {
+        addButton.textContent = originalButtonText;
+        addButton.disabled = false;
+      }
+      return;
+    }
+
+    const result = await chrome.storage.local.get(['azureDevOpsDomains']);
+    const domains = result.azureDevOpsDomains || [];
+
+    if (domains.includes(domain)) {
+      alert('Domain already exists');
       if (addButton) {
         addButton.textContent = originalButtonText;
         addButton.disabled = false;
@@ -1764,18 +1763,6 @@ async function addBitbucketDataCenterDomain() {
       addButton.disabled = true;
     }
 
-    const result = await chrome.storage.local.get(['bitbucketDataCenterDomains']);
-    const domains = result.bitbucketDataCenterDomains || [];
-
-    if (domains.includes(domain)) {
-      alert('Domain already exists');
-      if (addButton) {
-        addButton.textContent = originalButtonText;
-        addButton.disabled = false;
-      }
-      return;
-    }
-
     let originPattern;
     if (domain.startsWith('http://') || domain.startsWith('https://')) {
       const url = new URL(domain);
@@ -1786,9 +1773,22 @@ async function addBitbucketDataCenterDomain() {
 
     dbgLog(`Adding Bitbucket Data Center domain with pattern: ${originPattern}`);
 
+    // Firefox: permissions.request must run before any other await (user-gesture stack).
     const granted = await chrome.permissions.request({ origins: [originPattern] });
     if (!granted) {
       alert('Permission not granted. The extension needs permission to access this domain.');
+      if (addButton) {
+        addButton.textContent = originalButtonText;
+        addButton.disabled = false;
+      }
+      return;
+    }
+
+    const result = await chrome.storage.local.get(['bitbucketDataCenterDomains']);
+    const domains = result.bitbucketDataCenterDomains || [];
+
+    if (domains.includes(domain)) {
+      alert('Domain already exists');
       if (addButton) {
         addButton.textContent = originalButtonText;
         addButton.disabled = false;
