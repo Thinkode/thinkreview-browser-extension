@@ -1164,6 +1164,7 @@ async function addGitHubEnterpriseDomain() {
         addButton.textContent = originalButtonText;
         addButton.disabled = false;
       }
+      isAddingGitHubEnterpriseDomain = false;
       return;
     }
 
@@ -1176,6 +1177,7 @@ async function addGitHubEnterpriseDomain() {
         addButton.textContent = originalButtonText;
         addButton.disabled = false;
       }
+      isAddingGitHubEnterpriseDomain = false;
       return;
     }
 
@@ -1430,6 +1432,7 @@ async function addAzureDevOpsDomain() {
         addButton.textContent = originalButtonText;
         addButton.disabled = false;
       }
+      isAddingAzureDomain = false;
       return;
     }
 
@@ -1442,6 +1445,7 @@ async function addAzureDevOpsDomain() {
         addButton.textContent = originalButtonText;
         addButton.disabled = false;
       }
+      isAddingAzureDomain = false;
       return;
     }
 
@@ -1783,6 +1787,7 @@ async function addBitbucketDataCenterDomain() {
         addButton.textContent = originalButtonText;
         addButton.disabled = false;
       }
+      isAddingBitbucketDCDomain = false;
       return;
     }
 
@@ -1795,6 +1800,7 @@ async function addBitbucketDataCenterDomain() {
         addButton.textContent = originalButtonText;
         addButton.disabled = false;
       }
+      isAddingBitbucketDCDomain = false;
       return;
     }
 
