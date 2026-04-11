@@ -1463,8 +1463,12 @@ async function handleSendMessage(messageText) {
     appendToChatLog('ai', responseText, rawResponseText);
     conversationHistory.push({ role: 'model', content: responseText });
 
-    // Append context banner once, right after the first AI message
-    if (chatLog && !chatLog.querySelector('.thinkreview-context-banner')) {
+    // Append context banner once, right after the first AI message (cloud only — Ollama has no full-repo tool context)
+    if (
+      chatLog &&
+      !chatLog.querySelector('.thinkreview-context-banner') &&
+      aiResponse.provider !== 'ollama'
+    ) {
       const contextType = aiResponse.contextType || 'patch_only';
       chatLog.appendChild(createContextBanner(contextType));
     }

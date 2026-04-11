@@ -1704,7 +1704,13 @@ window.getAIResponse = (patchContent, conversationHistory, language = 'English')
           return reject(chrome.runtime.lastError);
         }
         if (response && response.success) {
-          resolve(response.data);
+          const data = response.data;
+          const routedProvider = response.provider || 'cloud';
+          const merged =
+            data && typeof data === 'object' && !Array.isArray(data)
+              ? { ...data, provider: data.provider || routedProvider }
+              : { response: data, provider: routedProvider };
+          resolve(merged);
         } else {
           const error = new Error(response?.error || 'Failed to get AI response.');
           // Pass rate limit error properties if available
