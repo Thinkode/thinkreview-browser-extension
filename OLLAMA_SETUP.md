@@ -32,28 +32,40 @@ Download the installer from [ollama.ai/download](https://ollama.ai/download)
 
 ### 2. Pull a Code Review Model
 
-**We recommend [Codestral](https://ollama.com/library/codestral:latest)** — it currently produces the best results for code review with ThinkReview (Mistral AI’s 22B code model, 32k context, 80+ languages).
+**We recommend [Gemma 4](https://ollama.com/library/gemma4)** — Google DeepMind’s multimodal family with strong coding and reasoning, native function calling, and a **128K** context window on the default and edge variants (larger variants offer **256K**). For ThinkReview, start with the default tag or pick a size that fits your RAM:
 
-You can also try **[gpt-oss](https://ollama.com/library/gpt-oss)** (OpenAI’s open-weight models; 20B and 120B variants with strong reasoning and 128K context).
+- **`gemma4`** (latest, ~9.6GB) — default choice for strong overall quality  
+- **`gemma4:e4b`** / **`gemma4:e2b`** — smaller “effective” models for laptops and limited VRAM  
+- **`gemma4:26b`** / **`gemma4:31b`** — workstation-class local models (larger download)  
+- **`gemma4:31b-cloud`** — runs via Ollama’s cloud when you prefer not to host the full 31B locally  
 
-**Tested models:**
-- `codestral` - **Recommended** — best results
-- `qwen2.5-coder:30b` - Tested and recommended
-- `qwen2.5:8b` - Tested and recommended
+**Sampling (optional):** For Gemma 4, Ollama’s docs suggest `temperature=1.0`, `top_p=0.95`, and `top_k=64` as a standardized setup; you can set these in the extension’s Ollama settings.
+
+**Also worth trying:** [Codestral](https://ollama.com/library/codestral:latest), [gpt-oss](https://ollama.com/library/gpt-oss), and coder-focused models below.
+
+**Tested / common alternatives:**
+- `gemma4` — **Recommended** — best default for ThinkReview with Ollama  
+- `codestral` — Strong code model (Mistral, 32k context)  
+- `qwen2.5-coder:30b` / `qwen3-coder:30b` — Widely used for code  
+- `qwen2.5:8b` — Lighter option  
 
 ```bash
-# Recommended (best results)
+# Recommended (best results with Ollama + ThinkReview)
+ollama pull gemma4
+
+# Smaller or larger Gemma 4 variants (pick one that fits your machine)
+ollama pull gemma4:e4b
+ollama pull gemma4:e2b
+ollama pull gemma4:26b
+ollama pull gemma4:31b
+
+# Other strong options
 ollama pull codestral
-
-# Other tested models
 ollama pull qwen2.5-coder:30b
-ollama pull qwen2.5:8b
-
-# Also worth trying
 ollama pull gpt-oss:20b            # OpenAI open-weight, 128K context
-ollama pull codellama              # Fast, 4GB
-ollama pull qwen2.5-coder:7b       # Good balance, 5GB
-ollama pull deepseek-coder:6.7b    # Code-focused, 4GB
+ollama pull codellama              # Fast, smaller footprint
+ollama pull qwen2.5-coder:7b
+ollama pull deepseek-coder:6.7b
 ```
 
 ### 3. Start Ollama Server with CORS Enabled
@@ -166,10 +178,11 @@ Once configured, ThinkReview will automatically use Ollama for all code reviews:
 
 | Model | Size | Status |
 |-------|------|--------|
-| [codestral](https://ollama.com/library/codestral:latest) | ~13GB | ✅ **Recommended** — best results |
+| [gemma4](https://ollama.com/library/gemma4) (default / e2b / e4b / 26b / 31b) | ~7GB–20GB+ | ✅ **Recommended** — best default with Ollama |
+| [codestral](https://ollama.com/library/codestral:latest) | ~13GB | ✅ Strong code reviews |
 | [gpt-oss](https://ollama.com/library/gpt-oss) (20b / 120b) | 14GB / 65GB | ✅ Strong reasoning, 128K context |
-| qwen2.5-coder:30b | ~20GB | ✅ Tested & Recommended |
-| qwen2.5:8b | ~5GB | ✅ Tested & Recommended |
+| qwen2.5-coder:30b / qwen3-coder:30b | ~20GB | ✅ Common coder picks |
+| qwen2.5:8b | ~5GB | ✅ Lighter option |
 
 Other models may work but are not officially tested.
 
@@ -185,7 +198,7 @@ CORS / allowed origins are not set correctly. Use **Option A** above to restart 
 
 ### Model Not Found
 1. List models: `ollama list`
-2. Pull the model: `ollama pull qwen2.5-coder:30b`
+2. Pull the model: `ollama pull gemma4` (or the tag you use, e.g. `gemma4:e4b`)
 3. Refresh in extension settings (🔄 button)
 
 ## Advanced

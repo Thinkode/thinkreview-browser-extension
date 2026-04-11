@@ -343,7 +343,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (provider === 'ollama') {
           // Use Ollama for conversational response
           try {
-            const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'qwen3-coder:30b' };
+            const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'gemma4' };
             
             dbgLog('Getting conversational response from Ollama:', config);
             
@@ -432,7 +432,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (provider === 'ollama') {
           // Use Ollama for local code review
           try {
-            const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'qwen3-coder:30b' };
+            const config = settings.ollamaConfig || { url: 'http://localhost:11434', model: 'gemma4' };
             
             dbgLog('Reviewing with Ollama:', config);
             
