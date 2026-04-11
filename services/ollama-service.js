@@ -26,7 +26,7 @@ export class OllamaService {
     try {
       // Get Ollama config from storage
       const config = await chrome.storage.local.get(['ollamaConfig']);
-      const { url = 'http://localhost:11434', model = 'codellama', OllamaModelcontextLength: savedContextLength, temperature: temp, top_p: topP, top_k: topK } = config.ollamaConfig || {};
+      const { url = 'http://localhost:11434', model = 'gemma4', OllamaModelcontextLength: savedContextLength, temperature: temp, top_p: topP, top_k: topK } = config.ollamaConfig || {};
       const { temperature: tempClamped, top_p: topPClamped, top_k: topKClamped } = clampOllamaOptions({ temperature: temp, top_p: topP, top_k: topK });
       
       dbgLog(`Using Ollama at ${url} with model ${model}`);
@@ -254,7 +254,7 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
       if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
         throw new Error(`Cannot connect to Ollama at the configured URL. Please ensure Ollama is running and accessible.\n\nTroubleshooting:\n1. Check if Ollama is running: 'ollama serve'\n2. Verify the URL in settings\n3. Try accessing ${error.url || 'http://localhost:11434'} in your browser`);
       } else if (error.message.includes('model')) {
-        throw new Error(`Model error: ${error.message}\n\nMake sure the selected model is installed.\nRun: ollama pull ${error.model || 'codellama'}`);
+        throw new Error(`Model error: ${error.message}\n\nMake sure the selected model is installed.\nRun: ollama pull ${error.model || 'gemma4'}`);
       } else {
         throw new Error(`Ollama error: ${error.message}`);
       }
@@ -280,7 +280,7 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
     try {
       // Get Ollama config from storage
       const config = await chrome.storage.local.get(['ollamaConfig']);
-      const { url = 'http://localhost:11434', model = 'codellama', temperature: temp, top_p: topP, top_k: topK } = config.ollamaConfig || {};
+      const { url = 'http://localhost:11434', model = 'gemma4', temperature: temp, top_p: topP, top_k: topK } = config.ollamaConfig || {};
       const { temperature: tempClamped, top_p: topPClamped, top_k: topKClamped } = clampOllamaOptions({ temperature: temp, top_p: topP, top_k: topK });
       
       dbgLog(`Using Ollama at ${url} with model ${model} for conversation`);
@@ -385,7 +385,7 @@ Your role is to answer questions about this code review in a helpful, concise ma
    * Parses model_info for *context_length or parameters for num_ctx.
    * When url or model are omitted, reads from stored ollamaConfig (popup settings).
    * @param {string} [url] - Ollama base URL (defaults to stored config or http://localhost:11434)
-   * @param {string} [model] - Model name (e.g. qwen3-coder:30b); defaults to stored config
+   * @param {string} [model] - Model name (e.g. gemma4); defaults to stored config
    * @returns {Promise<{contextLength: number|null, error: string|null}>}
    */
   static async getModelContextLength(url, model) {
@@ -506,12 +506,13 @@ Your role is to answer questions about this code review in a helpful, concise ma
    */
   static getRecommendedModels() {
     return [
-      { name: 'codellama:latest', description: 'Meta\'s Code Llama - Good all-around code model' },
-      { name: 'codellama:13b', description: 'Code Llama 13B - Better quality, slower' },
-      { name: 'deepseek-coder:6.7b', description: 'DeepSeek Coder - Excellent for code understanding' },
-      { name: 'qwen2.5-coder:7b', description: 'Qwen2.5 Coder - Strong code analysis' },
-      { name: 'starcoder2:15b', description: 'StarCoder2 - Great multi-language support' },
-      { name: 'codegemma:7b', description: 'Google\'s CodeGemma - Fast and capable' }
+      { name: 'gemma4', description: 'Gemma 4 (recommended) — strong coding & reasoning, 128K context' },
+      { name: 'gemma4:e4b', description: 'Gemma 4 E4B — edge-friendly, text + image, 128K context' },
+      { name: 'gemma4:e2b', description: 'Gemma 4 E2B — smallest edge variant, 128K context' },
+      { name: 'gemma4:26b', description: 'Gemma 4 26B MoE — workstation-class, 256K context' },
+      { name: 'gemma4:31b', description: 'Gemma 4 31B dense — largest local variant, 256K context' },
+      { name: 'codestral:latest', description: 'Codestral — Mistral code model, 32k context' },
+      { name: 'qwen2.5-coder:7b', description: 'Qwen2.5 Coder — strong code analysis, lighter weight' }
     ];
   }
 

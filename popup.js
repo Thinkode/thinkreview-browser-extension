@@ -2090,7 +2090,7 @@ async function loadAIProviderSettings() {
     const provider = result.aiProvider || 'cloud';
     const config = result.ollamaConfig || {
       url: 'http://localhost:11434',
-      model: 'qwen3-coder:30b',
+      model: 'gemma4',
       temperature: 0.3,
       top_p: 0.4,
       top_k: 90
@@ -2254,7 +2254,7 @@ async function fetchAndPopulateModels(url, savedModel = null) {
       dbgLog('Successfully loaded', modelsResult.models.length, 'models from Ollama');
     } else {
       modelSelect.innerHTML = '<option value="">⚠️ No models installed</option>';
-      showOllamaStatus('⚠️ No models found. Install one with: ollama pull qwen3-coder:30b', 'error');
+      showOllamaStatus('⚠️ No models found. Install one with: ollama pull gemma4', 'error');
     }
   } catch (error) {
     dbgWarn('Error fetching models:', error);
@@ -2392,7 +2392,7 @@ async function refreshOllamaModels() {
       updateModelSelect(modelsResult.models);
       showOllamaStatus(`✅ Found ${modelsResult.models.length} model(s)`, 'success');
     } else {
-      showOllamaStatus('⚠️ No models found. Pull a model first: ollama pull codellama', 'error');
+      showOllamaStatus('⚠️ No models found. Pull a model first: ollama pull gemma4', 'error');
     }
   } catch (error) {
     dbgWarn('Error refreshing models:', error);
