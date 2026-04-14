@@ -1191,27 +1191,67 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       reviewId = getGitHubPRId();
       
     } else if (platformDetector && platformDetector.isOnAzureDevOpsPRPage()) {
-      // Azure DevOps: fetch via background script to keep content script responsive
-        dbgLog('Starting Azure DevOps code fetch');
+      dbgLog('Starting Azure DevOps code fetch');
+      const prInfo = platformDetector.detectPlatform().pageInfo;
+      dbgLog('PR info retrieved:', {
+        hasPrId: !!prInfo?.prId,
+        hasPrUrl: !!prInfo?.prUrl
+      });
+
+      const hostname = window.location.hostname || '';
+      const isAzureCloud =
+        hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
+
+      if (isAzureCloud) {
+        // Azure DevOps Services: use the logged-in browser session (cookies). Must run in the content script context.
+        const apiModule = await import(chrome.runtime.getURL('services/azure-devops-api.js'));
+        try {
+          const fetcherModule = await import(chrome.runtime.getURL('services/azure-devops-fetcher.js'));
+          await fetcherModule.azureDevOpsFetcher.init(prInfo, { useSessionCookies: true });
+          const formattedChanges = await fetcherModule.azureDevOpsFetcher.fetchCodeChanges();
+          codeContent = fetcherModule.azureDevOpsFetcher.toPatchString(formattedChanges);
+          reviewId = prInfo.prId;
+          dbgLog('Azure DevOps changes fetched (cloud session):', {
+            fileCount: formattedChanges?.files?.length || 0,
+            totalLines: formattedChanges?.totalLines || 0
+          });
+        } catch (error) {
+          const AuthErr = apiModule.AzureDevOpsAuthError;
+          const isAuth =
+            (AuthErr && error instanceof AuthErr) ||
+            error?.name === 'AzureDevOpsAuthError';
+          if (isAuth) {
+            dbgLog('Azure DevOps session authentication/access failed, showing sign-in UI');
+            if (azureDevOpsTokenError) {
+              const detailMessage =
+                error.details?.userMessage || error.details?.rawMessage || error.message;
+              azureDevOpsTokenError.showAzureDevOpsTokenError(
+                stopEnhancedLoader,
+                detailMessage,
+                { sessionAuth: true }
+              );
+            } else {
+              throw new Error(error.message);
+            }
+            return;
+          }
+          throw error;
+        }
+      } else {
+        // On-premises / custom domain: PAT from extension storage; fetch in background (no session cookies).
         const azureToken = await getAzureDevOpsToken();
-        if (!azureToken) {
+        if (!azureToken || azureToken === DUMMY_AZURE_DEVOPS_TOKEN) {
           if (azureDevOpsTokenError) {
             azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader);
           } else {
-            // Fallback if module not loaded
-            throw new Error('Azure DevOps token not configured. Please set your Personal Access Token in the extension popup.');
+            throw new Error(
+              'Azure DevOps token not configured. Please set your Personal Access Token in the extension popup.'
+            );
           }
           return;
         }
 
-        dbgLog('Azure token found, getting PR info');
-        const prInfo = platformDetector.detectPlatform().pageInfo;
-        // Log only metadata, not full PR info which may contain sensitive details
-        dbgLog('PR info retrieved:', {
-          hasPrId: !!prInfo?.prId,
-          hasPrUrl: !!prInfo?.prUrl
-        });
-        
+        dbgLog('Azure PAT found for on-prem, fetching via background');
         try {
           const azureResponse = await new Promise((resolve) => {
             chrome.runtime.sendMessage(
@@ -1231,7 +1271,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
                 const detailMessage = azureResponse.detailMessage || azureResponse.error;
                 azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader, detailMessage);
               } else {
-                throw new Error('Azure DevOps token is invalid or expired. Please update your Personal Access Token in the extension popup.');
+                throw new Error(
+                  'Azure DevOps token is invalid or expired. Please update your Personal Access Token in the extension popup.'
+                );
               }
               return;
             }
@@ -1241,7 +1283,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
 
           codeContent = azureResponse.content;
           reviewId = prInfo.prId;
-          
+
           dbgLog('Azure DevOps changes fetched:', {
             fileCount: azureResponse.fileCount || 0,
             totalLines: azureResponse.totalLines || 0
@@ -1249,7 +1291,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         } catch (error) {
           throw error;
         }
-      
+      }
     } else if (platformDetector && platformDetector.isOnBitbucketPRPage()) {
       // Bitbucket: fetch patch via background script to avoid page CSP blocking connect-src
       const patchUrl = getPatchUrl();

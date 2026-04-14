@@ -556,13 +556,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle request to fetch Azure DevOps PR patch in background
   if (message.type === 'FETCH_AZURE_DEVOPS_PATCH') {
     const { prInfo, azureToken } = message;
+    const DUMMY_AZURE_DEVOPS_TOKEN = 'thinkreview-azure-no-token-placeholder';
     (async () => {
       try {
         if (!prInfo || !prInfo.prId) {
           throw new Error('Invalid Azure DevOps pull request information');
         }
-        if (!azureToken || typeof azureToken !== 'string') {
-          throw new Error('Azure DevOps token is missing');
+        if (!azureToken || typeof azureToken !== 'string' || azureToken === DUMMY_AZURE_DEVOPS_TOKEN) {
+          throw new Error('Azure DevOps Personal Access Token is required for on-premises Azure DevOps');
         }
 
         const result = await runAzureFetchTask(async () => {

@@ -28,6 +28,8 @@ export class AzureDevOpsAPI {
   constructor() {
     this.baseUrl = null;
     this.token = null;
+    /** When true, REST calls use the browser session (cookies); no PAT Authorization header. */
+    this.useSessionCookies = false;
     this.apiVersion = DEFAULT_API_VERSION;
     this.isInitialized = false;
     /** @type {Promise<void>|null} One-time promise for lazy project resolution (on-prem when project not in URL) */
@@ -43,13 +45,16 @@ export class AzureDevOpsAPI {
    * @param {string} hostname - Hostname (optional, used to determine base URL for visualstudio.com domains)
    * @param {string} protocol - Protocol (optional, e.g. 'http:' or 'https:'; used for custom/on-prem to match page)
    * @param {string|null} apiVersion - API version (optional, e.g. '4.1' for on-prem; default 7.1)
+   * @param {{ useSessionCookies?: boolean }} [options] - If useSessionCookies, token may be omitted (Azure DevOps Services cloud only).
    */
-  async init(token, organization, project, repository, hostname = null, protocol = null, apiVersion = null) {
-    if (!token) {
+  async init(token, organization, project, repository, hostname = null, protocol = null, apiVersion = null, options = {}) {
+    const useSessionCookies = options.useSessionCookies === true;
+    if (!useSessionCookies && !token) {
       throw new Error('Azure DevOps token is required');
     }
 
-    this.token = token;
+    this.useSessionCookies = useSessionCookies;
+    this.token = useSessionCookies ? null : token;
     this.organization = organization;
     this.project = project || null;
     this.repository = repository;
@@ -96,12 +101,16 @@ export class AzureDevOpsAPI {
       ? ''
       : (projectOverride !== undefined ? `/${projectOverride}` : (this.project != null && this.project !== '' ? `/${this.project}` : ''));
     const url = `${this.baseUrl}${pathSegment}/_apis/${endpoint}${separator}api-version=${this.apiVersion}`;
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+    if (!this.useSessionCookies && this.token) {
+      headers['Authorization'] = `Basic ${btoa(':' + this.token)}`;
+    }
     const defaultOptions = {
-      headers: {
-        'Authorization': `Basic ${btoa(':' + this.token)}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
+      credentials: this.useSessionCookies ? 'include' : 'omit',
+      headers
     };
     const requestOptions = {
       ...defaultOptions,
@@ -234,13 +243,17 @@ export class AzureDevOpsAPI {
           // Handle 401 Unauthorized - token is invalid or expired
           if (response.status === 401) {
             dbgWarn('Azure DevOps authentication failed - token is invalid or not set');
+            const msg = this.useSessionCookies
+              ? 'Your Azure DevOps browser session is invalid or expired. Sign in to Azure DevOps in this tab and try again.'
+              : 'Azure DevOps Personal Access Token is invalid, expired, or not set. Please check your token configuration.';
             throw new AzureDevOpsAuthError(
-              'Azure DevOps Personal Access Token is invalid, expired, or not set. Please check your token configuration.',
+              msg,
               401,
               {
                 status: 401,
                 userMessage: null,
-                rawMessage: errorMessage
+                rawMessage: errorMessage,
+                sessionAuth: this.useSessionCookies
               }
             );
           }
@@ -249,14 +262,18 @@ export class AzureDevOpsAPI {
           if (response.status === 403) {
             const userMessage = parsedError?.message || 'Azure DevOps denied access to this pull request.';
             dbgWarn('Azure DevOps access blocked (403):', userMessage);
+            const msg = this.useSessionCookies
+              ? 'Azure DevOps denied access using your browser session. Confirm you are signed in and have access to this organization/project.'
+              : 'Azure DevOps denied access for this token. Please ensure the PAT belongs to a member with access to this organization/project.';
             throw new AzureDevOpsAuthError(
-              'Azure DevOps denied access for this token. Please ensure the PAT belongs to a member with access to this organization/project.',
+              msg,
               403,
               {
                 status: 403,
                 code: parsedError?.typeKey || parsedError?.typeName || null,
                 userMessage,
-                rawMessage: errorMessage
+                rawMessage: errorMessage,
+                sessionAuth: this.useSessionCookies
               }
             );
           }

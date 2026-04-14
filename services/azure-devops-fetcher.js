@@ -19,17 +19,37 @@ export class AzureDevOpsFetcher {
   /**
    * Initialize the fetcher with PR information
    * @param {Object} prInfo - Pull request information from detector
-   * @param {string} token - Azure DevOps Personal Access Token
+   * @param {string|{ useSessionCookies?: boolean, token?: string }} tokenOrOptions - PAT string (on‑prem), or `{ useSessionCookies: true }` for Azure DevOps Services (cloud) using the logged-in browser session
    */
-  async init(prInfo, token) {
-    if (!prInfo || !token) {
-      throw new Error('PR info and token are required');
+  async init(prInfo, tokenOrOptions) {
+    if (!prInfo) {
+      throw new Error('PR info is required');
+    }
+
+    let token = null;
+    let useSessionCookies = false;
+    if (tokenOrOptions != null && typeof tokenOrOptions === 'object' && !Array.isArray(tokenOrOptions)) {
+      useSessionCookies = tokenOrOptions.useSessionCookies === true;
+      token = typeof tokenOrOptions.token === 'string' ? tokenOrOptions.token : null;
+    } else if (typeof tokenOrOptions === 'string') {
+      token = tokenOrOptions;
+    }
+
+    const origin = `${prInfo.protocol}//${prInfo.hostname}`;
+    const isCloud = prInfo.hostname?.includes('dev.azure.com') || prInfo.hostname?.includes('visualstudio.com');
+
+    if (useSessionCookies) {
+      if (!isCloud) {
+        throw new Error('Session-based auth is only supported for Azure DevOps Services (dev.azure.com / *.visualstudio.com)');
+      }
+    } else {
+      if (!token || typeof token !== 'string') {
+        throw new Error('PR info and token are required');
+      }
     }
 
     this.prInfo = prInfo;
 
-    const origin = `${prInfo.protocol}//${prInfo.hostname}`;
-    const isCloud = prInfo.hostname?.includes('dev.azure.com') || prInfo.hostname?.includes('visualstudio.com');
     let apiVersion = DEFAULT_API_VERSION;
     if (!isCloud) {
       const cached = await getCachedAzureApiVersion(origin);
@@ -39,20 +59,22 @@ export class AzureDevOpsFetcher {
 
     // Initialize the API service
     await azureDevOpsAPI.init(
-      token,
+      useSessionCookies ? null : token,
       prInfo.organization,
       prInfo.project,
       prInfo.repository.name,
       prInfo.hostname,
       prInfo.protocol,
-      apiVersion
+      apiVersion,
+      { useSessionCookies }
     );
 
     this.isInitialized = true;
     dbgLog('Azure DevOps fetcher initialized:', {
       prId: prInfo.prId,
       repository: prInfo.repository.name,
-      organization: prInfo.organization
+      organization: prInfo.organization,
+      useSessionCookies
     });
   }
 
