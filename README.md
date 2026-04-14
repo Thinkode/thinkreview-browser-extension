@@ -5,14 +5,15 @@
 ### AI Code Review for GitHub, Bitbucket, GitLab & Azure DevOps
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-blue?logo=google-chrome)](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
+[![Firefox Add-ons](https://img.shields.io/badge/Firefox-Add--ons-FF7139?logo=firefox)](https://addons.mozilla.org/firefox/addon/thinkreview-code-review/)
 [![Latest Release](https://img.shields.io/badge/Latest-Release-green.svg)](https://thinkreview.dev/release-notes)
 [![Rating](https://img.shields.io/badge/rating-5.0%2F5-yellow.svg)](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 [![Ollama](https://img.shields.io/badge/🆕%20Ollama-Local%20AI-purple?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3TDEyIDEyTDIyIDdMMTIgMloiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0yIDEwVjE0TDEyIDE5VjE1TDIgMTBaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMjIgMTBWMTRMMTIgMTlWMTVMMjIgMTBaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4=)](OLLAMA_SETUP.md)
 
-**AI-powered code reviews for merge requests and pull requests, directly in your browser.**
+**AI-powered code reviews for merge requests and pull requests, directly in your browser.** Available for **Chrome** (and other Chromium browsers) and **Firefox**.
 
-[🌐 Website](https://thinkreview.dev) • [📦 Install](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn) • [🖥️ Ollama Setup](OLLAMA_SETUP.md) • [📖 Docs](#documentation) • [💬 Contact](https://thinkreview.dev/contact)
+[🌐 Website](https://thinkreview.dev) • [📦 Chrome Web Store](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn) • [🦊 Firefox Add-ons](https://addons.mozilla.org/firefox/addon/thinkreview-code-review/) • [🖥️ Ollama Setup](OLLAMA_SETUP.md) • [📖 Docs](#documentation) • [💬 Contact](https://thinkreview.dev/contact)
 
 <img src="media/hero-banner.png" alt="ThinkReview - AI Code Review" width="800">
 
@@ -32,6 +33,7 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 ### 🌟 Key Stats
 
 - 🏆 **Featured** by Chrome Web Store
+- 🦊 **Firefox** — [Mozilla Add-ons](https://addons.mozilla.org/firefox/addon/thinkreview-code-review/)
 - 🔄 **Active Development** - Regular updates and improvements (2+ weekly releases on average)
 - 🤖 **Multi-Model AI** - Advanced cloud models or local Ollama
 - 📈 **Growing Community** - Growing user base
@@ -69,12 +71,14 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 - **Suggested Questions**: Get smart, context-aware queries
 - **Deep Dive**: Explore code changes interactively
 
-### 🔧 Platform Support
-- ✅ **GitLab** (gitlab.com, GitLab Enterprise, Self-Hosted)
-- ✅ **Azure DevOps** (dev.azure.com, *.visualstudio.com, custom domains / on-premise)
-- ✅ **GitHub** (github.com)
-- ✅ **Bitbucket** (bitbucket.org, Bitbucket Server/Data Center)
-- ✅ Works with **any GitLab instance** on custom domains
+### 🔧 Platform support (cloud & self-hosted)
+
+Setup guides for every combination below live on the site: **[thinkreview.dev/docs](https://thinkreview.dev/docs)** (same matrix as the **Platform setup guides** on the docs portal).
+
+- ✅ **GitLab** — [GitLab.com (SaaS) & self-managed](https://thinkreview.dev/docs/gitlab-integration)
+- ✅ **GitHub** — [GitHub.com & GitHub Enterprise Server](https://thinkreview.dev/docs/github-integration)
+- ✅ **Azure DevOps** — [Azure DevOps Services](https://thinkreview.dev/docs/azure-devops) (cloud: `dev.azure.com`, `*.visualstudio.com`) · [Azure DevOps Server / on-premises](https://thinkreview.dev/docs/azure-devops-onpremise)
+- ✅ **Bitbucket** — [Bitbucket Cloud](https://thinkreview.dev/docs/bitbucket-integration) (`bitbucket.org`) · [Bitbucket Data Center / Server](https://thinkreview.dev/docs/bitbucket-data-center) (self-hosted)
 
 <div align="center">
   <img src="media/demo-azure-devops.gif" alt="Azure DevOps Integration" width="700">
@@ -118,26 +122,39 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 
 ## 📦 Installation
 
-### From Chrome Web Store (Recommended)
+### From browser stores (recommended)
+
+**Chrome, Edge, Brave, and other Chromium browsers**
 
 [![Install from Chrome Web Store](https://img.shields.io/badge/Install-Chrome%20Web%20Store-blue?style=for-the-badge&logo=google-chrome)](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
 
-1. Visit the [Chrome Web Store listing](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
-2. Click "Add to Chrome"
-3. That's it! Navigate to any GitHub PR, Bitbucket PR, GitLab MR or Azure DevOps PR to start
+1. Open the [Chrome Web Store listing](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
+2. Click **Add to Chrome** (or the equivalent in your Chromium browser)
 
-### For Developers (Load Unpacked)
+**Firefox**
+
+[![Install from Firefox Add-ons](https://img.shields.io/badge/Install-Firefox%20Add--ons-FF7139?style=for-the-badge&logo=firefox)](https://addons.mozilla.org/firefox/addon/thinkreview-code-review/)
+
+1. Open the [Firefox Add-ons listing](https://addons.mozilla.org/firefox/addon/thinkreview-code-review/)
+2. Click **Add to Firefox**
+
+Then open any supported GitHub PR, Bitbucket PR, GitLab MR, or Azure DevOps PR to start.
+
+### For developers (load unpacked)
 
 ```bash
 # Clone the repository
 git clone https://github.com/Thinkode/thinkreview-browser-extension.git
 cd thinkreview-browser-extension
 
-# Load in Chrome
-# 1. Open Chrome and navigate to chrome://extensions/
+# Chromium (Chrome, Edge, …)
+# 1. Open chrome://extensions/ (or edge://extensions/, etc.)
 # 2. Enable "Developer mode" (toggle in top right)
-# 3. Click "Load unpacked"
-# 4. Select the cloned directory
+# 3. Click "Load unpacked" and select this directory
+
+# Firefox
+# 1. Open about:debugging#/runtime/this-firefox
+# 2. Click "Load Temporary Add-on" and select manifest.json in this directory
 ```
 
 ### Choose Your AI Provider (Optional)
@@ -147,7 +164,7 @@ cd thinkreview-browser-extension
 1. Follow the [Ollama Setup Guide](OLLAMA_SETUP.md) (30 seconds if model is downloaded)
 2. We recommend **[Gemma 4](https://ollama.com/library/gemma4)** for best results with Ollama; [Codestral](https://ollama.com/library/codestral:latest) and [gpt-oss](https://ollama.com/library/gpt-oss) are solid alternatives.
 3. Open extension popup → Settings → Select "Local Ollama"
-3. That's it! Your reviews now run locally
+4. That's it! Your reviews now run locally
 
 ---
 
@@ -174,7 +191,7 @@ cd thinkreview-browser-extension
 ThinkReview consists of two main components:
 
 ### 1. **Browser Extension** (This Repository)
-- Manifest V3 Chrome extension
+- Manifest V3 [WebExtension](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions) — **Chrome** (Chromium) and **Firefox**
 - Content scripts for GitHub, Bitbucket, GitLab & Azure DevOps
 - UI components and integration
 - OAuth authentication flow
@@ -214,10 +231,11 @@ thinkreview-browser-extension/
 └── release-notes/        # Version history
 ```
 
-### Key Guides
+### Key guides
 
-- **[Release Notes](release%20notes/)** - Detailed version history
-- **🆕 [OLLAMA_SETUP.md](OLLAMA_SETUP.md)** - Run AI reviews locally with Ollama
+- **[Release Notes](release%20notes/)** — Version history
+- **🆕 [OLLAMA_SETUP.md](OLLAMA_SETUP.md)** — Run AI reviews locally with Ollama
+- **Platform setup (cloud & self-hosted)** — [Docs home](https://thinkreview.dev/docs) · [GitLab](https://thinkreview.dev/docs/gitlab-integration) · [GitHub](https://thinkreview.dev/docs/github-integration) · [Azure DevOps (cloud)](https://thinkreview.dev/docs/azure-devops) · [Azure DevOps (on-prem)](https://thinkreview.dev/docs/azure-devops-onpremise) · [Bitbucket Cloud](https://thinkreview.dev/docs/bitbucket-integration) · [Bitbucket Data Center](https://thinkreview.dev/docs/bitbucket-data-center)
 
 ---
 
@@ -251,7 +269,7 @@ cd thinkreview-browser-extension
 # Install dependencies (if any)
 npm install
 
-# Load extension in Chrome (see Installation section above)
+# Load the extension (see Installation section above)
 ```
 
 ### Guidelines
@@ -314,6 +332,7 @@ See [LICENSE](LICENSE) for full details.
 ## 🔗 Links
 
 - 🏪 **Chrome Web Store**: [Install ThinkReview](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
+- 🦊 **Firefox Add-ons**: [Install ThinkReview](https://addons.mozilla.org/firefox/addon/thinkreview-code-review/)
 - 🌐 **Official Website**: [thinkreview.dev](https://thinkreview.dev)
 - 📧 **Contact & Support**: [thinkreview.dev/contact](https://thinkreview.dev/contact)
 - 🐛 **Report Issues**: [GitHub Issues](https://github.com/Thinkode/thinkreview-browser-extension/issues)
@@ -338,10 +357,10 @@ After successfully launching on the Chrome Web Store and serving 128+ users, we 
 ThinkReview is developed and maintained by the Thinkode team. The extension is production-ready and actively used by developers worldwide for improving code quality and accelerating code reviews.
 
 **Built with:**
-- Manifest V3
+- Manifest V3 (WebExtensions — Chromium & Firefox)
 - Advanced AI Models
 - Vanilla JavaScript
-- Chrome Extensions API
+- Browser extension APIs (`chrome.*` / `browser.*`)
 
 ---
 
@@ -350,7 +369,7 @@ ThinkReview is developed and maintained by the Thinkode team. The extension is p
 If ThinkReview helps you with code reviews, please:
 - ⭐ Star this repository
 - 🔄 Share with your team
-- ✍️ Leave a review on [Chrome Web Store](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
+- ✍️ Leave a review on [Chrome Web Store](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn) or [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/thinkreview-code-review/)
 - 🐛 Report bugs and suggest features
 
 ---
@@ -359,6 +378,6 @@ If ThinkReview helps you with code reviews, please:
 
 **Made with ❤️ by the Thinkode Team**
 
-[Website](https://thinkreview.dev) • [Chrome Store](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn) • [Support](mailto:support@thinkode.co.uk)
+[Website](https://thinkreview.dev) • [Chrome Web Store](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn) • [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/thinkreview-code-review/) • [Support](mailto:support@thinkode.co.uk)
 
 </div>
