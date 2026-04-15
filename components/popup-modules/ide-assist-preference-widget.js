@@ -48,14 +48,14 @@ const ROWS = [
   { id: 'cursor', label: 'Cursor', icon: createCursorProductIconSvg },
   { id: 'github_copilot', label: 'GitHub Copilot via VS Code', icon: createGitHubCopilotIconSvg },
   { id: 'claude_code', label: 'Claude Code via VS Code', icon: createClaudeCodeIconSvg },
-  { id: 'none', label: 'None (hide IDE buttons)', icon: createNoneIdeIconSvg }
+  { id: 'none', label: 'None (hide Implement buttons)', icon: createNoneIdeIconSvg }
 ];
 
 function _setHeaderTooltip(tooltipEl, targetId) {
   tooltipEl.textContent =
     targetId === 'none'
-      ? 'No IDE shortcut buttons on list rows'
-      : 'IDE shortcut on suggestion, security, and best-practice rows';
+      ? 'No Implement buttons on list rows'
+      : 'Implement buttons on suggestion, security, and best-practice rows';
 }
 
 function _positionDropdown(dropdown, btn) {
@@ -78,7 +78,9 @@ function _setTriggerIcon(btn, targetId) {
   btn.appendChild(icon);
   btn.setAttribute(
     'aria-label',
-    targetId === 'none' ? 'IDE shortcuts off — choose an IDE to show row buttons' : 'Choose IDE for row shortcut buttons'
+    targetId === 'none'
+      ? 'Implement buttons off — choose an option to show them on list rows'
+      : 'Choose where to implement from (row buttons)'
   );
 }
 
