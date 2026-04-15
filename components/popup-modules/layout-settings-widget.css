@@ -29,8 +29,9 @@
 .thinkreview-layout-tooltip {
   position: absolute;
   top: 100%;
-  left: 50%;
-  transform: translateX(-50%) translateY(2px);
+  left: auto;
+  right: 0;
+  transform: translateY(2px);
   margin-top: 4px;
   padding: 4px 8px;
   background: #fff;
@@ -48,7 +49,7 @@
 
 .thinkreview-layout-btn-wrapper:hover .thinkreview-layout-tooltip {
   opacity: 1;
-  transform: translateX(-50%) translateY(-2px);
+  transform: translateY(-2px);
 }
 
 /* ── Body-appended dropdown ─────────────────────────────── */

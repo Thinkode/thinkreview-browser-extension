@@ -68,7 +68,7 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
     }
 
     if (codeSuggestionsInner) {
-      codeSuggestionsInner.innerHTML = '';
+      codeSuggestionsInner.replaceChildren();
 
       // For Free + forced-truncated users, show a truncation banner above the suggestions
       if (isFreeLike && wasForcedTruncated) {
@@ -295,7 +295,7 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
       codeSuggestionsTabBtn.classList.add('gl-hidden');
       codeSuggestionsTabBtn.querySelectorAll('.thinkreview-new-badge, .thinkreview-code-suggestions-tab-count').forEach((el) => el.remove());
     }
-    if (codeSuggestionsInner) codeSuggestionsInner.innerHTML = '';
+    if (codeSuggestionsInner) codeSuggestionsInner.replaceChildren();
     delete window.__thinkreview_codeSuggestions;
 
     // Ensure we're on Review tab when Code Suggestions tab is hidden

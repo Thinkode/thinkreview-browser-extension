@@ -181,7 +181,7 @@ function clearPatchContentAndHistory() {
   conversationHistory = [];
   const chatLog = document.getElementById('chat-log');
   if (chatLog) {
-    chatLog.innerHTML = '';
+    chatLog.replaceChildren();
   }
   dbgLog('Cleared patch content and conversation history');
 }
@@ -532,6 +532,31 @@ async function createIntegratedReviewPanel(patchUrl) {
     dbgWarn('Failed to mount layout settings widget:', error);
   }
 
+  try {
+    const ideAssistWidgetUrl = chrome.runtime.getURL('components/popup-modules/ide-assist-preference-widget.js');
+    const { mountIdeAssistPreferenceWidget } = await import(ideAssistWidgetUrl);
+    const headerActionsElIde = container.querySelector('.thinkreview-header-actions');
+    await mountIdeAssistPreferenceWidget(headerActionsElIde);
+  } catch (error) {
+    dbgWarn('Failed to mount IDE assist preference widget:', error);
+  }
+
+  if (!document.documentElement.dataset.thinkreviewIdeAssistSyncBound) {
+    document.documentElement.dataset.thinkreviewIdeAssistSyncBound = '1';
+    document.addEventListener('thinkreview:ideassistchanged', async () => {
+      const panelEl = document.getElementById('gitlab-mr-integrated-review');
+      const opts = panelEl?.thinkreviewIntegrationOpts ?? null;
+      if (!opts) return;
+      try {
+        const syncUrl = chrome.runtime.getURL('utils/ide-integration/ide-assist-row-sync.js');
+        const syncMod = await import(syncUrl);
+        await syncMod.syncIdeAssistRows(opts, { warn: dbgWarn });
+      } catch (e) {
+        dbgWarn('Failed to sync IDE assist buttons after preference change', e);
+      }
+    });
+  }
+
   // Delegate copy handler to panel only (avoids document-level listener; improves perf when interacting with GitLab diff)
   await formattingReady;
   if (setupCopyHandler) setupCopyHandler(container);
@@ -813,6 +838,9 @@ async function createIntegratedReviewPanel(patchUrl) {
           e.target.closest('#language-selector') ||
           e.target.id === 'thinkreview-layout-btn' ||
           e.target.closest('#thinkreview-layout-btn') ||
+          e.target.id === 'thinkreview-ide-assist-btn' ||
+          e.target.closest('#thinkreview-ide-assist-btn') ||
+          e.target.closest('#thinkreview-ide-assist-dropdown') ||
           e.target.id === 'thinkreview-settings-btn' ||
           e.target.closest('#thinkreview-settings-btn')) {
         return; // Don't block these events
@@ -1548,6 +1576,11 @@ async function displayIntegratedReview(
   // Store review data for copy-all functionality
   currentReviewData = review;
 
+  const integratedPanelEl = document.getElementById('gitlab-mr-integrated-review');
+  if (integratedPanelEl) {
+    integratedPanelEl.thinkreviewIntegrationOpts = integrationOpts;
+  }
+
   // Ensure copy button utils are loaded
   if (!attachCopyButtonToItem) {
     await initCopyButtonUtils();
@@ -1690,7 +1723,7 @@ async function displayIntegratedReview(
       previousScorecard._cleanupMetricListeners();
     }
     
-    reviewMetricsContainer.innerHTML = ''; // Clear previous content
+    reviewMetricsContainer.replaceChildren(); // Clear previous content
     if (review.metrics) {
       try {
         const scorecardModule = await import(chrome.runtime.getURL('components/quality-scorecard.js'));
@@ -1901,8 +1934,20 @@ async function displayIntegratedReview(
   const promptAskSuggestedCodeWithLines =
     'Please include a concrete suggested code change with file path and line numbers in the file so I can copy and apply it.';
 
+  let ideAssistIntegration = null;
+  try {
+    const prefMod = await import(chrome.runtime.getURL('utils/ide-integration/ide-assist-preference.js'));
+    const factoryMod = await import(chrome.runtime.getURL('utils/ide-integration/ide-assist-integration-factory.js'));
+    const ideAssistTarget = await prefMod.getIdeAssistTarget();
+    ideAssistIntegration = await factoryMod.createIdeAssistIntegrationForTarget(ideAssistTarget, integrationOpts, {
+      warn: dbgWarn
+    });
+  } catch (error) {
+    dbgWarn('Failed to initialize IDE assist integration for review list', error);
+  }
+
   const populateList = (element, items, category) => {
-    element.innerHTML = ''; // Clear previous items
+    element.replaceChildren(); // Clear previous items
     if (items && items.length > 0) {
       items.forEach(item => {
         const li = document.createElement('li');
@@ -1960,7 +2005,18 @@ async function displayIntegratedReview(
         if (attachCopyButtonToItem) {
           attachCopyButtonToItem(contentDiv, itemWrapper);
         }
-        
+
+        if (
+          (category === 'suggestion' || category === 'practice' || category === 'security') &&
+          ideAssistIntegration
+        ) {
+          ideAssistIntegration.attachToReviewListRow({
+            itemWrapper,
+            itemPlainText: extractPlainText(itemHtml).trim(),
+            listCategory: category
+          });
+        }
+
         // Append wrapper to list item
         li.appendChild(itemWrapper);
         element.appendChild(li);
@@ -1981,7 +2037,7 @@ async function displayIntegratedReview(
   // Populate suggested questions (limit to maximum 3 AI-generated + 1 static)
   const suggestedQuestionsContainer = document.getElementById('suggested-questions');
   if (suggestedQuestionsContainer) {
-    suggestedQuestionsContainer.innerHTML = ''; // Clear previous questions
+    suggestedQuestionsContainer.replaceChildren(); // Clear previous questions
     
     // Add static question for generating MR comment
     // Full detailed prompt that will be sent when clicked

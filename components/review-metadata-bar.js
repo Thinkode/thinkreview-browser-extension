@@ -54,7 +54,7 @@ export function renderReviewMetadataBar(
   if (!container) return;
 
   // Clear previous content
-  container.innerHTML = '';
+  container.replaceChildren();
 
   // If we don't have patch size info or original is missing, hide the container
   if (!patchSize || !patchSize.original) {
@@ -378,7 +378,7 @@ function formatCharsAsSize(chars) {
 export function renderOllamaMetadataBar(container, ollamaMeta, callbacks = {}, reviewRequestLabel = null) {
   if (!container) return;
 
-  container.innerHTML = '';
+  container.replaceChildren();
 
   if (!ollamaMeta || typeof ollamaMeta.patchSizeChars !== 'number') {
     container.classList.add('gl-hidden');
@@ -470,7 +470,7 @@ export function renderOllamaMetadataBar(container, ollamaMeta, callbacks = {}, r
   topRow.appendChild(modelSelectWrap);
 
   const currentModel = model || '';
-  modelSelect.innerHTML = '';
+  modelSelect.replaceChildren();
   const placeholderOpt = document.createElement('option');
   placeholderOpt.value = '';
   placeholderOpt.textContent = currentModel || 'Loading…';
@@ -479,7 +479,7 @@ export function renderOllamaMetadataBar(container, ollamaMeta, callbacks = {}, r
 
   getModels()
     .then((models) => {
-      modelSelect.innerHTML = '';
+      modelSelect.replaceChildren();
       const options = Array.isArray(models) ? models : [];
       if (options.length === 0) {
         const opt = document.createElement('option');
