@@ -532,6 +532,31 @@ async function createIntegratedReviewPanel(patchUrl) {
     dbgWarn('Failed to mount layout settings widget:', error);
   }
 
+  try {
+    const ideAssistWidgetUrl = chrome.runtime.getURL('components/popup-modules/ide-assist-preference-widget.js');
+    const { mountIdeAssistPreferenceWidget } = await import(ideAssistWidgetUrl);
+    const headerActionsElIde = container.querySelector('.thinkreview-header-actions');
+    await mountIdeAssistPreferenceWidget(headerActionsElIde);
+  } catch (error) {
+    dbgWarn('Failed to mount IDE assist preference widget:', error);
+  }
+
+  if (!document.documentElement.dataset.thinkreviewIdeAssistSyncBound) {
+    document.documentElement.dataset.thinkreviewIdeAssistSyncBound = '1';
+    document.addEventListener('thinkreview:ideassistchanged', async () => {
+      const panelEl = document.getElementById('gitlab-mr-integrated-review');
+      const opts = panelEl?.thinkreviewIntegrationOpts ?? null;
+      if (!opts) return;
+      try {
+        const syncUrl = chrome.runtime.getURL('utils/ide-integration/ide-assist-row-sync.js');
+        const syncMod = await import(syncUrl);
+        await syncMod.syncIdeAssistRows(opts, { warn: dbgWarn });
+      } catch (e) {
+        dbgWarn('Failed to sync IDE assist buttons after preference change', e);
+      }
+    });
+  }
+
   // Delegate copy handler to panel only (avoids document-level listener; improves perf when interacting with GitLab diff)
   await formattingReady;
   if (setupCopyHandler) setupCopyHandler(container);
@@ -813,6 +838,9 @@ async function createIntegratedReviewPanel(patchUrl) {
           e.target.closest('#language-selector') ||
           e.target.id === 'thinkreview-layout-btn' ||
           e.target.closest('#thinkreview-layout-btn') ||
+          e.target.id === 'thinkreview-ide-assist-btn' ||
+          e.target.closest('#thinkreview-ide-assist-btn') ||
+          e.target.closest('#thinkreview-ide-assist-dropdown') ||
           e.target.id === 'thinkreview-settings-btn' ||
           e.target.closest('#thinkreview-settings-btn')) {
         return; // Don't block these events
@@ -1548,6 +1576,11 @@ async function displayIntegratedReview(
   // Store review data for copy-all functionality
   currentReviewData = review;
 
+  const integratedPanelEl = document.getElementById('gitlab-mr-integrated-review');
+  if (integratedPanelEl) {
+    integratedPanelEl.thinkreviewIntegrationOpts = integrationOpts;
+  }
+
   // Ensure copy button utils are loaded
   if (!attachCopyButtonToItem) {
     await initCopyButtonUtils();
@@ -1901,34 +1934,16 @@ async function displayIntegratedReview(
   const promptAskSuggestedCodeWithLines =
     'Please include a concrete suggested code change with file path and line numbers in the file so I can copy and apply it.';
 
-  let cursorSuggestionIntegration = null;
+  let ideAssistIntegration = null;
   try {
-    const cursorIde = await import(chrome.runtime.getURL('utils/ide-integration/cursor-suggestion.js'));
-    cursorSuggestionIntegration = await cursorIde.createCursorSuggestionIntegration(integrationOpts, {
+    const prefMod = await import(chrome.runtime.getURL('utils/ide-integration/ide-assist-preference.js'));
+    const factoryMod = await import(chrome.runtime.getURL('utils/ide-integration/ide-assist-integration-factory.js'));
+    const ideAssistTarget = await prefMod.getIdeAssistTarget();
+    ideAssistIntegration = await factoryMod.createIdeAssistIntegrationForTarget(ideAssistTarget, integrationOpts, {
       warn: dbgWarn
     });
   } catch (error) {
-    dbgWarn('Failed to initialize Cursor suggestion integration', error);
-  }
-
-  let gitHubCopilotSuggestionIntegration = null;
-  try {
-    const copilotIde = await import(chrome.runtime.getURL('utils/ide-integration/github-copilot-suggestion.js'));
-    gitHubCopilotSuggestionIntegration = await copilotIde.createGitHubCopilotSuggestionIntegration(integrationOpts, {
-      warn: dbgWarn
-    });
-  } catch (error) {
-    dbgWarn('Failed to initialize GitHub Copilot suggestion integration', error);
-  }
-
-  let claudeCodeSuggestionIntegration = null;
-  try {
-    const claudeIde = await import(chrome.runtime.getURL('utils/ide-integration/claude-code-suggestion.js'));
-    claudeCodeSuggestionIntegration = await claudeIde.createClaudeCodeSuggestionIntegration(integrationOpts, {
-      warn: dbgWarn
-    });
-  } catch (error) {
-    dbgWarn('Failed to initialize Claude Code suggestion integration', error);
+    dbgWarn('Failed to initialize IDE assist integration for review list', error);
   }
 
   const populateList = (element, items, category) => {
@@ -1993,31 +2008,9 @@ async function displayIntegratedReview(
 
         if (
           (category === 'suggestion' || category === 'practice') &&
-          cursorSuggestionIntegration
+          ideAssistIntegration
         ) {
-          cursorSuggestionIntegration.attachToReviewListRow({
-            itemWrapper,
-            itemPlainText: extractPlainText(itemHtml).trim(),
-            listCategory: category
-          });
-        }
-
-        if (
-          (category === 'suggestion' || category === 'practice') &&
-          gitHubCopilotSuggestionIntegration
-        ) {
-          gitHubCopilotSuggestionIntegration.attachToReviewListRow({
-            itemWrapper,
-            itemPlainText: extractPlainText(itemHtml).trim(),
-            listCategory: category
-          });
-        }
-
-        if (
-          (category === 'suggestion' || category === 'practice') &&
-          claudeCodeSuggestionIntegration
-        ) {
-          claudeCodeSuggestionIntegration.attachToReviewListRow({
+          ideAssistIntegration.attachToReviewListRow({
             itemWrapper,
             itemPlainText: extractPlainText(itemHtml).trim(),
             listCategory: category

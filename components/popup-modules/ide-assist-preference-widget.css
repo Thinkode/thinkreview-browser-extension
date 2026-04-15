@@ -1,0 +1,136 @@
+/* IDE assist picker — header button + body-appended dropdown (matches layout widget theme) */
+
+.thinkreview-ide-assist-btn-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.thinkreview-ide-assist-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 4px 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.15s ease;
+}
+
+.thinkreview-ide-assist-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.thinkreview-ide-assist-btn svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+.thinkreview-ide-assist-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e1e4e8;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease, transform 0.1s ease;
+  z-index: var(--thinkreview-z-tooltip, 10050);
+}
+
+.thinkreview-ide-assist-btn-wrapper:hover .thinkreview-ide-assist-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
+}
+
+#thinkreview-ide-assist-dropdown {
+  position: fixed;
+  z-index: 2147483647;
+  background: #1a1628;
+  border: 1px solid #3d2d6e;
+  border-radius: 10px;
+  padding: 6px 0;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  animation: thinkreview-ide-assist-dropdown-in 0.12s ease;
+}
+
+@keyframes thinkreview-ide-assist-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.thinkreview-ide-assist-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(155, 126, 240, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 6px 14px 3px;
+}
+
+.thinkreview-ide-assist-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 14px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease;
+}
+
+.thinkreview-ide-assist-item:hover {
+  background: rgba(107, 79, 187, 0.22);
+  color: white;
+}
+
+.thinkreview-ide-assist-item.active {
+  color: #c9b4ff;
+  background: rgba(107, 79, 187, 0.15);
+}
+
+.thinkreview-ide-assist-item-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thinkreview-ide-assist-item-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.thinkreview-ide-assist-item-label {
+  flex: 1;
+}
+
+.thinkreview-ide-assist-item-check {
+  flex-shrink: 0;
+  font-size: 12px;
+  opacity: 0.9;
+}
