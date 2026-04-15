@@ -563,7 +563,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           throw new Error('Invalid Azure DevOps pull request information');
         }
         if (!azureToken || typeof azureToken !== 'string' || azureToken === DUMMY_AZURE_DEVOPS_TOKEN) {
-          throw new Error('Azure DevOps Personal Access Token is required for on-premises Azure DevOps');
+          sendResponse({
+            success: false,
+            isAuthError: true,
+            error: 'Azure DevOps Personal Access Token is required for on-premises Azure DevOps',
+            detailMessage: 'Please configure your Personal Access Token in the extension popup to use Azure DevOps.'
+          });
+          return;
         }
 
         const result = await runAzureFetchTask(async () => {
