@@ -1911,6 +1911,16 @@ async function displayIntegratedReview(
     dbgWarn('Failed to initialize Cursor suggestion integration', error);
   }
 
+  let gitHubCopilotSuggestionIntegration = null;
+  try {
+    const copilotIde = await import(chrome.runtime.getURL('utils/ide-integration/github-copilot-suggestion.js'));
+    gitHubCopilotSuggestionIntegration = await copilotIde.createGitHubCopilotSuggestionIntegration(integrationOpts, {
+      warn: dbgWarn
+    });
+  } catch (error) {
+    dbgWarn('Failed to initialize GitHub Copilot suggestion integration', error);
+  }
+
   let claudeCodeSuggestionIntegration = null;
   try {
     const claudeIde = await import(chrome.runtime.getURL('utils/ide-integration/claude-code-suggestion.js'));
@@ -1986,6 +1996,17 @@ async function displayIntegratedReview(
           cursorSuggestionIntegration
         ) {
           cursorSuggestionIntegration.attachToReviewListRow({
+            itemWrapper,
+            itemPlainText: extractPlainText(itemHtml).trim(),
+            listCategory: category
+          });
+        }
+
+        if (
+          (category === 'suggestion' || category === 'practice') &&
+          gitHubCopilotSuggestionIntegration
+        ) {
+          gitHubCopilotSuggestionIntegration.attachToReviewListRow({
             itemWrapper,
             itemPlainText: extractPlainText(itemHtml).trim(),
             listCategory: category
