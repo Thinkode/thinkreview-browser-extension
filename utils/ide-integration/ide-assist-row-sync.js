@@ -9,11 +9,12 @@ function extractPlainTextFromHtml(html) {
 
 /**
  * @param {HTMLElement} wrapper
- * @returns {'suggestion'|'practice'|null}
+ * @returns {'suggestion'|'practice'|'security'|null}
  */
 function listCategoryForWrapper(wrapper) {
   if (wrapper.closest('#review-suggestions')) return 'suggestion';
   if (wrapper.closest('#review-practices')) return 'practice';
+  if (wrapper.closest('#review-security')) return 'security';
   return null;
 }
 
@@ -28,14 +29,18 @@ export async function syncIdeAssistRows(integrationOpts, options = {}) {
   const panel = document.getElementById('gitlab-mr-integrated-review');
   if (!panel) return;
 
-  panel.querySelectorAll('#review-suggestions .thinkreview-open-ide-btn, #review-practices .thinkreview-open-ide-btn').forEach((b) => b.remove());
+  panel
+    .querySelectorAll(
+      '#review-suggestions .thinkreview-open-ide-btn, #review-practices .thinkreview-open-ide-btn, #review-security .thinkreview-open-ide-btn'
+    )
+    .forEach((b) => b.remove());
 
   const target = await getIdeAssistTarget();
   const integration = await createIdeAssistIntegrationForTarget(target, integrationOpts, options);
   if (!integration) return;
 
   const wrappers = panel.querySelectorAll(
-    '#review-suggestions .thinkreview-item-wrapper, #review-practices .thinkreview-item-wrapper'
+    '#review-suggestions .thinkreview-item-wrapper, #review-practices .thinkreview-item-wrapper, #review-security .thinkreview-item-wrapper'
   );
   wrappers.forEach((itemWrapper) => {
     const listCategory = listCategoryForWrapper(itemWrapper);

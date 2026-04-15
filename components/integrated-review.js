@@ -2007,7 +2007,7 @@ async function displayIntegratedReview(
         }
 
         if (
-          (category === 'suggestion' || category === 'practice') &&
+          (category === 'suggestion' || category === 'practice' || category === 'security') &&
           ideAssistIntegration
         ) {
           ideAssistIntegration.attachToReviewListRow({

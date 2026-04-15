@@ -48,7 +48,8 @@ export async function createGitHubCopilotSuggestionIntegration(integrationOpts, 
 
   return {
     attachToReviewListRow({ itemWrapper, itemPlainText, listCategory }) {
-      const itemKind = listCategory === 'practice' ? 'practice' : 'suggestion';
+      const itemKind =
+        listCategory === 'practice' ? 'practice' : listCategory === 'security' ? 'security' : 'suggestion';
       const promptBody = buildReviewSuggestionPromptBody(itemPlainText, {
         mrPageUrl,
         reviewRequestLabel,
@@ -65,9 +66,12 @@ export async function createGitHubCopilotSuggestionIntegration(integrationOpts, 
       btn.appendChild(icon);
 
       const isPractice = listCategory === 'practice';
+      const isSecurity = listCategory === 'security';
       const baseTitle = isPractice
         ? 'Open GitHub Copilot Chat in VS Code with this best practice as the prompt. Requires VS Code with GitHub Copilot Chat. Prompt may need a recent VS Code build.'
-        : 'Open GitHub Copilot Chat in VS Code with this suggestion as the prompt. Requires VS Code with GitHub Copilot Chat. Prompt may need a recent VS Code build.';
+        : isSecurity
+          ? 'Open GitHub Copilot Chat in VS Code with this security issue as the prompt. Requires VS Code with GitHub Copilot Chat. Prompt may need a recent VS Code build.'
+          : 'Open GitHub Copilot Chat in VS Code with this suggestion as the prompt. Requires VS Code with GitHub Copilot Chat. Prompt may need a recent VS Code build.';
       btn.title = truncated ? `${baseTitle} Prompt was shortened to fit link limits.` : baseTitle;
       btn.setAttribute(
         'aria-label',
@@ -75,7 +79,9 @@ export async function createGitHubCopilotSuggestionIntegration(integrationOpts, 
           ? 'Open GitHub Copilot Chat; prompt was shortened to fit link limits'
           : isPractice
             ? 'Open GitHub Copilot Chat with this best practice as the prompt'
-            : 'Open GitHub Copilot Chat with this suggestion as the prompt'
+            : isSecurity
+              ? 'Open GitHub Copilot Chat with this security issue as the prompt'
+              : 'Open GitHub Copilot Chat with this suggestion as the prompt'
       );
 
       btn.addEventListener('click', async (e) => {
@@ -85,7 +91,8 @@ export async function createGitHubCopilotSuggestionIntegration(integrationOpts, 
           const analyticsModule = await import(getExtensionUrl('utils/analytics-service.js'));
           analyticsModule.trackUserAction(ANALYTICS_ACTION, {
             context: 'integrated_review_panel',
-            category: listCategory === 'practice' ? 'practice' : 'suggestion'
+            category:
+              listCategory === 'practice' ? 'practice' : listCategory === 'security' ? 'security' : 'suggestion'
           }).catch(() => {});
         } catch (err) {
           /* silent */
