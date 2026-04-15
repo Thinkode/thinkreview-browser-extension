@@ -298,20 +298,31 @@
   transition: all 0.3s ease;
   box-shadow: 0 2px 4px rgba(107, 79, 187, 0.2);
   position: relative;
-  overflow: hidden;
+  /* visible: host pages (e.g. TFS 2018) often set button { overflow: hidden }; clipping + tight line-height looked "squashed" */
+  overflow: visible;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  line-height: 1.5;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  height: auto;
+  min-height: 0;
+  max-height: none;
 }
 
 .thinkreview-suggested-question-btn::before {
   content: '💬';
   position: absolute;
   left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 14px;
+  transform: none;
   font-size: 16px;
+  line-height: 1;
   transition: left 0.3s ease;
 }
 
@@ -323,6 +334,7 @@
 
 .thinkreview-suggested-question-btn.static-question::before {
   content: '✍️';
+  top: 14px;
 }
 
 .thinkreview-suggested-question-btn.static-question:hover {
@@ -367,6 +379,22 @@
   flex: 1;
   text-align: left;
   min-width: 0; /* Prevent flex shrinking issues */
+  line-height: 1.5;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  display: block;
+}
+
+/* On-prem TFS / older VSS stylesheets often force button { line-height: 1; max-height: … !important }, which collapses wrapped question text */
+#gitlab-mr-integrated-review.azure-devops-platform .thinkreview-suggested-question-btn {
+  line-height: 1.5 !important;
+  height: auto !important;
+  max-height: none !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform .thinkreview-button-content {
+  line-height: 1.5 !important;
 }
 
 /* Chat message styling for better visual differentiation */
@@ -1314,6 +1342,15 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   font-size: 12px;
   color: #cccccc;
   font-style: italic;
+}
+
+#gitlab-mr-integrated-review .loader-close-hint {
+  margin: 16px 0 0;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #a8a8a8;
+  text-align: center;
 }
 
 /* Legacy loader styles for backward compatibility */

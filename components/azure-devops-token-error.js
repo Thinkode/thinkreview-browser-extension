@@ -7,8 +7,11 @@ import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 /**
  * Shows Azure DevOps token configuration error with helpful UI
  * @param {Function} stopEnhancedLoader - Function to stop the enhanced loader if running
+ * @param {string|null} extraInfo - Optional detail text from Azure DevOps
+ * @param {{ sessionAuth?: boolean }} [options] - If sessionAuth, copy targets Azure DevOps Services sign-in (not PAT)
  */
-export function showAzureDevOpsTokenError(stopEnhancedLoader = null, extraInfo = null) {
+export function showAzureDevOpsTokenError(stopEnhancedLoader = null, extraInfo = null, options = {}) {
+  const sessionAuth = options.sessionAuth === true;
   // Stop the enhanced loader if it's running
   if (typeof stopEnhancedLoader === 'function') {
     stopEnhancedLoader();
@@ -37,9 +40,66 @@ export function showAzureDevOpsTokenError(stopEnhancedLoader = null, extraInfo =
   
   // Update any contextual details
   updateTokenErrorDetails(tokenError, extraInfo);
+
+  applyAzureDevOpsErrorVariant(tokenError, sessionAuth ? 'session' : 'pat');
   
   // Show the token error
   tokenError.classList.remove('gl-hidden');
+}
+
+/**
+ * Switches heading, description, and actions between PAT (on-prem) and cloud session messaging.
+ * @param {HTMLElement} tokenError - Root error container
+ * @param {'pat'|'session'} variant
+ */
+function applyAzureDevOpsErrorVariant(tokenError, variant) {
+  const heading = tokenError.querySelector('.azure-devops-token-heading');
+  const description = tokenError.querySelector('.azure-devops-token-description');
+  const settingsBtn = tokenError.querySelector('.azure-devops-token-settings-button');
+  const learnLink = tokenError.querySelector('.azure-devops-token-learn-link');
+  let reloadBtn = tokenError.querySelector('.azure-devops-session-reload-button');
+
+  if (variant === 'session') {
+    if (heading) {
+      heading.textContent = 'Azure DevOps sign-in required';
+    }
+    if (description) {
+      description.textContent =
+        'ThinkReview uses your existing Azure DevOps browser session on dev.azure.com and visualstudio.com. Sign in to Azure DevOps in this tab, refresh the page if needed, and try again.';
+    }
+    if (settingsBtn) settingsBtn.style.display = 'none';
+    if (learnLink) learnLink.style.display = 'none';
+    if (!reloadBtn && tokenError.querySelector('.azure-devops-token-actions')) {
+      reloadBtn = document.createElement('button');
+      reloadBtn.type = 'button';
+      reloadBtn.className = 'azure-devops-session-reload-button';
+      reloadBtn.style.backgroundColor = '#0078D4';
+      reloadBtn.style.color = 'white';
+      reloadBtn.style.border = 'none';
+      reloadBtn.style.padding = '12px 20px';
+      reloadBtn.style.borderRadius = '6px';
+      reloadBtn.style.cursor = 'pointer';
+      reloadBtn.style.fontSize = '14px';
+      reloadBtn.style.fontWeight = '500';
+      reloadBtn.textContent = 'Reload this page';
+      reloadBtn.addEventListener('click', () => {
+        window.location.reload();
+      });
+      tokenError.querySelector('.azure-devops-token-actions').appendChild(reloadBtn);
+    }
+    if (reloadBtn) reloadBtn.style.display = 'inline-flex';
+  } else {
+    if (heading) {
+      heading.textContent = 'Azure DevOps Personal Access Token Issue';
+    }
+    if (description) {
+      description.textContent =
+        'Your Azure DevOps Personal Access Token is incorrect, missing, expired, or does not have access to this organization/project.';
+    }
+    if (settingsBtn) settingsBtn.style.display = 'inline-flex';
+    if (learnLink) learnLink.style.display = 'inline-flex';
+    if (reloadBtn) reloadBtn.style.display = 'none';
+  }
 }
 
 /**

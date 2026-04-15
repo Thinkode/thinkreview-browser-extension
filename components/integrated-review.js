@@ -387,6 +387,7 @@ async function createIntegratedReviewPanel(patchUrl) {
                 </div>
                 <div class="progress-text">Retrieving patch data...</div>
               </div>
+              <p class="loader-close-hint">Feel free to close this panel and return in a few seconds; your review will keep running in the cloud.</p>
             </div>
           </div>
         </div>
@@ -879,10 +880,15 @@ window.createIntegratedReviewPanel = createIntegratedReviewPanel;
  * @param {HTMLElement} container - The review panel container
  */
 function applyPlatformSpecificStyling(container) {
-  // Detect if we're on Azure DevOps
-  const isAzureDevOps = window.location.hostname.includes('dev.azure.com') || 
-                       window.location.hostname.includes('visualstudio.com');
-  
+  // Use the already-initialised platformDetector (which has custom on-prem domains loaded from
+  // storage) so the check is consistent with the one that gates panel injection.
+  // Fall back to hostname-only checks when the detector is not yet available.
+  const hostname = window.location.hostname;
+  const isAzureDevOps =
+    (typeof platformDetector !== 'undefined' && platformDetector !== null)
+      ? platformDetector.isAzureDevOpsSite()
+      : hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
+
   if (isAzureDevOps) {
     dbgLog('Detected Azure DevOps platform, applying Azure DevOps styling');
     
@@ -1998,7 +2004,10 @@ async function displayIntegratedReview(
       questionsToShow.forEach((question, index) => {
         const questionButton = document.createElement('button');
         questionButton.className = 'thinkreview-suggested-question-btn';
-        questionButton.textContent = question;
+        const label = document.createElement('span');
+        label.className = 'thinkreview-button-content';
+        label.textContent = question;
+        questionButton.appendChild(label);
         questionButton.setAttribute('data-question', question);
         questionButton.setAttribute('title', 'Click to ask this question');
         suggestedQuestionsContainer.appendChild(questionButton);
