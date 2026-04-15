@@ -1901,12 +1901,14 @@ async function displayIntegratedReview(
   const promptAskSuggestedCodeWithLines =
     'Please include a concrete suggested code change with file path and line numbers in the file so I can copy and apply it.';
 
-  let buildCursorPromptDeeplink = null;
+  let cursorSuggestionIntegration = null;
   try {
-    const cursorDeeplinkModule = await import(chrome.runtime.getURL('utils/cursor-deeplink.js'));
-    buildCursorPromptDeeplink = cursorDeeplinkModule.buildCursorPromptDeeplink;
+    const cursorIde = await import(chrome.runtime.getURL('utils/ide-integration/cursor-suggestion.js'));
+    cursorSuggestionIntegration = await cursorIde.createCursorSuggestionIntegration(integrationOpts, {
+      warn: dbgWarn
+    });
   } catch (error) {
-    dbgWarn('Failed to load cursor deeplink helper', error);
+    dbgWarn('Failed to initialize Cursor suggestion integration', error);
   }
 
   const populateList = (element, items, category) => {
@@ -1969,49 +1971,15 @@ async function displayIntegratedReview(
           attachCopyButtonToItem(contentDiv, itemWrapper);
         }
 
-        if (category === 'suggestion' && buildCursorPromptDeeplink) {
-          const itemTextForCursor = extractPlainText(itemHtml).trim();
-          const promptBody =
-            'Apply this code review suggestion in my local workspace:\n\n' + itemTextForCursor;
-          const { href, truncated } = buildCursorPromptDeeplink(promptBody);
-
-          const openCursorBtn = document.createElement('button');
-          openCursorBtn.type = 'button';
-          openCursorBtn.className = 'thinkreview-open-cursor-btn';
-          openCursorBtn.textContent = 'Open in Cursor';
-          const baseCursorTitle =
-            'Open Cursor with this suggestion as the chat prompt (confirm in Cursor before running).';
-          openCursorBtn.title = truncated
-            ? `${baseCursorTitle} Prompt was shortened to fit Cursor link limits.`
-            : baseCursorTitle;
-          openCursorBtn.setAttribute(
-            'aria-label',
-            truncated
-              ? 'Open in Cursor; prompt was shortened to fit link limits'
-              : 'Open in Cursor with this suggestion as the chat prompt'
-          );
-
-          openCursorBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            try {
-              const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
-              analyticsModule.trackUserAction('open_in_cursor_clicked', {
-                context: 'integrated_review_panel',
-                category: 'suggestion'
-              }).catch(() => {});
-            } catch (err) { /* silent */ }
-
-            const a = document.createElement('a');
-            a.href = href;
-            a.rel = 'noopener noreferrer';
-            a.style.display = 'none';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+        if (
+          (category === 'suggestion' || category === 'practice') &&
+          cursorSuggestionIntegration
+        ) {
+          cursorSuggestionIntegration.attachToReviewListRow({
+            itemWrapper,
+            itemPlainText: extractPlainText(itemHtml).trim(),
+            listCategory: category
           });
-
-          itemWrapper.appendChild(openCursorBtn);
         }
 
         // Append wrapper to list item
