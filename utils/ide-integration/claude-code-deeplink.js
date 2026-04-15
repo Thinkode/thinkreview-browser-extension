@@ -43,10 +43,7 @@ export function buildClaudeCodeOpenDeeplink(promptText) {
     }
   }
 
-  let text = raw.slice(0, lo) + TRUNCATION_SUFFIX;
-  while (urlLengthForText(text) > MAX_URL_LENGTH && text.length > TRUNCATION_SUFFIX.length) {
-    text = text.slice(0, text.length - TRUNCATION_SUFFIX.length - 100) + TRUNCATION_SUFFIX;
-  }
+  const text = raw.slice(0, lo) + TRUNCATION_SUFFIX;
 
   u.searchParams.set('prompt', text);
   return { href: u.toString(), truncated: true };
