@@ -51,13 +51,6 @@ const ROWS = [
   { id: 'none', label: 'None (hide Implement buttons)', icon: createNoneIdeIconSvg }
 ];
 
-function _setHeaderTooltip(tooltipEl, targetId) {
-  tooltipEl.textContent =
-    targetId === 'none'
-      ? 'No Implement buttons on list rows'
-      : 'Implement buttons on suggestion, security, and best-practice rows';
-}
-
 function _positionDropdown(dropdown, btn) {
   const rect = btn.getBoundingClientRect();
   const dropW = 280;
@@ -136,7 +129,7 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
   wrapper.className = 'thinkreview-ide-assist-btn-wrapper';
   const tooltip = document.createElement('span');
   tooltip.className = 'thinkreview-ide-assist-tooltip';
-  _setHeaderTooltip(tooltip, current);
+  tooltip.textContent = 'Implement via';
   wrapper.appendChild(btn);
   wrapper.appendChild(tooltip);
 
@@ -231,7 +224,6 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
       previous_ide: previousIde
     });
     _setTriggerIcon(btn, id);
-    _setHeaderTooltip(tooltip, id);
     _refreshDropdownActive(dropdown, id);
     dropdown.style.display = 'none';
     btn.setAttribute('aria-expanded', 'false');
