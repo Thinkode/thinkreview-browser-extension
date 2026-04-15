@@ -5,7 +5,8 @@
 
 // UI identifiers
 const STYLES_ID = 'helpful-tip-styles';
-const BUTTON_ID = 'helpful-tip-settings-btn';
+const SETTINGS_BUTTON_ID = 'helpful-tip-settings-btn';
+const USAGE_BUTTON_ID = 'helpful-tip-usage-btn';
 
 // Timing constants (in milliseconds)
 const ANALYTICS_IMPORT_TIMEOUT = 5000;
@@ -37,12 +38,19 @@ export function injectStyles() {
       margin-top: 1px;
     }
     .helpful-tip-text {
-      font-size: 12px;
+      font-size: 14px;
       color: #a0aec0;
-      line-height: 1.4;
+      line-height: 1.45;
       flex: 1;
     }
-    .helpful-tip-settings-btn {
+    .helpful-tip-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .helpful-tip-settings-btn,
+    .helpful-tip-usage-btn {
       flex-shrink: 0;
       padding: 5px 10px;
       border-radius: 4px;
@@ -55,7 +63,8 @@ export function injectStyles() {
       white-space: nowrap;
       transition: background 0.15s, border-color 0.15s;
     }
-    .helpful-tip-settings-btn:hover {
+    .helpful-tip-settings-btn:hover,
+    .helpful-tip-usage-btn:hover {
       background: #3d4a5e;
       border-color: #6b4fbb;
       color: #e2e8f0;
@@ -73,7 +82,10 @@ export function getHTML() {
     <div class="helpful-tip-banner">
       <span class="helpful-tip-icon">💡</span>
       <span class="helpful-tip-text">You can switch the auto-review setting to manual mode to better manage your daily review credits.</span>
-      <button id="${BUTTON_ID}" class="helpful-tip-settings-btn">Go to Settings</button>
+      <div class="helpful-tip-actions">
+        <button id="${SETTINGS_BUTTON_ID}" type="button" class="helpful-tip-settings-btn">Go to Settings</button>
+        <button id="${USAGE_BUTTON_ID}" type="button" class="helpful-tip-usage-btn">View my usage</button>
+      </div>
     </div>
   `;
 }
@@ -82,10 +94,12 @@ export function getHTML() {
  * Wires the settings button click event to open the popup with deep-link.
  * @param {HTMLElement} container - The parent container of the banner
  */
+const USAGE_PORTAL_URL = 'https://portal.thinkreview.dev/usage';
+
 export function wireSettingsButton(container) {
-  const btn = container.querySelector(`#${BUTTON_ID}`);
-  if (btn) {
-    btn.addEventListener('click', async () => {
+  const settingsBtn = container.querySelector(`#${SETTINGS_BUTTON_ID}`);
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', async () => {
       try {
         const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
         trackUserAction('helpful_tip_banner_settings_clicked', {
@@ -98,6 +112,22 @@ export function wireSettingsButton(container) {
         type: 'OPEN_EXTENSION_POPUP',
         scrollTo: 'auto-start-review-section'
       });
+    });
+  }
+
+  const usageBtn = container.querySelector(`#${USAGE_BUTTON_ID}`);
+  if (usageBtn) {
+    usageBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        trackUserAction('helpful_tip_banner_usage_portal_clicked', {
+          context: 'upgrade_prompt',
+          location: 'integrated_panel',
+          url: USAGE_PORTAL_URL
+        }).catch(() => {});
+      } catch (_) { /* silent */ }
+
+      window.open(USAGE_PORTAL_URL, '_blank');
     });
   }
 }
