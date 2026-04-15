@@ -53,8 +53,9 @@
   visibility: visible !important;
 }
 
-/* Open in Cursor — sits beside copy on suggestion rows */
-#gitlab-mr-integrated-review .thinkreview-open-cursor-btn {
+/* Open in Cursor / Claude Code — beside copy on suggestion & best-practice rows */
+#gitlab-mr-integrated-review .thinkreview-open-cursor-btn,
+#gitlab-mr-integrated-review .thinkreview-open-claude-code-btn {
   background: transparent !important;
   color: var(--thinkreview-text-secondary) !important;
   border: none !important;
@@ -71,12 +72,14 @@
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
-#gitlab-mr-integrated-review .thinkreview-open-cursor-btn:hover {
+#gitlab-mr-integrated-review .thinkreview-open-cursor-btn:hover,
+#gitlab-mr-integrated-review .thinkreview-open-claude-code-btn:hover {
   opacity: 1;
   transform: scale(1.02);
 }
 
-#gitlab-mr-integrated-review .thinkreview-open-cursor-btn:active {
+#gitlab-mr-integrated-review .thinkreview-open-cursor-btn:active,
+#gitlab-mr-integrated-review .thinkreview-open-claude-code-btn:active {
   transform: scale(0.98);
 }
 

@@ -6,26 +6,23 @@
 /**
  * @param {string} itemPlainText - Plain text of a single list item
  * @param {object} opts
- * @param {string} opts.ideDisplayName - e.g. "Cursor", "Visual Studio Code"
  * @param {string} [opts.mrPageUrl] - Current MR/PR tab URL (hash stripped)
  * @param {string|null} [opts.reviewRequestLabel] - e.g. "MR #12", "PR #34"
  * @param {'suggestion'|'practice'} [opts.itemKind] - Which Review tab section this row came from
  * @returns {string}
  */
 export function buildReviewSuggestionPromptBody(itemPlainText, {
-  ideDisplayName,
   mrPageUrl = '',
   reviewRequestLabel = null,
   itemKind = 'suggestion'
 }) {
-  const product = ideDisplayName || 'your editor';
   const applyLine =
     itemKind === 'practice'
       ? 'Apply this best-practice recommendation in that workspace:'
       : 'Apply this code review suggestion in that workspace:';
   const lines = [
-    `Before editing: confirm ${product} has the local git repo open that corresponds to this merge request / pull request (same remote/project as below). If you are in the wrong workspace, open the correct folder first.`,
-    mrPageUrl ? `Review page (use this to match repo/branch): ${mrPageUrl}` : null,
+    'Assistant: Before changing any files, verify (e.g. via git remote and current branch) that this workspace is this PR/MR\'s repository and that the checked-out branch matches this PR\'s head/source branch. If the workspace is the wrong repo, or the branch does not match this PR, do not edit anything — stop and tell the user clearly to open the correct project and the PR\'s branch first, then retry. Never apply these changes in an unrelated workspace or on the wrong branch — that can damage the wrong codebase.',
+    mrPageUrl ? `Review page (use this to match repo and confirm PR details): ${mrPageUrl}` : null,
     reviewRequestLabel ? `Request: ${reviewRequestLabel}` : null,
     '',
     '---',

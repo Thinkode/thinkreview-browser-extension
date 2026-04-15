@@ -1911,6 +1911,16 @@ async function displayIntegratedReview(
     dbgWarn('Failed to initialize Cursor suggestion integration', error);
   }
 
+  let claudeCodeSuggestionIntegration = null;
+  try {
+    const claudeIde = await import(chrome.runtime.getURL('utils/ide-integration/claude-code-suggestion.js'));
+    claudeCodeSuggestionIntegration = await claudeIde.createClaudeCodeSuggestionIntegration(integrationOpts, {
+      warn: dbgWarn
+    });
+  } catch (error) {
+    dbgWarn('Failed to initialize Claude Code suggestion integration', error);
+  }
+
   const populateList = (element, items, category) => {
     element.innerHTML = ''; // Clear previous items
     if (items && items.length > 0) {
@@ -1976,6 +1986,17 @@ async function displayIntegratedReview(
           cursorSuggestionIntegration
         ) {
           cursorSuggestionIntegration.attachToReviewListRow({
+            itemWrapper,
+            itemPlainText: extractPlainText(itemHtml).trim(),
+            listCategory: category
+          });
+        }
+
+        if (
+          (category === 'suggestion' || category === 'practice') &&
+          claudeCodeSuggestionIntegration
+        ) {
+          claudeCodeSuggestionIntegration.attachToReviewListRow({
             itemWrapper,
             itemPlainText: extractPlainText(itemHtml).trim(),
             listCategory: category

@@ -1,36 +1,28 @@
 /**
- * Cursor: "Open in Cursor" for Review tab → Suggestions and Best practices rows.
- * Other IDEs: add sibling modules (e.g. vscode-copilot-suggestion.js) using the same shared helpers.
+ * Claude Code (VS Code extension): open a new tab with a prefilled prompt.
+ * Uses vscode://anthropic.claude-code/open — requires VS Code + Claude Code installed.
  */
 
+import { buildClaudeCodeOpenDeeplink } from './claude-code-deeplink.js';
 import { buildReviewSuggestionPromptBody } from './suggestion-prompt-body.js';
 import { openUrlWithTransientAnchor } from './open-deeplink.js';
 
-const BUTTON_CLASS = 'thinkreview-open-cursor-btn';
-const ANALYTICS_ACTION = 'open_in_cursor_clicked';
+const BUTTON_CLASS = 'thinkreview-open-claude-code-btn';
+const ANALYTICS_ACTION = 'open_in_claude_code_clicked';
 
 /**
- * @param {object|null|undefined} integrationOpts - same shape as displayIntegratedReview (platform, mrId, …)
+ * @param {object|null|undefined} integrationOpts
  * @param {object} [options]
- * @param {function} [options.warn] - e.g. dbgWarn from integrated-review
- * @param {function} [options.getExtensionUrl] - (path) => full URL; default chrome.runtime.getURL
+ * @param {function} [options.warn]
+ * @param {function} [options.getExtensionUrl]
  * @returns {Promise<{ attachToReviewListRow: (args: { itemWrapper: HTMLElement, itemPlainText: string, listCategory: 'suggestion'|'practice' }) => void } | null>}
  */
-export async function createCursorSuggestionIntegration(integrationOpts, options = {}) {
+export async function createClaudeCodeSuggestionIntegration(integrationOpts, options = {}) {
   const warn = typeof options.warn === 'function' ? options.warn : () => {};
   const getExtensionUrl =
     typeof options.getExtensionUrl === 'function'
       ? options.getExtensionUrl
       : (path) => chrome.runtime.getURL(path);
-
-  let buildCursorPromptDeeplink;
-  try {
-    const mod = await import(getExtensionUrl('utils/cursor-deeplink.js'));
-    buildCursorPromptDeeplink = mod.buildCursorPromptDeeplink;
-  } catch (e) {
-    warn('Failed to load cursor deeplink helper', e);
-    return null;
-  }
 
   let reviewRequestLabel = null;
   try {
@@ -40,7 +32,7 @@ export async function createCursorSuggestionIntegration(integrationOpts, options
       integrationOpts?.mrId ?? null
     );
   } catch (e) {
-    warn('Failed to format review label for Cursor context', e);
+    warn('Failed to format review label for Claude Code context', e);
   }
 
   const mrPageUrl =
@@ -56,24 +48,24 @@ export async function createCursorSuggestionIntegration(integrationOpts, options
         reviewRequestLabel,
         itemKind
       });
-      const { href, truncated } = buildCursorPromptDeeplink(promptBody);
+      const { href, truncated } = buildClaudeCodeOpenDeeplink(promptBody);
 
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = BUTTON_CLASS;
-      btn.textContent = 'Open in Cursor';
+      btn.textContent = 'Open in Claude Code';
       const isPractice = listCategory === 'practice';
       const baseTitle = isPractice
-        ? 'Open Cursor with this best practice as the chat prompt. The prompt includes this MR/PR page URL so you can match the correct local repo (confirm in Cursor before running).'
-        : 'Open Cursor with this suggestion as the chat prompt. The prompt includes this MR/PR page URL so you can match the correct local repo (confirm in Cursor before running).';
-      btn.title = truncated ? `${baseTitle} Prompt was shortened to fit Cursor link limits.` : baseTitle;
+        ? 'Open VS Code Claude Code with this best practice as the prompt. Requires VS Code with the Claude Code extension. The prompt includes this MR/PR page URL so you can match the correct local repo.'
+        : 'Open VS Code Claude Code with this suggestion as the prompt. Requires VS Code with the Claude Code extension. The prompt includes this MR/PR page URL so you can match the correct local repo.';
+      btn.title = truncated ? `${baseTitle} Prompt was shortened to fit link limits.` : baseTitle;
       btn.setAttribute(
         'aria-label',
         truncated
-          ? 'Open in Cursor; prompt was shortened to fit link limits'
+          ? 'Open Claude Code in VS Code; prompt was shortened to fit link limits'
           : isPractice
-            ? 'Open in Cursor with this best practice as the chat prompt'
-            : 'Open in Cursor with this suggestion as the chat prompt'
+            ? 'Open Claude Code in VS Code with this best practice as the prompt'
+            : 'Open Claude Code in VS Code with this suggestion as the prompt'
       );
 
       btn.addEventListener('click', async (e) => {
