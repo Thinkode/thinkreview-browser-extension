@@ -8,7 +8,7 @@ import { buildReviewSuggestionPromptBody } from './suggestion-prompt-body.js';
 import { openUrlWithTransientAnchor } from './open-deeplink.js';
 
 const BUTTON_CLASS = 'thinkreview-open-cursor-btn thinkreview-open-ide-btn';
-const ANALYTICS_ACTION = 'open_in_cursor_clicked';
+const IDE_ANALYTICS_ID = 'cursor';
 
 /**
  * @param {object|null|undefined} integrationOpts - same shape as displayIntegratedReview (platform, mrId, …)
@@ -98,10 +98,17 @@ export async function createCursorSuggestionIntegration(integrationOpts, options
         e.preventDefault();
         try {
           const analyticsModule = await import(getExtensionUrl('utils/analytics-service.js'));
-          analyticsModule.trackUserAction(ANALYTICS_ACTION, {
+          const listSection =
+            listCategory === 'practice'
+              ? 'practice'
+              : listCategory === 'security'
+                ? 'security'
+                : 'suggestion';
+          const analyticsEventName = `open_in_${IDE_ANALYTICS_ID}_${listSection}_clicked`;
+          analyticsModule.trackUserAction(analyticsEventName, {
             context: 'integrated_review_panel',
-            category:
-              listCategory === 'practice' ? 'practice' : listCategory === 'security' ? 'security' : 'suggestion'
+            ide: IDE_ANALYTICS_ID,
+            list_section: listSection
           }).catch(() => {});
         } catch (err) {
           /* silent */

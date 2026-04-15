@@ -8,7 +8,7 @@ import { buildReviewSuggestionPromptBody } from './suggestion-prompt-body.js';
 import { openUrlWithTransientAnchor } from './open-deeplink.js';
 
 const BUTTON_CLASS = 'thinkreview-open-github-copilot-btn thinkreview-open-ide-btn';
-const ANALYTICS_ACTION = 'open_in_github_copilot_clicked';
+const IDE_ANALYTICS_ID = 'github_copilot';
 
 /**
  * @param {object|null|undefined} integrationOpts
@@ -89,10 +89,17 @@ export async function createGitHubCopilotSuggestionIntegration(integrationOpts, 
         e.preventDefault();
         try {
           const analyticsModule = await import(getExtensionUrl('utils/analytics-service.js'));
-          analyticsModule.trackUserAction(ANALYTICS_ACTION, {
+          const listSection =
+            listCategory === 'practice'
+              ? 'practice'
+              : listCategory === 'security'
+                ? 'security'
+                : 'suggestion';
+          const analyticsEventName = `open_in_${IDE_ANALYTICS_ID}_${listSection}_clicked`;
+          analyticsModule.trackUserAction(analyticsEventName, {
             context: 'integrated_review_panel',
-            category:
-              listCategory === 'practice' ? 'practice' : listCategory === 'security' ? 'security' : 'suggestion'
+            ide: IDE_ANALYTICS_ID,
+            list_section: listSection
           }).catch(() => {});
         } catch (err) {
           /* silent */
