@@ -181,7 +181,7 @@ function clearPatchContentAndHistory() {
   conversationHistory = [];
   const chatLog = document.getElementById('chat-log');
   if (chatLog) {
-    chatLog.innerHTML = '';
+    chatLog.replaceChildren();
   }
   dbgLog('Cleared patch content and conversation history');
 }
@@ -1723,7 +1723,7 @@ async function displayIntegratedReview(
       previousScorecard._cleanupMetricListeners();
     }
     
-    reviewMetricsContainer.innerHTML = ''; // Clear previous content
+    reviewMetricsContainer.replaceChildren(); // Clear previous content
     if (review.metrics) {
       try {
         const scorecardModule = await import(chrome.runtime.getURL('components/quality-scorecard.js'));
@@ -1947,7 +1947,7 @@ async function displayIntegratedReview(
   }
 
   const populateList = (element, items, category) => {
-    element.innerHTML = ''; // Clear previous items
+    element.replaceChildren(); // Clear previous items
     if (items && items.length > 0) {
       items.forEach(item => {
         const li = document.createElement('li');
@@ -2037,7 +2037,7 @@ async function displayIntegratedReview(
   // Populate suggested questions (limit to maximum 3 AI-generated + 1 static)
   const suggestedQuestionsContainer = document.getElementById('suggested-questions');
   if (suggestedQuestionsContainer) {
-    suggestedQuestionsContainer.innerHTML = ''; // Clear previous questions
+    suggestedQuestionsContainer.replaceChildren(); // Clear previous questions
     
     // Add static question for generating MR comment
     // Full detailed prompt that will be sent when clicked

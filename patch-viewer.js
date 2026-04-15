@@ -43,7 +43,7 @@ function displayCodeReview(review) {
   reviewSummary.innerHTML = review.summary || 'No summary provided.';
   
   // Display suggestions
-  reviewSuggestions.innerHTML = '';
+  reviewSuggestions.replaceChildren();
   if (review.suggestions && review.suggestions.length > 0) {
     review.suggestions.forEach(suggestion => {
       const li = document.createElement('li');
@@ -57,7 +57,7 @@ function displayCodeReview(review) {
   }
   
   // Display security issues
-  reviewSecurity.innerHTML = '';
+  reviewSecurity.replaceChildren();
   if (review.securityIssues && review.securityIssues.length > 0) {
     review.securityIssues.forEach(issue => {
       const li = document.createElement('li');
@@ -71,7 +71,7 @@ function displayCodeReview(review) {
   }
   
   // Display best practices
-  reviewPractices.innerHTML = '';
+  reviewPractices.replaceChildren();
   if (review.bestPractices && review.bestPractices.length > 0) {
     review.bestPractices.forEach(practice => {
       const li = document.createElement('li');

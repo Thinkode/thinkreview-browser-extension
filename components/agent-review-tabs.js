@@ -241,7 +241,7 @@ export function renderAgentPanelState(inner, row, processors, timeoutInfo) {
     return;
   }
 
-  inner.innerHTML = '';
+  inner.replaceChildren();
   const contentFragment = document.createDocumentFragment();
 
   for (const sec of sections) {
@@ -324,7 +324,7 @@ export function renderAgentSectionContent(sec, processors) {
         itemWrapper.appendChild(liContentDiv);
         processors.attachCopyButtonToItem(liContentDiv, itemWrapper);
 
-        li.innerHTML = '';
+        li.replaceChildren();
         li.appendChild(itemWrapper);
       }
     });

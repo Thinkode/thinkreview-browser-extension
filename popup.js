@@ -2422,7 +2422,7 @@ function updateModelSelect(models) {
   const currentValue = modelSelect.value;
   
   // Clear existing options
-  modelSelect.innerHTML = '';
+  modelSelect.replaceChildren();
   
   // Add models from Ollama
   models.forEach(model => {

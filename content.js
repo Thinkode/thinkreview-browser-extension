@@ -1036,7 +1036,7 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
         }
 
         if (featuresEl) {
-          featuresEl.innerHTML = '';
+          featuresEl.replaceChildren();
           const features = Array.isArray(plan.features) ? plan.features : [];
           features.forEach((feature) => {
             const li = document.createElement('li');
