@@ -101,8 +101,9 @@
   content: attr(data-tooltip);
   position: absolute;
   bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+  left: auto;
+  right: 0;
+  transform: none;
   white-space: nowrap;
   background: #1f1f1f;
   color: #f0f0f0;
