@@ -1069,7 +1069,7 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
         }
       });
 
-      tipBannerModule.wireSettingsButton(upgradeWrapper);
+      tipBannerModule.wireActionButtons(upgradeWrapper);
     }
   );
 

@@ -110,6 +110,12 @@ export async function logToAnalytics(level, component, message, additionalData =
 }
 
 /**
+ * GA key event name: user opened the portal usage page from the daily-limit helpful tip
+ * ("View my usage"). Mark this event as a key event in GA4 if you track it as a conversion.
+ */
+export const KEY_EVENT_LIMIT_BANNER_VIEW_MY_USAGE = 'limit_reached_view_my_usage_clicked';
+
+/**
  * Track key user actions/events
  * @param {string} eventName - Event name that describes the action (e.g., 'copy_button', 'refresh_review', 'ai_review_clicked')
  * @param {Object} params - Additional parameters (e.g., { context: 'review_item', location: 'integrated_panel' })
@@ -122,5 +128,6 @@ export const AnalyticsService = {
   sendEvent,
   logToAnalytics,
   trackUserAction,
-  getClientId
+  getClientId,
+  KEY_EVENT_LIMIT_BANNER_VIEW_MY_USAGE
 };
