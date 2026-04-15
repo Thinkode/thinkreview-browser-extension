@@ -1897,6 +1897,10 @@ async function displayIntegratedReview(
     });
   }
 
+  /** Appended when clicking a suggestion on the main Review tab (Suggestions list). */
+  const promptAskSuggestedCodeWithLines =
+    'Please include a concrete suggested code change with file path and line numbers in the file so I can copy and apply it.';
+
   const populateList = (element, items, category) => {
     element.innerHTML = ''; // Clear previous items
     if (items && items.length > 0) {
@@ -1936,7 +1940,7 @@ async function displayIntegratedReview(
           // Format the query based on category
           let query = '';
           if (category === 'suggestion') {
-            query = `Can you provide more details about this suggestion? ${itemText}`;
+            query = `Can you provide more details about this suggestion? ${promptAskSuggestedCodeWithLines} ${itemText}`;
           } else if (category === 'security') {
             query = `Can you provide more details about this security issue? ${itemText}`;
           } else if (category === 'practice') {
