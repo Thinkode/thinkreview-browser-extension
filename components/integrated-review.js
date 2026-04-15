@@ -1038,7 +1038,9 @@ function initializeResizeHandle(container) {
   });
   
   const doResize = (e) => {
-    const deltaX = startX - e.clientX;
+    const isLeftLayout = container.classList.contains('thinkreview-panel-docked-left') ||
+                         container.classList.contains('thinkreview-panel-overlay-left');
+    const deltaX = isLeftLayout ? e.clientX - startX : startX - e.clientX;
     const newWidth = Math.max(400, Math.min(800, startWidth + deltaX)); // Min 400px, Max 800px
     container.style.width = newWidth + 'px';
 

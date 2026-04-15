@@ -73,6 +73,7 @@
 #gitlab-mr-integrated-review .thinkreview-resize-handle {
   position: absolute;
   left: -4px;
+  right: auto;
   top: 0;
   width: 8px;
   height: 100%;
@@ -81,6 +82,13 @@
   opacity: 0;
   transition: opacity 0.2s ease;
   z-index: var(--thinkreview-z-resize-handle);
+}
+
+/* For left-side layouts the resize edge faces right */
+#gitlab-mr-integrated-review.thinkreview-panel-docked-left .thinkreview-resize-handle,
+#gitlab-mr-integrated-review.thinkreview-panel-overlay-left .thinkreview-resize-handle {
+  left: auto;
+  right: -4px;
 }
 
 #gitlab-mr-integrated-review:hover .thinkreview-resize-handle {
