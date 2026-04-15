@@ -2,9 +2,9 @@ import { createIdeAssistIntegrationForTarget } from './ide-assist-integration-fa
 import { getIdeAssistTarget } from './ide-assist-preference.js';
 
 function extractPlainTextFromHtml(html) {
-  const d = document.createElement('div');
-  d.innerHTML = html;
-  return d.textContent || d.innerText || '';
+  if (typeof html !== 'string' || html === '') return '';
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body?.textContent ?? '';
 }
 
 /**
