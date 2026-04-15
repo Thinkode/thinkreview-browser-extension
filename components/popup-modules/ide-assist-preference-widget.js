@@ -46,6 +46,21 @@ function _setTriggerIcon(btn, targetId) {
   btn.appendChild(icon);
 }
 
+async function _trackIdeAssistMenu(eventName, params = {}) {
+  try {
+    const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+    analyticsModule
+      .trackUserAction(eventName, {
+        context: 'integrated_review_panel',
+        location: 'ide_assist_header_menu',
+        ...params
+      })
+      .catch(() => {});
+  } catch (_) {
+    /* silent */
+  }
+}
+
 function _refreshDropdownActive(dropdown, activeId) {
   dropdown.querySelectorAll('.thinkreview-ide-assist-item').forEach((el) => {
     const id = el.dataset.ide;
@@ -145,6 +160,7 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
       return;
     }
     const active = await getIdeAssistTarget();
+    await _trackIdeAssistMenu('ide_assist_menu_open_clicked', { ide: active });
     _refreshDropdownActive(dropdown, active);
     _positionDropdown(dropdown, btn);
     dropdown.style.display = 'block';
@@ -165,7 +181,12 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
     const id = item.dataset.ide;
     if (!id) return;
 
+    const previousIde = await getIdeAssistTarget();
     await setIdeAssistTarget(id);
+    await _trackIdeAssistMenu(`ide_assist_menu_${id}_selected_clicked`, {
+      ide: id,
+      previous_ide: previousIde
+    });
     _setTriggerIcon(btn, id);
     _refreshDropdownActive(dropdown, id);
     dropdown.style.display = 'none';
