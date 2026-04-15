@@ -879,13 +879,14 @@ window.createIntegratedReviewPanel = createIntegratedReviewPanel;
  * @param {HTMLElement} container - The review panel container
  */
 function applyPlatformSpecificStyling(container) {
-  // Azure DevOps Services (cloud) or Azure DevOps Server / TFS on-prem (custom host; path contains /_git/ or /tfs/)
-  const path = window.location.pathname || '';
+  // Use the already-initialised platformDetector (which has custom on-prem domains loaded from
+  // storage) so the check is consistent with the one that gates panel injection.
+  // Fall back to hostname-only checks when the detector is not yet available.
+  const hostname = window.location.hostname;
   const isAzureDevOps =
-    window.location.hostname.includes('dev.azure.com') ||
-    window.location.hostname.includes('visualstudio.com') ||
-    path.includes('/_git/') ||
-    path.includes('/tfs/');
+    (typeof platformDetector !== 'undefined' && platformDetector !== null)
+      ? platformDetector.isAzureDevOpsSite()
+      : hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
 
   if (isAzureDevOps) {
     dbgLog('Detected Azure DevOps platform, applying Azure DevOps styling');
