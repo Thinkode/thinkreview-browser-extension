@@ -4,7 +4,7 @@
  */
 
 import { buildClaudeCodeOpenDeeplink } from './claude-code-deeplink.js';
-import { createClaudeCodeIconSvg } from './ide-action-icons.js';
+import { createClaudeCodeIconSvg, ensureIdeActionIconsLoaded } from './ide-action-icons.js';
 import { buildReviewSuggestionPromptBody } from './suggestion-prompt-body.js';
 import { openUrlWithTransientAnchor } from './open-deeplink.js';
 
@@ -24,6 +24,13 @@ export async function createClaudeCodeSuggestionIntegration(integrationOpts, opt
     typeof options.getExtensionUrl === 'function'
       ? options.getExtensionUrl
       : (path) => chrome.runtime.getURL(path);
+
+  try {
+    await ensureIdeActionIconsLoaded(getExtensionUrl);
+  } catch (e) {
+    warn('Failed to load IDE action icons', e);
+    return null;
+  }
 
   let reviewRequestLabel = null;
   try {

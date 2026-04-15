@@ -3,7 +3,7 @@
  * Other IDEs: add sibling modules (e.g. vscode-copilot-suggestion.js) using the same shared helpers.
  */
 
-import { createCursorProductIconSvg } from './ide-action-icons.js';
+import { createCursorProductIconSvg, ensureIdeActionIconsLoaded } from './ide-action-icons.js';
 import { buildReviewSuggestionPromptBody } from './suggestion-prompt-body.js';
 import { openUrlWithTransientAnchor } from './open-deeplink.js';
 
@@ -23,6 +23,13 @@ export async function createCursorSuggestionIntegration(integrationOpts, options
     typeof options.getExtensionUrl === 'function'
       ? options.getExtensionUrl
       : (path) => chrome.runtime.getURL(path);
+
+  try {
+    await ensureIdeActionIconsLoaded(getExtensionUrl);
+  } catch (e) {
+    warn('Failed to load IDE action icons', e);
+    return null;
+  }
 
   let buildCursorPromptDeeplink;
   try {

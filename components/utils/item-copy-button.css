@@ -80,6 +80,13 @@
   flex-shrink: 0;
 }
 
+#gitlab-mr-integrated-review .thinkreview-open-ide-btn img {
+  display: block !important;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
 #gitlab-mr-integrated-review .thinkreview-open-ide-btn:hover {
   opacity: 1;
   transform: scale(1.05);

@@ -3,7 +3,7 @@
  */
 
 import { buildGitHubCopilotPromptDeeplink } from './github-copilot-deeplink.js';
-import { createGitHubCopilotIconSvg } from './ide-action-icons.js';
+import { createGitHubCopilotIconSvg, ensureIdeActionIconsLoaded } from './ide-action-icons.js';
 import { buildReviewSuggestionPromptBody } from './suggestion-prompt-body.js';
 import { openUrlWithTransientAnchor } from './open-deeplink.js';
 
@@ -22,6 +22,13 @@ export async function createGitHubCopilotSuggestionIntegration(integrationOpts, 
     typeof options.getExtensionUrl === 'function'
       ? options.getExtensionUrl
       : (path) => chrome.runtime.getURL(path);
+
+  try {
+    await ensureIdeActionIconsLoaded(getExtensionUrl);
+  } catch (e) {
+    warn('Failed to load IDE action icons', e);
+    return null;
+  }
 
   let reviewRequestLabel = null;
   try {
