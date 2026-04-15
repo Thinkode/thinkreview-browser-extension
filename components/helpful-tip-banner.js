@@ -97,11 +97,13 @@ export function getHTML() {
 const USAGE_PORTAL_URL = 'https://portal.thinkreview.dev/usage';
 
 export function wireSettingsButton(container) {
+  const analyticsPromise = import(chrome.runtime.getURL('utils/analytics-service.js'));
+
   const settingsBtn = container.querySelector(`#${SETTINGS_BUTTON_ID}`);
   if (settingsBtn) {
     settingsBtn.addEventListener('click', async () => {
       try {
-        const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        const { trackUserAction } = await analyticsPromise;
         trackUserAction('helpful_tip_banner_settings_clicked', {
           context: 'upgrade_prompt',
           location: 'integrated_panel'
@@ -119,7 +121,7 @@ export function wireSettingsButton(container) {
   if (usageBtn) {
     usageBtn.addEventListener('click', async () => {
       try {
-        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        const analyticsModule = await analyticsPromise;
         analyticsModule
           .trackUserAction(analyticsModule.KEY_EVENT_LIMIT_BANNER_VIEW_MY_USAGE, {
             context: 'daily_limit_upgrade_prompt',
