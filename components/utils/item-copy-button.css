@@ -53,6 +53,33 @@
   visibility: visible !important;
 }
 
+/* Open in Cursor — sits beside copy on suggestion rows */
+#gitlab-mr-integrated-review .thinkreview-open-cursor-btn {
+  background: transparent !important;
+  color: var(--thinkreview-text-secondary) !important;
+  border: none !important;
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer !important;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 2px;
+  opacity: 0.75;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#gitlab-mr-integrated-review .thinkreview-open-cursor-btn:hover {
+  opacity: 1;
+  transform: scale(1.02);
+}
+
+#gitlab-mr-integrated-review .thinkreview-open-cursor-btn:active {
+  transform: scale(0.98);
+}
+
 /* List item styling */
 #gitlab-mr-integrated-review .thinkreview-list-item {
   margin-bottom: 8px;
