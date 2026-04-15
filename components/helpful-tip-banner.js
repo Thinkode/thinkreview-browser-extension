@@ -119,12 +119,15 @@ export function wireSettingsButton(container) {
   if (usageBtn) {
     usageBtn.addEventListener('click', async () => {
       try {
-        const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
-        trackUserAction('helpful_tip_banner_usage_portal_clicked', {
-          context: 'upgrade_prompt',
-          location: 'integrated_panel',
-          url: USAGE_PORTAL_URL
-        }).catch(() => {});
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule
+          .trackUserAction(analyticsModule.KEY_EVENT_LIMIT_BANNER_VIEW_MY_USAGE, {
+            context: 'daily_limit_upgrade_prompt',
+            location: 'integrated_panel_helpful_tip',
+            destination: 'portal_usage',
+            url: USAGE_PORTAL_URL
+          })
+          .catch(() => {});
       } catch (_) { /* silent */ }
 
       window.open(USAGE_PORTAL_URL, '_blank');

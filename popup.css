@@ -161,6 +161,12 @@ header {
   white-space: nowrap;
 }
 
+.portal-button .thinkreview-new-badge {
+  flex-shrink: 0;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .portal-button:hover {
   color: #202124;
   background: #e8eaed;

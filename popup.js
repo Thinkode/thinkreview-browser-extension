@@ -572,6 +572,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/agents' });
     });
   }
+
+  const usageBtn = document.getElementById('usage-btn');
+  if (usageBtn) {
+    usageBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('usage_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
+      chrome.tabs.create({ url: 'https://portal.thinkreview.dev/usage' });
+    });
+  }
   
   const analyticsBtn = document.getElementById('analytics-btn');
   if (analyticsBtn) {
