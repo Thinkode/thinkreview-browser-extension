@@ -387,6 +387,7 @@ async function createIntegratedReviewPanel(patchUrl) {
                 </div>
                 <div class="progress-text">Retrieving patch data...</div>
               </div>
+              <p class="loader-close-hint">Feel free to close this panel and return in a few seconds; your review will keep running in the cloud.</p>
             </div>
           </div>
         </div>

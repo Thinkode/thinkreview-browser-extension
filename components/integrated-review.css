@@ -1344,6 +1344,15 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   font-style: italic;
 }
 
+#gitlab-mr-integrated-review .loader-close-hint {
+  margin: 16px 0 0;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #a8a8a8;
+  text-align: center;
+}
+
 /* Legacy loader styles for backward compatibility */
 #gitlab-mr-integrated-review #review-loading {
   margin: 0;
