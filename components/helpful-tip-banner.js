@@ -91,12 +91,12 @@ export function getHTML() {
 }
 
 /**
- * Wires the settings button click event to open the popup with deep-link.
+ * Wires the helpful tip banner action buttons (settings and usage).
  * @param {HTMLElement} container - The parent container of the banner
  */
 const USAGE_PORTAL_URL = 'https://portal.thinkreview.dev/usage';
 
-export function wireSettingsButton(container) {
+export function wireActionButtons(container) {
   const analyticsPromise = import(chrome.runtime.getURL('utils/analytics-service.js'));
 
   const settingsBtn = container.querySelector(`#${SETTINGS_BUTTON_ID}`);
