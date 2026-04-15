@@ -61,7 +61,7 @@ export async function createClaudeCodeSuggestionIntegration(integrationOpts, opt
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = BUTTON_CLASS;
-      btn.dataset.tooltip = 'Implement in Claude Code';
+      btn.dataset.tooltip = 'Implement via Claude Code';
       const icon = createClaudeCodeIconSvg();
       icon.setAttribute('aria-hidden', 'true');
       btn.appendChild(icon);

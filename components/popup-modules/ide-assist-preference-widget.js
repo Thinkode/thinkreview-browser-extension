@@ -102,7 +102,7 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
 
   const label = document.createElement('div');
   label.className = 'thinkreview-ide-assist-section-label';
-  label.textContent = 'Implement in';
+  label.textContent = 'Implement via';
   dropdown.appendChild(label);
 
   for (const row of ROWS) {

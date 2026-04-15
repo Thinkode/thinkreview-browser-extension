@@ -69,7 +69,7 @@ export async function createCursorSuggestionIntegration(integrationOpts, options
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = BUTTON_CLASS;
-      btn.dataset.tooltip = 'Implement in Cursor';
+      btn.dataset.tooltip = 'Implement via Cursor';
       const icon = createCursorProductIconSvg();
       icon.setAttribute('aria-hidden', 'true');
       btn.appendChild(icon);

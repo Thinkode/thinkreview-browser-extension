@@ -59,7 +59,7 @@ export async function createGitHubCopilotSuggestionIntegration(integrationOpts, 
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = BUTTON_CLASS;
-      btn.dataset.tooltip = 'Implement in GitHub Copilot';
+      btn.dataset.tooltip = 'Implement via GitHub Copilot';
       const icon = createGitHubCopilotIconSvg();
       icon.setAttribute('aria-hidden', 'true');
       btn.appendChild(icon);
