@@ -3,10 +3,11 @@
  * Other IDEs: add sibling modules (e.g. vscode-copilot-suggestion.js) using the same shared helpers.
  */
 
+import { createCursorProductIconSvg } from './ide-action-icons.js';
 import { buildReviewSuggestionPromptBody } from './suggestion-prompt-body.js';
 import { openUrlWithTransientAnchor } from './open-deeplink.js';
 
-const BUTTON_CLASS = 'thinkreview-open-cursor-btn';
+const BUTTON_CLASS = 'thinkreview-open-cursor-btn thinkreview-open-ide-btn';
 const ANALYTICS_ACTION = 'open_in_cursor_clicked';
 
 /**
@@ -61,7 +62,10 @@ export async function createCursorSuggestionIntegration(integrationOpts, options
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = BUTTON_CLASS;
-      btn.textContent = 'Open in Cursor';
+      btn.dataset.tooltip = 'Open in Cursor';
+      const icon = createCursorProductIconSvg();
+      icon.setAttribute('aria-hidden', 'true');
+      btn.appendChild(icon);
       const isPractice = listCategory === 'practice';
       const baseTitle = isPractice
         ? 'Open Cursor with this best practice as the chat prompt. The prompt includes this MR/PR page URL so you can match the correct local repo (confirm in Cursor before running).'

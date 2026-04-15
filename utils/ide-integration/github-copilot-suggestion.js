@@ -1,24 +1,22 @@
 /**
- * Claude Code (VS Code extension): open a new tab with a prefilled prompt.
- * Uses vscode://anthropic.claude-code/open — requires VS Code + Claude Code installed.
+ * GitHub Copilot Chat (VS Code): vscode://github.copilot-chat?prompt=...
  */
 
-import { buildClaudeCodeOpenDeeplink } from './claude-code-deeplink.js';
-import { createClaudeCodeIconSvg } from './ide-action-icons.js';
+import { buildGitHubCopilotPromptDeeplink } from './github-copilot-deeplink.js';
+import { createGitHubCopilotIconSvg } from './ide-action-icons.js';
 import { buildReviewSuggestionPromptBody } from './suggestion-prompt-body.js';
 import { openUrlWithTransientAnchor } from './open-deeplink.js';
 
-const BUTTON_CLASS = 'thinkreview-open-claude-code-btn thinkreview-open-ide-btn';
-const ANALYTICS_ACTION = 'open_in_claude_code_clicked';
+const BUTTON_CLASS = 'thinkreview-open-github-copilot-btn thinkreview-open-ide-btn';
+const ANALYTICS_ACTION = 'open_in_github_copilot_clicked';
 
 /**
  * @param {object|null|undefined} integrationOpts
  * @param {object} [options]
  * @param {function} [options.warn]
  * @param {function} [options.getExtensionUrl]
- * @returns {Promise<{ attachToReviewListRow: (args: { itemWrapper: HTMLElement, itemPlainText: string, listCategory: 'suggestion'|'practice' }) => void } | null>}
  */
-export async function createClaudeCodeSuggestionIntegration(integrationOpts, options = {}) {
+export async function createGitHubCopilotSuggestionIntegration(integrationOpts, options = {}) {
   const warn = typeof options.warn === 'function' ? options.warn : () => {};
   const getExtensionUrl =
     typeof options.getExtensionUrl === 'function'
@@ -33,7 +31,7 @@ export async function createClaudeCodeSuggestionIntegration(integrationOpts, opt
       integrationOpts?.mrId ?? null
     );
   } catch (e) {
-    warn('Failed to format review label for Claude Code context', e);
+    warn('Failed to format review label for GitHub Copilot context', e);
   }
 
   const mrPageUrl =
@@ -49,27 +47,28 @@ export async function createClaudeCodeSuggestionIntegration(integrationOpts, opt
         reviewRequestLabel,
         itemKind
       });
-      const { href, truncated } = buildClaudeCodeOpenDeeplink(promptBody);
+      const { href, truncated } = buildGitHubCopilotPromptDeeplink(promptBody);
 
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = BUTTON_CLASS;
-      btn.dataset.tooltip = 'Open in Claude Code';
-      const icon = createClaudeCodeIconSvg();
+      btn.dataset.tooltip = 'Open in GitHub Copilot';
+      const icon = createGitHubCopilotIconSvg();
       icon.setAttribute('aria-hidden', 'true');
       btn.appendChild(icon);
+
       const isPractice = listCategory === 'practice';
       const baseTitle = isPractice
-        ? 'Open VS Code Claude Code with this best practice as the prompt. Requires VS Code with the Claude Code extension. The prompt includes this MR/PR page URL so you can match the correct local repo.'
-        : 'Open VS Code Claude Code with this suggestion as the prompt. Requires VS Code with the Claude Code extension. The prompt includes this MR/PR page URL so you can match the correct local repo.';
+        ? 'Open GitHub Copilot Chat in VS Code with this best practice as the prompt. Requires VS Code with GitHub Copilot Chat. Prompt may need a recent VS Code build.'
+        : 'Open GitHub Copilot Chat in VS Code with this suggestion as the prompt. Requires VS Code with GitHub Copilot Chat. Prompt may need a recent VS Code build.';
       btn.title = truncated ? `${baseTitle} Prompt was shortened to fit link limits.` : baseTitle;
       btn.setAttribute(
         'aria-label',
         truncated
-          ? 'Open Claude Code in VS Code; prompt was shortened to fit link limits'
+          ? 'Open GitHub Copilot Chat; prompt was shortened to fit link limits'
           : isPractice
-            ? 'Open Claude Code in VS Code with this best practice as the prompt'
-            : 'Open Claude Code in VS Code with this suggestion as the prompt'
+            ? 'Open GitHub Copilot Chat with this best practice as the prompt'
+            : 'Open GitHub Copilot Chat with this suggestion as the prompt'
       );
 
       btn.addEventListener('click', async (e) => {
