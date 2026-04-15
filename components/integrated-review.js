@@ -879,10 +879,14 @@ window.createIntegratedReviewPanel = createIntegratedReviewPanel;
  * @param {HTMLElement} container - The review panel container
  */
 function applyPlatformSpecificStyling(container) {
-  // Detect if we're on Azure DevOps
-  const isAzureDevOps = window.location.hostname.includes('dev.azure.com') || 
-                       window.location.hostname.includes('visualstudio.com');
-  
+  // Azure DevOps Services (cloud) or Azure DevOps Server / TFS on-prem (custom host; path contains /_git/ or /tfs/)
+  const path = window.location.pathname || '';
+  const isAzureDevOps =
+    window.location.hostname.includes('dev.azure.com') ||
+    window.location.hostname.includes('visualstudio.com') ||
+    path.includes('/_git/') ||
+    path.includes('/tfs/');
+
   if (isAzureDevOps) {
     dbgLog('Detected Azure DevOps platform, applying Azure DevOps styling');
     
@@ -1998,7 +2002,10 @@ async function displayIntegratedReview(
       questionsToShow.forEach((question, index) => {
         const questionButton = document.createElement('button');
         questionButton.className = 'thinkreview-suggested-question-btn';
-        questionButton.textContent = question;
+        const label = document.createElement('span');
+        label.className = 'thinkreview-button-content';
+        label.textContent = question;
+        questionButton.appendChild(label);
         questionButton.setAttribute('data-question', question);
         questionButton.setAttribute('title', 'Click to ask this question');
         suggestedQuestionsContainer.appendChild(questionButton);
