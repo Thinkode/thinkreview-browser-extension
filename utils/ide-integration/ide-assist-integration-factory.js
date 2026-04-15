@@ -16,6 +16,8 @@ export async function createIdeAssistIntegrationForTarget(target, integrationOpt
       : (path) => chrome.runtime.getURL(path);
 
   switch (t) {
+    case 'none':
+      return null;
     case 'cursor': {
       const m = await import(getExtensionUrl('utils/ide-integration/cursor-suggestion.js'));
       return m.createCursorSuggestionIntegration(integrationOpts, options);
@@ -32,3 +34,4 @@ export async function createIdeAssistIntegrationForTarget(target, integrationOpt
       return null;
   }
 }
+

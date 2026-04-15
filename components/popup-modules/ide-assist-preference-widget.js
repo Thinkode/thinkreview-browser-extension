@@ -20,11 +20,43 @@ if (!document.querySelector(`link[href="${_cssURL}"]`)) {
   document.head.appendChild(_link);
 }
 
+/** Small “off” glyph for the “no IDE buttons” option (not from brand assets). */
+function createNoneIdeIconSvg() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', '14');
+  svg.setAttribute('height', '14');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  const circle = document.createElementNS(NS, 'circle');
+  circle.setAttribute('cx', '12');
+  circle.setAttribute('cy', '12');
+  circle.setAttribute('r', '9');
+  circle.setAttribute('stroke', 'currentColor');
+  circle.setAttribute('stroke-width', '2');
+  const line = document.createElementNS(NS, 'path');
+  line.setAttribute('d', 'M7 7l10 10M17 7L7 17');
+  line.setAttribute('stroke', 'currentColor');
+  line.setAttribute('stroke-width', '2');
+  line.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(circle);
+  svg.appendChild(line);
+  return svg;
+}
+
 const ROWS = [
   { id: 'cursor', label: 'Cursor', icon: createCursorProductIconSvg },
   { id: 'github_copilot', label: 'GitHub Copilot via VS Code', icon: createGitHubCopilotIconSvg },
-  { id: 'claude_code', label: 'Claude Code via VS Code', icon: createClaudeCodeIconSvg }
+  { id: 'claude_code', label: 'Claude Code via VS Code', icon: createClaudeCodeIconSvg },
+  { id: 'none', label: 'None (hide IDE buttons)', icon: createNoneIdeIconSvg }
 ];
+
+function _setHeaderTooltip(tooltipEl, targetId) {
+  tooltipEl.textContent =
+    targetId === 'none'
+      ? 'No IDE shortcut buttons on list rows'
+      : 'IDE shortcut on suggestion, security, and best-practice rows';
+}
 
 function _positionDropdown(dropdown, btn) {
   const rect = btn.getBoundingClientRect();
@@ -44,6 +76,10 @@ function _setTriggerIcon(btn, targetId) {
   const icon = row.icon();
   icon.setAttribute('aria-hidden', 'true');
   btn.appendChild(icon);
+  btn.setAttribute(
+    'aria-label',
+    targetId === 'none' ? 'IDE shortcuts off — choose an IDE to show row buttons' : 'Choose IDE for row shortcut buttons'
+  );
 }
 
 async function _trackIdeAssistMenu(eventName, params = {}) {
@@ -90,7 +126,6 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
   btn.type = 'button';
   btn.id = 'thinkreview-ide-assist-btn';
   btn.className = 'thinkreview-ide-assist-btn';
-  btn.setAttribute('aria-label', 'Choose IDE for suggestion actions');
   btn.setAttribute('aria-haspopup', 'true');
   btn.setAttribute('aria-expanded', 'false');
   _setTriggerIcon(btn, current);
@@ -99,7 +134,7 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
   wrapper.className = 'thinkreview-ide-assist-btn-wrapper';
   const tooltip = document.createElement('span');
   tooltip.className = 'thinkreview-ide-assist-tooltip';
-  tooltip.textContent = 'IDE for suggestion buttons';
+  _setHeaderTooltip(tooltip, current);
   wrapper.appendChild(btn);
   wrapper.appendChild(tooltip);
 
@@ -121,6 +156,12 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
   dropdown.appendChild(label);
 
   for (const row of ROWS) {
+    if (row.id === 'none') {
+      const divider = document.createElement('div');
+      divider.className = 'thinkreview-ide-assist-divider';
+      divider.setAttribute('role', 'separator');
+      dropdown.appendChild(divider);
+    }
     const item = document.createElement('button');
     item.type = 'button';
     item.className = 'thinkreview-ide-assist-item';
@@ -188,6 +229,7 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
       previous_ide: previousIde
     });
     _setTriggerIcon(btn, id);
+    _setHeaderTooltip(tooltip, id);
     _refreshDropdownActive(dropdown, id);
     dropdown.style.display = 'none';
     btn.setAttribute('aria-expanded', 'false');

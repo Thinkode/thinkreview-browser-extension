@@ -89,6 +89,12 @@
   padding: 6px 14px 3px;
 }
 
+.thinkreview-ide-assist-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 4px 8px;
+}
+
 .thinkreview-ide-assist-item {
   display: flex;
   align-items: center;
