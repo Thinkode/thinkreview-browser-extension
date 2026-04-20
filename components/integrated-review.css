@@ -2281,6 +2281,14 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
 }
 
 /* Azure DevOps: fallback custom bullets to defeat aggressive resets */
+/* Higher-specificity overrides for the three named lists (2-1-0) beat the general disc rules (2-0-0) */
+#gitlab-mr-integrated-review.azure-devops-platform #review-suggestions,
+#gitlab-mr-integrated-review.azure-devops-platform #review-security,
+#gitlab-mr-integrated-review.azure-devops-platform #review-practices {
+  list-style: none !important;
+  padding-left: 0 !important;
+}
+
 #gitlab-mr-integrated-review.azure-devops-platform .thinkreview-section-list {
   list-style: none !important;
   padding-left: 0 !important;
