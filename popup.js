@@ -958,6 +958,8 @@ async function addDomain() {
   }
   
   const domainInput = document.getElementById('domain-input');
+  const addButton = document.getElementById('add-domain-btn');
+  const originalButtonText = addButton?.textContent ?? 'Add';
   const inputValue = domainInput.value.trim().toLowerCase();
   
   if (!validateDomainInput(inputValue)) {
@@ -972,10 +974,10 @@ async function addDomain() {
     // Set flag to prevent duplicate calls
     isAddingDomain = true;
     
-    const addButton = document.getElementById('add-domain-btn');
-    const originalButtonText = addButton.textContent;
-    addButton.textContent = 'Adding...';
-    addButton.disabled = true;
+    if (addButton) {
+      addButton.textContent = 'Adding...';
+      addButton.disabled = true;
+    }
 
     let originPattern;
     if (domain.startsWith('http://') || domain.startsWith('https://')) {
@@ -994,9 +996,6 @@ async function addDomain() {
 
     if (!granted) {
       alert('Permission not granted. The extension needs permission to access this domain.');
-      addButton.textContent = originalButtonText;
-      addButton.disabled = false;
-      isAddingDomain = false;
       return;
     }
 
@@ -1005,9 +1004,6 @@ async function addDomain() {
 
     if (domains.includes(domain)) {
       alert('Domain already exists');
-      addButton.textContent = originalButtonText;
-      addButton.disabled = false;
-      isAddingDomain = false;
       return;
     }
 
@@ -1036,8 +1032,6 @@ async function addDomain() {
     
     dbgLog('Domain added successfully:', domain);
     domainInput.value = '';
-    addButton.textContent = originalButtonText;
-    addButton.disabled = true;
     
     renderDomainList(updatedDomains);
     
@@ -1047,11 +1041,12 @@ async function addDomain() {
   } catch (error) {
     dbgWarn('Error adding domain:', error);
     alert(`Error adding domain: ${error.message}. Please try again.`);
-    document.getElementById('add-domain-btn').textContent = 'Add';
-    document.getElementById('add-domain-btn').disabled = false;
   } finally {
-    // Reset flag to allow future calls
     isAddingDomain = false;
+    if (addButton) {
+      addButton.textContent = originalButtonText;
+      addButton.disabled = !validateDomainInput(domainInput?.value?.trim() ?? '');
+    }
   }
 }
 
@@ -1140,6 +1135,7 @@ async function addGitHubEnterpriseDomain() {
 
   const domainInput = document.getElementById('github-enterprise-domain-input');
   const addButton = document.getElementById('add-github-enterprise-domain-btn');
+  const originalButtonText = addButton?.textContent ?? 'Add';
   const inputValue = domainInput?.value?.trim()?.toLowerCase() ?? '';
 
   if (!validateDomainInput(inputValue)) {
@@ -1151,7 +1147,6 @@ async function addGitHubEnterpriseDomain() {
 
   try {
     isAddingGitHubEnterpriseDomain = true;
-    const originalButtonText = addButton?.textContent ?? 'Add';
     if (addButton) {
       addButton.textContent = 'Adding...';
       addButton.disabled = true;
@@ -1171,11 +1166,6 @@ async function addGitHubEnterpriseDomain() {
     const granted = await chrome.permissions.request({ origins: [originPattern] });
     if (!granted) {
       alert('Permission not granted. The extension needs permission to access this domain.');
-      if (addButton) {
-        addButton.textContent = originalButtonText;
-        addButton.disabled = false;
-      }
-      isAddingGitHubEnterpriseDomain = false;
       return;
     }
 
@@ -1184,11 +1174,6 @@ async function addGitHubEnterpriseDomain() {
 
     if (domains.includes(domain)) {
       alert('Domain already exists');
-      if (addButton) {
-        addButton.textContent = originalButtonText;
-        addButton.disabled = false;
-      }
-      isAddingGitHubEnterpriseDomain = false;
       return;
     }
 
@@ -1210,22 +1195,18 @@ async function addGitHubEnterpriseDomain() {
     chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
 
     if (domainInput) domainInput.value = '';
-    if (addButton) {
-      addButton.textContent = originalButtonText;
-      addButton.disabled = true;
-    }
 
     renderGitHubEnterpriseDomainList(updatedDomains);
     showMessage('Domain added successfully! You may need to reload GitHub Enterprise pages for changes to take effect.', 'success');
   } catch (error) {
     dbgWarn('Error adding GitHub Enterprise domain:', error);
     alert(`Error adding domain: ${error.message}. Please try again.`);
-    if (addButton) {
-      addButton.textContent = 'Add';
-      addButton.disabled = false;
-    }
   } finally {
     isAddingGitHubEnterpriseDomain = false;
+    if (addButton) {
+      addButton.textContent = originalButtonText;
+      addButton.disabled = !validateDomainInput(domainInput?.value?.trim() ?? '');
+    }
   }
 }
 
@@ -1410,6 +1391,7 @@ async function addAzureDevOpsDomain() {
 
   const domainInput = document.getElementById('azure-domain-input');
   const addButton = document.getElementById('add-azure-domain-btn');
+  const originalButtonText = addButton?.textContent ?? 'Add';
   const inputValue = domainInput?.value?.trim()?.toLowerCase() ?? '';
 
   if (!validateDomainInput(inputValue)) {
@@ -1421,7 +1403,6 @@ async function addAzureDevOpsDomain() {
 
   try {
     isAddingAzureDomain = true;
-    const originalButtonText = addButton?.textContent ?? 'Add';
     if (addButton) {
       addButton.textContent = 'Adding...';
       addButton.disabled = true;
@@ -1439,11 +1420,6 @@ async function addAzureDevOpsDomain() {
     const granted = await chrome.permissions.request({ origins: [originPattern] });
     if (!granted) {
       alert('Permission not granted. The extension needs permission to access this domain.');
-      if (addButton) {
-        addButton.textContent = originalButtonText;
-        addButton.disabled = false;
-      }
-      isAddingAzureDomain = false;
       return;
     }
 
@@ -1452,11 +1428,6 @@ async function addAzureDevOpsDomain() {
 
     if (domains.includes(domain)) {
       alert('Domain already exists');
-      if (addButton) {
-        addButton.textContent = originalButtonText;
-        addButton.disabled = false;
-      }
-      isAddingAzureDomain = false;
       return;
     }
 
@@ -1468,21 +1439,17 @@ async function addAzureDevOpsDomain() {
     chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
 
     if (domainInput) domainInput.value = '';
-    if (addButton) {
-      addButton.textContent = originalButtonText;
-      addButton.disabled = true;
-    }
     renderAzureDevOpsDomainList(updatedCustomDomains);
     showMessage('Domain added. You may need to reload Azure DevOps pages for changes to take effect.', 'success');
   } catch (error) {
     dbgWarn('Error adding Azure DevOps domain:', error);
     alert(`Error adding domain: ${error.message}. Please try again.`);
-    if (addButton) {
-      addButton.textContent = 'Add';
-      addButton.disabled = false;
-    }
   } finally {
     isAddingAzureDomain = false;
+    if (addButton) {
+      addButton.textContent = originalButtonText;
+      addButton.disabled = !validateDomainInput(domainInput?.value?.trim() ?? '');
+    }
   }
 }
 
@@ -1565,6 +1532,7 @@ async function allowBitbucket() {
   if (isAllowingBitbucket) return;
   const allowBtn = document.getElementById('allow-bitbucket-btn');
   const statusEl = document.getElementById('bitbucket-status');
+  const originalButtonText = allowBtn?.textContent ?? 'Allow Bitbucket';
 
   try {
     isAllowingBitbucket = true;
@@ -1578,10 +1546,6 @@ async function allowBitbucket() {
 
     if (!granted) {
       if (statusEl) statusEl.textContent = 'Permission not granted.';
-      if (allowBtn) {
-        allowBtn.textContent = 'Allow Bitbucket';
-        allowBtn.disabled = false;
-      }
       return;
     }
 
@@ -1593,12 +1557,12 @@ async function allowBitbucket() {
   } catch (error) {
     dbgWarn('Error allowing Bitbucket:', error);
     if (statusEl) statusEl.textContent = 'Error: ' + (error.message || 'Failed');
-    if (allowBtn) {
-      allowBtn.textContent = 'Allow Bitbucket';
-      allowBtn.disabled = false;
-    }
   } finally {
     isAllowingBitbucket = false;
+    if (allowBtn) {
+      allowBtn.textContent = originalButtonText;
+      allowBtn.disabled = false;
+    }
   }
 }
 
@@ -1763,6 +1727,7 @@ async function addBitbucketDataCenterDomain() {
 
   const domainInput = document.getElementById('bitbucket-dc-domain-input');
   const addButton = document.getElementById('add-bitbucket-dc-domain-btn');
+  const originalButtonText = addButton?.textContent ?? 'Add';
   const inputValue = domainInput?.value?.trim()?.toLowerCase() ?? '';
 
   if (!validateDomainInput(inputValue)) {
@@ -1774,7 +1739,6 @@ async function addBitbucketDataCenterDomain() {
 
   try {
     isAddingBitbucketDCDomain = true;
-    const originalButtonText = addButton?.textContent ?? 'Add';
     if (addButton) {
       addButton.textContent = 'Adding...';
       addButton.disabled = true;
@@ -1794,11 +1758,6 @@ async function addBitbucketDataCenterDomain() {
     const granted = await chrome.permissions.request({ origins: [originPattern] });
     if (!granted) {
       alert('Permission not granted. The extension needs permission to access this domain.');
-      if (addButton) {
-        addButton.textContent = originalButtonText;
-        addButton.disabled = false;
-      }
-      isAddingBitbucketDCDomain = false;
       return;
     }
 
@@ -1807,11 +1766,6 @@ async function addBitbucketDataCenterDomain() {
 
     if (domains.includes(domain)) {
       alert('Domain already exists');
-      if (addButton) {
-        addButton.textContent = originalButtonText;
-        addButton.disabled = false;
-      }
-      isAddingBitbucketDCDomain = false;
       return;
     }
 
@@ -1828,22 +1782,18 @@ async function addBitbucketDataCenterDomain() {
     chrome.runtime.sendMessage({ type: 'UPDATE_CONTENT_SCRIPTS' });
 
     if (domainInput) domainInput.value = '';
-    if (addButton) {
-      addButton.textContent = originalButtonText;
-      addButton.disabled = true;
-    }
 
     renderBitbucketDataCenterDomainList(updatedDomains);
     showMessage('Domain added. Reload your Bitbucket Data Center pages to use AI reviews.', 'success');
   } catch (error) {
     dbgWarn('Error adding Bitbucket Data Center domain:', error);
     alert(`Error adding domain: ${error.message}. Please try again.`);
-    if (addButton) {
-      addButton.textContent = 'Add';
-      addButton.disabled = false;
-    }
   } finally {
     isAddingBitbucketDCDomain = false;
+    if (addButton) {
+      addButton.textContent = originalButtonText;
+      addButton.disabled = !validateDomainInput(domainInput?.value?.trim() ?? '');
+    }
   }
 }
 
