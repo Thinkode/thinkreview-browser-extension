@@ -14,7 +14,6 @@ const GET_USER_SUBSCRIPTION_DATA_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getUserSubsc
 const TRACK_REVIEW_PROMPT_INTERACTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackReviewPromptInteractionHTTP`;
 const GET_REVIEW_PROMPT_MESSAGES_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getReviewPromptMessagesThinkReview`;
 const GET_UPGRADE_PROMPT_CONFIG_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getUpgradePromptConfigThinkReview`;
-const CREATE_CHECKOUT_SESSION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/createCheckoutSessionThinkReview`;
 const CANCEL_SUBSCRIPTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/cancelSubscriptionThinkReview`;
 const CONVERSATIONAL_REVIEW_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview`;
 const CONVERSATIONAL_REVIEW_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview_1_1`;
@@ -1089,83 +1088,6 @@ export class CloudService {
       plans: data.plans,
       promotionalMessage: typeof data.promotionalMessage === 'string' ? data.promotionalMessage : ''
     };
-  }
-
-  /**
-   * Create a checkout session for subscription upgrade
-   * @param {string} plan - The subscription plan ('monthly' or 'annual')
-   * @returns {Promise<Object>} - Response from the backend with session data
-   */
-  static async createCheckoutSession(plan) {
-    dbgLog('Creating checkout session for plan:', plan);
-    
-    try {
-      // Get user data from storage
-      const storageData = await new Promise((resolve) => {
-        chrome.storage.local.get(['userData', 'user'], (result) => {
-          resolve(result);
-        });
-      });
-      
-      let userData = storageData.userData;
-      let email = null;
-  
-      
-      // If userData exists, use it
-      if (userData && userData.email) {
-        email = userData.email;
-        // For Firebase Auth, we need to use the email directly since we don't have Firebase Auth UIDs
-        // The cloud function will look up the user by email
-        dbgLog('Using userData email for auth:', email);
-      }
-      else {      
-       if (storageData.user) {
-        // If userData doesn't exist but user does, try to parse it
-        try {
-          const parsedUser = JSON.parse(storageData.user);
-          if (parsedUser && parsedUser.email) {
-            email = parsedUser.email;
-            // For Firebase Auth, we need to use the email directly
-            userData = parsedUser;
-            dbgLog('Using parsed user email for auth:', email);
-          }
-        } catch (parseError) {
-          dbgWarn('Failed to parse user data:', parseError);
-        }
-      }
-    }
-      
-      if (!email) {
-        dbgWarn('Cannot create checkout session: No user data in storage');
-        throw new Error('User not authenticated');
-      }
-      
-      dbgLog('Creating checkout session for user:', { email, plan });
-      
-      const response = await fetch(CREATE_CHECKOUT_SESSION_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          plan :plan,
-          userId:email
-        })
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error ${response.status}: ${errorText}`);
-      }
-      
-      const data = await response.json();
-      dbgLog('Checkout session created successfully:', data);
-      
-      return data;
-    } catch (error) {
-      dbgWarn('Error creating checkout session:', error);
-      throw error;
-    }
   }
 
   /**

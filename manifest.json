@@ -12,7 +12,6 @@
   "permissions": [
     "storage", 
     "identity",  
-    "webNavigation", 
     "scripting", 
     "activeTab"
   ],

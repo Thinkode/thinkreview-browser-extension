@@ -93,46 +93,6 @@ async function fetchUserInfo(token) {
   }
 }
 
-// Listen for web navigation events to detect Stripe checkout success
-chrome.webNavigation.onCompleted.addListener((details) => {
-  // Check if this is a Stripe checkout success URL
-  const url = new URL(details.url);
-  
-  if (url.hostname === 'checkout.stripe.com' && url.pathname === '/success') {
-    dbgLog('Detected Stripe checkout success navigation:', details.url);
-    
-    // Extract session ID and extension ID from URL parameters
-    const params = new URLSearchParams(url.search);
-    const sessionId = params.get('session_id');
-    const extensionId = params.get('extension_id');
-    
-    if (sessionId && extensionId === chrome.runtime.id) {
-      dbgLog('Valid Stripe success with session ID:', sessionId);
-      
-      // Update subscription status in local storage
-      chrome.storage.local.set({
-        'subscription': {
-          status: 'active',
-          sessionId: sessionId,
-          timestamp: Date.now()
-        }
-      }, () => {
-        dbgLog('Updated subscription status in local storage');
-        
-        // Open the success page in a new tab
-        const successUrl = chrome.runtime.getURL(`success.html?session_id=${sessionId}`);
-        chrome.tabs.create({ url: successUrl });
-        
-        // Close the Stripe checkout tab after a short delay
-        setTimeout(() => {
-          chrome.tabs.remove(details.tabId);
-        }, 1000);
-      });
-    }
-  }
-}, {
-  url: [{ hostEquals: 'checkout.stripe.com', pathEquals: '/success' }]
-});
 /**
  * Handles Google Sign-In flow
  * @returns {Promise<Object>} User data from Google Sign-In
@@ -841,51 +801,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
       } catch (error) {
         dbgWarn('Error refreshing user data:', error);
-        sendResponse({ status: 'error', error: error.message });
-      }
-    });
-    return true; // Keep the message channel open for async response
-  }
-  
-  // Handle subscription upgrade request
-  if (message.type === 'HANDLE_SUBSCRIPTION_UPGRADE') {
-    const plan = message.plan || 'monthly';
-    dbgLog(`Handling subscription upgrade for plan: ${plan}`);
-    
-    // First check if user is logged in
-    chrome.storage.local.get(['userData'], async (result) => {
-      try {
-        if (!result.userData || !result.userData.uid) {
-          // User is not logged in, trigger sign in first
-          dbgLog('User not logged in, triggering sign in');
-          const userData = await handleGoogleSignIn();
-          
-          if (userData) {
-            // Now create checkout session
-            const checkoutData = await CloudService.createCheckoutSession(plan);
-            if (checkoutData && checkoutData.url) {
-              // Open checkout URL in a new tab
-              chrome.tabs.create({ url: checkoutData.url });
-              sendResponse({ status: 'success' });
-            } else {
-              sendResponse({ status: 'error', error: 'Failed to create checkout session' });
-            }
-          } else {
-            sendResponse({ status: 'error', error: 'User authentication failed' });
-          }
-        } else {
-          // User is already logged in, create checkout session directly
-          const checkoutData = await CloudService.createCheckoutSession(plan);
-          if (checkoutData && checkoutData.url) {
-            // Open checkout URL in a new tab
-            chrome.tabs.create({ url: checkoutData.url });
-            sendResponse({ status: 'success' });
-          } else {
-            sendResponse({ status: 'error', error: 'Failed to create checkout session' });
-          }
-        }
-      } catch (error) {
-        dbgWarn('Error handling subscription upgrade:', error);
         sendResponse({ status: 'error', error: error.message });
       }
     });
