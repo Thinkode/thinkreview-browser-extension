@@ -1011,6 +1011,9 @@ function detectAzureDevOpsTheme() {
   return 'light';
 }
 
+const INTEGRATED_REVIEW_PANEL_RESIZE_MIN_WIDTH_PX = 400;
+const INTEGRATED_REVIEW_PANEL_RESIZE_MAX_WIDTH_PX = 800;
+
 /**
  * Initializes the resize handle functionality for the review panel
  * @param {HTMLElement} container - The review panel container
@@ -1038,8 +1041,13 @@ function initializeResizeHandle(container) {
   });
   
   const doResize = (e) => {
-    const deltaX = startX - e.clientX;
-    const newWidth = Math.max(400, Math.min(800, startWidth + deltaX)); // Min 400px, Max 800px
+    const isLeftLayout = container.classList.contains('thinkreview-panel-docked-left') ||
+                         container.classList.contains('thinkreview-panel-overlay-left');
+    const deltaX = isLeftLayout ? e.clientX - startX : startX - e.clientX;
+    const newWidth = Math.max(
+      INTEGRATED_REVIEW_PANEL_RESIZE_MIN_WIDTH_PX,
+      Math.min(INTEGRATED_REVIEW_PANEL_RESIZE_MAX_WIDTH_PX, startWidth + deltaX)
+    );
     container.style.width = newWidth + 'px';
 
     // Sync body margin with panel width so page content isn't obscured or gapped
