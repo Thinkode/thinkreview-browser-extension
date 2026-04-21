@@ -324,8 +324,11 @@ function applyDockedBodyMargin(isExpanded, panelMode, sidebarSide) {
   }
 }
 
+const areButtonsInjected = () =>
+  !!(document.getElementById('code-review-btns') || document.getElementById('thinkreview-sidebar-tab'));
+
 async function injectButtons() {
-  if (document.getElementById('code-review-btns') || document.getElementById('thinkreview-sidebar-tab')) {
+  if (areButtonsInjected()) {
     dbgLog('Buttons already injected');
     return;
   }
@@ -1798,15 +1801,23 @@ async function initializeExtension() {
     
     await injectButtons();
 
-    // If the trigger still didn't land (e.g. extension context still warming up right after
-    // install/update), retry once after a short delay before giving up.
-    if (!document.getElementById('code-review-btns') && !document.getElementById('thinkreview-sidebar-tab')) {
-      dbgWarn('Trigger not found after injectButtons(), retrying in 1.5s');
-      setTimeout(async () => {
-        if (!document.getElementById('code-review-btns') && !document.getElementById('thinkreview-sidebar-tab')) {
-          await injectButtons();
+    // If the trigger still didn't land (e.g. extension context warming up right after install/update),
+    // watch for DOM changes and inject as soon as the body is mutated instead of guessing a delay.
+    if (!areButtonsInjected()) {
+      dbgWarn('Trigger not found after injectButtons(), observing DOM for retry...');
+      const retryObserver = new MutationObserver(async (_, obs) => {
+        if (areButtonsInjected()) {
+          obs.disconnect();
+          return;
         }
-      }, 1500);
+        await injectButtons();
+        if (areButtonsInjected()) {
+          obs.disconnect();
+        }
+      });
+      retryObserver.observe(document.body, { childList: true, subtree: true });
+      // Disconnect after 10 s so we don't keep observing a page that never settles.
+      setTimeout(() => retryObserver.disconnect(), 10_000);
     }
     
     // Start SPA navigation monitoring for GitHub, Azure DevOps, and Bitbucket (SPAs)
