@@ -22,7 +22,22 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Only run for the newest version tag
+        id: tag_gate
+        run: |
+          git fetch --tags --force
+          LATEST="$(git tag -l 'v*' --sort=-v:refname | head -n1)"
+          echo "Newest v* tag: $LATEST"
+          echo "Event tag: ${GITHUB_REF_NAME}"
+          if [[ "$LATEST" != "${GITHUB_REF_NAME}" ]]; then
+            echo "This push is not the latest tag; skipping release."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+
       - name: Verify tag points to main
+        if: steps.tag_gate.outputs.should_release == 'true'
         run: |
           git fetch origin main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
@@ -31,15 +46,18 @@ jobs:
           fi
 
       - name: Set up Node.js
+        if: steps.tag_gate.outputs.should_release == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
+        if: steps.tag_gate.outputs.should_release == 'true'
         run: npm ci
 
       - name: Update manifest version
+        if: steps.tag_gate.outputs.should_release == 'true'
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           node -e "
@@ -51,6 +69,7 @@ jobs:
           "
 
       - name: Build extension
+        if: steps.tag_gate.outputs.should_release == 'true'
         run: npm run build
         env:
           GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
@@ -59,6 +78,7 @@ jobs:
 
       - name: Build Firefox extension zip
         id: firefox_zip
+        if: steps.tag_gate.outputs.should_release == 'true'
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           npm run build:firefox:zip
@@ -70,6 +90,7 @@ jobs:
 
       - name: Archive extension
         id: archive
+        if: steps.tag_gate.outputs.should_release == 'true'
         run: |
           ZIP_NAME="thinkreview-extension-${GITHUB_REF_NAME}.zip"
           cd build
@@ -78,6 +99,7 @@ jobs:
           echo "zip_path=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub Release
+        if: steps.tag_gate.outputs.should_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
