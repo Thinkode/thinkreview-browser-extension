@@ -16,9 +16,7 @@ const _extensionVersion = (() => {
   return undefined;
 })();
 
-function extensionVersionPayload() {
-  return _extensionVersion ? { extensionVersion: _extensionVersion } : {};
-}
+const EXTENSION_VERSION_PAYLOAD = _extensionVersion ? { extensionVersion: _extensionVersion } : {};
 
 // Cloud function URLs
 const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net';
@@ -73,7 +71,7 @@ export class CloudService {
           locale: userData.locale
         },
         source: 'extension',
-        ...extensionVersionPayload()
+        ...EXTENSION_VERSION_PAYLOAD
       };
       
       // Ensure uid is not undefined or null
@@ -167,7 +165,7 @@ export class CloudService {
         email: email,
         uid: 'query', // Just a placeholder for query operations
         source: 'extension',
-        ...extensionVersionPayload()
+        ...EXTENSION_VERSION_PAYLOAD
       };
       
       // Make the API call to the cloud function
@@ -732,7 +730,7 @@ export class CloudService {
         },
         body: JSON.stringify({
           email,
-          ...extensionVersionPayload()
+          ...EXTENSION_VERSION_PAYLOAD
         })
       });
       
@@ -925,7 +923,7 @@ export class CloudService {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email, ...extensionVersionPayload() })
+        body: JSON.stringify({ email, ...EXTENSION_VERSION_PAYLOAD })
       });
       
       if (!response.ok) {
