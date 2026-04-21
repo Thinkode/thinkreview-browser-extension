@@ -1796,7 +1796,18 @@ async function initializeExtension() {
     const platform = getCurrentPlatform();
     dbgLog('Initializing for platform:', platform);
     
-    injectButtons();
+    await injectButtons();
+
+    // If the trigger still didn't land (e.g. extension context still warming up right after
+    // install/update), retry once after a short delay before giving up.
+    if (!document.getElementById('code-review-btns') && !document.getElementById('thinkreview-sidebar-tab')) {
+      dbgWarn('Trigger not found after injectButtons(), retrying in 1.5s');
+      setTimeout(async () => {
+        if (!document.getElementById('code-review-btns') && !document.getElementById('thinkreview-sidebar-tab')) {
+          await injectButtons();
+        }
+      }, 1500);
+    }
     
     // Start SPA navigation monitoring for GitHub, Azure DevOps, and Bitbucket (SPAs)
     // Check by site (domain) rather than platform, because platform is null on non-PR pages
