@@ -52,8 +52,24 @@ let isReviewInProgress = false;
 // Track current PR ID for detecting navigation to new PRs
 let currentPRId = null;
 
-// Holds the active button-injection retry observer so it can be torn down on SPA navigation.
+// State for the button-injection retry observer.
+// Grouped here so _teardownRetryObserver() has a single place to clean up.
 let activeRetryObserver = null;
+let retryObserverTimeoutId = null;  // 10 s hard-stop timer
+let retryDebounceTimerId = null;    // debounce timer inside the observer callback
+let isInjecting = false;            // prevents concurrent injectButtons() calls in the observer
+
+/** Disconnect the retry observer and clear all associated timers in one call. */
+function _teardownRetryObserver() {
+  clearTimeout(retryObserverTimeoutId);
+  retryObserverTimeoutId = null;
+  clearTimeout(retryDebounceTimerId);
+  retryDebounceTimerId = null;
+  if (activeRetryObserver) {
+    activeRetryObserver.disconnect();
+    activeRetryObserver = null;
+  }
+}
 
 // Listen for Ollama metadata bar actions (switch to cloud, change model)
 document.addEventListener('thinkreview-switch-to-cloud', async () => {
@@ -1786,11 +1802,10 @@ function startSPANavigationMonitoring() {
     if (currentUrl !== lastUrl) {
       lastUrl = currentUrl;
 
-      // Tear down any pending button-injection retry observer immediately so it
+      // Tear down any pending retry observer (and its timers) immediately so it
       // doesn't fire on the new page's DOM mutations.
       if (activeRetryObserver) {
-        activeRetryObserver.disconnect();
-        activeRetryObserver = null;
+        _teardownRetryObserver();
         dbgLog('Disconnected stale retryObserver on SPA navigation');
       }
 
@@ -1817,26 +1832,37 @@ async function initializeExtension() {
     // watch for DOM changes and inject as soon as the body is mutated instead of guessing a delay.
     if (!areButtonsInjected()) {
       dbgWarn('Trigger not found after injectButtons(), observing DOM for retry...');
-      activeRetryObserver = new MutationObserver(async (_, obs) => {
-        if (areButtonsInjected()) {
-          obs.disconnect();
-          activeRetryObserver = null;
-          return;
-        }
-        await injectButtons();
-        if (areButtonsInjected()) {
-          obs.disconnect();
-          activeRetryObserver = null;
-        }
+
+      activeRetryObserver = new MutationObserver(() => {
+        // Debounce: coalesce rapid bursts of mutations into a single attempt.
+        clearTimeout(retryDebounceTimerId);
+        retryDebounceTimerId = setTimeout(async () => {
+          retryDebounceTimerId = null;
+
+          if (areButtonsInjected()) {
+            _teardownRetryObserver();
+            return;
+          }
+
+          // Concurrency guard: skip if a previous async attempt is still in flight.
+          if (isInjecting) return;
+          isInjecting = true;
+          try {
+            await injectButtons();
+            if (areButtonsInjected()) {
+              _teardownRetryObserver();
+            }
+          } finally {
+            // Always reset the flag, even if injectButtons() throws.
+            isInjecting = false;
+          }
+        }, 150);
       });
+
       activeRetryObserver.observe(document.body, { childList: true, subtree: true });
-      // Hard-stop: disconnect after 10 s if the page never settles.
-      setTimeout(() => {
-        if (activeRetryObserver) {
-          activeRetryObserver.disconnect();
-          activeRetryObserver = null;
-        }
-      }, 10_000);
+
+      // Hard-stop: clear everything after 10 s if the page never settles.
+      retryObserverTimeoutId = setTimeout(_teardownRetryObserver, 10_000);
     }
     
     // Start SPA navigation monitoring for GitHub, Azure DevOps, and Bitbucket (SPAs)
