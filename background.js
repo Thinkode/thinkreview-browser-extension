@@ -1096,8 +1096,9 @@ const DEFAULT_DOMAINS = ['https://gitlab.com'];
 // Register content scripts for stored domains on startup
 chrome.runtime.onStartup.addListener(updateContentScripts);
 chrome.runtime.onInstalled.addListener(async (details) => {
-  // Update content scripts
-  updateContentScripts();
+  // Await so the service worker stays alive until all scripts are registered/updated.
+  // Without await, the SW can be terminated mid-registration (sporadic missing button on install/update).
+  await updateContentScripts();
   
   // Open onboarding page on first install
   if (details.reason === 'install') {

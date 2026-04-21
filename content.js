@@ -52,6 +52,26 @@ let isReviewInProgress = false;
 // Track current PR ID for detecting navigation to new PRs
 let currentPRId = null;
 
+// State for the button-injection retry observer — grouped to reduce namespace pollution.
+const retryState = {
+  observer: null,        // MutationObserver instance
+  timeoutId: null,       // 10 s hard-stop timer
+  debounceTimerId: null, // debounce timer inside the observer callback
+  isInjecting: false,    // prevents concurrent injectButtons() calls in the observer
+};
+
+/** Disconnect the retry observer and clear all associated timers in one call. */
+function _teardownRetryObserver() {
+  clearTimeout(retryState.timeoutId);
+  retryState.timeoutId = null;
+  clearTimeout(retryState.debounceTimerId);
+  retryState.debounceTimerId = null;
+  if (retryState.observer) {
+    retryState.observer.disconnect();
+    retryState.observer = null;
+  }
+}
+
 // Listen for Ollama metadata bar actions (switch to cloud, change model)
 document.addEventListener('thinkreview-switch-to-cloud', async () => {
   await chrome.storage.local.set({ aiProvider: 'cloud' });
@@ -324,8 +344,11 @@ function applyDockedBodyMargin(isExpanded, panelMode, sidebarSide) {
   }
 }
 
+const areButtonsInjected = () =>
+  !!(document.getElementById('code-review-btns') || document.getElementById('thinkreview-sidebar-tab'));
+
 async function injectButtons() {
-  if (document.getElementById('code-review-btns') || document.getElementById('thinkreview-sidebar-tab')) {
+  if (areButtonsInjected()) {
     dbgLog('Buttons already injected');
     return;
   }
@@ -1779,6 +1802,14 @@ function startSPANavigationMonitoring() {
     const currentUrl = window.location.href;
     if (currentUrl !== lastUrl) {
       lastUrl = currentUrl;
+
+      // Tear down any pending retry observer (and its timers) immediately so it
+      // doesn't fire on the new page's DOM mutations.
+      if (retryState.observer) {
+        _teardownRetryObserver();
+        dbgLog('Disconnected stale retryObserver on SPA navigation');
+      }
+
       checkAndTriggerReviewForNewPR();
     }
   }, 1000);
@@ -1796,7 +1827,44 @@ async function initializeExtension() {
     const platform = getCurrentPlatform();
     dbgLog('Initializing for platform:', platform);
     
-    injectButtons();
+    await injectButtons();
+
+    // If the trigger still didn't land (e.g. extension context warming up right after install/update),
+    // watch for DOM changes and inject as soon as the body is mutated instead of guessing a delay.
+      if (!areButtonsInjected()) {
+      dbgWarn('Trigger not found after injectButtons(), observing DOM for retry...');
+
+      retryState.observer = new MutationObserver(() => {
+        // Debounce: coalesce rapid bursts of mutations into a single attempt.
+        clearTimeout(retryState.debounceTimerId);
+        retryState.debounceTimerId = setTimeout(async () => {
+          retryState.debounceTimerId = null;
+
+          if (areButtonsInjected()) {
+            _teardownRetryObserver();
+            return;
+          }
+
+          // Concurrency guard: skip if a previous async attempt is still in flight.
+          if (retryState.isInjecting) return;
+          retryState.isInjecting = true;
+          try {
+            await injectButtons();
+            if (areButtonsInjected()) {
+              _teardownRetryObserver();
+            }
+          } finally {
+            // Always reset the flag, even if injectButtons() throws.
+            retryState.isInjecting = false;
+          }
+        }, 150);
+      });
+
+      retryState.observer.observe(document.body, { childList: true, subtree: true });
+
+      // Hard-stop: clear everything after 10 s if the page never settles.
+      retryState.timeoutId = setTimeout(_teardownRetryObserver, 10_000);
+    }
     
     // Start SPA navigation monitoring for GitHub, Azure DevOps, and Bitbucket (SPAs)
     // Check by site (domain) rather than platform, because platform is null on non-PR pages
