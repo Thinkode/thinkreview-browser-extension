@@ -1,10 +1,8 @@
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 
-/**
- * Manifest version for optional sync with cloud functions (omitted if unavailable).
- * @returns {string|undefined}
- */
-function getExtensionVersionForApi() {
+// Cached once at module load; chrome.runtime.getManifest() is synchronous and
+// returns the same static value for the lifetime of the extension page.
+const _extensionVersion = (() => {
   try {
     if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.getManifest === 'function') {
       const v = chrome.runtime.getManifest()?.version;
@@ -16,11 +14,10 @@ function getExtensionVersionForApi() {
     // Non-extension context or getManifest unavailable
   }
   return undefined;
-}
+})();
 
 function extensionVersionPayload() {
-  const v = getExtensionVersionForApi();
-  return v ? { extensionVersion: v } : {};
+  return _extensionVersion ? { extensionVersion: _extensionVersion } : {};
 }
 
 // Cloud function URLs
