@@ -7,6 +7,7 @@ import { buildClaudeCodeOpenDeeplink } from './claude-code-deeplink.js';
 import { createClaudeCodeIconSvg, ensureIdeActionIconsLoaded } from './ide-action-icons.js';
 import { buildReviewSuggestionPromptBody } from './suggestion-prompt-body.js';
 import { openUrlWithTransientAnchor } from './open-deeplink.js';
+import { trackUserAction } from '../analytics-service.js';
 
 const BUTTON_CLASS = 'thinkreview-open-claude-code-btn thinkreview-open-ide-btn';
 const IDE_ANALYTICS_ID = 'claude_code';
@@ -85,26 +86,16 @@ export async function createClaudeCodeSuggestionIntegration(integrationOpts, opt
               : 'Open Claude Code in VS Code with this suggestion as the prompt'
       );
 
-      btn.addEventListener('click', async (e) => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        try {
-          const analyticsModule = await import(getExtensionUrl('utils/analytics-service.js'));
-          const listSection =
-            listCategory === 'practice'
-              ? 'practice'
-              : listCategory === 'security'
-                ? 'security'
-                : 'suggestion';
-          const analyticsEventName = `open_in_${IDE_ANALYTICS_ID}_${listSection}_clicked`;
-          analyticsModule.trackUserAction(analyticsEventName, {
-            context: 'integrated_review_panel',
-            ide: IDE_ANALYTICS_ID,
-            list_section: listSection
-          }).catch(() => {});
-        } catch (err) {
-          /* silent */
-        }
+        const analyticsEventName = `open_in_${IDE_ANALYTICS_ID}_${itemKind}_clicked`;
+        trackUserAction(analyticsEventName, {
+          context: 'integrated_review_panel',
+          ide: IDE_ANALYTICS_ID,
+          list_section: itemKind,
+          prompt_truncated: truncated
+        }).catch(() => {});
         openUrlWithTransientAnchor(href);
       });
 
