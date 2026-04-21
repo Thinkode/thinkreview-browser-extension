@@ -1,5 +1,22 @@
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 
+// Cached once at module load; chrome.runtime.getManifest() is synchronous and
+// returns the same static value for the lifetime of the extension page.
+const _extensionVersion = (() => {
+  try {
+    if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.getManifest === 'function') {
+      const v = chrome.runtime.getManifest()?.version;
+      if (typeof v === 'string' && v.trim()) {
+        return v.trim().slice(0, 64);
+      }
+    }
+  } catch (_) {
+    // Non-extension context or getManifest unavailable
+  }
+  return undefined;
+})();
+
+const EXTENSION_VERSION_PAYLOAD = _extensionVersion ? { extensionVersion: _extensionVersion } : {};
 
 // Cloud function URLs
 const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net';
@@ -53,7 +70,8 @@ export class CloudService {
           email: userData.email,
           locale: userData.locale
         },
-        source: 'extension'
+        source: 'extension',
+        ...EXTENSION_VERSION_PAYLOAD
       };
       
       // Ensure uid is not undefined or null
@@ -146,7 +164,8 @@ export class CloudService {
       const payload = {
         email: email,
         uid: 'query', // Just a placeholder for query operations
-        source: 'extension'
+        source: 'extension',
+        ...EXTENSION_VERSION_PAYLOAD
       };
       
       // Make the API call to the cloud function
@@ -710,7 +729,8 @@ export class CloudService {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          email
+          email,
+          ...EXTENSION_VERSION_PAYLOAD
         })
       });
       
@@ -903,7 +923,7 @@ export class CloudService {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, ...EXTENSION_VERSION_PAYLOAD })
       });
       
       if (!response.ok) {
