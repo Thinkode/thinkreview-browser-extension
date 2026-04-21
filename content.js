@@ -52,22 +52,23 @@ let isReviewInProgress = false;
 // Track current PR ID for detecting navigation to new PRs
 let currentPRId = null;
 
-// State for the button-injection retry observer.
-// Grouped here so _teardownRetryObserver() has a single place to clean up.
-let activeRetryObserver = null;
-let retryObserverTimeoutId = null;  // 10 s hard-stop timer
-let retryDebounceTimerId = null;    // debounce timer inside the observer callback
-let isInjecting = false;            // prevents concurrent injectButtons() calls in the observer
+// State for the button-injection retry observer — grouped to reduce namespace pollution.
+const retryState = {
+  observer: null,        // MutationObserver instance
+  timeoutId: null,       // 10 s hard-stop timer
+  debounceTimerId: null, // debounce timer inside the observer callback
+  isInjecting: false,    // prevents concurrent injectButtons() calls in the observer
+};
 
 /** Disconnect the retry observer and clear all associated timers in one call. */
 function _teardownRetryObserver() {
-  clearTimeout(retryObserverTimeoutId);
-  retryObserverTimeoutId = null;
-  clearTimeout(retryDebounceTimerId);
-  retryDebounceTimerId = null;
-  if (activeRetryObserver) {
-    activeRetryObserver.disconnect();
-    activeRetryObserver = null;
+  clearTimeout(retryState.timeoutId);
+  retryState.timeoutId = null;
+  clearTimeout(retryState.debounceTimerId);
+  retryState.debounceTimerId = null;
+  if (retryState.observer) {
+    retryState.observer.disconnect();
+    retryState.observer = null;
   }
 }
 
@@ -1804,7 +1805,7 @@ function startSPANavigationMonitoring() {
 
       // Tear down any pending retry observer (and its timers) immediately so it
       // doesn't fire on the new page's DOM mutations.
-      if (activeRetryObserver) {
+      if (retryState.observer) {
         _teardownRetryObserver();
         dbgLog('Disconnected stale retryObserver on SPA navigation');
       }
@@ -1830,14 +1831,14 @@ async function initializeExtension() {
 
     // If the trigger still didn't land (e.g. extension context warming up right after install/update),
     // watch for DOM changes and inject as soon as the body is mutated instead of guessing a delay.
-    if (!areButtonsInjected()) {
+      if (!areButtonsInjected()) {
       dbgWarn('Trigger not found after injectButtons(), observing DOM for retry...');
 
-      activeRetryObserver = new MutationObserver(() => {
+      retryState.observer = new MutationObserver(() => {
         // Debounce: coalesce rapid bursts of mutations into a single attempt.
-        clearTimeout(retryDebounceTimerId);
-        retryDebounceTimerId = setTimeout(async () => {
-          retryDebounceTimerId = null;
+        clearTimeout(retryState.debounceTimerId);
+        retryState.debounceTimerId = setTimeout(async () => {
+          retryState.debounceTimerId = null;
 
           if (areButtonsInjected()) {
             _teardownRetryObserver();
@@ -1845,8 +1846,8 @@ async function initializeExtension() {
           }
 
           // Concurrency guard: skip if a previous async attempt is still in flight.
-          if (isInjecting) return;
-          isInjecting = true;
+          if (retryState.isInjecting) return;
+          retryState.isInjecting = true;
           try {
             await injectButtons();
             if (areButtonsInjected()) {
@@ -1854,15 +1855,15 @@ async function initializeExtension() {
             }
           } finally {
             // Always reset the flag, even if injectButtons() throws.
-            isInjecting = false;
+            retryState.isInjecting = false;
           }
         }, 150);
       });
 
-      activeRetryObserver.observe(document.body, { childList: true, subtree: true });
+      retryState.observer.observe(document.body, { childList: true, subtree: true });
 
       // Hard-stop: clear everything after 10 s if the page never settles.
-      retryObserverTimeoutId = setTimeout(_teardownRetryObserver, 10_000);
+      retryState.timeoutId = setTimeout(_teardownRetryObserver, 10_000);
     }
     
     // Start SPA navigation monitoring for GitHub, Azure DevOps, and Bitbucket (SPAs)
