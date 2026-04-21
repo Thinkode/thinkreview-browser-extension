@@ -52,6 +52,9 @@ let isReviewInProgress = false;
 // Track current PR ID for detecting navigation to new PRs
 let currentPRId = null;
 
+// Holds the active button-injection retry observer so it can be torn down on SPA navigation.
+let activeRetryObserver = null;
+
 // Listen for Ollama metadata bar actions (switch to cloud, change model)
 document.addEventListener('thinkreview-switch-to-cloud', async () => {
   await chrome.storage.local.set({ aiProvider: 'cloud' });
@@ -1782,6 +1785,15 @@ function startSPANavigationMonitoring() {
     const currentUrl = window.location.href;
     if (currentUrl !== lastUrl) {
       lastUrl = currentUrl;
+
+      // Tear down any pending button-injection retry observer immediately so it
+      // doesn't fire on the new page's DOM mutations.
+      if (activeRetryObserver) {
+        activeRetryObserver.disconnect();
+        activeRetryObserver = null;
+        dbgLog('Disconnected stale retryObserver on SPA navigation');
+      }
+
       checkAndTriggerReviewForNewPR();
     }
   }, 1000);
@@ -1805,19 +1817,26 @@ async function initializeExtension() {
     // watch for DOM changes and inject as soon as the body is mutated instead of guessing a delay.
     if (!areButtonsInjected()) {
       dbgWarn('Trigger not found after injectButtons(), observing DOM for retry...');
-      const retryObserver = new MutationObserver(async (_, obs) => {
+      activeRetryObserver = new MutationObserver(async (_, obs) => {
         if (areButtonsInjected()) {
           obs.disconnect();
+          activeRetryObserver = null;
           return;
         }
         await injectButtons();
         if (areButtonsInjected()) {
           obs.disconnect();
+          activeRetryObserver = null;
         }
       });
-      retryObserver.observe(document.body, { childList: true, subtree: true });
-      // Disconnect after 10 s so we don't keep observing a page that never settles.
-      setTimeout(() => retryObserver.disconnect(), 10_000);
+      activeRetryObserver.observe(document.body, { childList: true, subtree: true });
+      // Hard-stop: disconnect after 10 s if the page never settles.
+      setTimeout(() => {
+        if (activeRetryObserver) {
+          activeRetryObserver.disconnect();
+          activeRetryObserver = null;
+        }
+      }, 10_000);
     }
     
     // Start SPA navigation monitoring for GitHub, Azure DevOps, and Bitbucket (SPAs)
