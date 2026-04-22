@@ -68,10 +68,22 @@ itemCopyButtonLinkElement.rel = 'stylesheet';
 itemCopyButtonLinkElement.href = itemCopyButtonCssURL;
 document.head.appendChild(itemCopyButtonLinkElement);
 
-// Import shadow DOM state management
-import { getShadowRoot, setShadowRoot } from '../utils/shadow-dom-state.js';
-// Import CSS transformation utility
-import { transformCssForShadow } from '../utils/shadow-dom-css-transformer.js';
+// Shadow DOM helpers must load via dynamic import — this file runs as a classic content script
+// (registerContentScripts), so top-level `import` would prevent the script from parsing and
+// `window.createIntegratedReviewPanel` would never be assigned.
+let setShadowRoot;
+let transformCssForShadow;
+let getShadowRootImpl = () => document;
+
+const shadowDomStateAndCssPromise = (async () => {
+  const [stateMod, cssMod] = await Promise.all([
+    import(chrome.runtime.getURL('utils/shadow-dom-state.js')),
+    import(chrome.runtime.getURL('utils/shadow-dom-css-transformer.js'))
+  ]);
+  getShadowRootImpl = stateMod.getShadowRoot;
+  setShadowRoot = stateMod.setShadowRoot;
+  transformCssForShadow = cssMod.transformCssForShadow;
+})();
 
 /**
  * Returns the panel's shadow root when available, otherwise falls back to the document.
@@ -79,7 +91,7 @@ import { transformCssForShadow } from '../utils/shadow-dom-css-transformer.js';
  * @returns {ShadowRoot|Document}
  */
 function getPanelRoot() {
-  return getShadowRoot();
+  return getShadowRootImpl();
 }
 
 // Formatting utils
@@ -297,6 +309,7 @@ function stopEnhancedLoader() {
  * @returns {Promise<HTMLElement>} - The injected review panel element
  */
 async function createIntegratedReviewPanel(patchUrl) {
+  await shadowDomStateAndCssPromise;
   // Load refresh icon from centralized icons.js (use extension URL for content script context)
   const iconsModule = await import(chrome.runtime.getURL('assets/icons.js'));
   const refreshIconSvg = iconsModule.REFRESH_ICON_SVG;

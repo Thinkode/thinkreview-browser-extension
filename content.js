@@ -6,9 +6,6 @@ if (typeof DEBUG === 'undefined') {
   var DEBUG = false;
 }
 
-// Import state management modules
-import { getCodeSuggestions, clearCodeSuggestions } from './utils/code-suggestions-state.js';
-
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_REVIEW_DELAY = 500;
 const MAX_PATCH_SIZE_FALLBACK = 50_000;
@@ -1513,6 +1510,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         // The injection module has its own waiting logic for GitLab's diff view
         setTimeout(async () => {
           try {
+            const { getCodeSuggestions, clearCodeSuggestions } = await import(
+              chrome.runtime.getURL('utils/code-suggestions-state.js')
+            );
             // Check if suggestions were stored by displayIntegratedReview
             const codeSuggestionsData = getCodeSuggestions();
             if (codeSuggestionsData) {
