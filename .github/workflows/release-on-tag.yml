@@ -13,8 +13,36 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  check-is-latest-v-tag:
     if: ${{ github.ref_type == 'tag' }}
+    runs-on: ubuntu-latest
+    outputs:
+      is_latest: ${{ steps.check.outputs.is_latest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Check whether this is the latest v* tag (by version sort)
+        id: check
+        run: |
+          git fetch --tags origin
+          LATEST="$(git -c 'versionsort.suffix=' tag -l 'v*' --sort=-v:refname | head -1)"
+          echo "latest_remote_tag=$LATEST"
+          echo "pushed_tag=${GITHUB_REF_NAME}"
+          if [ "$LATEST" = "$GITHUB_REF_NAME" ]; then
+            echo "is_latest=true" >> "$GITHUB_OUTPUT"
+            echo "This push is the latest v* tag; release job will run."
+          else
+            echo "is_latest=false" >> "$GITHUB_OUTPUT"
+            echo "This tag is not the latest v* tag; skipping build and release."
+          fi
+
+  build-and-release:
+    if: ${{ github.ref_type == 'tag' && needs.check-is-latest-v-tag.outputs.is_latest == 'true' }}
+    needs: check-is-latest-v-tag
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
