@@ -6,6 +6,7 @@
 
 import { dbgWarn } from '../../utils/logger.js';
 import { CloudService } from '../../services/cloud-service.js';
+import { getShadowRoot } from '../../utils/shadow-dom-state.js';
 
 // Load this module's CSS
 const _cssURL = chrome.runtime.getURL('components/popup-modules/layout-settings-widget.css');
@@ -89,7 +90,7 @@ function _getActiveComboId(settings) {
  * @param {HTMLElement} headerActionsEl
  */
 export async function mountLayoutSettingsWidget(headerActionsEl) {
-  const _panelRoot = window.__thinkreviewShadowRoot || document;
+  const _panelRoot = getShadowRoot();
   if (!headerActionsEl || _panelRoot.getElementById('thinkreview-layout-btn')) return;
 
   // Also inject the widget's own CSS into the shadow root so the button (inside shadow) is styled.

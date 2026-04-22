@@ -6,6 +6,9 @@ if (typeof DEBUG === 'undefined') {
   var DEBUG = false;
 }
 
+// Import state management modules
+import { getCodeSuggestions, clearCodeSuggestions } from './utils/code-suggestions-state.js';
+
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_REVIEW_DELAY = 500;
 const MAX_PATCH_SIZE_FALLBACK = 50_000;
@@ -1511,13 +1514,14 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         setTimeout(async () => {
           try {
             // Check if suggestions were stored by displayIntegratedReview
-            if (window.__thinkreview_codeSuggestions) {
-              const { suggestions, patchContent: storedPatchContent, injectionEnabled } = window.__thinkreview_codeSuggestions;
+            const codeSuggestionsData = getCodeSuggestions();
+            if (codeSuggestionsData) {
+              const { suggestions, patchContent: storedPatchContent, injectionEnabled } = codeSuggestionsData;
               
               // Check if injection is enabled (default to true if not set)
               if (injectionEnabled === false) {
                 dbgLog(`[Code Review Extension] GitLab injection is disabled, skipping ${suggestions.length} code suggestions`);
-                delete window.__thinkreview_codeSuggestions;
+                clearCodeSuggestions();
                 return;
               }
               
@@ -1530,7 +1534,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
               dbgLog(`[Code Review Extension] Code suggestions injection result:`, result);
               
               // Clear the stored suggestions after injection
-              delete window.__thinkreview_codeSuggestions;
+              clearCodeSuggestions();
             }
           } catch (injectionError) {
             dbgWarn('[Code Review Extension] Error injecting code suggestions:', injectionError);

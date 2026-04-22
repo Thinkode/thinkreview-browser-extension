@@ -49,7 +49,7 @@ function getOllamaBrowserExtensionCorsMessageModule() {
 
 // Keep the main CSS in document.head for host-element positioning rules and :root variables.
 // Shadow content is styled by a transformed copy injected inside the shadow root
-// (see createIntegratedReviewPanel → _transformCssForShadow).
+// (see createIntegratedReviewPanel → transformCssForShadow from utils/shadow-dom-css-transformer.js).
 const cssURL = chrome.runtime.getURL('components/integrated-review.css');
 const linkElement = document.createElement('link');
 linkElement.rel = 'stylesheet';
@@ -68,33 +68,18 @@ itemCopyButtonLinkElement.rel = 'stylesheet';
 itemCopyButtonLinkElement.href = itemCopyButtonCssURL;
 document.head.appendChild(itemCopyButtonLinkElement);
 
+// Import shadow DOM state management
+import { getShadowRoot, setShadowRoot } from '../utils/shadow-dom-state.js';
+// Import CSS transformation utility
+import { transformCssForShadow } from '../utils/shadow-dom-css-transformer.js';
+
 /**
  * Returns the panel's shadow root when available, otherwise falls back to the document.
  * Use this for all panel-internal DOM queries so they work across the shadow boundary.
  * @returns {ShadowRoot|Document}
  */
 function getPanelRoot() {
-  return window.__thinkreviewShadowRoot || document;
-}
-
-/**
- * Transforms integrated-review.css (and similar files) so their selectors work inside
- * a Shadow DOM context where #gitlab-mr-integrated-review does not exist as an element.
- *
- * "#gitlab-mr-integrated-review .foo"  → ".foo"   (shadow provides scoping)
- * "#gitlab-mr-integrated-review.bar"   → ":host(.bar)"  (host-element class)
- * "body[data-theme="X"] #gitlab-mr-integrated-review" → ":host-context([data-theme="X"])"
- * bare "#gitlab-mr-integrated-review"  → ":host"
- *
- * @param {string} css
- * @returns {string}
- */
-function _transformCssForShadow(css) {
-  return css
-    .replace(/body\[data-theme="([^"]*)"\]\s*#gitlab-mr-integrated-review\b/g, ':host-context([data-theme="$1"])')
-    .replace(/#gitlab-mr-integrated-review(\.[^\s,{>+~]+)/g, ':host($1)')
-    .replace(/#gitlab-mr-integrated-review\s+/g, '')
-    .replace(/#gitlab-mr-integrated-review\b/g, ':host');
+  return getShadowRoot();
 }
 
 // Formatting utils
@@ -327,7 +312,7 @@ async function createIntegratedReviewPanel(patchUrl) {
 
   // Attach shadow root — all panel content lives here, isolated from host-platform CSS.
   const shadowRoot = container.attachShadow({ mode: 'open' });
-  window.__thinkreviewShadowRoot = shadowRoot;
+  setShadowRoot(shadowRoot);
 
   // review-prompt.css has no scoping prefix so a plain <link> suffices.
   const _rpLink = document.createElement('link');
@@ -345,7 +330,7 @@ async function createIntegratedReviewPanel(patchUrl) {
       fetch(chrome.runtime.getURL('components/utils/item-copy-button.css')).then(r => r.text()),
     ]);
     const _shadowStyle = document.createElement('style');
-    _shadowStyle.textContent = _shadowCssTexts.map(_transformCssForShadow).join('\n');
+    _shadowStyle.textContent = _shadowCssTexts.map(transformCssForShadow).join('\n');
     shadowRoot.appendChild(_shadowStyle);
   } catch (_cssErr) {
     dbgWarn('Failed to inject shadow stylesheets, panel may be unstyled:', _cssErr);

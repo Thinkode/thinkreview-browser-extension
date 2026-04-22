@@ -11,6 +11,7 @@ import {
   ensureIdeActionIconsLoaded
 } from '../../utils/ide-integration/ide-action-icons.js';
 import { getIdeAssistTarget, setIdeAssistTarget } from '../../utils/ide-integration/ide-assist-preference.js';
+import { getShadowRoot } from '../../utils/shadow-dom-state.js';
 
 const _cssURL = chrome.runtime.getURL('components/popup-modules/ide-assist-preference-widget.css');
 if (!document.querySelector(`link[href="${_cssURL}"]`)) {
@@ -106,7 +107,7 @@ function _refreshDropdownActive(dropdown, activeId) {
  * @param {HTMLElement} headerActionsEl
  */
 export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
-  const _panelRoot = window.__thinkreviewShadowRoot || document;
+  const _panelRoot = getShadowRoot();
   if (!headerActionsEl || _panelRoot.getElementById('thinkreview-ide-assist-btn')) return;
 
   // Also inject the widget's own CSS into the shadow root so the button (inside shadow) is styled.

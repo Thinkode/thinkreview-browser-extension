@@ -5,6 +5,12 @@
  * Formats suggestions as GitLab suggestion blocks and injects them into the appropriate diff lines.
  */
 
+import { 
+  setPeriodicCheckInterval, 
+  clearPeriodicCheckInterval, 
+  hasPeriodicCheckInterval 
+} from './periodic-check-state.js';
+
 // Debug toggle
 const DEBUG = false;
 function dbgLog(...args) { if (DEBUG) console.log('[GitLabSuggestionInjector]', ...args); }
@@ -1333,8 +1339,8 @@ function setupReinjectObserver() {
   }, 1000);
   
   // Store interval ID for cleanup
-  if (!window.__thinkreview_periodicCheckInterval) {
-    window.__thinkreview_periodicCheckInterval = periodicCheck;
+  if (!hasPeriodicCheckInterval()) {
+    setPeriodicCheckInterval(periodicCheck);
   }
 }
 
@@ -1483,10 +1489,7 @@ window.addEventListener('unload', () => {
     dialogObserver.disconnect();
     dialogObserver = null;
   }
-  if (window.__thinkreview_periodicCheckInterval) {
-    clearInterval(window.__thinkreview_periodicCheckInterval);
-    window.__thinkreview_periodicCheckInterval = null;
-  }
+  clearPeriodicCheckInterval();
   dbgLog('Cleaned up observers and intervals on window unload');
 });
 
@@ -1501,9 +1504,8 @@ document.addEventListener('visibilitychange', () => {
       dialogObserver.disconnect();
       dbgLog('Disconnected dialog observer (tab hidden)');
     }
-    if (window.__thinkreview_periodicCheckInterval) {
-      clearInterval(window.__thinkreview_periodicCheckInterval);
-      window.__thinkreview_periodicCheckInterval = null;
+    clearPeriodicCheckInterval();
+    if (hasPeriodicCheckInterval()) {
       dbgLog('Cleared periodic check interval (tab hidden)');
     }
   } else {

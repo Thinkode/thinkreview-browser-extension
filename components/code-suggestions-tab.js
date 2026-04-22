@@ -3,6 +3,13 @@
 // Handles visibility, suggestion count on tab, population, and GitLab diff injection storage.
 // Code suggestions feature is only available for Professional and Lite subscription types.
 
+import { getShadowRoot } from '../utils/shadow-dom-state.js';
+import { 
+  setCodeSuggestions, 
+  clearCodeSuggestions, 
+  setInjectionEnabled 
+} from '../utils/code-suggestions-state.js';
+
 /** Cached analytics module - loaded once on first use (use getURL for Firefox content script context) */
 let _analyticsModulePromise = null;
 async function getAnalyticsModule() {
@@ -39,7 +46,7 @@ function hasCodeSuggestionsAccess(subscriptionType) {
 export async function updateCodeSuggestionsTab({ review, patchContent, subscriptionType = 'Free', wasForcedTruncated = false, patchSize = null, logger = {}, onExplainSuggestion } = {}) {
   const { dbgLog = () => {}, dbgWarn = (...args) => console.warn('[CodeSuggestionsTab]', ...args) } = logger;
 
-  const panelRoot = window.__thinkreviewShadowRoot || document;
+  const panelRoot = getShadowRoot();
   const codeSuggestionsTabBtn = panelRoot.getElementById('tab-btn-code-suggestions');
   const codeSuggestionsPanel = panelRoot.getElementById('tab-panel-code-suggestions');
   const codeSuggestionsInner = panelRoot.getElementById('review-code-suggestions-inner');
@@ -183,9 +190,7 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
           }).catch(() => {});
         } catch (e) { /* silent */ }
         // Update stored suggestions flag
-        if (window.__thinkreview_codeSuggestions) {
-          window.__thinkreview_codeSuggestions.injectionEnabled = checkbox.checked;
-        }
+        setInjectionEnabled(checkbox.checked);
       });
       
       codeSuggestionsInner.appendChild(toggleContainer);
@@ -282,12 +287,11 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
       const savedPreference = await chrome.storage.local.get(['gitlabInjectionEnabled']);
       const injectionEnabled = savedPreference.gitlabInjectionEnabled === true; // Default to false
       
-      window.__thinkreview_codeSuggestions = {
+      setCodeSuggestions({
         suggestions: review.codeSuggestions,
         patchContent: patchContent,
-        timestamp: Date.now(),
         injectionEnabled: injectionEnabled
-      };
+      });
       dbgLog(`Stored ${review.codeSuggestions.length} code suggestions for injection (enabled: ${injectionEnabled})`);
     }
   } else {
@@ -297,7 +301,7 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
       codeSuggestionsTabBtn.querySelectorAll('.thinkreview-new-badge, .thinkreview-code-suggestions-tab-count').forEach((el) => el.remove());
     }
     if (codeSuggestionsInner) codeSuggestionsInner.replaceChildren();
-    delete window.__thinkreview_codeSuggestions;
+    clearCodeSuggestions();
 
     // Ensure we're on Review tab when Code Suggestions tab is hidden
     const reviewTabBtn = document.querySelector('.thinkreview-tab-btn[data-tab="review"]');

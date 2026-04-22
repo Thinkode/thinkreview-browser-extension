@@ -1,6 +1,7 @@
 // azure-devops-token-error.js
 // Module for displaying Azure DevOps token configuration error with helpful UI
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
+import { getShadowRoot } from '../utils/shadow-dom-state.js';
 
 
 
@@ -16,7 +17,7 @@ export function showAzureDevOpsTokenError(stopEnhancedLoader = null, extraInfo =
     stopEnhancedLoader();
   }
 
-  const panelRoot = window.__thinkreviewShadowRoot || document;
+  const panelRoot = getShadowRoot();
   const reviewLoading = panelRoot.getElementById('review-loading');
   const reviewContent = panelRoot.getElementById('review-content');
   const reviewError = panelRoot.getElementById('review-error');

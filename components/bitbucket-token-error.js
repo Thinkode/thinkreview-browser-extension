@@ -1,6 +1,7 @@
 // bitbucket-token-error.js
 // Module for displaying Bitbucket API token configuration error with helpful UI
 import { dbgLog, dbgWarn } from '../utils/logger.js';
+import { getShadowRoot } from '../utils/shadow-dom-state.js';
 
 const BITBUCKET_DOCS_URL = 'https://thinkreview.dev/docs/bitbucket-integration';
 
@@ -14,7 +15,7 @@ export function showBitbucketTokenError(stopEnhancedLoader = null, extraInfo = n
     stopEnhancedLoader();
   }
 
-  const panelRoot = window.__thinkreviewShadowRoot || document;
+  const panelRoot = getShadowRoot();
   const reviewLoading = panelRoot.getElementById('review-loading');
   const reviewContent = panelRoot.getElementById('review-content');
   const reviewError = panelRoot.getElementById('review-error');
