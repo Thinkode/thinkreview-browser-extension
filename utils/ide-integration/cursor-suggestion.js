@@ -94,11 +94,11 @@ export async function createCursorSuggestionIntegration(integrationOpts, options
               : 'Open in Cursor with this suggestion as the chat prompt'
       );
 
-      btn.addEventListener('click', async (e) => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
         const analyticsEventName = `open_in_${IDE_ANALYTICS_ID}_${itemKind}_clicked`;
-        await trackUserAction(analyticsEventName, {
+        trackUserAction(analyticsEventName, {
           context: 'integrated_review_panel',
           ide: IDE_ANALYTICS_ID,
           list_section: itemKind,
