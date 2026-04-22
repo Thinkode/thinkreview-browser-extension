@@ -1584,7 +1584,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       // Avoid a redundant cloud call if the in-flight run already produced a review, unless
       // the user explicitly asked to regenerate.
       if (pending.forceRegenerate || !hasReview) {
-        void fetchAndDisplayCodeReview(pending.forceRegenerate, false);
+        fetchAndDisplayCodeReview(pending.forceRegenerate, false).catch((err) => {
+          dbgWarn('Pending manual review failed:', err?.message || err);
+        });
       }
     }
   }
