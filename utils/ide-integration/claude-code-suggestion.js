@@ -86,11 +86,11 @@ export async function createClaudeCodeSuggestionIntegration(integrationOpts, opt
               : 'Open Claude Code in VS Code with this suggestion as the prompt'
       );
 
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         e.preventDefault();
         const analyticsEventName = `open_in_${IDE_ANALYTICS_ID}_${itemKind}_clicked`;
-        trackUserAction(analyticsEventName, {
+        await trackUserAction(analyticsEventName, {
           context: 'integrated_review_panel',
           ide: IDE_ANALYTICS_ID,
           list_section: itemKind,
