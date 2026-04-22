@@ -349,9 +349,10 @@ async function createIntegratedReviewPanel(patchUrl) {
     dbgWarn('Failed to inject shadow stylesheets, panel may be unstyled:', _cssErr);
   }
 
-  // Panel content is placed inside the shadow root, not the light DOM.
-  const shadowContent = document.createElement('div');
-  shadowContent.innerHTML = `
+  // Panel content lives in the shadow root. Use <template> so parsed nodes are
+  // appended directly (no block wrapper), preserving the flex chain from the host.
+  const template = document.createElement('template');
+  template.innerHTML = `
     <div class="thinkreview-card gl-border-1 gl-border-gray-100">
       <div class="thinkreview-card-header gl-display-flex gl-justify-content-space-between gl-align-items-center">
         <div class="thinkreview-card-title">
@@ -531,8 +532,8 @@ async function createIntegratedReviewPanel(patchUrl) {
     </div>
     <div class="thinkreview-resize-handle" title="Drag to resize"></div>
   `;
-  
-  shadowRoot.appendChild(shadowContent);
+
+  shadowRoot.appendChild(template.content);
   
   // Set extension version in the header
   try {
