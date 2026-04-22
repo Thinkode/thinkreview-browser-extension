@@ -49,6 +49,11 @@ setTimeout(() => {
 // Track if a review request is in progress to prevent duplicates
 let isReviewInProgress = false;
 
+// When the user requests a manual review while another run is in flight (e.g. auto-review
+// still fetching patch or running the auto decision maker), remember it and run after the
+// current invocation finishes so REVIEW_PATCH_CODE / reviewPatchCode_1_1 is not dropped.
+let pendingManualReview = null;
+
 // Track current PR ID for detecting navigation to new PRs
 let currentPRId = null;
 
@@ -549,7 +554,8 @@ async function checkAndTriggerReviewForNewPR() {
     }
     
     isReviewInProgress = false;
-    
+    pendingManualReview = null;
+
     // Trigger new review only if auto-start is enabled
     const autoStart = await getAutoStartReview();
     if (autoStart && isSupportedPage()) {
@@ -1142,8 +1148,11 @@ async function getAzureDevOpsToken() {
  * Supports both GitLab (patch) and Azure DevOps (API) platforms
  */
 async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggered = false) {
-  // If already processing a review, ignore this request
+  // If already processing a review, ignore duplicate auto runs but queue manual intent
   if (isReviewInProgress) {
+    if (!isAutoTriggered) {
+      pendingManualReview = { forceRegenerate: !!forceRegenerate };
+    }
     return;
   }
   
@@ -1566,6 +1575,18 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     }
     // Reset flag when done
     isReviewInProgress = false;
+
+    const pending = pendingManualReview;
+    pendingManualReview = null;
+    if (pending) {
+      const reviewContent = document.getElementById('review-content');
+      const hasReview = reviewContent && !reviewContent.classList.contains('gl-hidden');
+      // Avoid a redundant cloud call if the in-flight run already produced a review, unless
+      // the user explicitly asked to regenerate.
+      if (pending.forceRegenerate || !hasReview) {
+        void fetchAndDisplayCodeReview(pending.forceRegenerate, false);
+      }
+    }
   }
 }
 
@@ -1670,7 +1691,8 @@ async function toggleReviewPanel() {
     const hasError = reviewError && !reviewError.classList.contains('gl-hidden');
     
     // If no review has been generated yet (no content and no error), trigger the review
-    if (!hasReview && !hasError && !isReviewInProgress) {
+    // (even while a review is in progress — fetchAndDisplayCodeReview queues manual runs)
+    if (!hasReview && !hasError) {
       fetchAndDisplayCodeReview(false, false);
     }
   } else {
