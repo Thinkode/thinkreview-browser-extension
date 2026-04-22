@@ -16,9 +16,9 @@ If ThinkReview is already working on a review (for example, an automatic review 
 
 ### Clearer Ollama setup guidance on GitLab 🦊
 
-On GitLab merge requests, the on-page guidance for Ollama and CORS-related setup steps is easier to read and less likely to be visually overridden by the host site’s styling.
+On GitLab merge requests, the on-page guidance for Ollama and CORS-related setup steps is easier to read and less likely to be visually overridden by the host site's styling.
 
-### Simpler default for “Start review automatically” ⚙️
+### Simpler default for "Start review automatically" ⚙️
 
 For people who have not changed this setting yet, automatic review start now defaults to **Off**, matching the extension popup. If you already chose **On**, your choice is preserved.
 
