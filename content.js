@@ -574,8 +574,8 @@ async function checkAndTriggerReviewForNewPR() {
 function getAutoStartReview() {
   return new Promise((resolve) => {
     chrome.storage.local.get(['autoStartReview'], (result) => {
-      // Respect the "Start review automatically" option for all providers
-      resolve(result.autoStartReview !== false);
+      // Respect the "Start review automatically" option for all providers (default off when unset)
+      resolve(result.autoStartReview === true);
     });
   });
 }

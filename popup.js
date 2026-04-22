@@ -760,7 +760,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Domain Management Functionality
 const DEFAULT_DOMAINS = ['https://gitlab.com'];
 
-// Auto-start review option (default true)
+// Auto-start review option (default off when unset in storage)
 function initializeAutoStartReviewSettings() {
   loadAutoStartReview();
   const onRadio = document.getElementById('auto-start-review-on');
@@ -820,7 +820,7 @@ function setupAutoStartInfoTooltips() {
 async function loadAutoStartReview() {
   try {
     const result = await chrome.storage.local.get(['autoStartReview']);
-    const enabled = result.autoStartReview !== false;
+    const enabled = result.autoStartReview === true;
     const onRadio = document.getElementById('auto-start-review-on');
     const offRadio = document.getElementById('auto-start-review-off');
     if (onRadio) onRadio.checked = enabled;
