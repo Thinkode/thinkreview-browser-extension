@@ -39,9 +39,10 @@ function hasCodeSuggestionsAccess(subscriptionType) {
 export async function updateCodeSuggestionsTab({ review, patchContent, subscriptionType = 'Free', wasForcedTruncated = false, patchSize = null, logger = {}, onExplainSuggestion } = {}) {
   const { dbgLog = () => {}, dbgWarn = (...args) => console.warn('[CodeSuggestionsTab]', ...args) } = logger;
 
-  const codeSuggestionsTabBtn = document.getElementById('tab-btn-code-suggestions');
-  const codeSuggestionsPanel = document.getElementById('tab-panel-code-suggestions');
-  const codeSuggestionsInner = document.getElementById('review-code-suggestions-inner');
+  const panelRoot = window.__thinkreviewShadowRoot || document;
+  const codeSuggestionsTabBtn = panelRoot.getElementById('tab-btn-code-suggestions');
+  const codeSuggestionsPanel = panelRoot.getElementById('tab-panel-code-suggestions');
+  const codeSuggestionsInner = panelRoot.getElementById('review-code-suggestions-inner');
 
   const hasSuggestions = Array.isArray(review.codeSuggestions) && review.codeSuggestions.length > 0;
   const canAccessSuggestions = hasCodeSuggestionsAccess(subscriptionType);

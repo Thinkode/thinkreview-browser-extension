@@ -29,15 +29,6 @@
   --thinkreview-z-toast: 1250;
 }
 
-/* Defensive reset: prevent host-page (e.g. GitLab) bare pre/code rules from
-   cascading into the extension panel. Component-specific rules below set the
-   actual values and use !important where needed to win the cascade. */
-#gitlab-mr-integrated-review pre,
-#gitlab-mr-integrated-review code {
-  color: inherit;
-  background: inherit;
-  background-color: inherit;
-}
 
 .thinkreview-panel-container {
   position: fixed;
@@ -3655,8 +3646,7 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
 #gitlab-mr-integrated-review .thinkreview-ollama-cors-code {
   margin: 0 auto 8px;
   padding: 10px 12px;
-  background: #f1f3f5 !important;
-  background-color: #f1f3f5 !important;
+  background: #f1f3f5;
   border: 1px solid #dee2e6;
   border-radius: 6px;
   overflow-x: auto;
@@ -3669,20 +3659,19 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
 
 #gitlab-mr-integrated-review .thinkreview-ollama-cors-code code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  color: #212529 !important;
+  color: #212529;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 @media (prefers-color-scheme: dark) {
   #gitlab-mr-integrated-review .thinkreview-ollama-cors-code {
-    background: #2b3035 !important;
-    background-color: #2b3035 !important;
+    background: #2b3035;
     border-color: #495057;
   }
 
   #gitlab-mr-integrated-review .thinkreview-ollama-cors-code code {
-    color: #e9ecef !important;
+    color: #e9ecef;
   }
 }
 

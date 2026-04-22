@@ -89,7 +89,17 @@ function _getActiveComboId(settings) {
  * @param {HTMLElement} headerActionsEl
  */
 export async function mountLayoutSettingsWidget(headerActionsEl) {
-  if (!headerActionsEl || document.getElementById('thinkreview-layout-btn')) return;
+  const _panelRoot = window.__thinkreviewShadowRoot || document;
+  if (!headerActionsEl || _panelRoot.getElementById('thinkreview-layout-btn')) return;
+
+  // Also inject the widget's own CSS into the shadow root so the button (inside shadow) is styled.
+  const _cssURL = chrome.runtime.getURL('components/popup-modules/layout-settings-widget.css');
+  if (!_panelRoot.querySelector(`link[href="${_cssURL}"]`)) {
+    const _shadowLink = document.createElement('link');
+    _shadowLink.rel = 'stylesheet';
+    _shadowLink.href = _cssURL;
+    _panelRoot.appendChild(_shadowLink);
+  }
 
   const settings = await _getSettings();
 
@@ -136,8 +146,11 @@ export async function mountLayoutSettingsWidget(headerActionsEl) {
   });
 
   // ── Close on outside click ───────────────────────────────
+  // Use composedPath() so clicks inside the shadow DOM (which retarget e.target
+  // to the shadow host) are still correctly identified as "inside the panel".
   document.addEventListener('click', (e) => {
-    if (e.target !== btn && !dropdown.contains(e.target)) {
+    const path = e.composedPath();
+    if (!path.includes(dropdown)) {
       dropdown.style.display = 'none';
     }
   });

@@ -12,27 +12,24 @@ import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
  */
 export function showAzureDevOpsTokenError(stopEnhancedLoader = null, extraInfo = null, options = {}) {
   const sessionAuth = options.sessionAuth === true;
-  // Stop the enhanced loader if it's running
   if (typeof stopEnhancedLoader === 'function') {
     stopEnhancedLoader();
   }
+
+  const panelRoot = window.__thinkreviewShadowRoot || document;
+  const reviewLoading = panelRoot.getElementById('review-loading');
+  const reviewContent = panelRoot.getElementById('review-content');
+  const reviewError = panelRoot.getElementById('review-error');
   
-  const reviewLoading = document.getElementById('review-loading');
-  const reviewContent = document.getElementById('review-content');
-  const reviewError = document.getElementById('review-error');
-  
-  // Hide all sections
   if (reviewLoading) reviewLoading.classList.add('gl-hidden');
   if (reviewContent) reviewContent.classList.add('gl-hidden');
   if (reviewError) reviewError.classList.add('gl-hidden');
   
-  // Create Azure DevOps token error if it doesn't exist
-  let tokenError = document.getElementById('review-azure-token-error');
+  let tokenError = panelRoot.getElementById('review-azure-token-error');
   if (!tokenError) {
     tokenError = createTokenErrorElement();
     
-    // Add the token error to the panel
-    const cardBody = document.querySelector('#gitlab-mr-integrated-review .thinkreview-card-body');
+    const cardBody = panelRoot.querySelector('.thinkreview-card-body');
     if (cardBody) {
       cardBody.appendChild(tokenError);
     }

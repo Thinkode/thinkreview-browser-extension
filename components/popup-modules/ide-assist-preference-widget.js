@@ -106,7 +106,17 @@ function _refreshDropdownActive(dropdown, activeId) {
  * @param {HTMLElement} headerActionsEl
  */
 export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
-  if (!headerActionsEl || document.getElementById('thinkreview-ide-assist-btn')) return;
+  const _panelRoot = window.__thinkreviewShadowRoot || document;
+  if (!headerActionsEl || _panelRoot.getElementById('thinkreview-ide-assist-btn')) return;
+
+  // Also inject the widget's own CSS into the shadow root so the button (inside shadow) is styled.
+  const _widgetCssURL = chrome.runtime.getURL('components/popup-modules/ide-assist-preference-widget.css');
+  if (!_panelRoot.querySelector(`link[href="${_widgetCssURL}"]`)) {
+    const _shadowLink = document.createElement('link');
+    _shadowLink.rel = 'stylesheet';
+    _shadowLink.href = _widgetCssURL;
+    _panelRoot.appendChild(_shadowLink);
+  }
 
   try {
     await ensureIdeActionIconsLoaded();
@@ -203,8 +213,11 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
     btn.setAttribute('aria-expanded', 'true');
   });
 
+  // Use composedPath() so clicks inside the shadow DOM (which retarget e.target
+  // to the shadow host) are still correctly identified as "inside the panel".
   document.addEventListener('click', (e) => {
-    if (e.target !== btn && !dropdown.contains(/** @type {Node} */ (e.target))) {
+    const path = e.composedPath();
+    if (!path.includes(dropdown)) {
       dropdown.style.display = 'none';
       btn.setAttribute('aria-expanded', 'false');
     }

@@ -668,9 +668,9 @@ function showLoginPrompt() {
     stopEnhancedLoader();
   }
   
-  const reviewLoading = document.getElementById('review-loading');
-  const reviewContent = document.getElementById('review-content');
-  const reviewError = document.getElementById('review-error');
+  const reviewLoading = getPanelRoot().getElementById('review-loading');
+  const reviewContent = getPanelRoot().getElementById('review-content');
+  const reviewError = getPanelRoot().getElementById('review-error');
   
   // Hide all sections
   if (reviewLoading) reviewLoading.classList.add('gl-hidden');
@@ -678,7 +678,7 @@ function showLoginPrompt() {
   if (reviewError) reviewError.classList.add('gl-hidden');
   
   // Create login prompt if it doesn't exist
-  let loginPrompt = document.getElementById('review-login-prompt');
+  let loginPrompt = getPanelRoot().getElementById('review-login-prompt');
   if (!loginPrompt) {
     loginPrompt = document.createElement('div');
     loginPrompt.id = 'review-login-prompt';
@@ -789,7 +789,7 @@ function showLoginPrompt() {
     loginPrompt.appendChild(signInContainer);
     
     // Add the login prompt to the panel
-    const cardBody = document.querySelector('#gitlab-mr-integrated-review .thinkreview-card-body');
+    const cardBody = getPanelRoot().querySelector('.thinkreview-card-body');
     if (cardBody) {
       cardBody.appendChild(loginPrompt);
     }
@@ -814,10 +814,10 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
     stopEnhancedLoader();
   }
   
-  const reviewLoading = document.getElementById('review-loading');
-  const reviewContent = document.getElementById('review-content');
-  const reviewError = document.getElementById('review-error');
-  const loginPrompt = document.getElementById('review-login-prompt');
+  const reviewLoading = getPanelRoot().getElementById('review-loading');
+  const reviewContent = getPanelRoot().getElementById('review-content');
+  const reviewError = getPanelRoot().getElementById('review-error');
+  const loginPrompt = getPanelRoot().getElementById('review-login-prompt');
   
   // Hide loading indicator
   if (reviewLoading) reviewLoading.classList.add('gl-hidden');
@@ -836,25 +836,35 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
   // Hide all existing review UI (tabs, sections, chat input) so only the
   // upgrade message is visible and nothing remains interactive.
   const tabsWrapper = reviewContent.querySelector('.thinkreview-tabs-wrapper');
-  const chatInputContainer = document.getElementById('chat-input-container');
+  const chatInputContainer = getPanelRoot().getElementById('chat-input-container');
   if (tabsWrapper) tabsWrapper.classList.add('gl-hidden');
   if (chatInputContainer) chatInputContainer.classList.add('gl-hidden');
 
   // Remove a previously injected upgrade wrapper if the function is called again
-  const existingWrapper = document.getElementById('upgrade-message-wrapper');
+  const existingWrapper = getPanelRoot().getElementById('upgrade-message-wrapper');
   if (existingWrapper) existingWrapper.remove();
 
   // Create a dedicated full-panel upgrade container
   const upgradeWrapper = document.createElement('div');
   upgradeWrapper.id = 'upgrade-message-wrapper';
 
-  // Load subscription section styles
+  // Load subscription section styles into document.head (for light DOM elements)
+  // and into the shadow root (for the upgrade wrapper that lives inside the panel).
+  const _subCssURL = chrome.runtime.getURL('components/subscription-section.css');
   if (!document.getElementById('subscription-styles')) {
     const linkEl = document.createElement('link');
     linkEl.id = 'subscription-styles';
     linkEl.rel = 'stylesheet';
-    linkEl.href = chrome.runtime.getURL('components/subscription-section.css');
+    linkEl.href = _subCssURL;
     document.head.appendChild(linkEl);
+  }
+  const _panelRoot = getPanelRoot();
+  if (_panelRoot !== document && !_panelRoot.querySelector('link[data-thinkreview-id="subscription-styles"]')) {
+    const shadowLink = document.createElement('link');
+    shadowLink.rel = 'stylesheet';
+    shadowLink.href = _subCssURL;
+    shadowLink.setAttribute('data-thinkreview-id', 'subscription-styles');
+    _panelRoot.appendChild(shadowLink);
   }
 
   // Load and initialize upgrade tip banner module
@@ -1347,17 +1357,17 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
 
     // Show loading state and start enhanced loader
     // Note: Daily limit checking is now handled server-side in the cloud function
-    const reviewLoading = document.getElementById('review-loading');
-    const reviewContent = document.getElementById('review-content');
-    const reviewError = document.getElementById('review-error');
-    const loginPrompt = document.getElementById('review-login-prompt');
+    const reviewLoading = getPanelRoot().getElementById('review-loading');
+    const reviewContent = getPanelRoot().getElementById('review-content');
+    const reviewError = getPanelRoot().getElementById('review-error');
+    const loginPrompt = getPanelRoot().getElementById('review-login-prompt');
     
     if (reviewLoading) reviewLoading.classList.remove('gl-hidden');
     if (reviewContent) reviewContent.classList.add('gl-hidden');
     if (reviewError) reviewError.classList.add('gl-hidden');
     if (loginPrompt) loginPrompt.classList.add('gl-hidden');
-    const azureTokenErr = document.getElementById('review-azure-token-error');
-    const bitbucketTokenErr = document.getElementById('review-bitbucket-token-error');
+    const azureTokenErr = getPanelRoot().getElementById('review-azure-token-error');
+    const bitbucketTokenErr = getPanelRoot().getElementById('review-bitbucket-token-error');
     if (azureTokenErr) azureTokenErr.classList.add('gl-hidden');
     if (bitbucketTokenErr) bitbucketTokenErr.classList.add('gl-hidden');
     
@@ -1664,8 +1674,8 @@ async function toggleReviewPanel() {
     }
     
     // Check if this is the first time expanding and no review has been generated yet
-    const reviewContent = document.getElementById('review-content');
-    const reviewError = document.getElementById('review-error');
+    const reviewContent = getPanelRoot().getElementById('review-content');
+    const reviewError = getPanelRoot().getElementById('review-error');
     const hasReview = reviewContent && !reviewContent.classList.contains('gl-hidden');
     const hasError = reviewError && !reviewError.classList.contains('gl-hidden');
     

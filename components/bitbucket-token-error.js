@@ -14,18 +14,19 @@ export function showBitbucketTokenError(stopEnhancedLoader = null, extraInfo = n
     stopEnhancedLoader();
   }
 
-  const reviewLoading = document.getElementById('review-loading');
-  const reviewContent = document.getElementById('review-content');
-  const reviewError = document.getElementById('review-error');
+  const panelRoot = window.__thinkreviewShadowRoot || document;
+  const reviewLoading = panelRoot.getElementById('review-loading');
+  const reviewContent = panelRoot.getElementById('review-content');
+  const reviewError = panelRoot.getElementById('review-error');
 
   if (reviewLoading) reviewLoading.classList.add('gl-hidden');
   if (reviewContent) reviewContent.classList.add('gl-hidden');
   if (reviewError) reviewError.classList.add('gl-hidden');
 
-  let tokenError = document.getElementById('review-bitbucket-token-error');
+  let tokenError = panelRoot.getElementById('review-bitbucket-token-error');
   if (!tokenError) {
     tokenError = createTokenErrorElement();
-    const cardBody = document.querySelector('#gitlab-mr-integrated-review .thinkreview-card-body');
+    const cardBody = panelRoot.querySelector('.thinkreview-card-body');
     if (cardBody) {
       cardBody.appendChild(tokenError);
     }

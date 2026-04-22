@@ -47,26 +47,55 @@ function getOllamaBrowserExtensionCorsMessageModule() {
   return (ollamaBrowserExtensionCorsMessageModulePromise ??= import(url));
 }
 
-// Import the CSS for the integrated review panel
+// Keep the main CSS in document.head for host-element positioning rules and :root variables.
+// Shadow content is styled by a transformed copy injected inside the shadow root
+// (see createIntegratedReviewPanel → _transformCssForShadow).
 const cssURL = chrome.runtime.getURL('components/integrated-review.css');
 const linkElement = document.createElement('link');
 linkElement.rel = 'stylesheet';
 linkElement.href = cssURL;
 document.head.appendChild(linkElement);
 
-// Import review prompt CSS
 const reviewPromptCssURL = chrome.runtime.getURL('components/review-prompt/review-prompt.css');
 const reviewPromptLinkElement = document.createElement('link');
 reviewPromptLinkElement.rel = 'stylesheet';
 reviewPromptLinkElement.href = reviewPromptCssURL;
 document.head.appendChild(reviewPromptLinkElement);
 
-// Import item copy button CSS
 const itemCopyButtonCssURL = chrome.runtime.getURL('components/utils/item-copy-button.css');
 const itemCopyButtonLinkElement = document.createElement('link');
 itemCopyButtonLinkElement.rel = 'stylesheet';
 itemCopyButtonLinkElement.href = itemCopyButtonCssURL;
 document.head.appendChild(itemCopyButtonLinkElement);
+
+/**
+ * Returns the panel's shadow root when available, otherwise falls back to the document.
+ * Use this for all panel-internal DOM queries so they work across the shadow boundary.
+ * @returns {ShadowRoot|Document}
+ */
+function getPanelRoot() {
+  return window.__thinkreviewShadowRoot || document;
+}
+
+/**
+ * Transforms integrated-review.css (and similar files) so their selectors work inside
+ * a Shadow DOM context where #gitlab-mr-integrated-review does not exist as an element.
+ *
+ * "#gitlab-mr-integrated-review .foo"  → ".foo"   (shadow provides scoping)
+ * "#gitlab-mr-integrated-review.bar"   → ":host(.bar)"  (host-element class)
+ * "body[data-theme="X"] #gitlab-mr-integrated-review" → ":host-context([data-theme="X"])"
+ * bare "#gitlab-mr-integrated-review"  → ":host"
+ *
+ * @param {string} css
+ * @returns {string}
+ */
+function _transformCssForShadow(css) {
+  return css
+    .replace(/body\[data-theme="([^"]*)"\]\s*#gitlab-mr-integrated-review\b/g, ':host-context([data-theme="$1"])')
+    .replace(/#gitlab-mr-integrated-review(\.[^\s,{>+~]+)/g, ':host($1)')
+    .replace(/#gitlab-mr-integrated-review\s+/g, '')
+    .replace(/#gitlab-mr-integrated-review\b/g, ':host');
+}
 
 // Formatting utils
 let markdownToHtml = null;
@@ -179,7 +208,7 @@ let currentPatchContent = '';
 function clearPatchContentAndHistory() {
   currentPatchContent = '';
   conversationHistory = [];
-  const chatLog = document.getElementById('chat-log');
+  const chatLog = getPanelRoot().getElementById('chat-log');
   if (chatLog) {
     chatLog.replaceChildren();
   }
@@ -198,7 +227,7 @@ const loaderStages = ['fetching', 'analyzing', 'generating'];
  * Starts the enhanced loader with progressive stages
  */
 function startEnhancedLoader() {
-  const loader = document.getElementById('review-loading');
+  const loader = getPanelRoot().getElementById('review-loading');
   if (!loader || !loader.classList.contains('enhanced-loader')) return;
   
   // Reset to first stage
@@ -219,8 +248,8 @@ function startEnhancedLoader() {
  * @param {string} stage - The stage to show ('fetching', 'analyzing', 'generating')
  */
 function updateLoaderStage(stage) {
-  const stages = document.querySelectorAll('.loader-stage');
-  const progressText = document.querySelector('.progress-text');
+  const stages = getPanelRoot().querySelectorAll('.loader-stage');
+  const progressText = getPanelRoot().querySelector('.progress-text');
   
   stages.forEach((stageElement, index) => {
     const stageName = stageElement.dataset.stage;
@@ -290,12 +319,41 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Get logo URL
   const logoUrl = chrome.runtime.getURL('images/icon16.png');
   // Create the container for the review panel
+  // Shadow host stays in the light DOM so external code can still find it by ID.
   const container = document.createElement('div');
   container.id = 'gitlab-mr-integrated-review';
   container.className = 'thinkreview-panel-container thinkreview-panel-minimized-to-button';
-  
-  // Create the panel with unique styling classes to prevent theme conflicts
-  container.innerHTML = `
+  document.body.appendChild(container);
+
+  // Attach shadow root — all panel content lives here, isolated from host-platform CSS.
+  const shadowRoot = container.attachShadow({ mode: 'open' });
+  window.__thinkreviewShadowRoot = shadowRoot;
+
+  // review-prompt.css has no scoping prefix so a plain <link> suffices.
+  const _rpLink = document.createElement('link');
+  _rpLink.rel = 'stylesheet';
+  _rpLink.href = chrome.runtime.getURL('components/review-prompt/review-prompt.css');
+  shadowRoot.appendChild(_rpLink);
+
+  // CSS files that use #gitlab-mr-integrated-review selectors must be fetched,
+  // transformed so their selectors work inside the shadow tree, then injected
+  // as an inline <style>. The originals remain in document.head for host-element
+  // positioning rules and :root custom properties.
+  try {
+    const _shadowCssTexts = await Promise.all([
+      fetch(chrome.runtime.getURL('components/integrated-review.css')).then(r => r.text()),
+      fetch(chrome.runtime.getURL('components/utils/item-copy-button.css')).then(r => r.text()),
+    ]);
+    const _shadowStyle = document.createElement('style');
+    _shadowStyle.textContent = _shadowCssTexts.map(_transformCssForShadow).join('\n');
+    shadowRoot.appendChild(_shadowStyle);
+  } catch (_cssErr) {
+    dbgWarn('Failed to inject shadow stylesheets, panel may be unstyled:', _cssErr);
+  }
+
+  // Panel content is placed inside the shadow root, not the light DOM.
+  const shadowContent = document.createElement('div');
+  shadowContent.innerHTML = `
     <div class="thinkreview-card gl-border-1 gl-border-gray-100">
       <div class="thinkreview-card-header gl-display-flex gl-justify-content-space-between gl-align-items-center">
         <div class="thinkreview-card-title">
@@ -476,19 +534,18 @@ async function createIntegratedReviewPanel(patchUrl) {
     <div class="thinkreview-resize-handle" title="Drag to resize"></div>
   `;
   
-  // Add the panel to the page
-  document.body.appendChild(container);
+  shadowRoot.appendChild(shadowContent);
   
   // Set extension version in the header
   try {
     const manifest = chrome.runtime.getManifest();
-    const versionText = container.querySelector('#extension-version-text');
+    const versionText = shadowRoot.querySelector('#extension-version-text');
     if (versionText && manifest.version) {
       versionText.textContent = manifest.version;
     }
     
     // Add tracking to version link click
-    const versionLink = container.querySelector('#extension-version-link');
+    const versionLink = shadowRoot.querySelector('#extension-version-link');
     if (versionLink) {
       versionLink.addEventListener('click', async (e) => {
         // Track version link click
@@ -506,10 +563,10 @@ async function createIntegratedReviewPanel(patchUrl) {
     }
   } catch (error) {
     dbgWarn('Failed to get extension version:', error);
-    const versionText = container.querySelector('#extension-version-text');
+    const versionText = shadowRoot.querySelector('#extension-version-text');
     if (versionText) {
       versionText.textContent = '';
-      const versionLink = container.querySelector('#extension-version-link');
+      const versionLink = shadowRoot.querySelector('#extension-version-link');
       if (versionLink) {
         versionLink.style.display = 'none';
       }
@@ -519,14 +576,14 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Apply platform-specific styling
   applyPlatformSpecificStyling(container);
   
-  // Initialize resize functionality
-  initializeResizeHandle(container);
+  // Initialize resize functionality (pass shadowRoot so it can find the handle inside the shadow)
+  initializeResizeHandle(container, shadowRoot);
 
   // Mount the layout settings widget in the header actions (use getURL so it loads from extension origin in content script context e.g. Firefox)
   try {
     const layoutWidgetUrl = chrome.runtime.getURL('components/popup-modules/layout-settings-widget.js');
     const { mountLayoutSettingsWidget } = await import(layoutWidgetUrl);
-    const headerActionsEl = container.querySelector('.thinkreview-header-actions');
+    const headerActionsEl = shadowRoot.querySelector('.thinkreview-header-actions');
     await mountLayoutSettingsWidget(headerActionsEl);
   } catch (error) {
     dbgWarn('Failed to mount layout settings widget:', error);
@@ -535,7 +592,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   try {
     const ideAssistWidgetUrl = chrome.runtime.getURL('components/popup-modules/ide-assist-preference-widget.js');
     const { mountIdeAssistPreferenceWidget } = await import(ideAssistWidgetUrl);
-    const headerActionsElIde = container.querySelector('.thinkreview-header-actions');
+    const headerActionsElIde = shadowRoot.querySelector('.thinkreview-header-actions');
     await mountIdeAssistPreferenceWidget(headerActionsElIde);
   } catch (error) {
     dbgWarn('Failed to mount IDE assist preference widget:', error);
@@ -557,12 +614,12 @@ async function createIntegratedReviewPanel(patchUrl) {
     });
   }
 
-  // Delegate copy handler to panel only (avoids document-level listener; improves perf when interacting with GitLab diff)
+  // Delegate copy handler to the shadow root so event.target is not retargeted.
   await formattingReady;
-  if (setupCopyHandler) setupCopyHandler(container);
+  if (setupCopyHandler) setupCopyHandler(shadowRoot);
 
   // Add event listener for minimizing the panel
-  const cardHeader = container.querySelector('.thinkreview-card-header');
+  const cardHeader = shadowRoot.querySelector('.thinkreview-card-header');
   if (cardHeader) {
     cardHeader.addEventListener('click', async () => {
       // Only minimize to the button, don't toggle
@@ -582,7 +639,7 @@ async function createIntegratedReviewPanel(patchUrl) {
       
       // Show loading indicator if review is in progress (check by seeing if loading element is visible)
       try {
-        const reviewLoading = document.getElementById('review-loading');
+        const reviewLoading = getPanelRoot().getElementById('review-loading');
         const isLoading = reviewLoading && !reviewLoading.classList.contains('gl-hidden');
         if (isLoading) {
           const loadingModule = await import(chrome.runtime.getURL('components/popup-modules/button-loading-indicator.js'));
@@ -607,17 +664,17 @@ async function createIntegratedReviewPanel(patchUrl) {
   }
   
   // Tab switching for Review | Code Suggestions
-  const tabButtonsContainer = document.getElementById('review-tab-buttons');
+  const tabButtonsContainer = shadowRoot.getElementById('review-tab-buttons');
   if (tabButtonsContainer) {
     tabButtonsContainer.addEventListener('click', (e) => {
       const btn = e.target.closest('.thinkreview-tab-btn');
       if (!btn || btn.classList.contains('gl-hidden')) return;
       const tab = btn.getAttribute('data-tab');
       if (!tab) return;
-      const panel = document.getElementById('tab-panel-' + tab.replace(/_/g, '-'));
+      const panel = shadowRoot.getElementById('tab-panel-' + tab.replace(/_/g, '-'));
       if (!panel) return;
       tabButtonsContainer.querySelectorAll('.thinkreview-tab-btn').forEach((b) => b.classList.remove('active'));
-      document.querySelectorAll('.thinkreview-tab-panel').forEach((p) => p.classList.remove('active'));
+      shadowRoot.querySelectorAll('.thinkreview-tab-panel').forEach((p) => p.classList.remove('active'));
       btn.classList.add('active');
       panel.classList.add('active');
 
@@ -651,13 +708,13 @@ async function createIntegratedReviewPanel(patchUrl) {
   }
 
   // Add event listener for the refresh button
-  const refreshButton = document.getElementById('refresh-review-btn');
+  const refreshButton = shadowRoot.getElementById('refresh-review-btn');
   if (refreshButton) {
     refreshButton.addEventListener('click', (e) => {
       e.stopPropagation(); // Prevent triggering the header click event
-      const reviewLoading = document.getElementById('review-loading');
-      const reviewContent = document.getElementById('review-content');
-      const reviewError = document.getElementById('review-error');
+      const reviewLoading = shadowRoot.getElementById('review-loading');
+      const reviewContent = shadowRoot.getElementById('review-content');
+      const reviewError = shadowRoot.getElementById('review-error');
       
       // Clear previous review data so Copy All can't use stale content
       currentReviewData = null;
@@ -707,9 +764,9 @@ async function createIntegratedReviewPanel(patchUrl) {
   }
   
   // Add event listener for the settings button
-  const settingsButton = container.querySelector('#thinkreview-settings-btn');
+  const settingsButton = shadowRoot.querySelector('#thinkreview-settings-btn');
   if (settingsButton) {
-    const settingsWrapper = container.querySelector('.thinkreview-settings-btn-wrapper');
+    const settingsWrapper = shadowRoot.querySelector('.thinkreview-settings-btn-wrapper');
     let settingsTooltipTimeout;
     const settingsTooltipEl = settingsWrapper?.querySelector('.thinkreview-settings-tooltip');
     if (settingsWrapper && settingsTooltipEl) {
@@ -735,9 +792,9 @@ async function createIntegratedReviewPanel(patchUrl) {
   }
 
   // Add event listener for the bug report button first
-  const bugReportButton = document.getElementById('bug-report-btn');
+  const bugReportButton = shadowRoot.getElementById('bug-report-btn');
   if (bugReportButton) {
-    const bugWrapper = container.querySelector('.thinkreview-bug-report-btn-wrapper');
+    const bugWrapper = shadowRoot.querySelector('.thinkreview-bug-report-btn-wrapper');
     const bugTooltipEl = bugWrapper?.querySelector('.thinkreview-bug-report-tooltip');
     if (bugWrapper && bugTooltipEl) {
       let bugTooltipTimeout;
@@ -765,7 +822,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   }
   
   // Fast tooltip for regenerate button (short delay vs native title)
-  const regenerateWrapper = container.querySelector('.thinkreview-regenerate-btn-wrapper');
+  const regenerateWrapper = shadowRoot.querySelector('.thinkreview-regenerate-btn-wrapper');
   if (regenerateWrapper) {
     let tooltipTimeout;
     const tooltipEl = regenerateWrapper.querySelector('.thinkreview-regenerate-tooltip');
@@ -781,7 +838,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   }
 
   // Add event listener for the regenerate review button
-  const regenerateButton = document.getElementById('regenerate-review-btn');
+  const regenerateButton = shadowRoot.getElementById('regenerate-review-btn');
   if (regenerateButton) {
     regenerateButton.addEventListener('click', async (e) => {
       e.stopPropagation(); // Prevent triggering the header click event
@@ -799,9 +856,9 @@ async function createIntegratedReviewPanel(patchUrl) {
       }
       
       // Show loading state
-      const reviewLoading = document.getElementById('review-loading');
-      const reviewContent = document.getElementById('review-content');
-      const reviewError = document.getElementById('review-error');
+      const reviewLoading = shadowRoot.getElementById('review-loading');
+      const reviewContent = shadowRoot.getElementById('review-content');
+      const reviewError = shadowRoot.getElementById('review-error');
       
       // Clear previous review data so Copy All can't use stale content
       currentReviewData = null;
@@ -824,7 +881,7 @@ async function createIntegratedReviewPanel(patchUrl) {
 
   // Block events from header-actions to prevent panel minimization
   // But allow clicks on the bug report button, regenerate button, and language selector to pass through
-  const headerActions = container.querySelector('.thinkreview-header-actions');
+  const headerActions = shadowRoot.querySelector('.thinkreview-header-actions');
   if (headerActions) {
     const blockEvent = (e) => {
       // Allow clicks on bug report button, regenerate button, copy-all button, language selector, and layout button
@@ -1018,8 +1075,9 @@ const INTEGRATED_REVIEW_PANEL_RESIZE_MAX_WIDTH_PX = 800;
  * Initializes the resize handle functionality for the review panel
  * @param {HTMLElement} container - The review panel container
  */
-function initializeResizeHandle(container) {
-  const resizeHandle = container.querySelector('.thinkreview-resize-handle');
+function initializeResizeHandle(container, shadowRoot = null) {
+  const root = shadowRoot || container;
+  const resizeHandle = root.querySelector('.thinkreview-resize-handle');
   if (!resizeHandle) return;
 
   let isResizing = false;
@@ -1099,7 +1157,7 @@ function initializeResizeHandle(container) {
  * @param {boolean} [isTypingIndicator=false] - If true, treat as typing indicator (no copy button). Use instead of parsing content.
  */
 function appendToChatLog(sender, message, aiResponseText = null, isTypingIndicator = false) {
-  const chatLog = document.getElementById('chat-log');
+  const chatLog = getPanelRoot().getElementById('chat-log');
   if (!chatLog) return;
 
   const messageWrapper = document.createElement('div');
@@ -1160,7 +1218,7 @@ function appendToChatLog(sender, message, aiResponseText = null, isTypingIndicat
   applySimpleSyntaxHighlighting(messageBubble);
 
   // Auto-scroll the main review scroll container to the bottom
-  const reviewScrollContainer = document.getElementById('review-scroll-container');
+  const reviewScrollContainer = getPanelRoot().getElementById('review-scroll-container');
   if (reviewScrollContainer) {
     reviewScrollContainer.scrollTo({
       top: reviewScrollContainer.scrollHeight,
@@ -1182,6 +1240,7 @@ function showFeedbackPopup(aiResponse, mrUrl, onSubmit) {
   if (existingPopup) {
     existingPopup.remove();
   }
+  // note: feedback popup is appended to document.body (light DOM), so document.getElementById is correct above
 
   // Create popup overlay
   const overlay = document.createElement('div');
@@ -1392,11 +1451,11 @@ function submitFeedback(email, feedbackType, aiResponse, mrUrl, rating, addition
  * Switch to Review tab (where conversation is displayed)
  */
 function switchToReviewTab() {
-  const reviewTabBtn = document.querySelector('.thinkreview-tab-btn[data-tab="review"]');
-  const reviewPanel = document.getElementById('tab-panel-review');
+  const reviewTabBtn = getPanelRoot().querySelector('.thinkreview-tab-btn[data-tab="review"]');
+  const reviewPanel = getPanelRoot().getElementById('tab-panel-review');
   if (reviewTabBtn && reviewPanel) {
-    document.querySelectorAll('.thinkreview-tab-btn').forEach((b) => b.classList.remove('active'));
-    document.querySelectorAll('.thinkreview-tab-panel').forEach((p) => p.classList.remove('active'));
+    getPanelRoot().querySelectorAll('.thinkreview-tab-btn').forEach((b) => b.classList.remove('active'));
+    getPanelRoot().querySelectorAll('.thinkreview-tab-panel').forEach((p) => p.classList.remove('active'));
     reviewTabBtn.classList.add('active');
     reviewPanel.classList.add('active');
   }
@@ -1447,8 +1506,8 @@ async function handleSendMessage(messageText) {
   appendToChatLog('user', messageText);
   conversationHistory.push({ role: 'user', content: messageText });
 
-  const chatInput = document.getElementById('chat-input');
-  const sendButton = document.getElementById('chat-send-btn');
+  const chatInput = getPanelRoot().getElementById('chat-input');
+  const sendButton = getPanelRoot().getElementById('chat-send-btn');
   chatInput.disabled = true;
   sendButton.disabled = true;
 
@@ -1473,7 +1532,7 @@ async function handleSendMessage(messageText) {
     const aiResponse = await window.getAIResponse(currentPatchContent, conversationHistory, language);
 
     // Remove typing indicator
-    const chatLog = document.getElementById('chat-log');
+    const chatLog = getPanelRoot().getElementById('chat-log');
     const spinner = chatLog.querySelector('.gl-spinner');
     if (spinner) {
       // Find the chat-message-wrapper by traversing up the DOM tree
@@ -1528,7 +1587,7 @@ async function handleSendMessage(messageText) {
     // }
     
     // Remove typing indicator
-    const chatLog = document.getElementById('chat-log');
+    const chatLog = getPanelRoot().getElementById('chat-log');
     const spinner = chatLog.querySelector('.gl-spinner');
     if (spinner) {
       // Find the chat-message-wrapper by traversing up the DOM tree
@@ -1619,11 +1678,11 @@ async function displayIntegratedReview(
     dbgWarn('Failed to hide loading indicator:', error);
   }
 
-  const reviewLoading = document.getElementById('review-loading');
-  const reviewContent = document.getElementById('review-content');
-  const reviewError = document.getElementById('review-error');
-  const tokenError = document.getElementById('review-azure-token-error');
-  const loginPrompt = document.getElementById('review-login-prompt');
+  const reviewLoading = getPanelRoot().getElementById('review-loading');
+  const reviewContent = getPanelRoot().getElementById('review-content');
+  const reviewError = getPanelRoot().getElementById('review-error');
+  const tokenError = getPanelRoot().getElementById('review-azure-token-error');
+  const loginPrompt = getPanelRoot().getElementById('review-login-prompt');
 
   if (!reviewLoading || !reviewContent || !reviewError) {
     dbgWarn('Review panel elements not found (panel may have been closed or navigated away)');
@@ -1632,17 +1691,17 @@ async function displayIntegratedReview(
   }
 
   // Static review elements
-  const reviewSummary = document.getElementById('review-summary');
-  const reviewSuggestions = document.getElementById('review-suggestions');
-  const reviewSecurity = document.getElementById('review-security');
-  const reviewPractices = document.getElementById('review-practices');
-  const reviewMetricsContainer = document.getElementById('review-metrics-container');
-  const patchSizeBanner = document.getElementById('review-patch-size-banner');
+  const reviewSummary = getPanelRoot().getElementById('review-summary');
+  const reviewSuggestions = getPanelRoot().getElementById('review-suggestions');
+  const reviewSecurity = getPanelRoot().getElementById('review-security');
+  const reviewPractices = getPanelRoot().getElementById('review-practices');
+  const reviewMetricsContainer = getPanelRoot().getElementById('review-metrics-container');
+  const patchSizeBanner = getPanelRoot().getElementById('review-patch-size-banner');
 
   // Hide loading indicator and other states, show the main content area
   reviewLoading.classList.add('gl-hidden');
   reviewError.classList.add('gl-hidden');
-  const reviewScrollMain = document.getElementById('review-scroll-main');
+  const reviewScrollMain = getPanelRoot().getElementById('review-scroll-main');
   if (reviewScrollMain) reviewScrollMain.classList.remove('gl-hidden');
   if (tokenError) tokenError.classList.add('gl-hidden');
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
@@ -1657,7 +1716,7 @@ async function displayIntegratedReview(
   const storage = await chrome.storage.local.get(['userSubscriptionData']);
   const subscriptionTypeForDisplay = storage.userSubscriptionData?.userSubscriptionType || 'Free';
 
-  const subscriptionLabel = document.getElementById('review-subscription-label');
+  const subscriptionLabel = getPanelRoot().getElementById('review-subscription-label');
   if (subscriptionLabel) {
     const raw = (subscriptionTypeForDisplay ?? '').toString().trim().toLowerCase();
     let displayName = 'Free';
@@ -1772,7 +1831,7 @@ async function displayIntegratedReview(
   }
 
   // Setup copy-all review button in the quality scorecard header (rendered above)
-  const copyAllButton = document.getElementById('copy-all-review-btn');
+  const copyAllButton = getPanelRoot().getElementById('copy-all-review-btn');
   if (copyAllButton && !copyAllButton.dataset.copyBound) {
     copyAllButton.dataset.copyBound = '1';
     copyAllButton.addEventListener('click', async (e) => {
@@ -1922,7 +1981,7 @@ async function displayIntegratedReview(
   }
 
   // Generate PR description button: send a dedicated prompt and show result in chat (attach once)
-  const generatePrDescBtn = document.getElementById('generate-pr-description-btn');
+  const generatePrDescBtn = getPanelRoot().getElementById('generate-pr-description-btn');
   if (generatePrDescBtn && !generatePrDescBtn.dataset.prDescBound) {
     generatePrDescBtn.dataset.prDescBound = '1';
     generatePrDescBtn.addEventListener('click', async () => {
@@ -2039,11 +2098,11 @@ async function displayIntegratedReview(
   populateList(reviewSecurity, review.securityIssues, 'security');
   populateList(reviewPractices, review.bestPractices, 'practice');
   // Highlight code within lists and entire scroll container
-  const scrollContainer = document.getElementById('review-scroll-container');
+  const scrollContainer = getPanelRoot().getElementById('review-scroll-container');
   applySimpleSyntaxHighlighting(scrollContainer);
 
   // Populate suggested questions (limit to maximum 3 AI-generated + 1 static)
-  const suggestedQuestionsContainer = document.getElementById('suggested-questions');
+  const suggestedQuestionsContainer = getPanelRoot().getElementById('suggested-questions');
   if (suggestedQuestionsContainer) {
     suggestedQuestionsContainer.replaceChildren(); // Clear previous questions
     
@@ -2082,12 +2141,12 @@ async function displayIntegratedReview(
       });
     }
     
-    document.getElementById('suggested-questions-container').classList.remove('gl-hidden');
+    getPanelRoot().getElementById('suggested-questions-container').classList.remove('gl-hidden');
   }
 
   // Show initial review feedback buttons
   // Use mrUrl to query the review document
-  const initialFeedbackContainer = document.getElementById('initial-review-feedback-container');
+  const initialFeedbackContainer = getPanelRoot().getElementById('initial-review-feedback-container');
   if (initialFeedbackContainer) {
     // Get the full MR/PR URL
     const mrUrl = window.location.href;
@@ -2114,8 +2173,8 @@ async function displayIntegratedReview(
   ];
 
   // Setup chat input
-  let sendButton = document.getElementById('chat-send-btn');
-  let chatInput = document.getElementById('chat-input');
+  let sendButton = getPanelRoot().getElementById('chat-send-btn');
+  let chatInput = getPanelRoot().getElementById('chat-input');
 
   // Clone and replace nodes to clear any previous event listeners
   const newSendButton = sendButton.cloneNode(true);
@@ -2142,7 +2201,7 @@ async function displayIntegratedReview(
       chatInput.value = '';
     } else if (messageText.length > 2000) {
       // Show a brief warning if message is too long
-      const charCounter = document.getElementById('char-counter');
+      const charCounter = getPanelRoot().getElementById('char-counter');
       const originalColor = charCounter.style.color;
       charCounter.style.color = '#dc3545';
       charCounter.textContent = 'Message too long!';
@@ -2162,7 +2221,7 @@ async function displayIntegratedReview(
   });
 
   // Character counter functionality
-  const charCounter = document.getElementById('char-counter');
+  const charCounter = getPanelRoot().getElementById('char-counter');
   const updateCharCounter = () => {
     const currentLength = chatInput.value.length;
     const maxLength = 2000;
@@ -2197,7 +2256,7 @@ async function displayIntegratedReview(
   updateCharCounter();
 
   // Add click handlers for suggested questions
-  const suggestedQuestionButtons = document.querySelectorAll('.thinkreview-suggested-question-btn');
+  const suggestedQuestionButtons = getPanelRoot().querySelectorAll('.thinkreview-suggested-question-btn');
   suggestedQuestionButtons.forEach(button => {
     button.addEventListener('click', async () => {
       const question = button.getAttribute('data-question');
@@ -2313,17 +2372,17 @@ async function displayIntegratedReview(
  * @param {HTMLElement} [reviewContent] - The #review-content element. If omitted, looked up from the DOM.
  */
 function clearUpgradeMessage(reviewContent) {
-  const wrapper = document.getElementById('upgrade-message-wrapper');
+  const wrapper = getPanelRoot().getElementById('upgrade-message-wrapper');
   if (wrapper) {
     wrapper.remove();
     dbgLog('clearUpgradeMessage: removed stale upgrade message wrapper');
   }
-  const content = reviewContent || document.getElementById('review-content');
+  const content = reviewContent || getPanelRoot().getElementById('review-content');
   if (content) {
     const tabsWrapper = content.querySelector('.thinkreview-tabs-wrapper');
     if (tabsWrapper) tabsWrapper.classList.remove('gl-hidden');
   }
-  const chatInputContainer = document.getElementById('chat-input-container');
+  const chatInputContainer = getPanelRoot().getElementById('chat-input-container');
   if (chatInputContainer) chatInputContainer.classList.remove('gl-hidden');
 }
 
@@ -2371,14 +2430,14 @@ async function showIntegratedReviewError(message) {
   // Stop the enhanced loader
   stopEnhancedLoader();
 
-  const reviewLoading = document.getElementById('review-loading');
-  const reviewContent = document.getElementById('review-content');
-  const reviewError = document.getElementById('review-error');
-  const reviewErrorMessage = document.getElementById('review-error-message');
-  const reviewScrollMain = document.getElementById('review-scroll-main');
-  const tokenError = document.getElementById('review-azure-token-error');
-  const bitbucketTokenError = document.getElementById('review-bitbucket-token-error');
-  const loginPrompt = document.getElementById('review-login-prompt');
+  const reviewLoading = getPanelRoot().getElementById('review-loading');
+  const reviewContent = getPanelRoot().getElementById('review-content');
+  const reviewError = getPanelRoot().getElementById('review-error');
+  const reviewErrorMessage = getPanelRoot().getElementById('review-error-message');
+  const reviewScrollMain = getPanelRoot().getElementById('review-scroll-main');
+  const tokenError = getPanelRoot().getElementById('review-azure-token-error');
+  const bitbucketTokenError = getPanelRoot().getElementById('review-bitbucket-token-error');
+  const loginPrompt = getPanelRoot().getElementById('review-login-prompt');
 
   if (!reviewLoading || !reviewContent || !reviewError || !reviewErrorMessage) {
     dbgWarn('Review panel elements not found (panel may have been closed or navigated away)');
@@ -2440,7 +2499,7 @@ async function showIntegratedReviewError(message) {
 
   switchToReviewTab();
 
-  const scrollContainer = document.getElementById('review-scroll-container');
+  const scrollContainer = getPanelRoot().getElementById('review-scroll-container');
   if (scrollContainer) {
     scrollContainer.scrollTop = 0;
   }
