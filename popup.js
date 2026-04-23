@@ -8,6 +8,32 @@ const TIMEOUT_HIGHLIGHT_ANIMATION = 2500;
 const TIMEOUT_CLEAR_TOKEN_STATUS = 5000;
 const TIMEOUT_TOAST_VISIBILITY = 1500;
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+let userDataLoadingOverlayDepth = 0;
+
+function pushUserDataLoadingOverlay() {
+  userDataLoadingOverlayDepth += 1;
+  const el = document.getElementById('user-data-loading-overlay');
+  if (el) {
+    el.hidden = false;
+    el.setAttribute('aria-busy', 'true');
+  }
+}
+
+function popUserDataLoadingOverlay() {
+  userDataLoadingOverlayDepth = Math.max(0, userDataLoadingOverlayDepth - 1);
+  if (userDataLoadingOverlayDepth === 0) {
+    const el = document.getElementById('user-data-loading-overlay');
+    if (el) {
+      el.hidden = true;
+      el.setAttribute('aria-busy', 'false');
+    }
+  }
+}
+
 // Import modules for better modularity
 import { subscriptionStatus } from './components/popup-modules/subscription-status.js';
 import { reviewCount } from './components/popup-modules/review-count.js';
@@ -43,14 +69,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Function to show loading state
+// Function to show loading state (status line only; user-data fetch uses #user-data-loading-overlay)
 function showLoadingState() {
   const authenticatedContent = document.getElementById('authenticated-content');
   const statusDiv = document.getElementById('current-status');
   
   if (authenticatedContent) {
     authenticatedContent.style.display = 'block';
-    authenticatedContent.classList.add('loading');
+    authenticatedContent.classList.remove('loading');
   }
   
   if (statusDiv) {
@@ -169,58 +195,64 @@ function isUserLoggedIn() {
   });
 }
 
-// Function to fetch and display review count with retry logic
-async function fetchAndDisplayUserData(retryCount = 0) {
+// Function to fetch and display review count with retry logic (ThinkReviewGetUserData + subscription CFs)
+async function fetchAndDisplayUserData() {
   const maxRetries = 3;
-  
+  pushUserDataLoadingOverlay();
   try {
-    // Check if CloudService is available
-    if (!window.CloudService) {
-      if (retryCount < maxRetries) {
-        // Use exponential backoff for retries (1s, 2s, 4s)
-        const backoffTime = Math.pow(2, retryCount) * 500;
-        dbgLog(`CloudService not available, retrying in ${backoffTime/1000}s (attempt ${retryCount + 1}/${maxRetries})`);
-        setTimeout(() => fetchAndDisplayUserData(retryCount + 1), backoffTime);
-        return;
-      } else {
+    let cloudRetry = 0;
+    while (!window.CloudService) {
+      if (cloudRetry >= maxRetries) {
         dbgWarn('CloudService not available after retries');
-              showErrorState('Unable to load user data');
-      updateReviewCount('error');
-      await updateSubscriptionStatus('Free', null, false, null);
+        showErrorState('Unable to load user data');
+        updateReviewCount('error');
+        await updateSubscriptionStatus('Free', null, false, null);
         return;
       }
+      const backoffTime = Math.pow(2, cloudRetry) * 500;
+      dbgLog(`CloudService not available, retrying in ${backoffTime / 1000}s (attempt ${cloudRetry + 1}/${maxRetries})`);
+      await delay(backoffTime);
+      cloudRetry += 1;
     }
-    
-    // Double-check that CloudService is actually ready
+
     if (!cloudServiceReady) {
-      cloudServiceReady = true; // Mark as ready since we have the service
+      cloudServiceReady = true;
       dbgLog('CloudService detected as ready during fetch');
     }
-    const userData = await window.CloudService.getUserDataWithSubscription();
-    updateReviewCount(userData.reviewCount);
-    // Use consolidated fields: subscriptionType and cancellationRequested
-    const subscriptionType = userData.subscriptionType || userData.stripeSubscriptionType || 'Free';
-    const cancellationRequested = userData.cancellationRequested || false;
-    const initialTrialEndDate = userData.initialTrialEndDate || null;
-    await updateSubscriptionStatus(subscriptionType, userData.currentPlanValidTo, cancellationRequested, userData.stripeCanceledDate, initialTrialEndDate);
-    dbgLog('User data updated:', userData);
-    
-    // Show success state if we got valid data
-    if (userData.reviewCount !== null && userData.reviewCount !== undefined) {
-      // showSuccessState('User data loaded successfully');
+
+    let fetchAttempt = 0;
+    while (true) {
+      try {
+        const userData = await window.CloudService.getUserDataWithSubscription();
+        updateReviewCount(userData.reviewCount);
+        const subscriptionType = userData.subscriptionType || userData.stripeSubscriptionType || 'Free';
+        const cancellationRequested = userData.cancellationRequested || false;
+        const initialTrialEndDate = userData.initialTrialEndDate || null;
+        await updateSubscriptionStatus(
+          subscriptionType,
+          userData.currentPlanValidTo,
+          cancellationRequested,
+          userData.stripeCanceledDate,
+          initialTrialEndDate
+        );
+        dbgLog('User data updated:', userData);
+        return;
+      } catch (error) {
+        dbgWarn('Error fetching user data:', error);
+        if (fetchAttempt >= maxRetries) {
+          showErrorState('Failed to load user data');
+          updateReviewCount('error');
+          await updateSubscriptionStatus('Free', null, false, null);
+          return;
+        }
+        const backoffTime = Math.pow(2, fetchAttempt) * 500;
+        dbgLog(`Retrying user data fetch in ${backoffTime / 1000}s (attempt ${fetchAttempt + 1}/${maxRetries})`);
+        await delay(backoffTime);
+        fetchAttempt += 1;
+      }
     }
-  } catch (error) {
-    dbgWarn('Error fetching user data:', error);
-    if (retryCount < maxRetries) {
-      // Use exponential backoff for retries (1s, 2s, 4s)
-      const backoffTime = Math.pow(2, retryCount) * 500;
-      dbgLog(`Retrying user data fetch in ${backoffTime/1000}s (attempt ${retryCount + 1}/${maxRetries})`);
-      setTimeout(() => fetchAndDisplayUserData(retryCount + 1), backoffTime);
-    } else {
-      showErrorState('Failed to load user data');
-      updateReviewCount('error');
-      await updateSubscriptionStatus('Free', null, false, null);
-    }
+  } finally {
+    popUserDataLoadingOverlay();
   }
 }
 
