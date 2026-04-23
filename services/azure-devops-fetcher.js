@@ -58,6 +58,10 @@ export class AzureDevOpsFetcher {
     }
 
     // Initialize the API service
+    let pagePathname = null;
+    if (prInfo.url) {
+      try { pagePathname = new URL(prInfo.url).pathname; } catch (e) { /* ignore */ }
+    }
     await azureDevOpsAPI.init(
       useSessionCookies ? null : token,
       prInfo.organization,
@@ -66,7 +70,7 @@ export class AzureDevOpsFetcher {
       prInfo.hostname,
       prInfo.protocol,
       apiVersion,
-      { useSessionCookies }
+      { useSessionCookies, pagePathname }
     );
 
     this.isInitialized = true;

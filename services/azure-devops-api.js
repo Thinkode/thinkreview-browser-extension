@@ -35,6 +35,44 @@ export class AzureDevOpsAPI {
     this.isInitialized = false;
     /** @type {Promise<void>|null} One-time promise for lazy project resolution (on-prem when project not in URL) */
     this._projectResolutionPromise = null;
+    /** Full page pathname stored for TFS second-stage path correction. */
+    this._pathname = null;
+    /** True once a TFS collection-path correction has been applied to avoid double-correction. */
+    this._tfsPathCorrected = false;
+  }
+
+  /**
+   * Second-stage correction for Azure DevOps Server / TFS instances where the URL sub-path prefix
+   * (e.g. /tfs) is not a valid REST collection root. Uses the stored page pathname to derive the real
+   * collection path (e.g. tfs/HM) and the actual team project (e.g. hm3), then updates baseUrl,
+   * organization, and project in-place. Only runs once per instance (_tfsPathCorrected guard).
+   * @returns {boolean} True when a correction was applied.
+   */
+  _applyCorrectedTfsPath() {
+    if (!this._pathname || this._tfsPathCorrected) return false;
+    const { collectionPath, teamProject } = parseAzureDevOpsServerPath(this._pathname);
+    if (!collectionPath || collectionPath === this.organization) return false;
+
+    try {
+      const parsed = new URL(this.baseUrl);
+      const correctedBase = `${parsed.protocol}//${parsed.host}/${collectionPath}`;
+      dbgLog('Azure DevOps API: applying TFS path correction (second stage):', {
+        oldOrganization: this.organization,
+        oldProject: this.project,
+        oldBaseUrl: this.baseUrl,
+        collectionPath,
+        teamProject,
+        correctedBase
+      });
+      this.organization = collectionPath;
+      this.project = teamProject;
+      this.baseUrl = correctedBase;
+      this._tfsPathCorrected = true;
+      return true;
+    } catch (e) {
+      dbgWarn('Azure DevOps API: TFS path correction failed to parse baseUrl:', e);
+      return false;
+    }
   }
 
   /**
@@ -46,7 +84,8 @@ export class AzureDevOpsAPI {
    * @param {string} hostname - Hostname (optional, used to determine base URL for visualstudio.com domains)
    * @param {string} protocol - Protocol (optional, e.g. 'http:' or 'https:'; used for custom/on-prem to match page)
    * @param {string|null} apiVersion - API version (optional, e.g. '4.1' for on-prem; default 7.1)
-   * @param {{ useSessionCookies?: boolean }} [options] - If useSessionCookies, token may be omitted (Azure DevOps Services cloud only).
+   * @param {{ useSessionCookies?: boolean, pagePathname?: string }} [options] - If useSessionCookies, token may be omitted (Azure DevOps Services cloud only).
+   *   pagePathname: full page pathname (window.location.pathname); when supplied enables TFS second-stage path correction.
    */
   async init(token, organization, project, repository, hostname = null, protocol = null, apiVersion = null, options = {}) {
     const useSessionCookies = options.useSessionCookies === true;
@@ -80,6 +119,8 @@ export class AzureDevOpsAPI {
     this.repositoryId = repository;
     this.apiVersion = apiVersion != null ? getRequestApiVersion(apiVersion) : DEFAULT_API_VERSION;
     this.isInitialized = true;
+    this._pathname = (typeof options.pagePathname === 'string' && options.pagePathname) ? options.pagePathname : null;
+    this._tfsPathCorrected = false;
 
     // On-prem URL can be /{collection}/_git/{repo} with no project segment; resolve project lazily in makeRequest (no await in init)
 
@@ -279,6 +320,25 @@ export class AzureDevOpsAPI {
             );
           }
           
+          // Second-stage TFS path correction: when the server says a project name is required,
+          // the collection path used as organization was wrong (e.g. /tfs instead of /tfs/HM).
+          // Correct baseUrl/organization/project from the stored page pathname and retry once.
+          if (
+            response.status === 400 &&
+            errorMessage.toLowerCase().includes('project name is required') &&
+            this._pathname &&
+            !this._tfsPathCorrected
+          ) {
+            const corrected = this._applyCorrectedTfsPath();
+            if (corrected) {
+              dbgLog('Azure DevOps API: retrying request after TFS path correction:', { endpoint });
+              const retryResponse = await this._fetchApi(endpoint, undefined, options);
+              if (retryResponse.ok) return retryResponse;
+              const retryText = await retryResponse.text();
+              throw new Error(`Azure DevOps API error: ${retryResponse.status} ${retryResponse.statusText} - ${retryText}`);
+            }
+          }
+
           throw new Error(`Azure DevOps API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
