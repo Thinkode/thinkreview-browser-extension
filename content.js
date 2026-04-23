@@ -131,7 +131,7 @@ async function initializePlatformDetection() {
       const pathParts = window.location.pathname.split('/').filter(Boolean);
       const collection = pathParts.length > 0 ? pathParts[0] : '';
       const origin = window.location.origin;
-      apiModule.detectAndCacheServerVersion(origin, collection)
+      apiModule.detectAndCacheServerVersion(origin, collection, window.location.pathname)
         .then((result) => {
           if (!result || result.fromCache !== false) return;
           // Send to cloud via background script (avoids content script fetch to external API / CSP)

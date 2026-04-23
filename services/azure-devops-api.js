@@ -2,6 +2,7 @@
 // Azure DevOps API service for fetching pull request data and code changes
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 import { getRequestApiVersion, DEFAULT_API_VERSION } from './azure-api-versions/index.js';
+import { parseAzureDevOpsServerPath } from './azure-devops-server-path.js';
 
 // jsdiff (vendor/diff.min.js) exposes global Diff when loaded before this script; used for memory-efficient line diff
 const Diff = (typeof self !== 'undefined' && self.Diff) || (typeof globalThis !== 'undefined' && globalThis.Diff) || null;
@@ -781,10 +782,13 @@ export function getCachedAzureApiVersion(origin) {
  * were never stored or were null/invalid; otherwise returns cached.
  * Call from content script when on an Azure DevOps page (uses same origin as the page).
  * @param {string} origin - e.g. window.location.origin
- * @param {string} collection - First path segment (e.g. DefaultCollection or org name)
+ * @param {string} collection - First path segment used as collection (e.g. DefaultCollection). Callers pass pathParts[0].
+ * @param {string} [pathname] - Optional full pathname (window.location.pathname). When provided and all stage-1
+ *   probes return 404, a second-stage retry is attempted using the corrected collection path derived from the
+ *   pathname (e.g. /tfs/HM/... → tfs/HM). Existing callers that do not pass pathname are unaffected.
  * @returns {Promise<{ version: string, fromCache: boolean, azureOnPremiseVersion?: string|null, azureOnPremiseApiVersion?: string|null }>}
  */
-export async function detectAndCacheServerVersion(origin, collection) {
+export async function detectAndCacheServerVersion(origin, collection, pathname) {
   const fallback = { version: 'Unknown (storage not available)', fromCache: false, azureOnPremiseVersion: null, azureOnPremiseApiVersion: null };
   if (!origin || !collection) {
     return { version: 'Unknown (missing origin or collection)', fromCache: false, azureOnPremiseVersion: null, azureOnPremiseApiVersion: null };
@@ -813,31 +817,62 @@ export async function detectAndCacheServerVersion(origin, collection) {
     }
   }
 
-  const baseUrl = `${origin}/${collection}/_apis/projects`;
-  let detectedVersion = 'Unknown / Could not connect';
-  let azureOnPremiseApiVersion = null;
-  let azureOnPremiseVersion = null;
+  /** Probe all VERSIONS_TO_CHECK against a given base URL. Returns detected fields or null if every probe was a 404. */
+  async function _probeCollectionPath(baseUrl) {
+    let detectedVersion = null;
+    let azureOnPremiseApiVersion = null;
+    let azureOnPremiseVersion = null;
+    let allWere404 = true;
 
-  for (const v of VERSIONS_TO_CHECK) {
-    try {
-      const testUrl = `${baseUrl}?api-version=${v.api}`;
-      const response = await fetch(testUrl, {
-        method: 'GET',
-        credentials: 'include',
-        headers: { Accept: 'application/json' }
-      });
-      if (response.ok) {
-        detectedVersion = `${v.label} (Supports API ${v.api})`;
-        azureOnPremiseApiVersion = v.api;
-        azureOnPremiseVersion = v.label;
-        break;
+    for (const v of VERSIONS_TO_CHECK) {
+      try {
+        const testUrl = `${baseUrl}?api-version=${v.api}`;
+        const response = await fetch(testUrl, {
+          method: 'GET',
+          credentials: 'include',
+          headers: { Accept: 'application/json' }
+        });
+        if (response.ok) {
+          detectedVersion = `${v.label} (Supports API ${v.api})`;
+          azureOnPremiseApiVersion = v.api;
+          azureOnPremiseVersion = v.label;
+          allWere404 = false;
+          break;
+        }
+        if (response.status === 401) {
+          detectedVersion = '401 Unauthorized (Auth works, but version check blocked)';
+          allWere404 = false;
+          break;
+        }
+        if (response.status !== 404) {
+          allWere404 = false;
+        }
+      } catch (e) {
+        allWere404 = false;
       }
-      if (response.status === 401) {
-        detectedVersion = '401 Unauthorized (Auth works, but version check blocked)';
-        break;
+    }
+
+    return { detectedVersion, azureOnPremiseApiVersion, azureOnPremiseVersion, allWere404 };
+  }
+
+  // Stage 1: existing behaviour — use the caller-supplied collection (pathParts[0])
+  const stage1 = await _probeCollectionPath(`${origin}/${collection}/_apis/projects`);
+  let detectedVersion = stage1.detectedVersion || 'Unknown / Could not connect';
+  let azureOnPremiseApiVersion = stage1.azureOnPremiseApiVersion;
+  let azureOnPremiseVersion = stage1.azureOnPremiseVersion;
+
+  // Stage 2: only when every stage-1 probe was a 404 AND a pathname was supplied that yields a
+  // different (deeper) collection path — e.g. /tfs/HM/... → collection tfs/HM vs stage-1 tfs
+  if (stage1.allWere404 && pathname) {
+    const { collectionPath } = parseAzureDevOpsServerPath(pathname);
+    if (collectionPath && collectionPath !== collection) {
+      dbgLog('Azure DevOps Server version: stage-1 probes all 404, retrying with corrected collection path:', { collection, collectionPath });
+      const stage2 = await _probeCollectionPath(`${origin}/${collectionPath}/_apis/projects`);
+      if (stage2.detectedVersion) {
+        detectedVersion = stage2.detectedVersion;
+        azureOnPremiseApiVersion = stage2.azureOnPremiseApiVersion;
+        azureOnPremiseVersion = stage2.azureOnPremiseVersion;
       }
-    } catch (e) {
-      // Continue to next version
     }
   }
 
