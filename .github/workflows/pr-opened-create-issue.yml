@@ -69,7 +69,7 @@ jobs:
           {
             echo "## Pull request"
             echo ""
-            echo "- **PR:** ${PR_URL}"
+            echo "- **PR:** #${PR_NUMBER} (${PR_URL})"
             echo "- **Author:** @${PR_AUTHOR}"
             echo ""
             echo "## Summary"
