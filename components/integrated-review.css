@@ -1147,19 +1147,20 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   transform: none;
 }
 
-/* Enhanced loader: avoid overlap with card header when zoomed — plain
-   align-items:center lets tall content overflow above this box; clip at
-   card-body and bias to safe/top alignment, with scroll inside the loader. */
+/* Enhanced loader: clip at card-body; scroll inside this box when zoomed.
+   Column flex + margin-block:auto on .loader-container centers short content
+   vertically without using align-items:center on a row (which overflowed
+   upward over the header when the block was taller than the viewport). */
 #gitlab-mr-integrated-review #review-loading.enhanced-loader {
   box-sizing: border-box;
   flex: 1 1 auto;
   min-height: 0;
   margin: 0;
-  padding: 20px 16px;
+  padding: clamp(12px, 3vh, 24px) 16px;
   width: 100%;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -1167,11 +1168,9 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   border-radius: 8px;
 }
 
-@supports (align-items: safe center) {
-  #gitlab-mr-integrated-review #review-loading.enhanced-loader {
-    align-items: safe center;
-    justify-content: safe center;
-  }
+#gitlab-mr-integrated-review #review-loading.enhanced-loader .loader-container {
+  flex-shrink: 0;
+  margin-block: auto;
 }
 
 .loader-container {
