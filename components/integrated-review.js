@@ -326,7 +326,7 @@ async function createIntegratedReviewPanel(patchUrl) {
             <option value="Hindi">हिन्दी</option>
             <option value="Polish">Polski</option>
             <option value="Czech">Čeština</option>
-            <option value="Dutch">Nederlands</option>
+            <option value="Dutch">Dutch</option>
             <option value="Vietnamese">Tiếng Việt</option>
             <option value="Indonesian">Bahasa Indonesia</option>
             <option value="Romanian">Română</option>
