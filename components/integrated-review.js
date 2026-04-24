@@ -326,7 +326,7 @@ async function createIntegratedReviewPanel(patchUrl) {
             <option value="Hindi">हिन्दी</option>
             <option value="Polish">Polski</option>
             <option value="Czech">Čeština</option>
-            <option value="Dutch">Nederlands</option>
+            <option value="Dutch">Dutch</option>
             <option value="Vietnamese">Tiếng Việt</option>
             <option value="Indonesian">Bahasa Indonesia</option>
             <option value="Romanian">Română</option>
@@ -347,7 +347,7 @@ async function createIntegratedReviewPanel(patchUrl) {
         </div>
       </div>
       <div class="thinkreview-card-body">
-        <div id="review-loading" class="enhanced-loader gl-display-flex gl-align-items-center gl-justify-content-center gl-py-5">
+        <div id="review-loading" class="enhanced-loader">
           <div class="loader-container">
             <div class="loader-animation">
               <div class="loader-circle">

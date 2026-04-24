@@ -126,6 +126,8 @@
   min-height: 0;
   margin: 10px 0 0;
   padding-left: 16px;
+  list-style-type: disc;
+  list-style-position: outside;
   color: #cbd5e0;
   font-size: 12px;
   line-height: 1.4;
@@ -133,6 +135,7 @@
 
 .plan-features li {
   margin: 3px 0;
+  display: list-item;
 }
 
 .upgrade-btn {
