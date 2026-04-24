@@ -340,11 +340,6 @@ h1 {
   display: none;
 }
 
-#authenticated-content.loading {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
 /* Status Messages */
 #current-status {
   padding: 8px 12px;
@@ -628,7 +623,7 @@ input:focus {
   .loading-spinner {
     animation: none;
   }
-  
+
   #authenticated-content {
     transition: none;
   }
