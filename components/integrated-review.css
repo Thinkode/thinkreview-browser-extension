@@ -2821,6 +2821,16 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-
   line-height: 1.4 !important;
 }
 
+#gitlab-mr-integrated-review .thinkreview-login-description a {
+  color: var(--thinkreview-accent, #6b4fbb) !important;
+  word-break: break-all;
+}
+
+#gitlab-mr-integrated-review .thinkreview-login-refresh-hint {
+  margin-top: 12px !important;
+  margin-bottom: 0 !important;
+}
+
 /* Dark theme overrides for login prompt */
 body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-login-heading,
 body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-login-heading {

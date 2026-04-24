@@ -683,11 +683,16 @@ function showLoginPrompt() {
   if (reviewContent) reviewContent.classList.add('gl-hidden');
   if (reviewError) reviewError.classList.add('gl-hidden');
   
-  // Create login prompt if it doesn't exist
+  // Create login prompt if it doesn't exist (replace legacy Google-only prompt)
   let loginPrompt = document.getElementById('review-login-prompt');
+  if (loginPrompt && loginPrompt.dataset.signinFlow !== 'portal-v2') {
+    loginPrompt.remove();
+    loginPrompt = null;
+  }
   if (!loginPrompt) {
     loginPrompt = document.createElement('div');
     loginPrompt.id = 'review-login-prompt';
+    loginPrompt.dataset.signinFlow = 'portal-v2';
     loginPrompt.className = 'gl-p-5 gl-text-center';
     
     // Create the login message
@@ -707,13 +712,14 @@ function showLoginPrompt() {
     // Add heading
     const heading = document.createElement('h3');
     heading.className = 'thinkreview-login-heading';
-    heading.textContent = 'Please log in to start generating reviews';
+    heading.textContent = 'Sign in to start generating reviews';
     messageContainer.appendChild(heading);
     
-    // Add description
+    const portalSignInUrl = 'https://portal.thinkreview.dev/signin-extension';
     const description = document.createElement('p');
     description.className = 'thinkreview-login-description';
-    description.textContent = 'Sign in with your Google account to access AI code reviews';
+    description.innerHTML =
+      `Click the button below or open <a href="${portalSignInUrl}" target="_blank" rel="noopener noreferrer">${portalSignInUrl}</a>.`;
     messageContainer.appendChild(description);
     
     loginPrompt.appendChild(messageContainer);
@@ -723,75 +729,41 @@ function showLoginPrompt() {
     signInContainer.id = 'gitlab-mr-signin-container';
     signInContainer.className = 'thinkreview-signin-container';
     
-    // Create a button that will trigger the Google Sign-In flow
     const signInButton = document.createElement('button');
+    signInButton.type = 'button';
     signInButton.className = 'thinkreview-signin-button';
-    signInButton.style.backgroundColor = '#4285F4';
-    signInButton.style.color = 'white';
-    signInButton.style.border = 'none';
-    signInButton.style.padding = '10px 16px';
-    signInButton.style.borderRadius = '4px';
-    signInButton.style.display = 'inline-flex';
-    signInButton.style.alignItems = 'center';
-    signInButton.style.justifyContent = 'center';
-    signInButton.style.cursor = 'pointer';
-    signInButton.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48" style="margin-right: 8px;">
-        <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
-        <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
-        <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
-        <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
-      </svg>
-      Sign in with Google
-    `;
+    signInButton.textContent = 'Signup / Sign in';
     
-    // Add click event to open extension page for sign-in
     signInButton.addEventListener('click', () => {
-      dbgLog('Requesting background to open extension page for sign-in');
-      
-      // Ask background script to open the extension page (content scripts can't do this directly)
-      chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_PAGE' }, (response) => {
+      dbgLog('Requesting background to open portal sign-in page');
+      signInButton.disabled = true;
+      const prevLabel = signInButton.textContent;
+      signInButton.textContent = 'Opening…';
+      chrome.runtime.sendMessage({ type: 'OPEN_SIGNIN_PORTAL' }, (response) => {
         if (chrome.runtime.lastError) {
-          dbgWarn('Error opening extension page:', chrome.runtime.lastError);
+          dbgWarn('Error opening portal sign-in:', chrome.runtime.lastError);
+          signInButton.disabled = false;
+          signInButton.textContent = prevLabel;
           return;
         }
-        
-        if (response && response.success) {
-          // Update button to show it was opened
-          signInButton.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="16 12 12 8 8 12"></polyline>
-              <line x1="12" y1="16" x2="12" y2="8"></line>
-            </svg>
-            Opening sign-in...
-          `;
-          signInButton.disabled = true;
-          
-          // Add instructions container with steps
-          const instructionsContainer = document.createElement('div');
-          instructionsContainer.className = 'signin-instructions-container';
-          
-          const instructionsTitle = document.createElement('p');
-          instructionsTitle.className = 'signin-instructions-title';
-          instructionsTitle.textContent = 'After signing in:';
-          instructionsContainer.appendChild(instructionsTitle);
-          
-          const instructionsList = document.createElement('ol');
-          instructionsList.className = 'signin-instructions-list';
-          instructionsList.innerHTML = `
-            <li>Complete the sign-in on the new tab</li>
-            <li><strong>Refresh this page</strong> (or press F5)</li>
-            <li>Click <strong>"AI Review"</strong> button again</li>
-          `;
-          instructionsContainer.appendChild(instructionsList);
-          
-          signInContainer.appendChild(instructionsContainer);
+        if (!response || !response.success) {
+          dbgWarn('Portal sign-in open failed:', response && response.error);
+          signInButton.disabled = false;
+          signInButton.textContent = prevLabel;
+          return;
         }
+        signInButton.textContent = prevLabel;
+        signInButton.disabled = false;
       });
     });
     
     signInContainer.appendChild(signInButton);
+
+    const refreshHint = document.createElement('p');
+    refreshHint.className = 'thinkreview-login-description thinkreview-login-refresh-hint';
+    refreshHint.textContent = 'After signing in, refresh this page.';
+    signInContainer.appendChild(refreshHint);
+
     loginPrompt.appendChild(signInContainer);
     
     // Add the login prompt to the panel
