@@ -132,6 +132,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 #gitlab-mr-integrated-review .thinkreview-card-header {
@@ -143,6 +144,9 @@
   justify-content: space-between;
   align-items: flex-start;
   cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
 }
 
 #gitlab-mr-integrated-review .thinkreview-card-title {
@@ -227,6 +231,7 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
   /* Default to dark theme for better readability */
   background-color: #1e1e1e;
   color: #ffffff;
@@ -1142,17 +1147,31 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   transform: none;
 }
 
-/* Enhanced Loader Styles */
-#gitlab-mr-integrated-review .enhanced-loader {
+/* Enhanced loader: avoid overlap with card header when zoomed — plain
+   align-items:center lets tall content overflow above this box; clip at
+   card-body and bias to safe/top alignment, with scroll inside the loader. */
+#gitlab-mr-integrated-review #review-loading.enhanced-loader {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-height: 0;
   margin: 0;
-  padding: 40px 20px;
+  padding: 20px 16px;
   width: 100%;
-  min-height: 300px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  background: transparent; /* Use panel's background instead of own gradient */
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: transparent;
   border-radius: 8px;
+}
+
+@supports (align-items: safe center) {
+  #gitlab-mr-integrated-review #review-loading.enhanced-loader {
+    align-items: safe center;
+    justify-content: safe center;
+  }
 }
 
 .loader-container {
@@ -1369,17 +1388,6 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   line-height: 1.45;
   color: #a8a8a8;
   text-align: center;
-}
-
-/* Legacy loader styles for backward compatibility */
-#gitlab-mr-integrated-review #review-loading {
-  margin: 0;
-  padding: 60px 0;
-  width: 100%;
-  min-height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 #gitlab-mr-integrated-review .gl-badge {

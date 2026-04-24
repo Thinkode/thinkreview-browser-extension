@@ -347,7 +347,7 @@ async function createIntegratedReviewPanel(patchUrl) {
         </div>
       </div>
       <div class="thinkreview-card-body">
-        <div id="review-loading" class="enhanced-loader gl-display-flex gl-align-items-center gl-justify-content-center gl-py-5">
+        <div id="review-loading" class="enhanced-loader">
           <div class="loader-container">
             <div class="loader-animation">
               <div class="loader-circle">
