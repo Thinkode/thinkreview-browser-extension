@@ -1,0 +1,114 @@
+# When a new pull request is opened, opens a tracking GitHub issue that documents
+# the change, assigns mshenawy22, and links the PR and issue. Skips PRs that only
+# touch release notes and/or manifest/version bookkeeping paths.
+#
+# Uses pull_request_target so the token can open issues on forked PRs; we only
+# use the event payload and GitHub API — no checkout of the PR head ref.
+name: PR opened — create tracking issue
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  create-tracking-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create tracking issue (skip release-only PRs)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          PR_BODY=$(jq -r '.pull_request.body // ""' "$GITHUB_EVENT_PATH")
+
+          # Avoid duplicate issues if the workflow is retried or the PR was reopened after automation.
+          if gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate --jq '.[].body' 2>/dev/null | grep -qF 'Tracking issue for this pull request:'; then
+            echo "A tracking issue comment already exists on this PR; skipping."
+            exit 0
+          fi
+
+          is_allowed_release_file() {
+            local f="$1"
+            case "$f" in
+              manifest.json|package.json|package-lock.json|CHANGELOG.md) return 0 ;;
+            esac
+            case "$f" in
+              "release notes/"*) return 0 ;;
+            esac
+            return 1
+          }
+
+          mapfile -t FILES < <(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename' | sort -u)
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No files in PR diff; creating issue anyway."
+            SKIP=false
+          else
+            SKIP=true
+            for f in "${FILES[@]}"; do
+              if ! is_allowed_release_file "$f"; then
+                SKIP=false
+                break
+              fi
+            done
+          fi
+
+          if [ "$SKIP" = true ]; then
+            echo "Skipping: PR only changes release notes and/or manifest/version bookkeeping paths."
+            exit 0
+          fi
+
+          BODY_FILE=$(mktemp)
+          {
+            echo "## Pull request"
+            echo ""
+            echo "- **PR:** #${PR_NUMBER} (${PR_URL})"
+            echo "- **Author:** @${PR_AUTHOR}"
+            echo ""
+            echo "## Summary"
+            echo ""
+            echo "### Title"
+            echo "${PR_TITLE}"
+            echo ""
+            echo "### Description"
+            echo ""
+            if [ -n "${PR_BODY:-}" ]; then
+              printf '%s\n' "${PR_BODY}"
+            else
+              echo "_No description provided._"
+            fi
+            echo ""
+            echo "## Commits"
+            echo ""
+            echo "\`${BASE_SHA:0:7}..${HEAD_SHA:0:7}\`"
+            echo ""
+            echo "---"
+            echo ""
+            echo "_This issue was opened automatically when the pull request was created._"
+          } >"$BODY_FILE"
+
+          ISSUE_URL=$(gh issue create \
+            --repo "$REPO" \
+            --title "PR #${PR_NUMBER}: ${PR_TITLE}" \
+            --body-file "$BODY_FILE" \
+            --assignee mshenawy22)
+
+          rm -f "$BODY_FILE"
+
+          ISSUE_NUM="${ISSUE_URL##*/}"
+          echo "Created issue #${ISSUE_NUM}"
+
+          gh pr comment "$PR_NUMBER" --repo "$REPO" --body \
+            "Tracking issue for this pull request: #${ISSUE_NUM}"
