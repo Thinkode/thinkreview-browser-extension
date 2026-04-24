@@ -2318,6 +2318,26 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   font-weight: bold !important;
 }
 
+/* Daily-limit subscription upgrade: ul.plan-features is outside .thinkreview-section-list */
+#gitlab-mr-integrated-review.azure-devops-platform #upgrade-message-wrapper ul.plan-features {
+  list-style: none !important;
+  padding-left: 0 !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform #upgrade-message-wrapper ul.plan-features li {
+  position: relative !important;
+  padding-left: 18px !important;
+}
+
+#gitlab-mr-integrated-review.azure-devops-platform #upgrade-message-wrapper ul.plan-features li::before {
+  content: '•' !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0.1em !important;
+  color: currentColor !important;
+  font-weight: bold !important;
+}
+
 /* General list styling for review summary sections only (not chat messages) */
 #gitlab-mr-integrated-review #review-summary ul,
 #gitlab-mr-integrated-review #review-suggestions,
