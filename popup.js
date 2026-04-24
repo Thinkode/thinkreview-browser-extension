@@ -1,6 +1,12 @@
 // popup.js
 // Shows patch status and recent patches
 
+import { ThinkReviewLoader } from './components/loader/loader.js';
+import { subscriptionStatus } from './components/popup-modules/subscription-status.js';
+import { reviewCount } from './components/popup-modules/review-count.js';
+import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
+
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_SIGNIN_WAIT = 500;
 const TIMEOUT_SETTINGS_SCROLL = 400;
@@ -14,32 +20,40 @@ function delay(ms) {
 
 let userDataLoadingOverlayDepth = 0;
 
+/** @type {ThinkReviewLoader|null} */
+let accountUserDataLoader = null;
+
+function getAccountUserDataLoader() {
+  const el = document.getElementById('user-data-loading-overlay');
+  if (!el) return null;
+  if (!accountUserDataLoader) {
+    accountUserDataLoader = new ThinkReviewLoader(el, {
+      message: 'Loading your account',
+      subMessage: 'Fetching plan and usage…',
+      size: 0.52,
+      showFacts: true,
+    });
+  }
+  return accountUserDataLoader;
+}
+
 function pushUserDataLoadingOverlay() {
   userDataLoadingOverlayDepth += 1;
-  const el = document.getElementById('user-data-loading-overlay');
-  if (el) {
-    el.hidden = false;
-    el.setAttribute('aria-busy', 'true');
+  const loader = getAccountUserDataLoader();
+  if (loader && userDataLoadingOverlayDepth === 1) {
+    loader.show();
   }
 }
 
 function popUserDataLoadingOverlay() {
   userDataLoadingOverlayDepth = Math.max(0, userDataLoadingOverlayDepth - 1);
   if (userDataLoadingOverlayDepth === 0) {
-    const el = document.getElementById('user-data-loading-overlay');
-    if (el) {
-      el.hidden = true;
-      el.setAttribute('aria-busy', 'false');
+    const loader = getAccountUserDataLoader();
+    if (loader) {
+      loader.hide();
     }
   }
 }
-
-// Import modules for better modularity
-import { subscriptionStatus } from './components/popup-modules/subscription-status.js';
-import { reviewCount } from './components/popup-modules/review-count.js';
-
-import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
-import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
 
 // State management
 let isInitialized = false;
@@ -69,7 +83,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Function to show loading state (status line only; user-data fetch uses #user-data-loading-overlay)
+// Function to show loading state (status line only; user-data fetch uses ThinkReviewLoader on #user-data-loading-overlay)
 function showLoadingState() {
   const authenticatedContent = document.getElementById('authenticated-content');
   const statusDiv = document.getElementById('current-status');
