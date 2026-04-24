@@ -8,7 +8,7 @@
 
 ### Smoother account loading in the extension popup ✨
 
-While your sign-in and subscription details are loading, the popup now shows a full ThinkReview-style loading experience (animated loader and rotating tips) instead of a dimmed panel. Overlapping refreshes are handled cleanly so the overlay stays until everything has finished.
+While your sign-in and subscription details are loading, the popup now shows a full ThinkReview-style loading experience (animated loader and rotating facts) instead of a dimmed panel. If several refreshes overlap, the overlay stays up until the last one finishes, so you are not left with a half-loaded panel.
 
 ### Azure DevOps: upgrade details are easier to scan again 📋
 
@@ -16,7 +16,7 @@ On Azure DevOps, the list of plan features in the upgrade prompt had its bullets
 
 ### Review panel loader behaves better on busy pages 🔍
 
-We adjusted how the in-page loading state is laid out so it stays readable at different zoom levels and is less likely to overlap the panel header while a review is starting.
+We adjusted how the in-page loading state is laid out and scrolled so it stays readable at different zoom levels, centers nicely when there is little on screen, and is less likely to crowd the panel header while a review is starting.
 
 ### Language picker tweak for Dutch 🇳🇱
 
