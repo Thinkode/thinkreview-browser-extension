@@ -170,7 +170,7 @@ Set `OLLAMA_ORIGINS` permanently so you don't need to set it every time you run 
 Once configured, ThinkReview will automatically use Ollama for all code reviews:
 
 1. Navigate to a GitLab merge request or Azure DevOps pull request
-2. Click the **"AI Review"** button
+2. Click the **ThinkReview** button
 3. Your code will be analyzed locally using Ollama
 4. Review results appear in the integrated panel
 

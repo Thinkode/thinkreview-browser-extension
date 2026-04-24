@@ -1,6 +1,6 @@
 /**
  * Score Popup Module
- * Displays a quality score popup on the AI Review button when the panel is minimized
+ * Displays a quality score popup on the ThinkReview button when the panel is minimized
  */
 
 // Load CSS for the score popup
@@ -171,7 +171,7 @@ function createPopup(overallScore) {
 }
 
 /**
- * Shows a score popup on the AI Review button when panel is minimized
+ * Shows a score popup on the ThinkReview button when panel is minimized
  * @param {number} overallScore - The overall quality score (0-100)
  */
 export function showScorePopupOnButton(overallScore) {

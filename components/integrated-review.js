@@ -275,7 +275,7 @@ function stopEnhancedLoader() {
 
 // applySimpleSyntaxHighlighting is provided by utils/formatting.js via dynamic import
 
-// Toggle button removed as per user request - using only the arrow down button and AI Review button
+// Toggle button removed as per user request - using only the arrow down button and ThinkReview button
 
 /**
  * Creates and injects the integrated review panel into the GitLab MR page
@@ -1832,7 +1832,7 @@ async function displayIntegratedReview(
     });
   }
 
-  // Show score popup and notification indicator on AI Review button if panel is minimized
+  // Show score popup and notification indicator on ThinkReview button if panel is minimized
   const panel = document.getElementById('gitlab-mr-integrated-review');
   if (panel && panel.classList.contains('thinkreview-panel-minimized-to-button')) {
     // Show score popup if metrics are available

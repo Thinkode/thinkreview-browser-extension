@@ -208,7 +208,7 @@ function isSupportedPage() {
 }
 
 /**
- * Check if we should show the AI Review button
+ * Check if we should show the ThinkReview trigger button
  * For Azure DevOps and GitHub, always show the button (since they're SPAs)
  * For GitLab, only show on MR pages
  * @returns {boolean} True if button should be shown
@@ -379,7 +379,7 @@ function _injectFallbackButton() {
   const reviewBtn = document.createElement('button');
   reviewBtn.id = 'code-review-btn';
   reviewBtn.style.cssText = 'padding:8px 12px;background:#6b4fbb;color:white;border:none;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;';
-  reviewBtn.innerHTML = '<span style="margin-right:5px;">AI Review</span><span style="font-size:10px;">▼</span>';
+  reviewBtn.innerHTML = '<span style="margin-right:5px;">ThinkReview</span><span style="font-size:10px;">▼</span>';
   reviewBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); toggleReviewPanel(); };
   container.appendChild(reviewBtn);
   document.body.appendChild(container);
@@ -583,7 +583,7 @@ function getAutoStartReview() {
 /**
  * Injects the integrated review panel into the GitLab MR page.
  * @param {Object} [opts] - Options
- * @param {boolean} [opts.triggerReview] - If true, trigger the review after creating the panel (e.g. user clicked AI Review button). If false/undefined, trigger only when autoStartReview option is enabled.
+ * @param {boolean} [opts.triggerReview] - If true, trigger the review after creating the panel (e.g. user clicked the ThinkReview button). If false/undefined, trigger only when autoStartReview option is enabled.
  */
 async function injectIntegratedReviewPanel(opts = {}) {
   const panel = document.getElementById('gitlab-mr-integrated-review');
@@ -761,7 +761,7 @@ function showLoginPrompt() {
 
     const refreshHint = document.createElement('p');
     refreshHint.className = 'thinkreview-login-description thinkreview-login-refresh-hint';
-    refreshHint.textContent = 'After signing in, refresh this page.';
+    refreshHint.textContent = 'After signing in, refresh this page, then click the ThinkReview button.';
     signInContainer.appendChild(refreshHint);
 
     loginPrompt.appendChild(signInContainer);
@@ -1564,13 +1564,13 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
   }
 }
 
-// Toggle button functionality removed - using only arrow down and AI Review button
+// Toggle button functionality removed - using only arrow down and ThinkReview button
 
 // Review count tracking functionality removed
 
 /**
  * Toggles the review panel between minimized-to-button and normal states
- * The AI Review button is used to both maximize and minimize the panel
+ * The ThinkReview button is used to both maximize and minimize the panel
  * The arrow down button in the panel header can also be used to minimize the panel
  */
 async function toggleReviewPanel() {
@@ -1590,7 +1590,7 @@ async function toggleReviewPanel() {
   dbgLog('Panel exists:', !!panel);
   
   if (!panel) {
-    // If panel doesn't exist yet, create it and trigger review (user clicked AI Review button)
+    // If panel doesn't exist yet, create it and trigger review (user clicked ThinkReview button)
     injectIntegratedReviewPanel({ triggerReview: true });
     return;
   }
