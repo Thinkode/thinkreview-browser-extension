@@ -241,10 +241,38 @@ export function markdownToHtml(markdown) {
  */
 export function markdownToSummaryHtml(markdown) {
   const html = markdownToHtml(preprocessAIResponse(markdown));
-  return html
-    .replace(/<ol\b[^>]*>/g, '<ul>')
-    .replace(/<\/ol>/g, '</ul>')
-    .replace(/data-list-type="ol"/g, 'data-list-type="ul"');
+  if (!html) return html;
+
+  try {
+    if (typeof DOMParser === 'undefined') {
+      throw new Error('DOMParser unavailable');
+    }
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(
+      `<div class="thinkreview-summary-root">${html}</div>`,
+      'text/html'
+    );
+    const root = doc.querySelector('.thinkreview-summary-root');
+    if (!root) {
+      throw new Error('summary root node missing after parse');
+    }
+    root.querySelectorAll('ol').forEach((ol) => {
+      const ul = doc.createElement('ul');
+      Array.from(ol.attributes).forEach((attr) => ul.setAttribute(attr.name, attr.value));
+      ul.innerHTML = ol.innerHTML;
+      ul.querySelectorAll('li[data-list-type="ol"]').forEach((li) => {
+        li.setAttribute('data-list-type', 'ul');
+      });
+      ol.parentNode.replaceChild(ul, ol);
+    });
+    return root.innerHTML;
+  } catch (e) {
+    dbgWarn('markdownToSummaryHtml: DOM transform failed, using regex fallback', e);
+    return html
+      .replace(/<ol\b[^>]*>/g, '<ul>')
+      .replace(/<\/ol>/g, '</ul>')
+      .replace(/data-list-type="ol"/g, 'data-list-type="ul"');
+  }
 }
 
 export function applySimpleSyntaxHighlighting(rootElement) {
