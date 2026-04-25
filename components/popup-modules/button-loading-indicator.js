@@ -1,6 +1,6 @@
 /**
  * Button Loading Indicator Module
- * Adds a loading indicator to the AI Review trigger (floating button or sidebar tab) when review is in progress and panel is minimized.
+ * Adds a loading indicator to the ThinkReview trigger (floating button or sidebar tab) when review is in progress and panel is minimized.
  * On side layout, the indicator is shown at the bottom of the tab for visibility.
  */
 

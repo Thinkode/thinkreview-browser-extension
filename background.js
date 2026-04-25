@@ -34,6 +34,9 @@ const OPEN_PAGE_ALLOWED_ORIGINS = [
   'app.thinkreview.dev'
 ];
 
+/** Portal page for extension sign-up / sign-in (same as popup google-signin). */
+const SIGNIN_EXTENSION_PORTAL_URL = 'https://portal.thinkreview.dev/signin-extension';
+
 // Azure fetcher/API use singleton state, so serialize requests to avoid cross-tab races.
 let azureFetchQueue = Promise.resolve();
 
@@ -677,6 +680,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     
     return true; // Keep message channel open for async response
+  }
+
+  // Open portal sign-in in a new tab (integrated panel + anywhere in extension; fixed URL only).
+  if (message.type === 'OPEN_SIGNIN_PORTAL') {
+    if (!checkOpenPageRateLimit()) {
+      dbgWarn('OPEN_SIGNIN_PORTAL rejected: rate limit exceeded');
+      sendResponse({ success: false, error: 'Rate limit exceeded' });
+      return true;
+    }
+    dbgLog('Opening portal sign-in extension page in new tab');
+    chrome.tabs.create({ url: SIGNIN_EXTENSION_PORTAL_URL }, (tab) => {
+      if (chrome.runtime.lastError) {
+        dbgWarn('Error opening portal sign-in:', chrome.runtime.lastError);
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        dbgLog('Portal sign-in opened in tab:', tab.id);
+        sendResponse({ success: true, tabId: tab.id });
+      }
+    });
+    return true;
   }
 
   if (message.type === 'TRIGGER_GOOGLE_SIGNIN') {

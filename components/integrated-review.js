@@ -70,6 +70,7 @@ document.head.appendChild(itemCopyButtonLinkElement);
 
 // Formatting utils
 let markdownToHtml = null;
+let markdownToSummaryHtml = null;
 let preprocessAIResponse = null;
 let applySimpleSyntaxHighlighting = null;
 let setupCopyHandler = null;
@@ -101,6 +102,7 @@ async function initFormattingUtils() {
   try {
     const module = await import(chrome.runtime.getURL('components/utils/formatting.js'));
     markdownToHtml = module.markdownToHtml;
+    markdownToSummaryHtml = module.markdownToSummaryHtml;
     preprocessAIResponse = module.preprocessAIResponse;
     applySimpleSyntaxHighlighting = module.applySimpleSyntaxHighlighting;
     setupCopyHandler = module.setupCopyHandler;
@@ -275,7 +277,7 @@ function stopEnhancedLoader() {
 
 // applySimpleSyntaxHighlighting is provided by utils/formatting.js via dynamic import
 
-// Toggle button removed as per user request - using only the arrow down button and AI Review button
+// Toggle button removed as per user request - using only the arrow down button and ThinkReview button
 
 /**
  * Creates and injects the integrated review panel into the GitLab MR page
@@ -1832,7 +1834,7 @@ async function displayIntegratedReview(
     });
   }
 
-  // Show score popup and notification indicator on AI Review button if panel is minimized
+  // Show score popup and notification indicator on ThinkReview button if panel is minimized
   const panel = document.getElementById('gitlab-mr-integrated-review');
   if (panel && panel.classList.contains('thinkreview-panel-minimized-to-button')) {
     // Show score popup if metrics are available
@@ -1886,7 +1888,9 @@ async function displayIntegratedReview(
   };
 
   // Populate static review content
-  const summaryHtml = markdownToHtml(preprocessAIResponse(review.summary || 'No summary provided.'));
+  const summaryHtml = markdownToSummaryHtml
+    ? markdownToSummaryHtml(review.summary || 'No summary provided.')
+    : markdownToHtml(preprocessAIResponse(review.summary || 'No summary provided.'));
   reviewSummary.innerHTML = summaryHtml;
   // Highlight code in summary
   applySimpleSyntaxHighlighting(reviewSummary);

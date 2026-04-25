@@ -1,6 +1,6 @@
 /**
  * Button Notification Module
- * Adds a notification indicator to the AI Review trigger (floating button or sidebar tab) when review is completed but panel hasn't been opened.
+ * Adds a notification indicator to the ThinkReview trigger (floating button or sidebar tab) when review is completed but panel hasn't been opened.
  * On side layout, the dot is shown at the bottom of the tab for visibility.
  */
 

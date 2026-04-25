@@ -11,7 +11,7 @@
   --thinkreview-panel-width: 520px;
 
   /* Panel vertical positioning: top offset and bottom gap define max-height.
-     Bottom gap keeps a small buffer above the floating AI Review button. */
+     Bottom gap keeps a small buffer above the floating ThinkReview button. */
   --thinkreview-panel-top: 100px;
   --thinkreview-panel-bottom-gap: 80px;
   --thinkreview-panel-max-height: calc(100vh - var(--thinkreview-panel-top) - var(--thinkreview-panel-bottom-gap));
@@ -2537,7 +2537,7 @@ body.thinkreview-body-docked-left {
   transition: margin-left 0.5s ease;
 }
 
-/* Toggle button styles removed - using only arrow down and AI Review button */
+/* Toggle button styles removed - using only arrow down and ThinkReview button */
 
 #gitlab-mr-integrated-review .btn {
   padding: 6px 10px;
@@ -2819,6 +2819,16 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-
   font-size: 14px !important;
   text-align: center !important;
   line-height: 1.4 !important;
+}
+
+#gitlab-mr-integrated-review .thinkreview-login-description a {
+  color: var(--thinkreview-accent, #6b4fbb) !important;
+  word-break: break-all;
+}
+
+#gitlab-mr-integrated-review .thinkreview-login-refresh-hint {
+  margin-top: 12px !important;
+  margin-bottom: 0 !important;
 }
 
 /* Dark theme overrides for login prompt */
