@@ -2,8 +2,10 @@
 # Skips PRs that only change manifest.json and/or files under `release notes/`.
 name: PR opened — tracking issue
 
+# pull_request_target: token can open issues even for fork PRs. Do not checkout the PR head
+# or run untrusted code from the PR — this job only uses the GitHub API and event payload.
 on:
-  pull_request:
+  pull_request_target:
     types: [opened]
 
 permissions:
