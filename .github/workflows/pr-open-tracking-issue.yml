@@ -1,0 +1,101 @@
+# When a new pull request is opened, opens a tracking GitHub issue that documents
+# the change, assigns it to the project owner, and links the PR to that issue.
+# Skips PRs that only bump manifest version and add release notes (release housekeeping).
+name: PR opened — tracking issue
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  create-tracking-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Decide if this is a release-notes-only PR
+        id: classify
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pr="${{ github.event.pull_request.number }}"
+          files="$(gh pr diff "$pr" --name-only | sed '/^$/d' || true)"
+          if [ -z "$files" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "reason=no_files" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          skip=true
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            case "$path" in
+              manifest.json) ;;
+              release\ notes/*|release\ notes/**) ;;
+              *) skip=false; break ;;
+            esac
+          done <<< "$files"
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+          if [ "$skip" = true ]; then
+            echo "reason=manifest_and_release_notes_only" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create issue and link PR
+        if: steps.classify.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          ASSIGNEE: mshenawy22
+        run: |
+          set -euo pipefail
+          body_file="$(mktemp)"
+          {
+            echo "This issue was opened automatically to track the following pull request."
+            echo
+            echo "## Pull request"
+            echo "- **${PR_TITLE}** — ${PR_URL}"
+            echo "- Author: @${PR_AUTHOR}"
+            echo "- Branch: \`${PR_HEAD_REF}\` → \`${PR_BASE_REF}\`"
+            echo
+            echo "## Description (from the PR)"
+            echo
+            gh pr view "$PR_NUMBER" --json body --template '{{.body}}'
+            echo
+            echo "## Files changed"
+            echo
+            gh pr diff "$PR_NUMBER" --name-only | sed '/^$/d' | sed 's/^/- /'
+          } > "$body_file"
+
+          issue_url="$(gh issue create \
+            --title "PR #${PR_NUMBER}: ${PR_TITLE}" \
+            --body-file "$body_file" \
+            --assignee "$ASSIGNEE")"
+          rm -f "$body_file"
+
+          issue_num="$(echo "$issue_url" | sed -n 's/.*issues\/\([0-9][0-9]*\).*/\1/p')"
+          if [ -z "$issue_num" ]; then
+            echo "Could not parse issue number from: $issue_url" >&2
+            exit 1
+          fi
+
+          existing="$(gh pr view "$PR_NUMBER" --json body -q .body)"
+          combined="$(mktemp)"
+          {
+            printf '%s' "$existing"
+            printf '\n\n---\n\n**Tracking issue:** #%s' "$issue_num"
+          } > "$combined"
+          gh pr edit "$PR_NUMBER" --body-file "$combined"
+          rm -f "$combined"
+
+          gh pr comment "$PR_NUMBER" --body "Tracking issue for this PR: #${issue_num}"
