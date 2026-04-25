@@ -10,6 +10,9 @@ if (typeof DEBUG === 'undefined') {
 const TIMEOUT_AUTO_REVIEW_DELAY = 500;
 const MAX_PATCH_SIZE_FALLBACK = 50_000;
 
+/** Set to false to restore automatic review on PR load (and autoReviewDecisionMaker for those runs). */
+const TEMP_FORCE_MANUAL_REVIEW_ONLY = true;
+
 // Logger functions - loaded dynamically to avoid module import issues in content scripts
 // Provide fallback functions immediately, then upgrade when logger loads
 // Check if variables already exist to avoid redeclaration errors
@@ -574,6 +577,13 @@ async function checkAndTriggerReviewForNewPR() {
 function getAutoStartReview() {
   return new Promise((resolve) => {
     chrome.storage.local.get(['autoStartReview'], (result) => {
+      if (TEMP_FORCE_MANUAL_REVIEW_ONLY) {
+        if (result.autoStartReview === true) {
+          dbgLog('TEMP_FORCE_MANUAL_REVIEW_ONLY: ignoring autoStartReview storage (manual reviews only)');
+        }
+        resolve(false);
+        return;
+      }
       // Respect the "Start review automatically" option for all providers (default off when unset)
       resolve(result.autoStartReview === true);
     });
