@@ -479,21 +479,16 @@ function getCurrentPRId() {
 }
 
 /**
- * Check if we've navigated to a new PR and trigger review if needed
+ * Check if we've navigated to a new PR and trigger review if needed.
+ * Clears panel state only when the URL identifies a different PR than currentPRId
+ * (not when navigating to non-PR pages).
  */
 async function checkAndTriggerReviewForNewPR() {
   // Only check if we're on a supported page (PR page)
   if (!isSupportedPage()) {
-    // Not on a PR page - reset tracking and hide score popup
-    if (currentPRId !== null) {
-      currentPRId = null;
-      
-      // Clear patch content and conversation history when leaving PR page
-      if (typeof window.clearPatchContentAndHistory === 'function') {
-        window.clearPatchContentAndHistory();
-      }
-    }
-    
+    // Not on a PR page: do not clear the integrated panel or reset currentPRId.
+    // Keeping currentPRId lets us detect a switch to a *different* PR after browsing
+    // elsewhere (clear + optional auto-run only runs in that branch below).
     // Hide score popup when navigating to a non-PR page
     try {
       const scorePopupModule = await import(chrome.runtime.getURL('components/popup-modules/score-popup.js'));
