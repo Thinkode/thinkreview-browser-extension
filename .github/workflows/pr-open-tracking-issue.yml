@@ -1,10 +1,14 @@
 # When a new pull request is opened, opens a tracking GitHub issue that documents
 # the change, assigns it to the project owner, and links the PR to that issue.
 # Skips PRs that only bump manifest version and add release notes (release housekeeping).
+#
+# Uses pull_request_target (not pull_request) so the job keeps write permissions
+# for PRs from forks; the script only calls the GitHub API and must not checkout
+# untrusted PR code.
 name: PR opened — tracking issue
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened]
 
 permissions:
@@ -16,9 +20,6 @@ jobs:
   create-tracking-issue:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Decide if this is a release-notes-only PR
         id: classify
         env:
