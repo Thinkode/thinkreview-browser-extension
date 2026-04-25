@@ -1,0 +1,94 @@
+# When a new pull request is opened, open a tracking issue (unless the PR only
+# touches release notes and manifest version). Links the issue and PR in the
+# issue body and with a PR comment. Uses pull_request_target so fork PRs are
+# covered; the workflow definition always comes from the default branch.
+name: PR tracking issue
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  create-tracking-issue:
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNum = pr.number;
+
+            const files = [];
+            let page = 1;
+            while (true) {
+              const res = await github.rest.pulls.listFiles({
+                owner,
+                repo,
+                pull_number: prNum,
+                per_page: 100,
+                page,
+              });
+              for (const f of res.data) {
+                files.push(f.filename);
+              }
+              if (res.data.length < 100) break;
+              page += 1;
+            }
+
+            const releaseOnly =
+              files.length > 0 &&
+              files.every((f) => f === 'manifest.json' || f.startsWith('release notes/'));
+
+            if (releaseOnly) {
+              core.info('Skipping: only manifest.json and/or release notes/ changes.');
+              return;
+            }
+
+            const prUrl = pr.html_url;
+            const author = pr.user.login;
+            const baseRef = pr.base.ref;
+            const headRef = pr.head.ref;
+            const headRepo = pr.head.repo.full_name;
+            const title = pr.title;
+            const description = (pr.body && pr.body.trim()) || '_No description provided._';
+            const fileBlock = files.length ? files.join('\n') : '_No files listed._';
+
+            const issueBody = [
+              '## Pull request',
+              '',
+              `- **PR:** ${prUrl}`,
+              `- **Author:** @${author}`,
+              `- **Branch:** \`${headRepo}\` → \`${baseRef}\` (\`${headRef}\`)`,
+              '',
+              '## Description (from PR)',
+              '',
+              description,
+              '',
+              '## Changed files',
+              '',
+              '```',
+              fileBlock,
+              '```',
+            ].join('\n');
+
+            const issue = await github.rest.issues.create({
+              owner,
+              repo,
+              title: `[PR #${prNum}] ${title}`,
+              body: issueBody,
+              assignees: ['mshenawy22'],
+            });
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: prNum,
+              body: `Tracking issue: #${issue.data.number}`,
+            });
