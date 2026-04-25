@@ -235,6 +235,18 @@ export function markdownToHtml(markdown) {
   return html;
 }
 
+/**
+ * Renders the main review summary: same as markdownToHtml on preprocessed text, but
+ * lines written as ordered lists (1. 2. …) are shown as bullet lists in the integrated panel.
+ */
+export function markdownToSummaryHtml(markdown) {
+  const html = markdownToHtml(preprocessAIResponse(markdown));
+  return html
+    .replace(/<ol\b[^>]*>/g, '<ul>')
+    .replace(/<\/ol>/g, '</ul>')
+    .replace(/data-list-type="ol"/g, 'data-list-type="ul"');
+}
+
 export function applySimpleSyntaxHighlighting(rootElement) {
   const root = rootElement || document;
   const codeBlocks = root.querySelectorAll('pre code[class^="language-"], pre code[class*=" language-"]');

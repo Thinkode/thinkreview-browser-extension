@@ -70,6 +70,7 @@ document.head.appendChild(itemCopyButtonLinkElement);
 
 // Formatting utils
 let markdownToHtml = null;
+let markdownToSummaryHtml = null;
 let preprocessAIResponse = null;
 let applySimpleSyntaxHighlighting = null;
 let setupCopyHandler = null;
@@ -101,6 +102,7 @@ async function initFormattingUtils() {
   try {
     const module = await import(chrome.runtime.getURL('components/utils/formatting.js'));
     markdownToHtml = module.markdownToHtml;
+    markdownToSummaryHtml = module.markdownToSummaryHtml;
     preprocessAIResponse = module.preprocessAIResponse;
     applySimpleSyntaxHighlighting = module.applySimpleSyntaxHighlighting;
     setupCopyHandler = module.setupCopyHandler;
@@ -1886,7 +1888,9 @@ async function displayIntegratedReview(
   };
 
   // Populate static review content
-  const summaryHtml = markdownToHtml(preprocessAIResponse(review.summary || 'No summary provided.'));
+  const summaryHtml = markdownToSummaryHtml
+    ? markdownToSummaryHtml(review.summary || 'No summary provided.')
+    : markdownToHtml(preprocessAIResponse(review.summary || 'No summary provided.'));
   reviewSummary.innerHTML = summaryHtml;
   // Highlight code in summary
   applySimpleSyntaxHighlighting(reviewSummary);
