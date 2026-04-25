@@ -1,0 +1,149 @@
+# When a new pull request is opened, open a tracking issue (assignee + link PR ↔ issue).
+# Skips PRs that only change manifest.json and/or files under `release notes/`.
+name: PR opened — tracking issue
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  tracking-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve changed files and skip release-only PRs
+        id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          FILES_JSON="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate -q '.[].filename' || true)"
+          mapfile -t FILES <<< "${FILES_JSON}"
+          if [[ ${#FILES[@]} -eq 0 ]] || [[ -z "${FILES[0]:-}" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "reason=no files in diff" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          substantive=false
+          for f in "${FILES[@]}"; do
+            [[ -z "$f" ]] && continue
+            if [[ "$f" == "manifest.json" ]]; then
+              continue
+            fi
+            if [[ "$f" == "release notes/"* ]]; then
+              continue
+            fi
+            substantive=true
+            break
+          done
+          if [[ "$substantive" != "true" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "reason=release-only (manifest and/or release notes only)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          {
+            echo 'stat<<STAT_EOF'
+            gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate \
+              -q '.[] | "\(.filename) +\(.additions) -\(.deletions)"' || true
+            echo 'STAT_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create issue, assign, and link from PR body
+        if: steps.meta.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          PR_DIFF_STAT: ${{ steps.meta.outputs.stat }}
+        run: |
+          set -euo pipefail
+          python3 << 'PY'
+          import json
+          import os
+          import subprocess
+          import tempfile
+
+          pr_num = os.environ["PR_NUMBER"]
+          repo = os.environ["REPO"]
+          stat_block = os.environ.get("PR_DIFF_STAT", "").strip()
+
+          pr_json = subprocess.run(
+              ["gh", "pr", "view", pr_num, "--repo", repo, "--json", "title,url,body"],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          pr = json.loads(pr_json.stdout)
+          pr_title = pr["title"]
+          pr_url = pr["url"]
+          pr_body = (pr.get("body") or "").strip()
+
+          desc = pr_body or "_No description provided on the pull request._"
+
+          stat_fenced = stat_block or "(no stat output)"
+          issue_md = (
+              "This issue was opened automatically to track work described in the pull request.\n\n"
+              "## Pull request\n\n"
+              f"- **#{pr_num}** — {pr_title}\n"
+              f"- {pr_url}\n\n"
+              "## Request / bug (from PR description)\n\n"
+              f"{desc}\n\n"
+              "## Diff summary\n\n"
+              "```\n"
+              f"{stat_fenced}\n"
+              "```\n"
+          )
+          with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as f:
+              f.write(issue_md)
+              issue_path = f.name
+
+          issue_title = f"[PR #{pr_num}] {pr_title}"
+
+          r = subprocess.run(
+              [
+                  "gh", "issue", "create",
+                  "--repo", repo,
+                  "--title", issue_title,
+                  "--body-file", issue_path,
+                  "--assignee", "mshenawy22",
+              ],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          out = (r.stdout or "").strip()
+          if "/issues/" in out:
+              issue_num = out.rstrip("/").split("/issues/")[-1]
+          else:
+              issue_num = None
+          if not issue_num or not issue_num.isdigit():
+              raise SystemExit(f"Could not parse issue number from gh output: {out!r}")
+
+          link_line = f"\n\n---\nRelated issue: #{issue_num}"
+
+          current_body = pr.get("body") or ""
+          if f"Related issue: #{issue_num}" in current_body:
+              print("PR body already references this issue; skipping edit.")
+          else:
+              new_body = current_body + link_line
+              with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as jf:
+                  json.dump({"body": new_body}, jf)
+                  patch_path = jf.name
+              subprocess.run(
+                  [
+                      "gh", "api",
+                      f"repos/{repo}/pulls/{pr_num}",
+                      "-X", "PATCH",
+                      "--input", patch_path,
+                  ],
+                  check=True,
+              )
+          print(f"Created issue #{issue_num} and linked PR #{pr_num}.")
+          PY
