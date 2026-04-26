@@ -1,0 +1,110 @@
+# When a pull request is opened, open a tracking issue (assignee + PR summary),
+# append a "Tracking issue" line to the PR body, and comment on the PR.
+# Skips PRs that only touch release notes and/or manifest/package version bumps.
+#
+# Uses pull_request_target with API-only steps (no checkout of the PR head) so
+# fork PRs still receive a write-capable GITHUB_TOKEN safely.
+name: PR opened — create tracking issue
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  create-tracking-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create issue, link PR, assign mshenawy22
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pullNumber = pr.number;
+
+            const body = pr.body || '';
+            if (/\bTracking issue:\s*#\d+/i.test(body)) {
+              core.info('PR body already has a tracking issue link; skipping.');
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: pullNumber,
+              per_page: 100,
+            });
+            const paths = files.map((f) => f.filename);
+
+            function isReleaseOrVersionBumpOnlyPath(p) {
+              if (p === 'manifest.json') return true;
+              if (p === 'package.json') return true;
+              if (p.startsWith('release notes/')) return true;
+              return false;
+            }
+
+            const skipIssue =
+              paths.length > 0 && paths.every(isReleaseOrVersionBumpOnlyPath);
+            if (skipIssue) {
+              core.info(
+                'Skipping issue: all changed files are release notes and/or manifest/package.json only.'
+              );
+              return;
+            }
+
+            const filesList =
+              paths.length > 0
+                ? paths.map((p) => `- \`${p}\``).join('\n')
+                : '_No files in the pull request diff._';
+
+            const issueBody = [
+              '## Pull request',
+              '',
+              `**${pr.title}**`,
+              '',
+              `- **PR:** #${pullNumber}`,
+              `- **URL:** ${pr.html_url}`,
+              `- **Author:** @${pr.user.login}`,
+              `- **Base:** \`${pr.base.ref}\` ← **Head:** \`${pr.head.ref}\``,
+              '',
+              '### Description',
+              '',
+              body.trim() || '_No description provided._',
+              '',
+              '### Changed files',
+              '',
+              filesList,
+              '',
+              '---',
+              '_This issue was opened automatically when the pull request was created._',
+            ].join('\n');
+
+            const { data: issue } = await github.rest.issues.create({
+              owner,
+              repo,
+              title: `[PR #${pullNumber}] ${pr.title}`,
+              body: issueBody,
+              assignees: ['mshenawy22'],
+            });
+
+            const linkBlock = `\n\n---\nTracking issue: #${issue.number}`;
+            await github.rest.pulls.update({
+              owner,
+              repo,
+              pull_number: pullNumber,
+              body: body + linkBlock,
+            });
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pullNumber,
+              body: `Opened tracking issue #${issue.number} for this pull request.`,
+            });
+
+            core.info(`Created issue #${issue.number} and linked PR #${pullNumber}.`);
