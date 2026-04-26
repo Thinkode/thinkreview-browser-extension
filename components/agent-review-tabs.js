@@ -1,6 +1,7 @@
 /**
  * Dynamic tabs for custom review agents: loader until ThinkReviewGetAgentReviewsForPatch returns.
- * After mounting tabs, runs ThinkReviewGetUserData (via REFRESH_USER_DATA_STORAGE), then calls the agent wait CF immediately.
+ * The fetch should start in content.js right after reviewPatchCode_1_1 (via startAgentReviewsFetchForPatch) and
+ * a promise is passed in; if not, we run ThinkReviewGetUserData then start the same fetch (legacy path).
  */
 
 /** Incremented on each mount so stale fetches do not update the DOM after a new review. */
@@ -394,16 +395,19 @@ export function sortAgentTabs(tabButtons, panelsWrap, byId) {
   }
 }
 
+export { startAgentReviewsFetchForPatch } from '../utils/fetch-agent-reviews-background.js';
+
 /**
  * @param {Object} opts
  * @param {Array<{id: string, name: string}>} opts.enabledReviewAgents
  * @param {string} opts.patchContent - exact string sent to reviewPatchCode_1_1
  * @param {string|null|undefined} opts.mrId
  * @param {string} opts.provider - 'cloud' | 'ollama' | etc.
+ * @param {Promise<{ success: boolean, data?: object, error?: string }>|null|undefined} [opts.agentReviewsResultPromise] - from startAgentReviewsFetchForPatch
  * @param {{ dbgLog?: Function, dbgWarn?: Function }} opts.logger
  */
 export async function mountAgentReviewTabs(opts) {
-  const { enabledReviewAgents, patchContent, mrId, provider, logger = {} } = opts;
+  const { enabledReviewAgents, patchContent, mrId, provider, logger = {}, agentReviewsResultPromise } = opts;
   const dbgLog = logger.dbgLog || (() => { });
   const dbgWarn = logger.dbgWarn || (() => { });
 
@@ -469,6 +473,28 @@ export async function mountAgentReviewTabs(opts) {
   };
 
   (async () => {
+    if (agentReviewsResultPromise) {
+      if (myGeneration !== agentTabFetchGeneration) {
+        dbgLog('Skipping stale agent-reviews apply (prefetch promise)');
+        return;
+      }
+      try {
+        dbgLog('Awaiting agent reviews for patch (fetch started with main review response)');
+        const bgResp = await agentReviewsResultPromise;
+        if (myGeneration !== agentTabFetchGeneration) return;
+        if (!bgResp?.success) {
+          dbgWarn('Agent reviews fetch failed:', bgResp?.error);
+          applyResults(null);
+          return;
+        }
+        applyResults(bgResp.data);
+      } catch (e) {
+        dbgWarn('mountAgentReviewTabs prefetch apply error:', e);
+        applyResults(null);
+      }
+      return;
+    }
+
     try {
       await new Promise((resolve) => {
         chrome.runtime.sendMessage({ type: 'REFRESH_USER_DATA_STORAGE' }, (resp) => {

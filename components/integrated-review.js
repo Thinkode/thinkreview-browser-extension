@@ -2416,6 +2416,7 @@ async function displayIntegratedReview(
       patchContent,
       mrId: integrationOpts?.mrId ?? null,
       provider: integrationOpts?.provider ?? provider ?? 'cloud',
+      agentReviewsResultPromise: integrationOpts?.agentReviewsResultPromise,
       logger: { dbgLog, dbgWarn }
     });
   } catch (error) {
