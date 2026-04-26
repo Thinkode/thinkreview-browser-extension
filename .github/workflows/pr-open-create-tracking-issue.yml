@@ -1,0 +1,35 @@
+# When a pull request is opened, open a tracking GitHub Issue (assigned to
+# mshenawy22) that documents the PR and links to it; the workflow also comments
+# on the PR with the issue link.
+#
+# Skips PRs that only change release notes and/or manifest.json (version bump
+# / packaging-only releases).
+#
+# Repo setting: Settings → Actions → General → Workflow permissions should allow
+# GITHUB_TOKEN to read and write (for same-repo PRs). Fork PRs may need
+# "Send write tokens to workflows from fork pull requests" if you want issues
+# for forks.
+name: PR opened — create tracking issue
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  create-tracking-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create tracking issue (if applicable)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node .github/scripts/pr-create-tracking-issue.mjs
