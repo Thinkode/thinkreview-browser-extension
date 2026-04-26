@@ -1635,19 +1635,26 @@ async function refreshThinkReviewNewsBanner() {
     const inner = document.createElement('div');
     inner.className = 'thinkreview-news-banner-inner';
 
+    const body = document.createElement('div');
+    body.className = 'thinkreview-news-banner-body';
+
     const textWrap = document.createElement('div');
     textWrap.className = 'thinkreview-news-banner-text';
+    textWrap.textContent = news.message;
 
-    if (news.url) {
-      const a = document.createElement('a');
-      a.href = news.url;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.className = 'thinkreview-news-banner-link';
-      a.textContent = news.message;
-      textWrap.appendChild(a);
-    } else {
-      textWrap.textContent = news.message;
+    body.appendChild(textWrap);
+
+    const ctaUrl = typeof news.ctaUrl === 'string' && news.ctaUrl.trim() ? news.ctaUrl.trim() : null;
+    const ctaTitle =
+      typeof news.ctaTitle === 'string' && news.ctaTitle.trim() ? news.ctaTitle.trim() : null;
+    if (ctaUrl && ctaTitle) {
+      const cta = document.createElement('a');
+      cta.href = ctaUrl;
+      cta.target = '_blank';
+      cta.rel = 'noopener noreferrer';
+      cta.className = 'thinkreview-news-banner-cta';
+      cta.textContent = ctaTitle;
+      body.appendChild(cta);
     }
 
     const closeBtn = document.createElement('button');
@@ -1667,7 +1674,7 @@ async function refreshThinkReviewNewsBanner() {
       el.classList.add('gl-hidden');
     });
 
-    inner.appendChild(textWrap);
+    inner.appendChild(body);
     inner.appendChild(closeBtn);
     el.appendChild(inner);
     el.classList.remove('gl-hidden');

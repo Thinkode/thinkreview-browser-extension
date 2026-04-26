@@ -1113,7 +1113,7 @@ export class CloudService {
 
   /**
    * News banner for integrated review panel (Remote Config via cloud function).
-   * @returns {Promise<{ message: string, url: string|null, version: string }|null>}
+   * @returns {Promise<{ message: string, version: string, ctaTitle: string|null, ctaUrl: string|null }|null>}
    */
   static async fetchNewsMessageThinkReview() {
     dbgLog('Fetching ThinkReview news message');
@@ -1153,23 +1153,35 @@ export class CloudService {
         return null;
       }
 
-      let url = null;
-      if (typeof news.url === 'string' && news.url.trim()) {
-        const u = news.url.trim();
+      const safeHttpUrl = (u) => {
+        if (typeof u !== 'string' || !u.trim()) return null;
+        const t = u.trim();
         try {
-          const parsed = new URL(u);
-          if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-            url = u;
-          }
+          const parsed = new URL(t);
+          if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return t;
         } catch (_) {
-          url = null;
+          /* ignore */
         }
+        return null;
+      };
+
+      let ctaUrl = safeHttpUrl(news.ctaUrl);
+      if (!ctaUrl && typeof news.url === 'string') {
+        ctaUrl = safeHttpUrl(news.url);
+      }
+
+      let ctaTitle = typeof news.ctaTitle === 'string' ? news.ctaTitle.trim().slice(0, 120) : '';
+      if (ctaUrl) {
+        if (!ctaTitle) ctaTitle = 'Learn more';
+      } else {
+        ctaTitle = null;
       }
 
       return {
         message,
-        url,
-        version: version.slice(0, 64)
+        version: version.slice(0, 64),
+        ctaTitle,
+        ctaUrl
       };
     } catch (error) {
       dbgWarn('Error fetching ThinkReview news message:', error);

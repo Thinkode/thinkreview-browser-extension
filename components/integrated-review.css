@@ -1844,7 +1844,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
 
 #gitlab-mr-integrated-review .thinkreview-news-banner-inner {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   padding: 10px 12px;
   background-color: rgba(107, 79, 187, 0.18);
@@ -1855,20 +1855,41 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   color: #f0f0f0;
 }
 
+/* Message + CTA on one row; CTA sits at the trailing end of the text row. */
+#gitlab-mr-integrated-review .thinkreview-news-banner-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+
 #gitlab-mr-integrated-review .thinkreview-news-banner-text {
   flex: 1;
   min-width: 0;
   word-break: break-word;
 }
 
-#gitlab-mr-integrated-review .thinkreview-news-banner-link {
-  color: #e8dcff;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+#gitlab-mr-integrated-review .thinkreview-news-banner-cta {
+  display: inline-block;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-decoration: none;
+  color: #1f1638;
+  background-color: #e8dcff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
 }
 
-#gitlab-mr-integrated-review .thinkreview-news-banner-link:hover {
-  color: #ffffff;
+#gitlab-mr-integrated-review .thinkreview-news-banner-cta:hover {
+  background-color: #ffffff;
+  color: #1f1638;
 }
 
 #gitlab-mr-integrated-review .thinkreview-news-banner-close {
