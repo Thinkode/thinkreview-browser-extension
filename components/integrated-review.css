@@ -1837,6 +1837,79 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   margin-bottom: 4px;
 }
 
+/* Remote-config news banner (above patch / metadata bar) */
+#gitlab-mr-integrated-review .thinkreview-news-banner {
+  margin-bottom: 12px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-news-banner-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background-color: rgba(107, 79, 187, 0.18);
+  border: 1px solid rgba(107, 79, 187, 0.45);
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #f0f0f0;
+}
+
+/* Message + CTA on one row; CTA sits at the trailing end of the text row. */
+#gitlab-mr-integrated-review .thinkreview-news-banner-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-news-banner-text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+#gitlab-mr-integrated-review .thinkreview-news-banner-cta {
+  display: inline-block;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-decoration: none;
+  color: #1f1638;
+  background-color: #e8dcff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+#gitlab-mr-integrated-review .thinkreview-news-banner-cta:hover {
+  background-color: #ffffff;
+  color: #1f1638;
+}
+
+#gitlab-mr-integrated-review .thinkreview-news-banner-close {
+  flex-shrink: 0;
+  margin: -4px -6px -4px 0;
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-news-banner-close:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
 /* Patch size / metadata banner styles */
 #gitlab-mr-integrated-review .thinkreview-patch-size-banner {
   display: flex;

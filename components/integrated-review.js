@@ -434,6 +434,7 @@ async function createIntegratedReviewPanel(patchUrl) {
             </div>
             <div id="review-scroll-main">
             <div id="review-prompt-container"></div>
+            <div id="review-news-banner" class="thinkreview-news-banner gl-hidden gl-mb-4" role="region" aria-label="ThinkReview announcement"></div>
             <div id="review-patch-size-banner" class="gl-mb-4 gl-hidden"></div>
             <div id="review-metrics-container" class="gl-mb-4"></div>
             <div id="review-summary-container" class="gl-mb-4">
@@ -1594,6 +1595,94 @@ async function handleSendMessage(messageText) {
   }
 }
 
+const THINKREVIEW_NEWS_BANNER_DISMISSED_KEY = 'thinkreview-news-banner-dismissed-version';
+
+/** Cached dynamic import so repeated reviews do not pay import() microtask churn. */
+let thinkReviewNewsBannerCloudModulePromise = null;
+function getThinkReviewNewsBannerCloudModule() {
+  return (thinkReviewNewsBannerCloudModulePromise ??= import(
+    chrome.runtime.getURL('services/cloud-service.js')
+  ));
+}
+
+/**
+ * Remote-config news banner above the metadata bar; dismiss persists per news `version`.
+ * Non-blocking: callers must not await this so review UI is not delayed by the news HTTP call.
+ */
+async function refreshThinkReviewNewsBanner() {
+  const el = document.getElementById('review-news-banner');
+  if (!el) return;
+
+  el.replaceChildren();
+  el.classList.add('gl-hidden');
+
+  try {
+    const cloudModule = await getThinkReviewNewsBannerCloudModule();
+    const [storage, news] = await Promise.all([
+      chrome.storage.local.get([THINKREVIEW_NEWS_BANNER_DISMISSED_KEY]),
+      cloudModule.CloudService.fetchNewsMessageThinkReview()
+    ]);
+
+    if (!news || !news.message || !news.version) {
+      return;
+    }
+
+    const dismissed = storage[THINKREVIEW_NEWS_BANNER_DISMISSED_KEY];
+    if (dismissed != null && String(dismissed) === String(news.version)) {
+      return;
+    }
+
+    const inner = document.createElement('div');
+    inner.className = 'thinkreview-news-banner-inner';
+
+    const body = document.createElement('div');
+    body.className = 'thinkreview-news-banner-body';
+
+    const textWrap = document.createElement('div');
+    textWrap.className = 'thinkreview-news-banner-text';
+    textWrap.textContent = news.message;
+
+    body.appendChild(textWrap);
+
+    const ctaUrl = typeof news.ctaUrl === 'string' && news.ctaUrl.trim() ? news.ctaUrl.trim() : null;
+    const ctaTitle =
+      typeof news.ctaTitle === 'string' && news.ctaTitle.trim() ? news.ctaTitle.trim() : null;
+    if (ctaUrl && ctaTitle) {
+      const cta = document.createElement('a');
+      cta.href = ctaUrl;
+      cta.target = '_blank';
+      cta.rel = 'noopener noreferrer';
+      cta.className = 'thinkreview-news-banner-cta';
+      cta.textContent = ctaTitle;
+      body.appendChild(cta);
+    }
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'thinkreview-news-banner-close';
+    closeBtn.setAttribute('aria-label', 'Dismiss announcement');
+    closeBtn.textContent = '\u00d7';
+    closeBtn.addEventListener('click', async () => {
+      try {
+        await chrome.storage.local.set({
+          [THINKREVIEW_NEWS_BANNER_DISMISSED_KEY]: news.version
+        });
+      } catch (storeErr) {
+        dbgWarn('Failed to persist news banner dismissal:', storeErr);
+      }
+      el.replaceChildren();
+      el.classList.add('gl-hidden');
+    });
+
+    inner.appendChild(body);
+    inner.appendChild(closeBtn);
+    el.appendChild(inner);
+    el.classList.remove('gl-hidden');
+  } catch (error) {
+    dbgWarn('ThinkReview news banner failed:', error);
+  }
+}
+
 async function displayIntegratedReview(
   review,
   patchContent,
@@ -1694,6 +1783,8 @@ async function displayIntegratedReview(
     const slug = displayName.toLowerCase();
     subscriptionLabel.className = 'thinkreview-header-subscription thinkreview-header-subscription-' + slug;
   }
+
+  void refreshThinkReviewNewsBanner();
 
   // Render patch size / metadata banner (Ollama-specific bar vs cloud bar)
   if (patchSizeBanner) {
@@ -2325,6 +2416,7 @@ async function displayIntegratedReview(
       patchContent,
       mrId: integrationOpts?.mrId ?? null,
       provider: integrationOpts?.provider ?? provider ?? 'cloud',
+      agentReviewsResultPromise: integrationOpts?.agentReviewsResultPromise,
       logger: { dbgLog, dbgWarn }
     });
   } catch (error) {

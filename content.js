@@ -1472,9 +1472,25 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     if (filterSummaryText) {
       data.review.summary = (data.review.summary || '') + '\n\n' + filterSummaryText;
     }
-    
 
-    // Display the review results (use filtered patch — same string as reviewPatchCode_1_1 for agent checksums)
+    // Start ThinkReviewGetAgentReviewsForPatch immediately after reviewPatchCode_1_1 returns (runs in parallel with panel render).
+    let agentReviewsResultPromise = null;
+    if (bgResponse.provider === 'cloud') {
+      const hasApiAgents = Array.isArray(data.enabledReviewAgents) && data.enabledReviewAgents.length > 0;
+      const stForAgents = await chrome.storage.local.get(['enabledReviewAgents']);
+      const hasStorageAgents = Array.isArray(stForAgents.enabledReviewAgents) && stForAgents.enabledReviewAgents.length > 0;
+      if (hasApiAgents || hasStorageAgents) {
+        const { startAgentReviewsFetchForPatch } = await import(
+          chrome.runtime.getURL('utils/fetch-agent-reviews-background.js')
+        );
+        agentReviewsResultPromise = startAgentReviewsFetchForPatch(
+          filteredCodeContent,
+          reviewId != null && reviewId !== '' ? reviewId : null
+        );
+      }
+    }
+
+    // Display the review results (use filtered patch — same string as reviewPatchCode_1_1 for agent checksums).
     displayIntegratedReview(
       data.review,
       filteredCodeContent,
@@ -1488,7 +1504,8 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         enabledReviewAgents: data.enabledReviewAgents,
         mrId: reviewId,
         provider: bgResponse.provider,
-        platform
+        platform,
+        agentReviewsResultPromise
       }
     );
     

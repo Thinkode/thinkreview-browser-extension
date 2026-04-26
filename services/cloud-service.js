@@ -31,6 +31,7 @@ const GET_USER_SUBSCRIPTION_DATA_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getUserSubsc
 const TRACK_REVIEW_PROMPT_INTERACTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackReviewPromptInteractionHTTP`;
 const GET_REVIEW_PROMPT_MESSAGES_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getReviewPromptMessagesThinkReview`;
 const GET_UPGRADE_PROMPT_CONFIG_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getUpgradePromptConfigThinkReview`;
+const FETCH_NEWS_MESSAGE_THINKREVIEW_URL = `${CLOUD_FUNCTIONS_BASE_URL}/fetchNewsMessageThinkReview`;
 const CANCEL_SUBSCRIPTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/cancelSubscriptionThinkReview`;
 const CONVERSATIONAL_REVIEW_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview`;
 const CONVERSATIONAL_REVIEW_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview_1_1`;
@@ -1108,6 +1109,86 @@ export class CloudService {
       plans: data.plans,
       promotionalMessage: typeof data.promotionalMessage === 'string' ? data.promotionalMessage : ''
     };
+  }
+
+  /**
+   * News banner for integrated review panel (Remote Config via cloud function).
+   * @returns {Promise<{ message: string, version: string, ctaTitle: string|null, ctaUrl: string|null }|null>}
+   */
+  static async fetchNewsMessageThinkReview() {
+    dbgLog('Fetching ThinkReview news message');
+    const TIMEOUT_MS = 2500;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const response = await fetch(FETCH_NEWS_MESSAGE_THINKREVIEW_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({}),
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      dbgLog('fetchNewsMessageThinkReview response:', { status: data.status, hasNews: !!data.news });
+
+      if (data.status !== 'success') {
+        return null;
+      }
+
+      const news = data.news;
+      if (!news || typeof news !== 'object') {
+        return null;
+      }
+
+      const message = typeof news.message === 'string' ? news.message.trim() : '';
+      const version = news.version != null ? String(news.version).trim() : '';
+      if (!message || !version) {
+        return null;
+      }
+
+      const safeHttpUrl = (u) => {
+        if (typeof u !== 'string' || !u.trim()) return null;
+        const t = u.trim();
+        try {
+          const parsed = new URL(t);
+          if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return t;
+        } catch (_) {
+          /* ignore */
+        }
+        return null;
+      };
+
+      let ctaUrl = safeHttpUrl(news.ctaUrl);
+      if (!ctaUrl && typeof news.url === 'string') {
+        ctaUrl = safeHttpUrl(news.url);
+      }
+
+      let ctaTitle = typeof news.ctaTitle === 'string' ? news.ctaTitle.trim().slice(0, 120) : '';
+      if (ctaUrl) {
+        if (!ctaTitle) ctaTitle = 'Learn more';
+      } else {
+        ctaTitle = null;
+      }
+
+      return {
+        message,
+        version: version.slice(0, 64),
+        ctaTitle,
+        ctaUrl
+      };
+    } catch (error) {
+      dbgWarn('Error fetching ThinkReview news message:', error);
+      return null;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   /**
