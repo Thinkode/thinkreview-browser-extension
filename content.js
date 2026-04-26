@@ -1125,18 +1125,21 @@ async function getAzureDevOpsToken() {
 
 /** Show in-panel loader as soon as review work begins (before patch fetch / filter). */
 function showIntegratedReviewLoadingUI() {
+  const elementsToHide = [
+    'review-content',
+    'review-error',
+    'review-login-prompt',
+    'review-azure-token-error',
+    'review-bitbucket-token-error',
+  ];
+
+  elementsToHide.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('gl-hidden');
+  });
+
   const reviewLoading = document.getElementById('review-loading');
-  const reviewContent = document.getElementById('review-content');
-  const reviewError = document.getElementById('review-error');
-  const loginPrompt = document.getElementById('review-login-prompt');
   if (reviewLoading) reviewLoading.classList.remove('gl-hidden');
-  if (reviewContent) reviewContent.classList.add('gl-hidden');
-  if (reviewError) reviewError.classList.add('gl-hidden');
-  if (loginPrompt) loginPrompt.classList.add('gl-hidden');
-  const azureTokenErr = document.getElementById('review-azure-token-error');
-  const bitbucketTokenErr = document.getElementById('review-bitbucket-token-error');
-  if (azureTokenErr) azureTokenErr.classList.add('gl-hidden');
-  if (bitbucketTokenErr) bitbucketTokenErr.classList.add('gl-hidden');
   if (typeof startEnhancedLoader === 'function') {
     startEnhancedLoader();
   }

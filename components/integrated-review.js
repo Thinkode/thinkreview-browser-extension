@@ -189,23 +189,23 @@ function clearPatchContentAndHistory() {
     chatLog.replaceChildren();
   }
 
-  const reviewLoading = document.getElementById('review-loading');
-  const reviewContent = document.getElementById('review-content');
-  const reviewError = document.getElementById('review-error');
-  const reviewScrollMain = document.getElementById('review-scroll-main');
-  const tokenError = document.getElementById('review-azure-token-error');
-  const bitbucketTokenErr = document.getElementById('review-bitbucket-token-error');
-  const loginPrompt = document.getElementById('review-login-prompt');
-  const patchSizeBanner = document.getElementById('review-patch-size-banner');
+  const elementsToHide = [
+    'review-loading',
+    'review-content',
+    'review-error',
+    'review-azure-token-error',
+    'review-bitbucket-token-error',
+    'review-login-prompt',
+    'review-patch-size-banner',
+  ];
 
-  if (reviewLoading) reviewLoading.classList.add('gl-hidden');
-  if (reviewContent) reviewContent.classList.add('gl-hidden');
-  if (reviewError) reviewError.classList.add('gl-hidden');
+  elementsToHide.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('gl-hidden');
+  });
+
+  const reviewScrollMain = document.getElementById('review-scroll-main');
   if (reviewScrollMain) reviewScrollMain.classList.remove('gl-hidden');
-  if (tokenError) tokenError.classList.add('gl-hidden');
-  if (bitbucketTokenErr) bitbucketTokenErr.classList.add('gl-hidden');
-  if (loginPrompt) loginPrompt.classList.add('gl-hidden');
-  if (patchSizeBanner) patchSizeBanner.classList.add('gl-hidden');
 
   dbgLog('Cleared patch content, conversation history, and review panel state for new PR');
 }
