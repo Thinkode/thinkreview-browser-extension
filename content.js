@@ -1474,8 +1474,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     }
     
 
-    // Display the review results (use filtered patch — same string as reviewPatchCode_1_1 for agent checksums)
-    displayIntegratedReview(
+    // Display the review results (use filtered patch — same string as reviewPatchCode_1_1 for agent checksums).
+    // Await so in-panel work (e.g. news banner fetch via CloudService) completes with this flow.
+    await displayIntegratedReview(
       data.review,
       filteredCodeContent,
       data.patchSize,

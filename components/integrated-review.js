@@ -434,6 +434,7 @@ async function createIntegratedReviewPanel(patchUrl) {
             </div>
             <div id="review-scroll-main">
             <div id="review-prompt-container"></div>
+            <div id="review-news-banner" class="thinkreview-news-banner gl-hidden gl-mb-4" role="region" aria-label="ThinkReview announcement"></div>
             <div id="review-patch-size-banner" class="gl-mb-4 gl-hidden"></div>
             <div id="review-metrics-container" class="gl-mb-4"></div>
             <div id="review-summary-container" class="gl-mb-4">
@@ -1594,6 +1595,79 @@ async function handleSendMessage(messageText) {
   }
 }
 
+const THINKREVIEW_NEWS_BANNER_DISMISSED_KEY = 'thinkreview-news-banner-dismissed-version';
+
+/**
+ * Remote-config news banner above the metadata bar; dismiss persists per news `version`.
+ */
+async function refreshThinkReviewNewsBanner() {
+  const el = document.getElementById('review-news-banner');
+  if (!el) return;
+
+  el.replaceChildren();
+  el.classList.add('gl-hidden');
+
+  try {
+    // Same pattern as upgrade prompt in content.js: dynamic import + CloudService (not background sendMessage).
+    const cloudModule = await import(chrome.runtime.getURL('services/cloud-service.js'));
+    const [storage, news] = await Promise.all([
+      chrome.storage.local.get([THINKREVIEW_NEWS_BANNER_DISMISSED_KEY]),
+      cloudModule.CloudService.fetchNewsMessageThinkReview()
+    ]);
+
+    if (!news || !news.message || !news.version) {
+      return;
+    }
+
+    const dismissed = storage[THINKREVIEW_NEWS_BANNER_DISMISSED_KEY];
+    if (dismissed != null && String(dismissed) === String(news.version)) {
+      return;
+    }
+
+    const inner = document.createElement('div');
+    inner.className = 'thinkreview-news-banner-inner';
+
+    const textWrap = document.createElement('div');
+    textWrap.className = 'thinkreview-news-banner-text';
+
+    if (news.url) {
+      const a = document.createElement('a');
+      a.href = news.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.className = 'thinkreview-news-banner-link';
+      a.textContent = news.message;
+      textWrap.appendChild(a);
+    } else {
+      textWrap.textContent = news.message;
+    }
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'thinkreview-news-banner-close';
+    closeBtn.setAttribute('aria-label', 'Dismiss announcement');
+    closeBtn.textContent = '\u00d7';
+    closeBtn.addEventListener('click', async () => {
+      try {
+        await chrome.storage.local.set({
+          [THINKREVIEW_NEWS_BANNER_DISMISSED_KEY]: news.version
+        });
+      } catch (storeErr) {
+        dbgWarn('Failed to persist news banner dismissal:', storeErr);
+      }
+      el.replaceChildren();
+      el.classList.add('gl-hidden');
+    });
+
+    inner.appendChild(textWrap);
+    inner.appendChild(closeBtn);
+    el.appendChild(inner);
+    el.classList.remove('gl-hidden');
+  } catch (error) {
+    dbgWarn('ThinkReview news banner failed:', error);
+  }
+}
+
 async function displayIntegratedReview(
   review,
   patchContent,
@@ -1694,6 +1768,8 @@ async function displayIntegratedReview(
     const slug = displayName.toLowerCase();
     subscriptionLabel.className = 'thinkreview-header-subscription thinkreview-header-subscription-' + slug;
   }
+
+  await refreshThinkReviewNewsBanner();
 
   // Render patch size / metadata banner (Ollama-specific bar vs cloud bar)
   if (patchSizeBanner) {
