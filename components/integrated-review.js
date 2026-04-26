@@ -1597,8 +1597,17 @@ async function handleSendMessage(messageText) {
 
 const THINKREVIEW_NEWS_BANNER_DISMISSED_KEY = 'thinkreview-news-banner-dismissed-version';
 
+/** Cached dynamic import so repeated reviews do not pay import() microtask churn. */
+let thinkReviewNewsBannerCloudModulePromise = null;
+function getThinkReviewNewsBannerCloudModule() {
+  return (thinkReviewNewsBannerCloudModulePromise ??= import(
+    chrome.runtime.getURL('services/cloud-service.js')
+  ));
+}
+
 /**
  * Remote-config news banner above the metadata bar; dismiss persists per news `version`.
+ * Non-blocking: callers must not await this so review UI is not delayed by the news HTTP call.
  */
 async function refreshThinkReviewNewsBanner() {
   const el = document.getElementById('review-news-banner');
@@ -1608,8 +1617,7 @@ async function refreshThinkReviewNewsBanner() {
   el.classList.add('gl-hidden');
 
   try {
-    // Same pattern as upgrade prompt in content.js: dynamic import + CloudService (not background sendMessage).
-    const cloudModule = await import(chrome.runtime.getURL('services/cloud-service.js'));
+    const cloudModule = await getThinkReviewNewsBannerCloudModule();
     const [storage, news] = await Promise.all([
       chrome.storage.local.get([THINKREVIEW_NEWS_BANNER_DISMISSED_KEY]),
       cloudModule.CloudService.fetchNewsMessageThinkReview()
@@ -1769,7 +1777,7 @@ async function displayIntegratedReview(
     subscriptionLabel.className = 'thinkreview-header-subscription thinkreview-header-subscription-' + slug;
   }
 
-  await refreshThinkReviewNewsBanner();
+  void refreshThinkReviewNewsBanner();
 
   // Render patch size / metadata banner (Ollama-specific bar vs cloud bar)
   if (patchSizeBanner) {

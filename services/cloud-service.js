@@ -1117,13 +1117,17 @@ export class CloudService {
    */
   static async fetchNewsMessageThinkReview() {
     dbgLog('Fetching ThinkReview news message');
+    const TIMEOUT_MS = 2500;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const response = await fetch(FETCH_NEWS_MESSAGE_THINKREVIEW_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
+        signal: controller.signal
       });
 
       if (!response.ok) {
@@ -1170,6 +1174,8 @@ export class CloudService {
     } catch (error) {
       dbgWarn('Error fetching ThinkReview news message:', error);
       return null;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
