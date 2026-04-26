@@ -1456,6 +1456,11 @@ footer {
   margin-bottom: 4px;
 }
 
+/* [hidden] alone loses to .auto-start-review-row { display: flex } without this rule */
+.auto-start-review-row[hidden] {
+  display: none !important;
+}
+
 .auto-start-label {
   font-size: 12px;
   color: #333;

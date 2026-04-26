@@ -174,21 +174,43 @@ let conversationHistory = [];
 let currentPatchContent = '';
 
 /**
- * Clears the stored patch content and conversation history
- * This should be called when navigating to a new PR to free up memory
- * Also clears the chat log DOM so previous messages are not shown in the new review
+ * Clears stored patch content, conversation history, and review panel UI.
+ * Intended when navigating from one PR/MR to another (not when leaving for a non-PR page).
+ * Resets visibility so a manual ThinkReview open runs fetch for the new PR.
  */
 function clearPatchContentAndHistory() {
   currentPatchContent = '';
   conversationHistory = [];
+  currentReviewData = null;
+  stopEnhancedLoader();
+
   const chatLog = document.getElementById('chat-log');
   if (chatLog) {
     chatLog.replaceChildren();
   }
-  dbgLog('Cleared patch content and conversation history');
+
+  const elementsToHide = [
+    'review-loading',
+    'review-content',
+    'review-error',
+    'review-azure-token-error',
+    'review-bitbucket-token-error',
+    'review-login-prompt',
+    'review-patch-size-banner',
+  ];
+
+  elementsToHide.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('gl-hidden');
+  });
+
+  const reviewScrollMain = document.getElementById('review-scroll-main');
+  if (reviewScrollMain) reviewScrollMain.classList.remove('gl-hidden');
+
+  dbgLog('Cleared patch content, conversation history, and review panel state for new PR');
 }
 
-// Expose function for content.js to call when navigating to new PR
+// Expose for content.js when switching to a different PR URL
 window.clearPatchContentAndHistory = clearPatchContentAndHistory;
 
 // Enhanced loader functionality

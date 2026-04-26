@@ -148,6 +148,7 @@ export function renderAgentLoadingTabs(enabledReviewAgents, tabButtons, panelsWr
       '<div class="thinkreview-agent-state-title">Agent Running</div>' +
       '<div class="thinkreview-agent-state-subtitle">Analyzing your code changes…</div>' +
       '<div class="thinkreview-agent-state-bar"><div class="thinkreview-agent-state-bar-fill"></div></div>' +
+      '<p class="loader-close-hint">Feel free to close this panel and return in a few seconds; this agent\'s review will keep running in the cloud.</p>' +
       '</div>';
 
     scrollWrap.appendChild(inner);
@@ -207,6 +208,7 @@ export function renderAgentPanelState(inner, row, processors, timeoutInfo) {
       '</div>' +
       '<div class="thinkreview-agent-state-title">Still Processing</div>' +
       `<div class="thinkreview-agent-state-subtitle">${extra || 'The agent is still working.'} Check back in a moment.</div>` +
+      '<p class="loader-close-hint">Feel free to close this panel and return in a few seconds; this agent\'s review will keep running in the cloud.</p>' +
       '</div>';
     return;
   }

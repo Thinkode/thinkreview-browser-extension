@@ -10,6 +10,9 @@ if (typeof DEBUG === 'undefined') {
 const TIMEOUT_AUTO_REVIEW_DELAY = 500;
 const MAX_PATCH_SIZE_FALLBACK = 50_000;
 
+/** Set to false to restore automatic review on PR load (and autoReviewDecisionMaker for those runs). */
+const TEMP_FORCE_MANUAL_REVIEW_ONLY = true;
+
 // Logger functions - loaded dynamically to avoid module import issues in content scripts
 // Provide fallback functions immediately, then upgrade when logger loads
 // Check if variables already exist to avoid redeclaration errors
@@ -476,21 +479,16 @@ function getCurrentPRId() {
 }
 
 /**
- * Check if we've navigated to a new PR and trigger review if needed
+ * Check if we've navigated to a new PR and trigger review if needed.
+ * Clears panel state only when the URL identifies a different PR than currentPRId
+ * (not when navigating to non-PR pages).
  */
 async function checkAndTriggerReviewForNewPR() {
   // Only check if we're on a supported page (PR page)
   if (!isSupportedPage()) {
-    // Not on a PR page - reset tracking and hide score popup
-    if (currentPRId !== null) {
-      currentPRId = null;
-      
-      // Clear patch content and conversation history when leaving PR page
-      if (typeof window.clearPatchContentAndHistory === 'function') {
-        window.clearPatchContentAndHistory();
-      }
-    }
-    
+    // Not on a PR page: do not clear the integrated panel or reset currentPRId.
+    // Keeping currentPRId lets us detect a switch to a *different* PR after browsing
+    // elsewhere (clear + optional auto-run only runs in that branch below).
     // Hide score popup when navigating to a non-PR page
     try {
       const scorePopupModule = await import(chrome.runtime.getURL('components/popup-modules/score-popup.js'));
@@ -574,6 +572,13 @@ async function checkAndTriggerReviewForNewPR() {
 function getAutoStartReview() {
   return new Promise((resolve) => {
     chrome.storage.local.get(['autoStartReview'], (result) => {
+      if (TEMP_FORCE_MANUAL_REVIEW_ONLY) {
+        if (result.autoStartReview === true) {
+          dbgLog('TEMP_FORCE_MANUAL_REVIEW_ONLY: ignoring autoStartReview storage (manual reviews only)');
+        }
+        resolve(false);
+        return;
+      }
       // Respect the "Start review automatically" option for all providers (default off when unset)
       resolve(result.autoStartReview === true);
     });
@@ -609,8 +614,12 @@ async function injectIntegratedReviewPanel(opts = {}) {
   
   dbgLog('Integrated review panel created');
   
-  // If the user explicitly triggered this (button click), expand the panel immediately
+  // Track current PR ID (before review fetch so SPA state stays consistent)
+  currentPRId = getCurrentPRId();
+
+  // If the user explicitly triggered this (button click), expand the panel and start review in parallel
   if (opts.triggerReview === true) {
+    const fetchPromise = fetchAndDisplayCodeReview(false, false);
     const createdPanel = document.getElementById('gitlab-mr-integrated-review');
     if (createdPanel) {
       createdPanel.classList.remove('thinkreview-panel-minimized-to-button');
@@ -621,17 +630,16 @@ async function injectIntegratedReviewPanel(opts = {}) {
       } else if (expandSettings.sidebarSide === 'left') {
         // In overlay mode, still apply the sidebar side for positioning alignment
         createdPanel.classList.add('thinkreview-panel-overlay-left');
+      } else {
+        createdPanel.classList.remove('thinkreview-panel-overlay-left');
       }
       applyDockedBodyMargin(true, expandSettings.panelMode, expandSettings.sidebarSide);
     }
-  }
-  
-  // Track current PR ID
-  currentPRId = getCurrentPRId();
-  
-  // Trigger the code review only when: user explicitly requested (button click) or auto-start is enabled
-  if (opts.triggerReview === true) {
-    fetchAndDisplayCodeReview(false, false);
+    try {
+      await fetchPromise;
+    } catch (e) {
+      dbgWarn('Review fetch failed:', e?.message || e);
+    }
   } else if (await getAutoStartReview()) {
     fetchAndDisplayCodeReview(false, true);
   }
@@ -1115,6 +1123,36 @@ async function getAzureDevOpsToken() {
   });
 }
 
+/** Show in-panel loader as soon as review work begins (before patch fetch / filter). */
+function showIntegratedReviewLoadingUI() {
+  const elementsToHide = [
+    'review-content',
+    'review-error',
+    'review-login-prompt',
+    'review-azure-token-error',
+    'review-bitbucket-token-error',
+  ];
+
+  elementsToHide.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('gl-hidden');
+  });
+
+  const reviewLoading = document.getElementById('review-loading');
+  if (reviewLoading) reviewLoading.classList.remove('gl-hidden');
+  if (typeof startEnhancedLoader === 'function') {
+    startEnhancedLoader();
+  }
+}
+
+function dismissIntegratedReviewLoadingUI() {
+  if (typeof stopEnhancedLoader === 'function') {
+    stopEnhancedLoader();
+  }
+  const reviewLoading = document.getElementById('review-loading');
+  if (reviewLoading) reviewLoading.classList.add('gl-hidden');
+}
+
 /**
  * Fetches code changes and sends them for AI review
  * Supports both GitLab (patch) and Azure DevOps (API) platforms
@@ -1160,6 +1198,8 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       isReviewInProgress = false;
       return;
     }
+
+    showIntegratedReviewLoadingUI();
 
     // Determine platform and get code changes
     let codeContent = '';
@@ -1326,27 +1366,8 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       throw new Error('Unsupported platform');
     }
 
-    // Show loading state and start enhanced loader
-    // Note: Daily limit checking is now handled server-side in the cloud function
-    const reviewLoading = document.getElementById('review-loading');
-    const reviewContent = document.getElementById('review-content');
-    const reviewError = document.getElementById('review-error');
-    const loginPrompt = document.getElementById('review-login-prompt');
-    
-    if (reviewLoading) reviewLoading.classList.remove('gl-hidden');
-    if (reviewContent) reviewContent.classList.add('gl-hidden');
-    if (reviewError) reviewError.classList.add('gl-hidden');
-    if (loginPrompt) loginPrompt.classList.add('gl-hidden');
-    const azureTokenErr = document.getElementById('review-azure-token-error');
-    const bitbucketTokenErr = document.getElementById('review-bitbucket-token-error');
-    if (azureTokenErr) azureTokenErr.classList.add('gl-hidden');
-    if (bitbucketTokenErr) bitbucketTokenErr.classList.add('gl-hidden');
-    
-    // Start the enhanced loader if available
-    if (typeof startEnhancedLoader === 'function') {
-      startEnhancedLoader();
-    }
-    
+    // In-panel loader already shown after login; keep UI through filter + cloud call.
+
     // Apply filtering for GitLab, GitHub, and Bitbucket patches (Azure DevOps changes are already filtered)
     let filteredCodeContent = codeContent;
     let filterSummaryText = null;
@@ -1385,6 +1406,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       const decision = shouldProceedWithAutoReview(filteredCodeContent, { platform, mrId: reviewId });
       if (!decision.proceed) {
         dbgLog('Auto review skipped by autoReviewDecisionMaker:', decision.reason, decision.details);
+        dismissIntegratedReviewLoadingUI();
         return;
       }
     }
@@ -1613,7 +1635,14 @@ async function toggleReviewPanel() {
       panel.classList.remove('thinkreview-panel-overlay-left');
     }
     applyDockedBodyMargin(true, expandSettings.panelMode, expandSettings.sidebarSide);
-    
+
+    const reviewContent = document.getElementById('review-content');
+    const reviewError = document.getElementById('review-error');
+    const hasReview = reviewContent && !reviewContent.classList.contains('gl-hidden');
+    const hasError = reviewError && !reviewError.classList.contains('gl-hidden');
+    const reviewPromise =
+      !hasReview && !hasError ? fetchAndDisplayCodeReview(false, false) : null;
+
     // Hide score popup when panel is expanded
     try {
       const scorePopupModule = await import(chrome.runtime.getURL('components/popup-modules/score-popup.js'));
@@ -1657,17 +1686,13 @@ async function toggleReviewPanel() {
     if (arrowSpan) {
       arrowSpan.textContent = '▼';
     }
-    
-    // Check if this is the first time expanding and no review has been generated yet
-    const reviewContent = document.getElementById('review-content');
-    const reviewError = document.getElementById('review-error');
-    const hasReview = reviewContent && !reviewContent.classList.contains('gl-hidden');
-    const hasError = reviewError && !reviewError.classList.contains('gl-hidden');
-    
-    // If no review has been generated yet (no content and no error), trigger the review
-    // (even while a review is in progress — fetchAndDisplayCodeReview queues manual runs)
-    if (!hasReview && !hasError) {
-      fetchAndDisplayCodeReview(false, false);
+
+    if (reviewPromise) {
+      try {
+        await reviewPromise;
+      } catch (e) {
+        dbgWarn('Review fetch failed:', e?.message || e);
+      }
     }
   } else {
     // If panel is already visible, minimize it (even if review is in progress)
