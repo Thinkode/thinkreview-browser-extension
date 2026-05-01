@@ -3,6 +3,9 @@ import { dbgLog, dbgWarn } from '../utils/logger.js';
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const OPENROUTER_APP_URL = 'https://thinkreview.dev';
 const OPENROUTER_APP_TITLE = 'ThinkReview';
+const OPENROUTER_REVIEW_MAX_TOKENS_BUDGET = 4096;
+const OPENROUTER_CONVERSATION_MAX_TOKENS_BUDGET = 2048;
+const OPENROUTER_RESERVED_RESPONSE_TOKENS = 1024;
 
 function getStoredOpenRouterConfig() {
   return new Promise((resolve) => {
@@ -110,6 +113,33 @@ function buildConversationMessages(patchContent, conversationHistory, language) 
       content: lastUserMessage.content + (languageInstruction ? `\n\n${languageInstruction}` : '') + '\n\nKeep your response concise and well-formatted using Markdown.'
     }
   ];
+}
+
+function estimatePromptTokensFromMessages(messages) {
+  const totalCharacters = Array.isArray(messages)
+    ? messages.reduce((total, message) => total + String(message?.content || '').length, 0)
+    : 0;
+
+  return Math.ceil(totalCharacters / 2);
+}
+
+function resolveOpenRouterMaxTokens(contextLength, promptTokens, fallbackBudget) {
+  const parsedBudget = Number(fallbackBudget);
+  const budget = Number.isFinite(parsedBudget) && parsedBudget > 0
+    ? Math.floor(parsedBudget)
+    : 1024;
+  const parsedContextLength = Number(contextLength);
+  const parsedPromptTokens = Number(promptTokens);
+
+  if (Number.isFinite(parsedContextLength) && parsedContextLength > 0) {
+    const availableTokens = Math.max(
+      1,
+      parsedContextLength - OPENROUTER_RESERVED_RESPONSE_TOKENS - (Number.isFinite(parsedPromptTokens) && parsedPromptTokens > 0 ? Math.floor(parsedPromptTokens) : 0)
+    );
+    return Math.max(1, Math.min(availableTokens, budget));
+  }
+
+  return budget;
 }
 
 function extractJsonFromText(text) {
@@ -226,21 +256,33 @@ export class OpenRouterService {
       }
     }
 
+    const reviewMessages = [
+      {
+        role: 'system',
+        content: 'You are an expert code reviewer. Return only valid JSON that matches the requested schema.'
+      },
+      {
+        role: 'user',
+        content: `${promptBeforePatch}${patchToUse}${promptAfterPatch}`
+      }
+    ];
+    const maxTokens = resolveOpenRouterMaxTokens(
+      contextLength,
+      estimatePromptTokensFromMessages(reviewMessages),
+      OPENROUTER_REVIEW_MAX_TOKENS_BUDGET
+    );
+    dbgLog('OpenRouter max_tokens resolved for review:', {
+      contextLength,
+      budget: OPENROUTER_REVIEW_MAX_TOKENS_BUDGET,
+      maxTokens
+    });
+
     const requestBody = {
       model,
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert code reviewer. Return only valid JSON that matches the requested schema.'
-        },
-        {
-          role: 'user',
-          content: `${promptBeforePatch}${patchToUse}${promptAfterPatch}`
-        }
-      ],
+      messages: reviewMessages,
       stream: false,
       temperature: 0.2,
-      max_tokens: 4096
+      max_tokens: maxTokens
     };
 
     try {
@@ -305,6 +347,7 @@ export class OpenRouterService {
     const config = await getStoredOpenRouterConfig();
     const apiKey = config.apiKey?.trim();
     const model = config.model?.trim();
+    const contextLength = Number(config.contextLength) || null;
 
     if (!apiKey) {
       throw new Error('OpenRouter API key is missing. Open the extension settings and save your API key first.');
@@ -315,12 +358,23 @@ export class OpenRouterService {
 
     const messages = buildConversationMessages(patchContent, conversationHistory, language);
 
+    const maxTokens = resolveOpenRouterMaxTokens(
+      contextLength,
+      estimatePromptTokensFromMessages(messages),
+      OPENROUTER_CONVERSATION_MAX_TOKENS_BUDGET
+    );
+    dbgLog('OpenRouter max_tokens resolved for conversation:', {
+      contextLength,
+      budget: OPENROUTER_CONVERSATION_MAX_TOKENS_BUDGET,
+      maxTokens
+    });
+
     const requestBody = {
       model,
       messages,
       stream: false,
       temperature: 0.2,
-      max_tokens: 2048
+      max_tokens: maxTokens
     };
 
     try {
