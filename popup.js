@@ -2471,38 +2471,26 @@ async function refreshOpenRouterModels() {
 
 async function testOpenRouterConnection() {
   const apiKeyInput = document.getElementById('openrouter-api-key');
+  const modelInput = document.getElementById('openrouter-model');
   const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+  const model = modelInput ? modelInput.value.trim() : '';
 
   if (!apiKey) {
     showOpenRouterStatus('❌ Please enter a valid API key', 'error');
     return;
   }
 
-  showOpenRouterStatus('🔄 Testing connection...', 'info');
+  if (!model) {
+    showOpenRouterStatus('❌ Please select a model first', 'error');
+    return;
+  }
+
+  showOpenRouterStatus('🔄 Testing selected model...', 'info');
 
   try {
     const { OpenRouterService } = await import(chrome.runtime.getURL('services/openrouter-service.js'));
-    const connectionResult = await OpenRouterService.checkConnection(apiKey);
-
-    if (connectionResult.connected) {
-      showOpenRouterStatus('✅ Connection successful! OpenRouter is ready.', 'success');
-      try {
-        const modelsResult = await OpenRouterService.getAvailableModels(apiKey);
-        if (modelsResult.models.length > 0) {
-          updateOpenRouterModelSelect(modelsResult.models);
-          showOpenRouterStatus(`✅ Connected! Found ${modelsResult.models.length} model(s).`, 'success');
-        }
-      } catch (modelsError) {
-        dbgWarn('Error fetching OpenRouter models after connection test:', modelsError);
-      }
-    } else {
-      showOpenRouterStatus(
-        connectionResult.isAuthError
-          ? '❌ OpenRouter API key is invalid. Check the key and try again.'
-          : `❌ Cannot connect to OpenRouter: ${connectionResult.error || 'unknown error'}`,
-        'error'
-      );
-    }
+    const testResult = await OpenRouterService.testSelectedModel(model, apiKey);
+    showOpenRouterStatus(`✅ Model "${testResult.model}" is working with OpenRouter.`, 'success');
   } catch (error) {
     dbgWarn('Error testing OpenRouter connection:', error);
     showOpenRouterStatus(`❌ Connection failed: ${error.message}`, 'error');
