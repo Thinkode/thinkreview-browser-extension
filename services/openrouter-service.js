@@ -221,6 +221,51 @@ async function performOpenRouterRequest(path, body, apiKey) {
 }
 
 export class OpenRouterService {
+  static async testSelectedModel(modelId, apiKeyOverride = null) {
+    const apiKey = await resolveOpenRouterApiKey(apiKeyOverride);
+    const model = typeof modelId === 'string' ? modelId.trim() : '';
+
+    if (!apiKey) {
+      throw new Error('OpenRouter API key is missing. Open the extension settings and save your API key first.');
+    }
+
+    if (!model) {
+      throw new Error('OpenRouter model is missing. Open the extension settings and select a model first.');
+    }
+
+    dbgLog('Testing selected OpenRouter model:', model);
+
+    const requestBody = {
+      model,
+      messages: [
+        {
+          role: 'user',
+          content: 'Reply with OK.'
+        }
+      ],
+      stream: false,
+      temperature: 0,
+      max_tokens: 8
+    };
+
+    try {
+      const data = await performOpenRouterRequest('/chat/completions', requestBody, apiKey);
+      const responseContent = data.choices?.[0]?.message?.content ?? '';
+
+      return {
+        connected: true,
+        model,
+        response: responseContent
+      };
+    } catch (error) {
+      dbgWarn('OpenRouter selected model test failed:', error);
+      if (error.status === 401) {
+        throw new Error('OpenRouter rejected the API key. Please check the key in extension settings and save again.');
+      }
+      throw new Error(`OpenRouter model test failed: ${error.message}`);
+    }
+  }
+
   static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null) {
     dbgLog('Sending patch for code review via OpenRouter');
 
