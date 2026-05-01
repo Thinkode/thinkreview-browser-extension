@@ -1082,6 +1082,11 @@ footer {
   color: #2e7d32;
 }
 
+.provider-card-icon--openrouter {
+  background: linear-gradient(135deg, #eef2f7 0%, #dbe4ef 100%);
+  color: #475569;
+}
+
 .provider-card-title-group {
   display: flex;
   flex-direction: column;
@@ -1116,6 +1121,12 @@ footer {
   background: #e6f7ee;
   color: #2e7d32;
   border: 1px solid #a5d6a7;
+}
+
+.provider-card-badge--openrouter {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
 }
 
 .provider-card-check-icon {
@@ -1165,6 +1176,12 @@ footer {
   border: 1px solid #c3e6c3;
 }
 
+.provider-tag--openrouter {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #d7e0ea;
+}
+
 /* Selected state */
 .provider-card:has(.provider-card-radio:checked) {
   border-color: #6b4fbb;
@@ -1178,6 +1195,12 @@ footer {
   box-shadow: 0 2px 12px rgba(76, 175, 80, 0.15);
 }
 
+.provider-card:has(#provider-openrouter:checked) {
+  border-color: #64748b;
+  background: #f8fafc;
+  box-shadow: 0 2px 12px rgba(100, 116, 139, 0.15);
+}
+
 .provider-card:has(.provider-card-radio:checked) .provider-card-check-icon {
   background: #6b4fbb;
   color: #fff;
@@ -1185,6 +1208,11 @@ footer {
 
 .provider-card:has(#provider-ollama:checked) .provider-card-check-icon {
   background: #4caf50;
+  color: #fff;
+}
+
+.provider-card:has(#provider-openrouter:checked) .provider-card-check-icon {
+  background: #64748b;
   color: #fff;
 }
 
@@ -1208,6 +1236,17 @@ footer {
 
 #provider-card-ollama.is-selected .provider-card-check-icon {
   background: #4caf50;
+  color: #fff;
+}
+
+#provider-card-openrouter.is-selected {
+  border-color: #64748b;
+  background: #f8fafc;
+  box-shadow: 0 2px 12px rgba(100, 116, 139, 0.15);
+}
+
+#provider-card-openrouter.is-selected .provider-card-check-icon {
+  background: #64748b;
   color: #fff;
 }
 
@@ -1264,6 +1303,11 @@ footer {
 .model-select-wrapper {
   display: flex;
   gap: 8px;
+}
+
+.model-select-wrapper .config-input {
+  flex: 1;
+  min-width: 0;
 }
 
 .config-select {
@@ -1378,6 +1422,70 @@ footer {
   padding: 12px;
   max-height: 400px;
   overflow-y: auto;
+}
+
+.openrouter-config {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  animation: slideDown 0.3s ease;
+}
+
+.openrouter-config-row {
+  margin-bottom: 12px;
+}
+
+.openrouter-status {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  display: none;
+}
+
+.openrouter-status.show {
+  display: block;
+}
+
+.openrouter-status.success {
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+}
+
+.openrouter-status.error {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.openrouter-status.info {
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+.openrouter-help {
+  margin-top: 10px;
+}
+
+.openrouter-help .help-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.openrouter-help .help-text strong a,
+.openrouter-help .help-text a {
+  color: #334155;
+}
+
+.openrouter-help .help-text a:hover {
+  color: #1e293b;
 }
 
 .cors-copy-btn svg.h-5 {

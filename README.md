@@ -10,6 +10,7 @@
 [![Rating](https://img.shields.io/badge/rating-5.0%2F5-yellow.svg)](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 [![Ollama](https://img.shields.io/badge/🆕%20Ollama-Local%20AI-purple?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3TDEyIDEyTDIyIDdMMTIgMloiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0yIDEwVjE0TDEyIDE5VjE1TDIgMTBaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMjIgMTBWMTRMMTIgMTlWMTVMMjIgMTBaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4=)](OLLAMA_SETUP.md)
+[![OpenRouter](https://img.shields.io/badge/OpenRouter-Hosted%20Models-ff7a18?style=flat)](https://openrouter.ai/docs)
 
 **AI-powered code reviews for merge requests and pull requests, directly in your browser.** Available for **Chrome** (and other Chromium browsers) and **Firefox**.
 
@@ -35,7 +36,7 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 - 🏆 **Featured** by Chrome Web Store
 - 🦊 **Firefox** — [Mozilla Add-ons](https://addons.mozilla.org/firefox/addon/thinkreview-code-review/)
 - 🔄 **Active Development** - Regular updates and improvements (2+ weekly releases on average)
-- 🤖 **Multi-Model AI** - Advanced cloud models or local Ollama
+- 🤖 **Multi-Model AI** - Advanced cloud models, OpenRouter routing, or local Ollama
 - 📈 **Growing Community** - Growing user base
 - 📜 Follows **recommended practices** for Chrome extensions
 - 📦 Check [latest releases](https://thinkreview.dev/release-notes)
@@ -52,6 +53,7 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 |----------|---------|------|-------|-------|
 | **☁️ Cloud AI (Advanced Models)** | Google Cloud | Free tier | ⚡ Very Fast | None - works instantly |
 | **🖥️ Local Ollama** 🆕 | 🔒 100% Local | Completely Free | Hardware dependent | [30 sec setup](OLLAMA_SETUP.md) (if model downloaded) |
+| **🌐 OpenRouter** | Multi-provider routing | Usage-based | Fast | OpenAI-compatible API key + model |
 
 **Features:**
 - **Instant Analysis**: Get AI-driven insights on code changes
@@ -88,7 +90,9 @@ Setup guides for every combination below live on the site: **[thinkreview.dev/do
 ### 🚀 Quick Start
 - **Cloud AI**: Zero setup - works instantly after install
 - **Local AI**: [Quick Ollama setup](OLLAMA_SETUP.md) (30 seconds if model is downloaded) for private reviews
+- **Hosted Routing**: OpenRouter provides API-key based access to models from multiple providers
 - **No API Keys**: Works out of the box (cloud) or fully local (Ollama)
+- **OpenRouter Support**: Use your own OpenRouter API key to choose a model via unified routing
 - **Automatic Detection**: Recognizes MR/PR pages instantly
 - **Seamless Integration**: Doesn't disrupt your workflow
 
@@ -165,6 +169,12 @@ cd thinkreview-browser-extension
 2. We recommend **[Gemma 4](https://ollama.com/library/gemma4)** for best results with Ollama; [Codestral](https://ollama.com/library/codestral:latest) and [gpt-oss](https://ollama.com/library/gpt-oss) are solid alternatives.
 3. Open extension popup → Settings → Select "Local Ollama"
 4. That's it! Your reviews now run locally
+
+**OpenRouter** - Unified LLM routing with a single OpenAI-compatible API key:
+1. Create an API key in your [OpenRouter account](https://openrouter.ai/keys)
+2. Open extension popup → Settings → Select "OpenRouter"
+3. Paste your API key, choose a model, and save
+4. The extension will use the selected OpenRouter model for reviews and chat
 
 ---
 

@@ -7,6 +7,7 @@ const FREE_TIER_PATCH_SIZE_LIMIT = 40_000;
 // Import services statically since dynamic imports aren't allowed in service workers
 import { CloudService } from './services/cloud-service.js';
 import { OllamaService } from './services/ollama-service.js';
+import { OpenRouterService } from './services/openrouter-service.js';
 import { isValidOrigin } from './utils/origin-validator.js';
 import './vendor/diff.min.js';
 import { azureDevOpsFetcher } from './services/azure-devops-fetcher.js';
@@ -297,7 +298,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       try {
         // Get AI provider setting
-        const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+        const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openrouterConfig']);
         const provider = settings.aiProvider || 'cloud';
         
         dbgLog('Using AI provider for conversation:', provider);
@@ -330,6 +331,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               error: ollamaError.message,
               provider: 'ollama',
               suggestion: 'Check if Ollama is running and configured correctly in extension settings.'
+            });
+            return;
+          }
+        }
+
+        if (provider === 'openrouter') {
+          try {
+            const data = await OpenRouterService.getConversationalResponse(
+              patchContent,
+              conversationHistory,
+              language || 'English',
+              mrId,
+              mrUrl
+            );
+
+            dbgLog('OpenRouter conversational response completed successfully');
+            sendResponse({ success: true, data: data, provider: 'openrouter' });
+            return;
+          } catch (openRouterError) {
+            dbgWarn('OpenRouter conversational response failed:', openRouterError.message);
+            sendResponse({
+              success: false,
+              error: openRouterError.message,
+              provider: 'openrouter',
+              suggestion: 'Check your OpenRouter API key and selected model in extension settings.'
             });
             return;
           }
@@ -382,11 +408,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     (async () => {
       // Get AI provider setting (declare outside try block so it's accessible in catch)
-      let settings = { aiProvider: 'cloud', ollamaConfig: null };
+      let settings = { aiProvider: 'cloud', ollamaConfig: null, openrouterConfig: null };
       let provider = 'cloud';
       
       try {
-        settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+        settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openrouterConfig']);
         provider = settings.aiProvider || 'cloud';
         
         dbgLog('Using AI provider:', provider);
@@ -419,6 +445,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               error: ollamaError.message,
               provider: 'ollama',
               suggestion: 'Check if Ollama is running and configured correctly in extension settings.'
+            });
+            return;
+          }
+        }
+
+        if (provider === 'openrouter') {
+          try {
+            const data = await OpenRouterService.reviewPatchCode(patchContent, language, mrId, mrUrl);
+
+            dbgLog('OpenRouter review completed successfully');
+            sendResponse({ success: true, data, provider: 'openrouter' });
+            return;
+          } catch (openRouterError) {
+            dbgWarn('OpenRouter review failed:', openRouterError.message);
+
+            sendResponse({
+              success: false,
+              error: openRouterError.message,
+              provider: 'openrouter',
+              suggestion: 'Check your OpenRouter API key and selected model in extension settings.'
             });
             return;
           }

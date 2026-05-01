@@ -59,6 +59,8 @@ function popUserDataLoadingOverlay() {
 let isInitialized = false;
 let cloudServiceReady = false;
 let pendingUserDataFetch = false; // Track if we need to fetch user data when CloudService becomes ready
+let ollamaModelList = [];
+let openrouterModelList = [];
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -1996,6 +1998,9 @@ function setupAIProviderEventListeners() {
   const testButton = document.getElementById('test-ollama-btn');
   const saveButton = document.getElementById('save-ollama-btn');
   const refreshModelsButton = document.getElementById('refresh-models-btn');
+  const testOpenRouterButton = document.getElementById('test-openrouter-btn');
+  const saveOpenRouterButton = document.getElementById('save-openrouter-btn');
+  const refreshOpenRouterModelsButton = document.getElementById('refresh-openrouter-models-btn');
   
   // Provider selection change
   providerRadios.forEach(radio => {
@@ -2016,11 +2021,23 @@ function setupAIProviderEventListeners() {
   if (refreshModelsButton) {
     refreshModelsButton.addEventListener('click', refreshOllamaModels);
   }
+
+  if (testOpenRouterButton) {
+    testOpenRouterButton.addEventListener('click', testOpenRouterConnection);
+  }
+
+  if (saveOpenRouterButton) {
+    saveOpenRouterButton.addEventListener('click', saveOpenRouterSettings);
+  }
+
+  if (refreshOpenRouterModelsButton) {
+    refreshOpenRouterModelsButton.addEventListener('click', refreshOpenRouterModels);
+  }
 }
 
 async function loadAIProviderSettings() {
   try {
-    const result = await chrome.storage.local.get(['aiProvider', 'ollamaConfig']);
+    const result = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openrouterConfig']);
     const provider = result.aiProvider || 'cloud';
     const config = result.ollamaConfig || {
       url: 'http://localhost:11434',
@@ -2028,6 +2045,11 @@ async function loadAIProviderSettings() {
       temperature: 0.3,
       top_p: 0.4,
       top_k: 90
+    };
+    const openrouterConfig = result.openrouterConfig || {
+      apiKey: '',
+      model: '',
+      contextLength: null
     };
     
     // Set the selected provider
@@ -2042,25 +2064,34 @@ async function loadAIProviderSettings() {
     if (ollamaConfig) {
       ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
     }
+    const openrouterConfigEl = document.getElementById('openrouter-config');
+    if (openrouterConfigEl) {
+      openrouterConfigEl.style.display = provider === 'openrouter' ? 'block' : 'none';
+    }
     // Load Ollama config values
     const urlInput = document.getElementById('ollama-url');
-    const modelSelect = document.getElementById('ollama-model');
+    const modelInput = document.getElementById('ollama-model');
     const tempInput = document.getElementById('ollama-temperature');
     const topPInput = document.getElementById('ollama-top-p');
     const topKInput = document.getElementById('ollama-top-k');
+    const openrouterApiKeyInput = document.getElementById('openrouter-api-key');
+    const openrouterModelInput = document.getElementById('openrouter-model');
     
     if (urlInput) urlInput.value = config.url;
     if (tempInput) tempInput.value = clampTemperature(config.temperature);
     if (topPInput) topPInput.value = clampTopP(config.top_p);
     if (topKInput) topKInput.value = clampTopK(config.top_k);
+    if (openrouterApiKeyInput) openrouterApiKeyInput.value = openrouterConfig.apiKey || '';
+    if (modelInput && provider !== 'ollama') modelInput.value = config.model;
+    if (openrouterModelInput && provider !== 'openrouter') openrouterModelInput.value = openrouterConfig.model;
     
     // If Ollama is the selected provider, fetch available models
     if (provider === 'ollama') {
       dbgLog('Ollama is selected provider, fetching available models...');
       await fetchAndPopulateModels(config.url, config.model);
-    } else if (modelSelect) {
-      // If not Ollama, just set the saved model value
-      modelSelect.value = config.model;
+    } else if (provider === 'openrouter') {
+      dbgLog('OpenRouter is selected provider, fetching available models...');
+      await fetchAndPopulateOpenRouterModels(openrouterConfig.apiKey, openrouterConfig.model, openrouterConfig.contextLength);
     }
     
     dbgLog('AI Provider settings loaded:', { provider, config });
@@ -2072,17 +2103,23 @@ async function loadAIProviderSettings() {
 function updateProviderCardSelection(provider) {
   const cloudCard = document.getElementById('provider-card-cloud');
   const ollamaCard = document.getElementById('provider-card-ollama');
+  const openrouterCard = document.getElementById('provider-card-openrouter');
   if (cloudCard) cloudCard.classList.toggle('is-selected', provider === 'cloud');
   if (ollamaCard) ollamaCard.classList.toggle('is-selected', provider === 'ollama');
+  if (openrouterCard) openrouterCard.classList.toggle('is-selected', provider === 'openrouter');
 }
 
 function handleProviderChange(event) {
   const provider = event.target.value;
   updateProviderCardSelection(provider);
   const ollamaConfig = document.getElementById('ollama-config');
+  const openrouterConfig = document.getElementById('openrouter-config');
   
   if (ollamaConfig) {
     ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
+  }
+  if (openrouterConfig) {
+    openrouterConfig.style.display = provider === 'openrouter' ? 'block' : 'none';
   }
   // Auto-save provider selection
   chrome.storage.local.set({ aiProvider: provider }, () => {
@@ -2090,7 +2127,9 @@ function handleProviderChange(event) {
     showOllamaStatus(
       provider === 'cloud' 
         ? '☁️ Using Cloud AI (Advanced Models)' 
-        : '🖥️ Local Ollama selected - configure and test below',
+        : provider === 'ollama'
+          ? '🖥️ Local Ollama selected - configure and test below'
+          : '🌐 OpenRouter selected - enter your API key and choose a model',
       provider === 'cloud' ? 'success' : 'info'
     );
     
@@ -2103,6 +2142,18 @@ function handleProviderChange(event) {
       fetchAndPopulateModels(url).catch(err => {
         dbgWarn('Error auto-fetching models (non-critical):', err);
       });
+    }
+
+    if (provider === 'openrouter') {
+      const apiKeyInput = document.getElementById('openrouter-api-key');
+      const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+
+      if (apiKey) {
+        dbgLog('OpenRouter selected, fetching available models...');
+        fetchAndPopulateOpenRouterModels(apiKey).catch(err => {
+          dbgWarn('Error auto-fetching OpenRouter models (non-critical):', err);
+        });
+      }
     }
     
     // Track provider change in cloud asynchronously (fire-and-forget)
@@ -2129,8 +2180,12 @@ async function fetchAndPopulateModels(url, savedModel = null) {
     return;
   }
   
-  const modelSelect = document.getElementById('ollama-model');
-  if (!modelSelect) return;
+  const modelInput = document.getElementById('ollama-model');
+  const modelList = document.getElementById('ollama-model-list');
+  if (!modelInput || !modelList) return;
+
+  ollamaModelList = [];
+  modelList.replaceChildren();
   
   try {
     // Dynamically import OllamaService
@@ -2142,12 +2197,12 @@ async function fetchAndPopulateModels(url, savedModel = null) {
     if (!connectionResult.connected) {
       if (connectionResult.isCorsError) {
         // Show CORS-specific error with instructions
-        modelSelect.innerHTML = '<option value="">🔒 CORS Error - Fix Required</option>';
+        modelInput.value = '';
         showCorsInstructions();
         return;
       }
       
-      modelSelect.innerHTML = '<option value="">⚠️ Ollama not running</option>';
+      modelInput.value = '';
       showOllamaStatus('⚠️ Cannot connect to Ollama. Make sure it\'s running.', 'error');
       return;
     }
@@ -2157,7 +2212,7 @@ async function fetchAndPopulateModels(url, savedModel = null) {
     
     if (modelsResult.isCorsError) {
       // Show CORS-specific error with instructions
-      modelSelect.innerHTML = '<option value="">🔒 CORS Error - Fix Required</option>';
+      modelInput.value = '';
       showCorsInstructions();
       return;
     }
@@ -2166,22 +2221,21 @@ async function fetchAndPopulateModels(url, savedModel = null) {
       updateModelSelect(modelsResult.models);
       
       // If a saved model was provided, try to select it
-      if (savedModel) {
-        const modelExists = Array.from(modelSelect.options).some(opt => opt.value === savedModel);
-        if (modelExists) {
-          modelSelect.value = savedModel;
-        }
+      if (savedModel && ollamaModelList.includes(savedModel)) {
+        modelInput.value = savedModel;
+      } else if (savedModel && !ollamaModelList.includes(savedModel)) {
+        modelInput.value = '';
       }
       
       showOllamaStatus(`✅ Found ${modelsResult.models.length} installed model(s)`, 'success');
       dbgLog('Successfully loaded', modelsResult.models.length, 'models from Ollama');
     } else {
-      modelSelect.innerHTML = '<option value="">⚠️ No models installed</option>';
+      modelInput.value = '';
       showOllamaStatus('⚠️ No models found. Install one with: ollama pull gemma4', 'error');
     }
   } catch (error) {
     dbgWarn('Error fetching models:', error);
-    modelSelect.innerHTML = '<option value="">❌ Error loading models</option>';
+    modelInput.value = '';
     showOllamaStatus(`❌ Failed to fetch models: ${error.message}`, 'error');
   }
 }
@@ -2232,10 +2286,10 @@ async function testOllamaConnection() {
 
 async function saveOllamaSettings() {
   const urlInput = document.getElementById('ollama-url');
-  const modelSelect = document.getElementById('ollama-model');
+  const modelInput = document.getElementById('ollama-model');
   
   const url = urlInput.value.trim();
-  const model = modelSelect.value;
+  const model = modelInput.value.trim();
   
   if (!url) {
     showOllamaStatus('❌ Please enter a valid URL', 'error');
@@ -2244,6 +2298,11 @@ async function saveOllamaSettings() {
   
   if (!model) {
     showOllamaStatus('❌ Please select a model', 'error');
+    return;
+  }
+
+  if (ollamaModelList.length > 0 && !ollamaModelList.includes(model)) {
+    showOllamaStatus('❌ Selected model is not available. Refresh and try again.', 'error');
     return;
   }
   
@@ -2327,29 +2386,231 @@ async function refreshOllamaModels() {
   }
 }
 
+async function fetchAndPopulateOpenRouterModels(apiKey, savedModel = null, savedContextLength = null) {
+  const modelInput = document.getElementById('openrouter-model');
+  const modelList = document.getElementById('openrouter-model-list');
+  if (!modelInput || !modelList) return;
+
+  if (!apiKey) {
+    modelInput.value = '';
+    showOpenRouterStatus('❌ Please enter your OpenRouter API key first', 'error');
+    return;
+  }
+
+  openrouterModelList = [];
+  modelList.replaceChildren();
+
+  try {
+    const { OpenRouterService } = await import(chrome.runtime.getURL('services/openrouter-service.js'));
+    const connectionResult = await OpenRouterService.checkConnection(apiKey);
+
+    if (!connectionResult.connected) {
+      modelInput.value = '';
+      showOpenRouterStatus(
+        connectionResult.isAuthError
+          ? '❌ OpenRouter API key is invalid. Check the key and try again.'
+          : `❌ Cannot connect to OpenRouter: ${connectionResult.error || 'unknown error'}`,
+        'error'
+      );
+      return;
+    }
+
+    const modelsResult = await OpenRouterService.getAvailableModels(apiKey);
+
+    if (modelsResult.models.length > 0) {
+      updateOpenRouterModelSelect(modelsResult.models);
+
+      if (savedModel && openrouterModelList.includes(savedModel)) {
+        modelInput.value = savedModel;
+      } else if (savedModel && !openrouterModelList.includes(savedModel)) {
+        modelInput.value = '';
+      }
+
+      if (!modelInput.value && openrouterModelList.length > 0) {
+        modelInput.value = openrouterModelList[0];
+      }
+
+      showOpenRouterStatus(`✅ Found ${modelsResult.models.length} model(s)`, 'success');
+      dbgLog('Successfully loaded OpenRouter models:', modelsResult.models.length);
+    } else {
+      modelInput.value = '';
+      showOpenRouterStatus('⚠️ No models found for this OpenRouter account.', 'error');
+    }
+  } catch (error) {
+    dbgWarn('Error fetching OpenRouter models:', error);
+    modelInput.value = '';
+    showOpenRouterStatus(`❌ Failed to fetch models: ${error.message}`, 'error');
+  }
+}
+
+async function refreshOpenRouterModels() {
+  const apiKeyInput = document.getElementById('openrouter-api-key');
+  const refreshButton = document.getElementById('refresh-openrouter-models-btn');
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+
+  if (!apiKey) {
+    showOpenRouterStatus('❌ Please enter an API key first', 'error');
+    return;
+  }
+
+  if (refreshButton) {
+    refreshButton.disabled = true;
+    refreshButton.style.animation = 'spin 1s linear infinite';
+  }
+  showOpenRouterStatus('🔄 Fetching available models...', 'info');
+
+  try {
+    await fetchAndPopulateOpenRouterModels(apiKey);
+  } finally {
+    if (refreshButton) {
+      refreshButton.disabled = false;
+      refreshButton.style.animation = '';
+    }
+  }
+}
+
+async function testOpenRouterConnection() {
+  const apiKeyInput = document.getElementById('openrouter-api-key');
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+
+  if (!apiKey) {
+    showOpenRouterStatus('❌ Please enter a valid API key', 'error');
+    return;
+  }
+
+  showOpenRouterStatus('🔄 Testing connection...', 'info');
+
+  try {
+    const { OpenRouterService } = await import(chrome.runtime.getURL('services/openrouter-service.js'));
+    const connectionResult = await OpenRouterService.checkConnection(apiKey);
+
+    if (connectionResult.connected) {
+      showOpenRouterStatus('✅ Connection successful! OpenRouter is ready.', 'success');
+      try {
+        const modelsResult = await OpenRouterService.getAvailableModels(apiKey);
+        if (modelsResult.models.length > 0) {
+          updateOpenRouterModelSelect(modelsResult.models);
+          showOpenRouterStatus(`✅ Connected! Found ${modelsResult.models.length} model(s).`, 'success');
+        }
+      } catch (modelsError) {
+        dbgWarn('Error fetching OpenRouter models after connection test:', modelsError);
+      }
+    } else {
+      showOpenRouterStatus(
+        connectionResult.isAuthError
+          ? '❌ OpenRouter API key is invalid. Check the key and try again.'
+          : `❌ Cannot connect to OpenRouter: ${connectionResult.error || 'unknown error'}`,
+        'error'
+      );
+    }
+  } catch (error) {
+    dbgWarn('Error testing OpenRouter connection:', error);
+    showOpenRouterStatus(`❌ Connection failed: ${error.message}`, 'error');
+  }
+}
+
+async function saveOpenRouterSettings() {
+  const apiKeyInput = document.getElementById('openrouter-api-key');
+  const modelInput = document.getElementById('openrouter-model');
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+  const model = modelInput ? modelInput.value.trim() : '';
+
+  if (!apiKey) {
+    showOpenRouterStatus('❌ Please enter a valid API key', 'error');
+    return;
+  }
+
+  if (!model) {
+    showOpenRouterStatus('❌ Please select a model', 'error');
+    return;
+  }
+
+  if (openrouterModelList.length > 0 && !openrouterModelList.includes(model)) {
+    showOpenRouterStatus('❌ Selected model is not available. Refresh and try again.', 'error');
+    return;
+  }
+
+  try {
+    const { OpenRouterService } = await import(chrome.runtime.getURL('services/openrouter-service.js'));
+    const connectionResult = await OpenRouterService.checkConnection(apiKey);
+
+    if (!connectionResult.connected) {
+      showOpenRouterStatus(
+        connectionResult.isAuthError
+          ? '❌ OpenRouter API key is invalid. Check the key and try again.'
+          : `❌ Cannot connect to OpenRouter: ${connectionResult.error || 'unknown error'}`,
+        'error'
+      );
+      return;
+    }
+
+    let contextLength = null;
+    const modelsResult = await OpenRouterService.getAvailableModels(apiKey);
+    const selectedModel = modelsResult.models.find((item) => item.id === model);
+    if (!selectedModel) {
+      showOpenRouterStatus('❌ Selected model is not available. Refresh and try again.', 'error');
+      return;
+    }
+    if (selectedModel?.context_length) {
+      contextLength = selectedModel.context_length;
+    }
+
+    const config = { apiKey, model };
+    if (contextLength != null) {
+      config.contextLength = contextLength;
+    }
+
+    await chrome.storage.local.set({ openrouterConfig: config });
+    dbgLog('OpenRouter settings saved:', { ...config, apiKey: '[redacted]' });
+    showOpenRouterStatus('✅ Settings saved successfully!', 'success');
+  } catch (error) {
+    dbgWarn('Error saving OpenRouter settings:', error);
+    showOpenRouterStatus(`❌ Failed to save settings: ${error.message}`, 'error');
+  }
+}
+
 function updateModelSelect(models) {
-  const modelSelect = document.getElementById('ollama-model');
-  if (!modelSelect) return;
-  
-  const currentValue = modelSelect.value;
-  
-  // Clear existing options
-  modelSelect.replaceChildren();
-  
-  // Add models from Ollama
-  models.forEach(model => {
+  const modelInput = document.getElementById('ollama-model');
+  const modelList = document.getElementById('ollama-model-list');
+  if (!modelInput || !modelList) return;
+
+  ollamaModelList = models.map((model) => model.name);
+  modelList.replaceChildren();
+
+  models.forEach((model) => {
     const option = document.createElement('option');
     option.value = model.name;
-    option.textContent = model.name;
-    modelSelect.appendChild(option);
+    option.label = model.name;
+    modelList.appendChild(option);
   });
-  
-  // Restore previous selection if it exists
-  if (currentValue && Array.from(modelSelect.options).some(opt => opt.value === currentValue)) {
-    modelSelect.value = currentValue;
+
+  if (!modelInput.value || !ollamaModelList.includes(modelInput.value.trim())) {
+    modelInput.value = ollamaModelList[0] || '';
   }
-  
+
   dbgLog('Updated model select with', models.length, 'models');
+}
+
+function updateOpenRouterModelSelect(models) {
+  const modelInput = document.getElementById('openrouter-model');
+  const modelList = document.getElementById('openrouter-model-list');
+  if (!modelInput || !modelList) return;
+
+  openrouterModelList = models.map((model) => model.id);
+  modelList.replaceChildren();
+
+  models.forEach((model) => {
+    const option = document.createElement('option');
+    option.value = model.id;
+    option.label = model.name || model.id;
+    modelList.appendChild(option);
+  });
+
+  if (!modelInput.value || !openrouterModelList.includes(modelInput.value.trim())) {
+    modelInput.value = openrouterModelList[0] || '';
+  }
+
+  dbgLog('Updated OpenRouter model select with', models.length, 'models');
 }
 
 function showOllamaStatus(message, type = 'info') {
@@ -2360,6 +2621,20 @@ function showOllamaStatus(message, type = 'info') {
   statusDiv.className = `ollama-status show ${type}`;
   
   // Auto-hide after 5 seconds for success messages
+  if (type === 'success') {
+    setTimeout(() => {
+      statusDiv.classList.remove('show');
+    }, 5000);
+  }
+}
+
+function showOpenRouterStatus(message, type = 'info') {
+  const statusDiv = document.getElementById('openrouter-status');
+  if (!statusDiv) return;
+
+  statusDiv.textContent = message;
+  statusDiv.className = `openrouter-status show ${type}`;
+
   if (type === 'success') {
     setTimeout(() => {
       statusDiv.classList.remove('show');
