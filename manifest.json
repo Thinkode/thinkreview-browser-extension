@@ -2,32 +2,25 @@
   "manifest_version": 3,
   "name": "ThinkReview: AI Code Review for GitLab, GitHub, Bitbucket & Azure DevOps",
   "version": "2.2.5",
-  "description": "AI Copilot & AI Code Reviews for GitLab, GitHub, Bitbucket and Azure DevOps PRs - Ollama support",
+  "description": "AI Copilot & AI Code Reviews for GitLab, GitHub, Bitbucket and Azure DevOps PRs - Ollama and OpenRouter support",
   "browser_specific_settings": {
     "gecko": {
       "id": "thinkreview@thinkreview.dev",
       "strict_min_version": "109.0"
     }
   },
-  "permissions": [
-    "storage", 
-    "identity",  
-    "scripting", 
-    "activeTab"
-  ],
+  "permissions": ["storage", "identity", "scripting", "activeTab"],
 
   "host_permissions": [
     "https://gitlab.com/*",
     "https://github.com/*",
     "https://patch-diff.githubusercontent.com/*",
     "https://us-central1-thinkgpt.cloudfunctions.net/*",
+    "https://openrouter.ai/*",
     "https://dev.azure.com/*",
     "https://*.visualstudio.com/*"
   ],
-  "optional_host_permissions": [
-    "http://*:*/*",
-    "https://*:*/*"
-  ],
+  "optional_host_permissions": ["http://*:*/*", "https://*:*/*"],
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -59,7 +52,25 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["patch-viewer.html", "patch-viewer.js", "patch-viewer.css", "icons/*", "images/*", "components/*", "components/integrated-review.css", "components/review-prompt/*", "services/*", "services/ollama-service.js", "utils/*", "utils/ide-integration/*", "assets/*", "components/subscription-section.html","components/subscription-section.css", "vendor/*"],
+      "resources": [
+        "patch-viewer.html",
+        "patch-viewer.js",
+        "patch-viewer.css",
+        "icons/*",
+        "images/*",
+        "components/*",
+        "components/integrated-review.css",
+        "components/review-prompt/*",
+        "services/*",
+        "services/ollama-service.js",
+        "services/openrouter-service.js",
+        "utils/*",
+        "utils/ide-integration/*",
+        "assets/*",
+        "components/subscription-section.html",
+        "components/subscription-section.css",
+        "vendor/*"
+      ],
       "matches": ["<all_urls>"]
     }
   ],
