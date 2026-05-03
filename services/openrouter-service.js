@@ -207,7 +207,7 @@ async function performOpenRouterRequest(path, body, apiKey) {
     method: 'POST',
     headers: getRequestHeaders(apiKey),
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(15000)
+    signal: AbortSignal.timeout(120000)
   });
 
   if (!response.ok) {
