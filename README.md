@@ -54,6 +54,7 @@ ThinkReview is a **production-ready browser extension** that brings AI-powered c
 | **☁️ Cloud AI (Advanced Models)** | Google Cloud | Free tier | ⚡ Very Fast | None - works instantly |
 | **🖥️ Local Ollama** 🆕 | 🔒 100% Local | Completely Free | Hardware dependent | [30 sec setup](OLLAMA_SETUP.md) (if model downloaded) |
 | **🌐 OpenRouter** | Multi-provider routing | Usage-based | Fast | OpenAI-compatible API key + model |
+| **🔌 OpenAI Compatible** 🆕 | Your endpoint controls privacy | Depends on your endpoint | Fast | Base URL + optional API key + model |
 
 **Features:**
 - **Instant Analysis**: Get AI-driven insights on code changes
@@ -91,8 +92,10 @@ Setup guides for every combination below live on the site: **[thinkreview.dev/do
 - **Cloud AI**: Zero setup - works instantly after install
 - **Local AI**: [Quick Ollama setup](OLLAMA_SETUP.md) (30 seconds if model is downloaded) for private reviews
 - **Hosted Routing**: OpenRouter provides API-key based access to models from multiple providers
+- **Custom Endpoints**: Use any OpenAI-compatible Chat Completions endpoint with a custom base URL
 - **No API Keys**: Works out of the box (cloud) or fully local (Ollama)
 - **OpenRouter Support**: Use your own OpenRouter API key to choose a model via unified routing
+- **OpenAI Compatible Support**: Point the extension at a local or remote OpenAI-compatible endpoint, optionally add an API key, and choose any model id
 - **Automatic Detection**: Recognizes MR/PR pages instantly
 - **Seamless Integration**: Doesn't disrupt your workflow
 
@@ -176,6 +179,12 @@ cd thinkreview-browser-extension
 3. Paste your API key, choose a model, and save
 4. The extension will use the selected OpenRouter model for reviews and chat
 
+**OpenAI Compatible** - Use any OpenAI-compatible Chat Completions endpoint:
+1. Open extension popup → Settings → Select "OpenAI Compatible"
+2. Enter a base URL that already includes `/v1` such as `http://127.0.0.1:1234/v1`
+3. Optionally add an API key, choose a model, and save
+4. If your endpoint exposes `/models`, refresh to populate the list automatically
+
 ---
 
 ## 🎯 Usage
@@ -234,6 +243,7 @@ thinkreview-browser-extension/
 ├── services/              # Backend integration
 │   ├── cloud-service.js
 │   ├── ollama-service.js  # 🆕 Local AI integration
+│   ├── openai-compatible-service.js
 │   ├── azure-devops-api.js
 │   └── platform-detector.js
 ├── utils/                 # Helper utilities
@@ -245,6 +255,7 @@ thinkreview-browser-extension/
 
 - **[Release Notes](release%20notes/)** — Version history
 - **🆕 [OLLAMA_SETUP.md](OLLAMA_SETUP.md)** — Run AI reviews locally with Ollama
+- **OpenAI-compatible endpoints** — Use the popup provider settings to connect any Chat Completions-compatible base URL
 - **Platform setup (cloud & self-hosted)** — [Docs home](https://thinkreview.dev/docs) · [GitLab](https://thinkreview.dev/docs/gitlab-integration) · [GitHub](https://thinkreview.dev/docs/github-integration) · [Azure DevOps (cloud)](https://thinkreview.dev/docs/azure-devops) · [Azure DevOps (on-prem)](https://thinkreview.dev/docs/azure-devops-onpremise) · [Bitbucket Cloud](https://thinkreview.dev/docs/bitbucket-integration) · [Bitbucket Data Center](https://thinkreview.dev/docs/bitbucket-data-center)
 
 ---

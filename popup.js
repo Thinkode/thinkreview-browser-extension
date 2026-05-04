@@ -61,6 +61,68 @@ let cloudServiceReady = false;
 let pendingUserDataFetch = false; // Track if we need to fetch user data when CloudService becomes ready
 let ollamaModelList = [];
 let openrouterModelList = [];
+let openaiCompatibleModelList = [];
+
+function getOpenAICompatibleModelInput() {
+  return document.getElementById('openai-compatible-model');
+}
+
+function getOpenAICompatibleModelSelect() {
+  return document.getElementById('openai-compatible-model-select');
+}
+
+function getOpenAICompatibleEndpointErrorHint(errorMessage) {
+  const text = String(errorMessage || '').toLowerCase();
+
+  if (text.includes('timed out') || text.includes('signal timed out') || text.includes('the operation was aborted')) {
+    return 'The endpoint timed out. Try a smaller model, a shorter prompt, or a faster endpoint.';
+  }
+
+  if (text.includes('err_connection_refused')) {
+    return 'The browser could not reach this host or port. Confirm the server is running and the base URL is correct.';
+  }
+
+  if (text.includes('err_connection_timed_out')) {
+    return 'The endpoint timed out. Confirm the host is reachable from this machine and not blocked by a firewall.';
+  }
+
+  if (text.includes('401')) {
+    return 'The endpoint responded, but the API key was rejected or is missing.';
+  }
+
+  if (text.includes('failed to fetch')) {
+    return 'The browser could not fetch the endpoint. Check the base URL, CORS, and whether the server is reachable.';
+  }
+
+  return null;
+}
+
+function syncOpenAICompatibleModelSelectFromInput() {
+  const modelInput = getOpenAICompatibleModelInput();
+  const modelSelect = getOpenAICompatibleModelSelect();
+  if (!modelInput || !modelSelect) return;
+
+  const value = modelInput.value.trim();
+  if (!value) {
+    modelSelect.value = '';
+    return;
+  }
+
+  modelSelect.value = openaiCompatibleModelList.includes(value) ? value : '';
+}
+
+function syncOpenAICompatibleModelInputFromSelect() {
+  const modelInput = getOpenAICompatibleModelInput();
+  const modelSelect = getOpenAICompatibleModelSelect();
+  if (!modelInput || !modelSelect) return;
+
+  const value = modelSelect.value.trim();
+  if (!value) {
+    return;
+  }
+
+  modelInput.value = value;
+}
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -2001,6 +2063,11 @@ function setupAIProviderEventListeners() {
   const testOpenRouterButton = document.getElementById('test-openrouter-btn');
   const saveOpenRouterButton = document.getElementById('save-openrouter-btn');
   const refreshOpenRouterModelsButton = document.getElementById('refresh-openrouter-models-btn');
+  const testOpenAICompatibleButton = document.getElementById('test-openai-compatible-btn');
+  const saveOpenAICompatibleButton = document.getElementById('save-openai-compatible-btn');
+  const refreshOpenAICompatibleModelsButton = document.getElementById('refresh-openai-compatible-models-btn');
+  const openAICompatibleModelInput = getOpenAICompatibleModelInput();
+  const openAICompatibleModelSelect = getOpenAICompatibleModelSelect();
   
   // Provider selection change
   providerRadios.forEach(radio => {
@@ -2033,11 +2100,32 @@ function setupAIProviderEventListeners() {
   if (refreshOpenRouterModelsButton) {
     refreshOpenRouterModelsButton.addEventListener('click', refreshOpenRouterModels);
   }
+
+  if (testOpenAICompatibleButton) {
+    testOpenAICompatibleButton.addEventListener('click', testOpenAICompatibleConnection);
+  }
+
+  if (saveOpenAICompatibleButton) {
+    saveOpenAICompatibleButton.addEventListener('click', saveOpenAICompatibleSettings);
+  }
+
+  if (refreshOpenAICompatibleModelsButton) {
+    refreshOpenAICompatibleModelsButton.addEventListener('click', refreshOpenAICompatibleModels);
+  }
+
+  if (openAICompatibleModelInput) {
+    openAICompatibleModelInput.addEventListener('input', syncOpenAICompatibleModelSelectFromInput);
+    openAICompatibleModelInput.addEventListener('change', syncOpenAICompatibleModelSelectFromInput);
+  }
+
+  if (openAICompatibleModelSelect) {
+    openAICompatibleModelSelect.addEventListener('change', syncOpenAICompatibleModelInputFromSelect);
+  }
 }
 
 async function loadAIProviderSettings() {
   try {
-    const result = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openrouterConfig']);
+    const result = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openrouterConfig', 'openaiCompatibleConfig']);
     const provider = result.aiProvider || 'cloud';
     const config = result.ollamaConfig || {
       url: 'http://localhost:11434',
@@ -2047,6 +2135,12 @@ async function loadAIProviderSettings() {
       top_k: 90
     };
     const openrouterConfig = result.openrouterConfig || {
+      apiKey: '',
+      model: '',
+      contextLength: null
+    };
+    const openaiCompatibleConfig = result.openaiCompatibleConfig || {
+      baseUrl: 'http://127.0.0.1:1234/v1',
       apiKey: '',
       model: '',
       contextLength: null
@@ -2068,6 +2162,10 @@ async function loadAIProviderSettings() {
     if (openrouterConfigEl) {
       openrouterConfigEl.style.display = provider === 'openrouter' ? 'block' : 'none';
     }
+    const openaiCompatibleConfigEl = document.getElementById('openai-compatible-config');
+    if (openaiCompatibleConfigEl) {
+      openaiCompatibleConfigEl.style.display = provider === 'openai-compatible' ? 'block' : 'none';
+    }
     // Load Ollama config values
     const urlInput = document.getElementById('ollama-url');
     const modelInput = document.getElementById('ollama-model');
@@ -2076,14 +2174,20 @@ async function loadAIProviderSettings() {
     const topKInput = document.getElementById('ollama-top-k');
     const openrouterApiKeyInput = document.getElementById('openrouter-api-key');
     const openrouterModelInput = document.getElementById('openrouter-model');
+    const openaiCompatibleBaseUrlInput = document.getElementById('openai-compatible-base-url');
+    const openaiCompatibleApiKeyInput = document.getElementById('openai-compatible-api-key');
+    const openaiCompatibleModelInput = getOpenAICompatibleModelInput();
     
     if (urlInput) urlInput.value = config.url;
     if (tempInput) tempInput.value = clampTemperature(config.temperature);
     if (topPInput) topPInput.value = clampTopP(config.top_p);
     if (topKInput) topKInput.value = clampTopK(config.top_k);
     if (openrouterApiKeyInput) openrouterApiKeyInput.value = openrouterConfig.apiKey || '';
+    if (openaiCompatibleBaseUrlInput) openaiCompatibleBaseUrlInput.value = openaiCompatibleConfig.baseUrl || 'http://127.0.0.1:1234/v1';
+    if (openaiCompatibleApiKeyInput) openaiCompatibleApiKeyInput.value = openaiCompatibleConfig.apiKey || '';
     if (modelInput && provider !== 'ollama') modelInput.value = config.model;
     if (openrouterModelInput && provider !== 'openrouter') openrouterModelInput.value = openrouterConfig.model;
+    if (openaiCompatibleModelInput) openaiCompatibleModelInput.value = openaiCompatibleConfig.model;
     
     // If Ollama is the selected provider, fetch available models
     if (provider === 'ollama') {
@@ -2092,6 +2196,14 @@ async function loadAIProviderSettings() {
     } else if (provider === 'openrouter') {
       dbgLog('OpenRouter is selected provider, fetching available models...');
       await fetchAndPopulateOpenRouterModels(openrouterConfig.apiKey, openrouterConfig.model, openrouterConfig.contextLength);
+    } else if (provider === 'openai-compatible') {
+      dbgLog('OpenAI Compatible is selected provider, fetching available models...');
+      await fetchAndPopulateOpenAICompatibleModels(
+        openaiCompatibleConfig.baseUrl,
+        openaiCompatibleConfig.apiKey,
+        openaiCompatibleConfig.model
+      );
+      syncOpenAICompatibleModelSelectFromInput();
     }
     
     dbgLog('AI Provider settings loaded:', { provider, config });
@@ -2104,9 +2216,11 @@ function updateProviderCardSelection(provider) {
   const cloudCard = document.getElementById('provider-card-cloud');
   const ollamaCard = document.getElementById('provider-card-ollama');
   const openrouterCard = document.getElementById('provider-card-openrouter');
+  const openaiCompatibleCard = document.getElementById('provider-card-openai-compatible');
   if (cloudCard) cloudCard.classList.toggle('is-selected', provider === 'cloud');
   if (ollamaCard) ollamaCard.classList.toggle('is-selected', provider === 'ollama');
   if (openrouterCard) openrouterCard.classList.toggle('is-selected', provider === 'openrouter');
+  if (openaiCompatibleCard) openaiCompatibleCard.classList.toggle('is-selected', provider === 'openai-compatible');
 }
 
 function handleProviderChange(event) {
@@ -2114,12 +2228,16 @@ function handleProviderChange(event) {
   updateProviderCardSelection(provider);
   const ollamaConfig = document.getElementById('ollama-config');
   const openrouterConfig = document.getElementById('openrouter-config');
+  const openaiCompatibleConfig = document.getElementById('openai-compatible-config');
   
   if (ollamaConfig) {
     ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
   }
   if (openrouterConfig) {
     openrouterConfig.style.display = provider === 'openrouter' ? 'block' : 'none';
+  }
+  if (openaiCompatibleConfig) {
+    openaiCompatibleConfig.style.display = provider === 'openai-compatible' ? 'block' : 'none';
   }
   // Auto-save provider selection
   chrome.storage.local.set({ aiProvider: provider }, () => {
@@ -2129,7 +2247,9 @@ function handleProviderChange(event) {
         ? '☁️ Using Cloud AI (Advanced Models)' 
         : provider === 'ollama'
           ? '🖥️ Local Ollama selected - configure and test below'
-          : '🌐 OpenRouter selected - enter your API key and choose a model',
+          : provider === 'openrouter'
+            ? '🌐 OpenRouter selected - enter your API key and choose a model'
+            : '🔌 OpenAI Compatible selected - enter your base URL, optional API key, and choose a model',
       provider === 'cloud' ? 'success' : 'info'
     );
     
@@ -2152,6 +2272,20 @@ function handleProviderChange(event) {
         dbgLog('OpenRouter selected, fetching available models...');
         fetchAndPopulateOpenRouterModels(apiKey).catch(err => {
           dbgWarn('Error auto-fetching OpenRouter models (non-critical):', err);
+        });
+      }
+    }
+
+    if (provider === 'openai-compatible') {
+      const baseUrlInput = document.getElementById('openai-compatible-base-url');
+      const apiKeyInput = document.getElementById('openai-compatible-api-key');
+      const baseUrl = baseUrlInput ? baseUrlInput.value.trim() : '';
+      const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+
+      if (baseUrl) {
+        dbgLog('OpenAI Compatible selected, fetching available models...');
+        fetchAndPopulateOpenAICompatibleModels(baseUrl, apiKey).catch((err) => {
+          dbgWarn('Error auto-fetching OpenAI Compatible models (non-critical):', err);
         });
       }
     }
@@ -2557,6 +2691,273 @@ async function saveOpenRouterSettings() {
   }
 }
 
+function getOpenAICompatibleOriginPattern(baseUrl) {
+  const normalizedBaseUrl = typeof baseUrl === 'string' ? baseUrl.trim().replace(/\/+$/, '') : '';
+  if (!normalizedBaseUrl) {
+    throw new Error('Please enter a valid OpenAI Compatible base URL');
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(normalizedBaseUrl);
+  } catch {
+    throw new Error('OpenAI Compatible base URL is invalid. Use a full URL such as http://127.0.0.1:1234/v1.');
+  }
+
+  if (!parsedUrl.pathname.endsWith('/v1')) {
+    throw new Error('OpenAI Compatible base URL must end with /v1 (for example: http://127.0.0.1:1234/v1)');
+  }
+
+  return `${parsedUrl.origin}/*`;
+}
+
+async function requestOpenAICompatibleHostPermission(baseUrl) {
+  const originPattern = getOpenAICompatibleOriginPattern(baseUrl);
+
+  // Firefox: permissions.request must run before any other await (user-gesture stack).
+  const granted = await chrome.permissions.request({ origins: [originPattern] });
+  if (!granted) {
+    throw new Error('Permission not granted. The extension needs permission to access this endpoint.');
+  }
+}
+
+async function fetchAndPopulateOpenAICompatibleModels(baseUrl, apiKey = '', savedModel = null) {
+  const modelInput = getOpenAICompatibleModelInput();
+  const modelSelect = getOpenAICompatibleModelSelect();
+  if (!modelInput || !modelSelect) return;
+
+  if (!baseUrl) {
+    showOpenAICompatibleStatus('❌ Please enter your base URL first', 'error');
+    return;
+  }
+
+  openaiCompatibleModelList = [];
+  modelSelect.replaceChildren();
+  const manualOption = document.createElement('option');
+  manualOption.value = '';
+  manualOption.textContent = 'Manual / custom model';
+  modelSelect.appendChild(manualOption);
+
+  try {
+    const { OpenAICompatibleService } = await import(chrome.runtime.getURL('services/openai-compatible-service.js'));
+    const modelsResult = await OpenAICompatibleService.getAvailableModels(baseUrl, apiKey);
+    if (modelsResult.isAuthError) {
+      showOpenAICompatibleStatus('❌ OpenAI Compatible endpoint rejected the API key.', 'error');
+      return;
+    }
+
+    if (modelsResult.error && !modelsResult.models.length) {
+      const hint = getOpenAICompatibleEndpointErrorHint(modelsResult.error);
+      showOpenAICompatibleStatus(
+        hint
+          ? `⚠️ Cannot fetch models: ${hint} You can still type a model id manually.`
+          : `⚠️ Cannot fetch models: ${modelsResult.error}. You can still type a model id manually.`,
+        'info'
+      );
+      syncOpenAICompatibleModelSelectFromInput();
+      return;
+    }
+
+    if (modelsResult.models.length > 0) {
+      updateOpenAICompatibleModelSelect(modelsResult.models);
+
+      if (savedModel && openaiCompatibleModelList.includes(savedModel)) {
+        modelInput.value = savedModel;
+      } else if (savedModel) {
+        modelInput.value = savedModel;
+      }
+
+      syncOpenAICompatibleModelSelectFromInput();
+
+      showOpenAICompatibleStatus(`✅ Found ${modelsResult.models.length} installed model(s)`, 'success');
+      dbgLog('Successfully loaded', modelsResult.models.length, 'OpenAI Compatible models');
+    } else {
+      syncOpenAICompatibleModelSelectFromInput();
+      showOpenAICompatibleStatus('⚠️ No models found. Enter a model id manually if your endpoint does not expose /models.', 'info');
+    }
+  } catch (error) {
+    dbgWarn('Error fetching OpenAI Compatible models:', error);
+    showOpenAICompatibleStatus(`❌ Failed to fetch models: ${error.message}`, 'error');
+  }
+}
+
+async function testOpenAICompatibleConnection() {
+  const baseUrlInput = document.getElementById('openai-compatible-base-url');
+  const apiKeyInput = document.getElementById('openai-compatible-api-key');
+  const modelInput = document.getElementById('openai-compatible-model');
+  const baseUrl = baseUrlInput ? baseUrlInput.value.trim() : '';
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+  const model = modelInput ? modelInput.value.trim() : '';
+
+  if (!baseUrl) {
+    showOpenAICompatibleStatus('❌ Please enter a valid base URL', 'error');
+    return;
+  }
+
+  if (!model) {
+    showOpenAICompatibleStatus('❌ Please select a model first', 'error');
+    return;
+  }
+
+  try {
+    await requestOpenAICompatibleHostPermission(baseUrl);
+  } catch (permissionError) {
+    showOpenAICompatibleStatus(`❌ ${permissionError.message}`, 'error');
+    return;
+  }
+
+  showOpenAICompatibleStatus('🔄 Testing endpoint reachability...', 'info');
+
+  try {
+    const { OpenAICompatibleService } = await import(chrome.runtime.getURL('services/openai-compatible-service.js'));
+    const connectionResult = await OpenAICompatibleService.checkConnection(baseUrl, apiKey);
+
+    if (!connectionResult.connected) {
+      const hint = getOpenAICompatibleEndpointErrorHint(connectionResult.error);
+      showOpenAICompatibleStatus(
+        hint
+          ? `❌ Cannot reach the endpoint: ${hint}`
+          : `❌ Cannot reach the endpoint: ${connectionResult.error || 'unknown error'}`,
+        'error'
+      );
+      return;
+    }
+
+    if (!model) {
+      showOpenAICompatibleStatus('✅ Endpoint is reachable. Enter a model id to test a specific model or save the settings.', 'success');
+      return;
+    }
+
+    const testResult = await OpenAICompatibleService.testSelectedModel(model, baseUrl, apiKey);
+    showOpenAICompatibleStatus(`✅ Endpoint is reachable and model "${testResult.model}" is working.`, 'success');
+  } catch (error) {
+    dbgWarn('Error testing OpenAI Compatible connection:', error);
+    const hint = getOpenAICompatibleEndpointErrorHint(error.message);
+    showOpenAICompatibleStatus(hint ? `❌ ${hint}` : `❌ Connection failed: ${error.message}`, 'error');
+  }
+}
+
+async function saveOpenAICompatibleSettings() {
+  const baseUrlInput = document.getElementById('openai-compatible-base-url');
+  const apiKeyInput = document.getElementById('openai-compatible-api-key');
+  const modelInput = getOpenAICompatibleModelInput();
+  const baseUrl = baseUrlInput ? baseUrlInput.value.trim() : '';
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+  const model = modelInput ? modelInput.value.trim() : '';
+
+  if (!baseUrl) {
+    showOpenAICompatibleStatus('❌ Please enter a valid base URL', 'error');
+    return;
+  }
+
+  if (!model) {
+    showOpenAICompatibleStatus('❌ Please select a model', 'error');
+    return;
+  }
+
+  try {
+    await requestOpenAICompatibleHostPermission(baseUrl);
+  } catch (permissionError) {
+    showOpenAICompatibleStatus(`❌ ${permissionError.message}`, 'error');
+    return;
+  }
+
+  try {
+    const { OpenAICompatibleService } = await import(chrome.runtime.getURL('services/openai-compatible-service.js'));
+    const modelsResult = await OpenAICompatibleService.getAvailableModels(baseUrl, apiKey);
+    let contextLength = null;
+    let discoveredModel = null;
+
+    if (modelsResult.models.length > 0) {
+      discoveredModel = modelsResult.models.find((item) => item.id === model) || null;
+      const selectedModel = discoveredModel;
+      if (selectedModel?.context_length) {
+        contextLength = selectedModel.context_length;
+      }
+    }
+
+    const config = { baseUrl, apiKey, model };
+    if (contextLength != null) {
+      config.contextLength = contextLength;
+    }
+
+    await chrome.storage.local.set({ openaiCompatibleConfig: config });
+    dbgLog('OpenAI Compatible settings saved:', { ...config, apiKey: apiKey ? '[redacted]' : '' });
+    if (modelsResult.models.length > 0 && !discoveredModel) {
+      showOpenAICompatibleStatus('⚠️ Saved custom model id. It is not in the discovered model list, but the endpoint accepted it.', 'info');
+    } else {
+      showOpenAICompatibleStatus('✅ Settings saved successfully!', 'success');
+    }
+  } catch (error) {
+    dbgWarn('Error saving OpenAI Compatible settings:', error);
+    showOpenAICompatibleStatus(`❌ Failed to save settings: ${error.message}`, 'error');
+  }
+}
+
+async function refreshOpenAICompatibleModels() {
+  const baseUrlInput = document.getElementById('openai-compatible-base-url');
+  const apiKeyInput = document.getElementById('openai-compatible-api-key');
+  const refreshButton = document.getElementById('refresh-openai-compatible-models-btn');
+  const baseUrl = baseUrlInput ? baseUrlInput.value.trim() : '';
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+
+  if (!baseUrl) {
+    showOpenAICompatibleStatus('❌ Please enter a valid base URL first', 'error');
+    return;
+  }
+
+  try {
+    await requestOpenAICompatibleHostPermission(baseUrl);
+  } catch (permissionError) {
+    showOpenAICompatibleStatus(`❌ ${permissionError.message}`, 'error');
+    return;
+  }
+
+  if (refreshButton) {
+    refreshButton.disabled = true;
+    refreshButton.style.animation = 'spin 1s linear infinite';
+  }
+  showOpenAICompatibleStatus('🔄 Fetching available models...', 'info');
+
+  try {
+    await fetchAndPopulateOpenAICompatibleModels(baseUrl, apiKey);
+  } finally {
+    if (refreshButton) {
+      refreshButton.disabled = false;
+      refreshButton.style.animation = '';
+    }
+  }
+}
+
+function updateOpenAICompatibleModelSelect(models) {
+  const modelInput = getOpenAICompatibleModelInput();
+  const modelSelect = getOpenAICompatibleModelSelect();
+  if (!modelInput || !modelSelect) return;
+
+  openaiCompatibleModelList = models.map((model) => model.id);
+  modelSelect.replaceChildren();
+
+  const manualOption = document.createElement('option');
+  manualOption.value = '';
+  manualOption.textContent = 'Manual / custom model';
+  modelSelect.appendChild(manualOption);
+
+  models.forEach((model) => {
+    const option = document.createElement('option');
+    option.value = model.id;
+    option.textContent = model.name || model.id;
+    modelSelect.appendChild(option);
+  });
+
+  if (!modelInput.value) {
+    modelInput.value = openaiCompatibleModelList[0] || '';
+  }
+
+  syncOpenAICompatibleModelSelectFromInput();
+
+  dbgLog('Updated OpenAI Compatible model select with', models.length, 'models');
+}
+
 function updateModelSelect(models) {
   const modelInput = document.getElementById('ollama-model');
   const modelList = document.getElementById('ollama-model-list');
@@ -2622,6 +3023,20 @@ function showOpenRouterStatus(message, type = 'info') {
 
   statusDiv.textContent = message;
   statusDiv.className = `openrouter-status show ${type}`;
+
+  if (type === 'success') {
+    setTimeout(() => {
+      statusDiv.classList.remove('show');
+    }, 5000);
+  }
+}
+
+function showOpenAICompatibleStatus(message, type = 'info') {
+  const statusDiv = document.getElementById('openai-compatible-status');
+  if (!statusDiv) return;
+
+  statusDiv.textContent = message;
+  statusDiv.className = `openai-compatible-status show ${type}`;
 
   if (type === 'success') {
     setTimeout(() => {

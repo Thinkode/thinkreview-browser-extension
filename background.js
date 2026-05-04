@@ -8,6 +8,7 @@ const FREE_TIER_PATCH_SIZE_LIMIT = 40_000;
 import { CloudService } from './services/cloud-service.js';
 import { OllamaService } from './services/ollama-service.js';
 import { OpenRouterService } from './services/openrouter-service.js';
+import { OpenAICompatibleService } from './services/openai-compatible-service.js';
 import { isValidOrigin } from './utils/origin-validator.js';
 import './vendor/diff.min.js';
 import { azureDevOpsFetcher } from './services/azure-devops-fetcher.js';
@@ -298,7 +299,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       try {
         // Get AI provider setting
-        const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openrouterConfig']);
+        const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openrouterConfig', 'openaiCompatibleConfig']);
         const provider = settings.aiProvider || 'cloud';
         
         dbgLog('Using AI provider for conversation:', provider);
@@ -360,6 +361,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return;
           }
         }
+
+        if (provider === 'openai-compatible') {
+          try {
+            const data = await OpenAICompatibleService.getConversationalResponse(
+              patchContent,
+              conversationHistory,
+              language || 'English',
+              mrId,
+              mrUrl
+            );
+
+            dbgLog('OpenAI Compatible conversational response completed successfully');
+            sendResponse({ success: true, data: data, provider: 'openai-compatible' });
+            return;
+          } catch (openAICompatibleError) {
+            dbgWarn('OpenAI Compatible conversational response failed:', openAICompatibleError.message);
+            sendResponse({
+              success: false,
+              error: openAICompatibleError.message,
+              provider: 'openai-compatible',
+              suggestion: 'Check your base URL, API key, and selected model in extension settings.'
+            });
+            return;
+          }
+        }
         
         // Default: Use cloud service (Gemini)
         const data = await CloudService.getConversationalResponse(patchContent, conversationHistory, mrId, mrUrl, language || 'English');
@@ -408,11 +434,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     (async () => {
       // Get AI provider setting (declare outside try block so it's accessible in catch)
-      let settings = { aiProvider: 'cloud', ollamaConfig: null, openrouterConfig: null };
+      let settings = { aiProvider: 'cloud', ollamaConfig: null, openrouterConfig: null, openaiCompatibleConfig: null };
       let provider = 'cloud';
       
       try {
-        settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openrouterConfig']);
+        settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openrouterConfig', 'openaiCompatibleConfig']);
         provider = settings.aiProvider || 'cloud';
         
         dbgLog('Using AI provider:', provider);
@@ -465,6 +491,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               error: openRouterError.message,
               provider: 'openrouter',
               suggestion: 'Check your OpenRouter API key and selected model in extension settings.'
+            });
+            return;
+          }
+        }
+
+        if (provider === 'openai-compatible') {
+          try {
+            const data = await OpenAICompatibleService.reviewPatchCode(patchContent, language, mrId, mrUrl);
+
+            dbgLog('OpenAI Compatible review completed successfully');
+            sendResponse({ success: true, data, provider: 'openai-compatible' });
+            return;
+          } catch (openAICompatibleError) {
+            dbgWarn('OpenAI Compatible review failed:', openAICompatibleError.message);
+
+            sendResponse({
+              success: false,
+              error: openAICompatibleError.message,
+              provider: 'openai-compatible',
+              suggestion: 'Check your base URL, API key, and selected model in extension settings.'
             });
             return;
           }
