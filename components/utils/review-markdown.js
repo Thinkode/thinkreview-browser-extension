@@ -9,7 +9,19 @@
 export function buildReviewMarkdown(review) {
   if (!review) return '';
 
-  const sections = ['# AI Code Review'];
+  const escapeHtml = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  const modelUsed = review.modelUsed || review.model || review.modelName || review.ollamaMeta?.model || review.metadata?.model;
+  const sections = [
+    modelUsed
+      ? `# ThinkReview <small>(Model Used: ${escapeHtml(String(modelUsed).trim())})</small>`
+      : '# ThinkReview'
+  ];
 
   // Quality Score
   if (review.metrics) {
