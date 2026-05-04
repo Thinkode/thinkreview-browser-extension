@@ -507,15 +507,10 @@
                 <input type="password" id="openai-compatible-api-key" class="config-input" placeholder="Leave blank for local endpoints">
               </div>
               <div class="openai-compatible-config-row">
-                <label for="openai-compatible-model" class="config-label">Enter a Model ID:</label>
-                <input type="text" id="openai-compatible-model" class="config-input" placeholder="Enter a model id or pick one below">
-              </div>
-              <div class="openai-compatible-config-row">
-                <label for="openai-compatible-model-select" class="config-label">Available Models:</label>
+                <label for="openai-compatible-model" class="config-label">Model:</label>
                 <div class="model-select-wrapper">
-                  <select id="openai-compatible-model-select" class="config-select">
-                    <option value="">Manual / custom model</option>
-                  </select>
+                  <input type="text" id="openai-compatible-model" class="config-input" list="openai-compatible-model-list" placeholder="Enter a model id or choose from suggestions">
+                  <datalist id="openai-compatible-model-list"></datalist>
                   <button id="refresh-openai-compatible-models-btn" class="refresh-models-btn" title="Refresh available models">🔄</button>
                 </div>
               </div>

@@ -67,8 +67,8 @@ function getOpenAICompatibleModelInput() {
   return document.getElementById('openai-compatible-model');
 }
 
-function getOpenAICompatibleModelSelect() {
-  return document.getElementById('openai-compatible-model-select');
+function getOpenAICompatibleModelList() {
+  return document.getElementById('openai-compatible-model-list');
 }
 
 function getOpenAICompatibleEndpointErrorHint(errorMessage) {
@@ -95,33 +95,6 @@ function getOpenAICompatibleEndpointErrorHint(errorMessage) {
   }
 
   return null;
-}
-
-function syncOpenAICompatibleModelSelectFromInput() {
-  const modelInput = getOpenAICompatibleModelInput();
-  const modelSelect = getOpenAICompatibleModelSelect();
-  if (!modelInput || !modelSelect) return;
-
-  const value = modelInput.value.trim();
-  if (!value) {
-    modelSelect.value = '';
-    return;
-  }
-
-  modelSelect.value = openaiCompatibleModelList.includes(value) ? value : '';
-}
-
-function syncOpenAICompatibleModelInputFromSelect() {
-  const modelInput = getOpenAICompatibleModelInput();
-  const modelSelect = getOpenAICompatibleModelSelect();
-  if (!modelInput || !modelSelect) return;
-
-  const value = modelSelect.value.trim();
-  if (!value) {
-    return;
-  }
-
-  modelInput.value = value;
 }
 
 // Listen for messages from background script
@@ -2066,8 +2039,6 @@ function setupAIProviderEventListeners() {
   const testOpenAICompatibleButton = document.getElementById('test-openai-compatible-btn');
   const saveOpenAICompatibleButton = document.getElementById('save-openai-compatible-btn');
   const refreshOpenAICompatibleModelsButton = document.getElementById('refresh-openai-compatible-models-btn');
-  const openAICompatibleModelInput = getOpenAICompatibleModelInput();
-  const openAICompatibleModelSelect = getOpenAICompatibleModelSelect();
   
   // Provider selection change
   providerRadios.forEach(radio => {
@@ -2111,15 +2082,6 @@ function setupAIProviderEventListeners() {
 
   if (refreshOpenAICompatibleModelsButton) {
     refreshOpenAICompatibleModelsButton.addEventListener('click', refreshOpenAICompatibleModels);
-  }
-
-  if (openAICompatibleModelInput) {
-    openAICompatibleModelInput.addEventListener('input', syncOpenAICompatibleModelSelectFromInput);
-    openAICompatibleModelInput.addEventListener('change', syncOpenAICompatibleModelSelectFromInput);
-  }
-
-  if (openAICompatibleModelSelect) {
-    openAICompatibleModelSelect.addEventListener('change', syncOpenAICompatibleModelInputFromSelect);
   }
 }
 
@@ -2203,7 +2165,6 @@ async function loadAIProviderSettings() {
         openaiCompatibleConfig.apiKey,
         openaiCompatibleConfig.model
       );
-      syncOpenAICompatibleModelSelectFromInput();
     }
     
     dbgLog('AI Provider settings loaded:', { provider, config });
@@ -2723,8 +2684,8 @@ async function requestOpenAICompatibleHostPermission(baseUrl) {
 
 async function fetchAndPopulateOpenAICompatibleModels(baseUrl, apiKey = '', savedModel = null) {
   const modelInput = getOpenAICompatibleModelInput();
-  const modelSelect = getOpenAICompatibleModelSelect();
-  if (!modelInput || !modelSelect) return;
+  const modelList = getOpenAICompatibleModelList();
+  if (!modelInput || !modelList) return;
 
   if (!baseUrl) {
     showOpenAICompatibleStatus('❌ Please enter your base URL first', 'error');
@@ -2732,11 +2693,7 @@ async function fetchAndPopulateOpenAICompatibleModels(baseUrl, apiKey = '', save
   }
 
   openaiCompatibleModelList = [];
-  modelSelect.replaceChildren();
-  const manualOption = document.createElement('option');
-  manualOption.value = '';
-  manualOption.textContent = 'Manual / custom model';
-  modelSelect.appendChild(manualOption);
+  modelList.replaceChildren();
 
   try {
     const { OpenAICompatibleService } = await import(chrome.runtime.getURL('services/openai-compatible-service.js'));
@@ -2754,12 +2711,11 @@ async function fetchAndPopulateOpenAICompatibleModels(baseUrl, apiKey = '', save
           : `⚠️ Cannot fetch models: ${modelsResult.error}. You can still type a model id manually.`,
         'info'
       );
-      syncOpenAICompatibleModelSelectFromInput();
       return;
     }
 
     if (modelsResult.models.length > 0) {
-      updateOpenAICompatibleModelSelect(modelsResult.models);
+      updateOpenAICompatibleModelList(modelsResult.models);
 
       if (savedModel && openaiCompatibleModelList.includes(savedModel)) {
         modelInput.value = savedModel;
@@ -2767,12 +2723,9 @@ async function fetchAndPopulateOpenAICompatibleModels(baseUrl, apiKey = '', save
         modelInput.value = savedModel;
       }
 
-      syncOpenAICompatibleModelSelectFromInput();
-
       showOpenAICompatibleStatus(`✅ Found ${modelsResult.models.length} installed model(s)`, 'success');
       dbgLog('Successfully loaded', modelsResult.models.length, 'OpenAI Compatible models');
     } else {
-      syncOpenAICompatibleModelSelectFromInput();
       showOpenAICompatibleStatus('⚠️ No models found. Enter a model id manually if your endpoint does not expose /models.', 'info');
     }
   } catch (error) {
@@ -2929,33 +2882,25 @@ async function refreshOpenAICompatibleModels() {
   }
 }
 
-function updateOpenAICompatibleModelSelect(models) {
+function updateOpenAICompatibleModelList(models) {
   const modelInput = getOpenAICompatibleModelInput();
-  const modelSelect = getOpenAICompatibleModelSelect();
-  if (!modelInput || !modelSelect) return;
+  const modelList = getOpenAICompatibleModelList();
+  if (!modelInput || !modelList) return;
 
   openaiCompatibleModelList = models.map((model) => model.id);
-  modelSelect.replaceChildren();
-
-  const manualOption = document.createElement('option');
-  manualOption.value = '';
-  manualOption.textContent = 'Manual / custom model';
-  modelSelect.appendChild(manualOption);
+  modelList.replaceChildren();
 
   models.forEach((model) => {
     const option = document.createElement('option');
     option.value = model.id;
-    option.textContent = model.name || model.id;
-    modelSelect.appendChild(option);
+    modelList.appendChild(option);
   });
 
   if (!modelInput.value) {
     modelInput.value = openaiCompatibleModelList[0] || '';
   }
 
-  syncOpenAICompatibleModelSelectFromInput();
-
-  dbgLog('Updated OpenAI Compatible model select with', models.length, 'models');
+  dbgLog('Updated OpenAI Compatible model list with', models.length, 'models');
 }
 
 function updateModelSelect(models) {
