@@ -1545,8 +1545,112 @@ footer {
   animation: slideDown 0.3s ease;
 }
 
-.openai-compatible-config-row {
+.openai-compatible-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(186, 230, 253, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.openai-compatible-section--primary {
   margin-bottom: 12px;
+}
+
+.openai-compatible-section--advanced {
+  background: rgba(240, 249, 255, 0.7);
+}
+
+.openai-compatible-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.openai-compatible-section-title {
+  margin-bottom: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0369a1;
+}
+
+.openai-compatible-model-row {
+  margin-bottom: 0;
+}
+
+.openai-compatible-model-note {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #0369a1;
+}
+
+.openai-compatible-advanced-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.openai-compatible-advanced-row {
+  display: grid;
+  gap: 12px 14px;
+}
+
+.openai-compatible-advanced-row--two-up {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.openai-compatible-advanced-row--three-up {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.openai-compatible-config-row {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.openai-compatible-config-row--wide {
+  grid-column: 1 / -1;
+}
+
+.openai-compatible-config .config-input,
+.openai-compatible-config .config-select {
+  width: 100%;
+  display: block;
+}
+
+.openai-compatible-reset-btn {
+  align-self: flex-end;
+  border: none;
+  background: transparent;
+  color: #0284c7;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.openai-compatible-reset-btn:hover {
+  text-decoration: underline;
+}
+
+.openai-compatible-reset-btn:focus-visible {
+  outline: 2px solid rgba(2, 132, 199, 0.35);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.openai-compatible-reset-btn--section {
+  padding: 6px 10px;
+  border: 1px solid rgba(2, 132, 199, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .config-optional {

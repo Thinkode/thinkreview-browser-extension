@@ -500,49 +500,63 @@
               </div>
             </div>
             <div id="openai-compatible-config" class="openai-compatible-config" style="display: none;">
-              <div class="openai-compatible-config-row">
-                <label for="openai-compatible-base-url" class="config-label">Custom Endpoint (Base URL):</label>
-                <input type="text" id="openai-compatible-base-url" class="config-input" value="http://127.0.0.1:1234/v1" placeholder="http://127.0.0.1:1234/v1">
-              </div>
-              <div class="openai-compatible-config-row">
-                <label for="openai-compatible-api-key" class="config-label">Custom API Key <span class="config-optional">(Optional)</span>:</label>
-                <input type="password" id="openai-compatible-api-key" class="config-input" placeholder="Leave blank for local endpoints">
-              </div>
-              <div class="openai-compatible-config-row">
-                <label for="openai-compatible-model" class="config-label">Model:</label>
-                <div class="model-select-wrapper">
-                  <input type="text" id="openai-compatible-model" class="config-input" list="openai-compatible-model-list" placeholder="Enter a model id or choose from suggestions">
-                  <datalist id="openai-compatible-model-list"></datalist>
-                  <button id="refresh-openai-compatible-models-btn" class="refresh-models-btn" title="Refresh available models">🔄</button>
+              <div class="openai-compatible-section openai-compatible-section--primary">
+                <div class="openai-compatible-config-row">
+                  <label for="openai-compatible-base-url" class="config-label">Custom Endpoint (Base URL):</label>
+                  <input type="text" id="openai-compatible-base-url" class="config-input" value="http://127.0.0.1:1234/v1" placeholder="http://127.0.0.1:1234/v1">
+                </div>
+                <div class="openai-compatible-config-row">
+                  <label for="openai-compatible-api-key" class="config-label">Custom API Key <span class="config-optional">(Optional)</span>:</label>
+                  <input type="password" id="openai-compatible-api-key" class="config-input" placeholder="Leave blank for local endpoints">
+                </div>
+                <div class="openai-compatible-config-row openai-compatible-model-row">
+                  <label for="openai-compatible-model" class="config-label">Model:</label>
+                  <div class="model-select-wrapper">
+                    <input type="text" id="openai-compatible-model" class="config-input" list="openai-compatible-model-list" placeholder="Enter a model id or choose from suggestions">
+                    <datalist id="openai-compatible-model-list"></datalist>
+                    <button id="refresh-openai-compatible-models-btn" class="refresh-models-btn" title="Refresh available models">🔄</button>
+                  </div>
                 </div>
               </div>
-              <div class="openai-compatible-config-row">
-                <label for="openai-compatible-temperature" class="config-label">Temperature:</label>
-                <input type="number" id="openai-compatible-temperature" class="config-input" min="0" max="2" step="0.1" value="0.2">
-              </div>
-              <div class="openai-compatible-config-row">
-                <label for="openai-compatible-top-p" class="config-label">Top P:</label>
-                <input type="number" id="openai-compatible-top-p" class="config-input" min="0" max="1" step="0.05" value="1">
-              </div>
-              <div class="openai-compatible-config-row">
-                <label for="openai-compatible-top-k" class="config-label">Top K <span class="config-optional">(optional)</span>:</label>
-                <input type="number" id="openai-compatible-top-k" class="config-input" min="1" step="1" placeholder="Optional">
-              </div>
-              <div class="openai-compatible-config-row">
-                <label for="openai-compatible-reasoning-effort" class="config-label">Reasoning Effort <span class="config-optional">(optional)</span>:</label>
-                <select id="openai-compatible-reasoning-effort" class="config-select">
-                  <option value="">Use model default</option>
-                  <option value="none">None</option>
-                  <option value="minimal">Minimal</option>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="xhigh">X-High</option>
-                </select>
-              </div>
-              <div class="openai-compatible-config-row">
-                <label for="openai-compatible-max-tokens" class="config-label">Max Tokens:</label>
-                <input type="number" id="openai-compatible-max-tokens" class="config-input" min="1" step="1" value="200000">
+              <div class="openai-compatible-section openai-compatible-section--advanced">
+                <div class="openai-compatible-section-header">
+                  <div class="openai-compatible-section-title">Advanced options</div>
+                  <button type="button" id="openai-compatible-advanced-reset-btn" class="openai-compatible-reset-btn openai-compatible-reset-btn--section">Reset</button>
+                </div>
+                <div class="openai-compatible-advanced-grid">
+                  <div class="openai-compatible-advanced-row openai-compatible-advanced-row--two-up">
+                    <div class="openai-compatible-config-row">
+                      <label for="openai-compatible-reasoning-effort" class="config-label">Reasoning Effort <span class="config-optional">(optional)</span>:</label>
+                      <select id="openai-compatible-reasoning-effort" class="config-select">
+                        <option value="">Use model default</option>
+                        <option value="none">None</option>
+                        <option value="minimal">Minimal</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="xhigh">X-High</option>
+                      </select>
+                    </div>
+                    <div class="openai-compatible-config-row">
+                      <label for="openai-compatible-max-tokens" class="config-label">Max Tokens:</label>
+                      <input type="number" id="openai-compatible-max-tokens" class="config-input" min="1" step="1" value="200000">
+                    </div>
+                  </div>
+                  <div class="openai-compatible-advanced-row openai-compatible-advanced-row--three-up">
+                    <div class="openai-compatible-config-row">
+                      <label for="openai-compatible-temperature" class="config-label">Temperature:</label>
+                      <input type="number" id="openai-compatible-temperature" class="config-input" min="0" max="2" step="0.1" value="0.8">
+                    </div>
+                    <div class="openai-compatible-config-row">
+                      <label for="openai-compatible-top-p" class="config-label">Top P:</label>
+                      <input type="number" id="openai-compatible-top-p" class="config-input" min="0" max="1" step="0.05" value="1">
+                    </div>
+                    <div class="openai-compatible-config-row">
+                      <label for="openai-compatible-top-k" class="config-label">Top K <span class="config-optional">(optional)</span>:</label>
+                      <input type="number" id="openai-compatible-top-k" class="config-input" min="1" step="1" placeholder="Optional">
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="ollama-actions">
                 <button id="test-openai-compatible-btn" class="test-ollama-btn">Test Connection</button>

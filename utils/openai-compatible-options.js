@@ -2,7 +2,7 @@
  * Shared defaults and normalization helpers for OpenAI-compatible provider settings.
  */
 
-export const OPENAI_COMPATIBLE_TEMPERATURE_DEFAULT = 0.2;
+export const OPENAI_COMPATIBLE_TEMPERATURE_DEFAULT = 0.8;
 export const OPENAI_COMPATIBLE_TOP_P_DEFAULT = 1;
 export const OPENAI_COMPATIBLE_MAX_TOKENS_DEFAULT = 200000;
 export const OPENAI_COMPATIBLE_RESERVED_RESPONSE_TOKENS = 1024;

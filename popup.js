@@ -6,7 +6,7 @@ import { subscriptionStatus } from './components/popup-modules/subscription-stat
 import { reviewCount } from './components/popup-modules/review-count.js';
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
-import { normalizeOpenAICompatibleConfig, resolveOpenAICompatibleDisplayedMaxTokens } from './utils/openai-compatible-options.js';
+import { normalizeOpenAICompatibleConfig, resolveOpenAICompatibleDisplayedMaxTokens, OPENAI_COMPATIBLE_TEMPERATURE_DEFAULT, OPENAI_COMPATIBLE_TOP_P_DEFAULT, OPENAI_COMPATIBLE_MAX_TOKENS_DEFAULT } from './utils/openai-compatible-options.js';
 
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_SIGNIN_WAIT = 500;
@@ -76,6 +76,22 @@ function getOpenAICompatibleReasoningEffortInput() {
   return document.getElementById('openai-compatible-reasoning-effort');
 }
 
+function getOpenAICompatibleTemperatureInput() {
+  return document.getElementById('openai-compatible-temperature');
+}
+
+function getOpenAICompatibleTopPInput() {
+  return document.getElementById('openai-compatible-top-p');
+}
+
+function getOpenAICompatibleTopKInput() {
+  return document.getElementById('openai-compatible-top-k');
+}
+
+function getOpenAICompatibleMaxTokensInput() {
+  return document.getElementById('openai-compatible-max-tokens');
+}
+
 function getOpenAICompatibleEndpointErrorHint(errorMessage) {
   const text = String(errorMessage || '').toLowerCase();
 
@@ -100,6 +116,20 @@ function getOpenAICompatibleEndpointErrorHint(errorMessage) {
   }
 
   return null;
+}
+
+function resetOpenAICompatibleAdvancedOptions() {
+  const temperatureInput = getOpenAICompatibleTemperatureInput();
+  const topPInput = getOpenAICompatibleTopPInput();
+  const topKInput = getOpenAICompatibleTopKInput();
+  const reasoningEffortInput = getOpenAICompatibleReasoningEffortInput();
+  const maxTokensInput = getOpenAICompatibleMaxTokensInput();
+
+  if (temperatureInput) temperatureInput.value = OPENAI_COMPATIBLE_TEMPERATURE_DEFAULT;
+  if (topPInput) topPInput.value = OPENAI_COMPATIBLE_TOP_P_DEFAULT;
+  if (topKInput) topKInput.value = '';
+  if (reasoningEffortInput) reasoningEffortInput.value = '';
+  if (maxTokensInput) maxTokensInput.value = OPENAI_COMPATIBLE_MAX_TOKENS_DEFAULT;
 }
 
 // Listen for messages from background script
@@ -2044,6 +2074,7 @@ function setupAIProviderEventListeners() {
   const testOpenAICompatibleButton = document.getElementById('test-openai-compatible-btn');
   const saveOpenAICompatibleButton = document.getElementById('save-openai-compatible-btn');
   const refreshOpenAICompatibleModelsButton = document.getElementById('refresh-openai-compatible-models-btn');
+  const resetOpenAICompatibleAdvancedOptionsButton = document.getElementById('openai-compatible-advanced-reset-btn');
   
   // Provider selection change
   providerRadios.forEach(radio => {
@@ -2087,6 +2118,12 @@ function setupAIProviderEventListeners() {
 
   if (refreshOpenAICompatibleModelsButton) {
     refreshOpenAICompatibleModelsButton.addEventListener('click', refreshOpenAICompatibleModels);
+  }
+
+  if (resetOpenAICompatibleAdvancedOptionsButton) {
+    resetOpenAICompatibleAdvancedOptionsButton.addEventListener('click', () => {
+      resetOpenAICompatibleAdvancedOptions();
+    });
   }
 }
 
