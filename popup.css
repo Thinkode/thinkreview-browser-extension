@@ -1570,6 +1570,14 @@ footer {
   gap: 12px;
 }
 
+.openai-compatible-section-toggle {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  justify-content: space-between;
+  text-align: left;
+}
+
 .openai-compatible-section-title {
   margin-bottom: 0;
   font-size: 11px;

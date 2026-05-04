@@ -132,6 +132,18 @@ function resetOpenAICompatibleAdvancedOptions() {
   if (maxTokensInput) maxTokensInput.value = OPENAI_COMPATIBLE_MAX_TOKENS_DEFAULT;
 }
 
+function initializeOpenAICompatibleCollapsible() {
+  const toggle = document.getElementById('openai-compatible-advanced-toggle');
+  const body = document.getElementById('openai-compatible-body');
+  if (!toggle || !body) return;
+
+  toggle.addEventListener('click', () => {
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', String(!expanded));
+    body.style.display = expanded ? 'none' : 'block';
+  });
+}
+
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle review count refresh messages
@@ -869,6 +881,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Initialize collapsible AI Provider header
   initializeAIProviderCollapsible();
+
+  // Initialize collapsible OpenAI Compatible advanced options
+  initializeOpenAICompatibleCollapsible();
 
 });
 
