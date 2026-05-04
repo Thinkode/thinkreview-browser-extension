@@ -402,6 +402,40 @@
                 </div>
               </label>
 
+              <!-- OpenAI Compatible Card -->
+              <label class="provider-card" id="provider-card-openai-compatible">
+                <input type="radio" name="ai-provider" value="openai-compatible" id="provider-openai-compatible" class="provider-card-radio">
+                <div class="provider-card-inner">
+                  <div class="provider-card-top">
+                    <div class="provider-card-icon provider-card-icon--openai-compatible">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <path d="M3 12h18"></path>
+                        <path d="M12 3c2.8 2.7 4.4 5.9 4.4 9s-1.6 6.3-4.4 9c-2.8-2.7-4.4-5.9-4.4-9S9.2 5.7 12 3z"></path>
+                        <path d="M6.2 6.2c1.8 1 3.9 1.6 5.8 1.6s4-.6 5.8-1.6"></path>
+                        <path d="M6.2 17.8c1.8-1 3.9-1.6 5.8-1.6s4 .6 5.8 1.6"></path>
+                      </svg>
+                    </div>
+                    <div class="provider-card-title-group">
+                      <span class="provider-card-name">OpenAI Compatible</span>
+                      <span class="provider-card-badge provider-card-badge--openai-compatible">Custom endpoint</span>
+                    </div>
+                    <div class="provider-card-check-icon">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </div>
+                  </div>
+                  <p class="provider-card-desc">Use any OpenAI-compatible Chat Completions endpoint with a custom base URL.</p>
+                  <div class="provider-card-tags">
+                    <span class="provider-tag provider-tag--openai-compatible">Self-hosted</span>
+                    <span class="provider-tag provider-tag--openai-compatible">OpenAI API</span>
+                    <span class="provider-tag provider-tag--openai-compatible">Optional key</span>
+                    <span class="provider-tag provider-tag--openai-compatible">Any model</span>
+                  </div>
+                </div>
+              </label>
+
             </div>
             <div id="ollama-config" class="ollama-config" style="display: none;">
               <div class="ollama-config-row">
@@ -462,6 +496,84 @@
                 <p class="help-text">
                   <strong>📖 <a href="https://openrouter.ai/docs" target="_blank">OpenRouter Docs</a></strong>
                   — use any OpenRouter model id such as <code>openai/gpt-5.2</code> or <code>anthropic/claude-sonnet-4</code>
+                </p>
+              </div>
+            </div>
+            <div id="openai-compatible-config" class="openai-compatible-config" style="display: none;">
+              <div class="openai-compatible-section openai-compatible-section--primary">
+                <div class="openai-compatible-config-row">
+                  <label for="openai-compatible-base-url" class="config-label">Custom Endpoint (Base URL):</label>
+                  <input type="text" id="openai-compatible-base-url" class="config-input" value="http://127.0.0.1:1234/v1" placeholder="http://127.0.0.1:1234/v1">
+                </div>
+                <div class="openai-compatible-config-row">
+                  <label for="openai-compatible-api-key" class="config-label">Custom API Key <span class="config-optional">(Optional)</span>:</label>
+                  <input type="password" id="openai-compatible-api-key" class="config-input" placeholder="Leave blank for local endpoints">
+                </div>
+                <div class="openai-compatible-config-row openai-compatible-model-row">
+                  <label for="openai-compatible-model" class="config-label">Model:</label>
+                  <div class="model-select-wrapper">
+                    <input type="text" id="openai-compatible-model" class="config-input" list="openai-compatible-model-list" placeholder="Enter a model id or choose from suggestions">
+                    <datalist id="openai-compatible-model-list"></datalist>
+                    <button id="refresh-openai-compatible-models-btn" class="refresh-models-btn" title="Refresh available models">🔄</button>
+                  </div>
+                </div>
+              </div>
+              <div class="openai-compatible-section openai-compatible-section--advanced">
+                <div class="openai-compatible-section-header">
+                  <button type="button" id="openai-compatible-advanced-toggle" class="collapsible-header openai-compatible-section-toggle" aria-expanded="false" aria-controls="openai-compatible-body">
+                    <span class="openai-compatible-section-title">Advanced options</span>
+                    <svg class="collapsible-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </button>
+                  <button type="button" id="openai-compatible-advanced-reset-btn" class="openai-compatible-reset-btn openai-compatible-reset-btn--section">Reset</button>
+                </div>
+                <div id="openai-compatible-body" class="collapsible-body" style="display:none;">
+                  <div class="openai-compatible-advanced-grid">
+                    <div class="openai-compatible-advanced-row openai-compatible-advanced-row--two-up">
+                      <div class="openai-compatible-config-row">
+                        <label for="openai-compatible-reasoning-effort" class="config-label">Reasoning Effort <span class="config-optional">(optional)</span>:</label>
+                        <select id="openai-compatible-reasoning-effort" class="config-select">
+                          <option value="">Use model default</option>
+                          <option value="none">None</option>
+                          <option value="minimal">Minimal</option>
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                          <option value="xhigh">X-High</option>
+                        </select>
+                      </div>
+                      <div class="openai-compatible-config-row">
+                        <label for="openai-compatible-max-tokens" class="config-label">Max Tokens:</label>
+                        <input type="number" id="openai-compatible-max-tokens" class="config-input" min="1" step="1" value="200000">
+                      </div>
+                    </div>
+                    <div class="openai-compatible-advanced-row openai-compatible-advanced-row--three-up">
+                      <div class="openai-compatible-config-row">
+                        <label for="openai-compatible-temperature" class="config-label">Temperature:</label>
+                        <input type="number" id="openai-compatible-temperature" class="config-input" min="0" max="2" step="0.1" value="0.8">
+                      </div>
+                      <div class="openai-compatible-config-row">
+                        <label for="openai-compatible-top-p" class="config-label">Top P:</label>
+                        <input type="number" id="openai-compatible-top-p" class="config-input" min="0" max="1" step="0.05" value="1">
+                      </div>
+                      <div class="openai-compatible-config-row">
+                        <label for="openai-compatible-top-k" class="config-label">Top K <span class="config-optional">(optional)</span>:</label>
+                        <input type="number" id="openai-compatible-top-k" class="config-input" min="1" step="1" placeholder="Optional">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="ollama-actions">
+                <button id="test-openai-compatible-btn" class="test-ollama-btn">Test Connection</button>
+                <button id="save-openai-compatible-btn" class="save-ollama-btn">Save Settings</button>
+              </div>
+              <div id="openai-compatible-status" class="openai-compatible-status"></div>
+              <div class="openai-compatible-help">
+                <p class="help-text">
+                  <strong>📖 <a href="https://developers.openai.com/api/" target="_blank">OpenAI API Docs</a></strong>
+                  — enter a reachable base URL that already includes <code>/v1</code>; the extension will append <code>/chat/completions</code> and <code>/models</code> automatically.
                 </p>
               </div>
             </div>

@@ -1087,6 +1087,11 @@ footer {
   color: #475569;
 }
 
+.provider-card-icon--openai-compatible {
+  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+  color: #0369a1;
+}
+
 .provider-card-title-group {
   display: flex;
   flex-direction: column;
@@ -1127,6 +1132,12 @@ footer {
   background: #f1f5f9;
   color: #334155;
   border: 1px solid #cbd5e1;
+}
+
+.provider-card-badge--openai-compatible {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
 }
 
 .provider-card-check-icon {
@@ -1182,6 +1193,12 @@ footer {
   border: 1px solid #d7e0ea;
 }
 
+.provider-tag--openai-compatible {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
 /* Selected state */
 .provider-card:has(.provider-card-radio:checked) {
   border-color: #6b4fbb;
@@ -1201,6 +1218,12 @@ footer {
   box-shadow: 0 2px 12px rgba(100, 116, 139, 0.15);
 }
 
+.provider-card:has(#provider-openai-compatible:checked) {
+  border-color: #0284c7;
+  background: #f0f9ff;
+  box-shadow: 0 2px 12px rgba(14, 165, 233, 0.16);
+}
+
 .provider-card:has(.provider-card-radio:checked) .provider-card-check-icon {
   background: #6b4fbb;
   color: #fff;
@@ -1213,6 +1236,11 @@ footer {
 
 .provider-card:has(#provider-openrouter:checked) .provider-card-check-icon {
   background: #64748b;
+  color: #fff;
+}
+
+.provider-card:has(#provider-openai-compatible:checked) .provider-card-check-icon {
+  background: #0284c7;
   color: #fff;
 }
 
@@ -1247,6 +1275,17 @@ footer {
 
 #provider-card-openrouter.is-selected .provider-card-check-icon {
   background: #64748b;
+  color: #fff;
+}
+
+#provider-card-openai-compatible.is-selected {
+  border-color: #0284c7;
+  background: #f0f9ff;
+  box-shadow: 0 2px 12px rgba(14, 165, 233, 0.16);
+}
+
+#provider-card-openai-compatible.is-selected .provider-card-check-icon {
+  background: #0284c7;
   color: #fff;
 }
 
@@ -1310,6 +1349,11 @@ footer {
   min-width: 0;
 }
 
+.model-select-wrapper .config-select {
+  flex: 1;
+  min-width: 0;
+}
+
 .config-select {
   flex: 1;
   padding: 8px 10px;
@@ -1325,6 +1369,10 @@ footer {
   outline: none;
   border-color: #6b4fbb;
   box-shadow: 0 0 0 2px rgba(107, 79, 187, 0.1);
+}
+
+.config-select option {
+  color: #111827;
 }
 
 .refresh-models-btn {
@@ -1486,6 +1534,187 @@ footer {
 
 .openrouter-help .help-text a:hover {
   color: #1e293b;
+}
+
+.openai-compatible-config {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  animation: slideDown 0.3s ease;
+}
+
+.openai-compatible-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(186, 230, 253, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.openai-compatible-section--primary {
+  margin-bottom: 12px;
+}
+
+.openai-compatible-section--advanced {
+  background: rgba(240, 249, 255, 0.7);
+}
+
+.openai-compatible-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.openai-compatible-section-toggle {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.openai-compatible-section-title {
+  margin-bottom: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0369a1;
+}
+
+.openai-compatible-model-row {
+  margin-bottom: 0;
+}
+
+.openai-compatible-model-note {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #0369a1;
+}
+
+.openai-compatible-advanced-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.openai-compatible-advanced-row {
+  display: grid;
+  gap: 12px 14px;
+}
+
+.openai-compatible-advanced-row--two-up {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.openai-compatible-advanced-row--three-up {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.openai-compatible-config-row {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.openai-compatible-config-row--wide {
+  grid-column: 1 / -1;
+}
+
+.openai-compatible-config .config-input,
+.openai-compatible-config .config-select {
+  width: 100%;
+  display: block;
+}
+
+.openai-compatible-reset-btn {
+  align-self: flex-end;
+  border: none;
+  background: transparent;
+  color: #0284c7;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.openai-compatible-reset-btn:hover {
+  text-decoration: underline;
+}
+
+.openai-compatible-reset-btn:focus-visible {
+  outline: 2px solid rgba(2, 132, 199, 0.35);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.openai-compatible-reset-btn--section {
+  padding: 6px 10px;
+  border: 1px solid rgba(2, 132, 199, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.config-optional {
+  font-weight: 400;
+  color: #64748b;
+}
+
+.openai-compatible-status {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  display: none;
+}
+
+.openai-compatible-status.show {
+  display: block;
+}
+
+.openai-compatible-status.success {
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #075985;
+}
+
+.openai-compatible-status.error {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.openai-compatible-status.info {
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+.openai-compatible-help {
+  margin-top: 10px;
+}
+
+.openai-compatible-help .help-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.openai-compatible-help .help-text strong a,
+.openai-compatible-help .help-text a {
+  color: #075985;
+}
+
+.openai-compatible-help .help-text a:hover {
+  color: #0c4a6e;
 }
 
 .cors-copy-btn svg.h-5 {
