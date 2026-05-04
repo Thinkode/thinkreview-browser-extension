@@ -1135,9 +1135,9 @@ footer {
 }
 
 .provider-card-badge--openai-compatible {
-  background: #ecfeff;
-  color: #0f766e;
-  border: 1px solid #99f6e4;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
 }
 
 .provider-card-check-icon {
@@ -1194,9 +1194,9 @@ footer {
 }
 
 .provider-tag--openai-compatible {
-  background: #f0f9ff;
-  color: #0369a1;
-  border: 1px solid #bae6fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
 }
 
 /* Selected state */
