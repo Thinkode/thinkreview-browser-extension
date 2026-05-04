@@ -6,6 +6,7 @@ import { subscriptionStatus } from './components/popup-modules/subscription-stat
 import { reviewCount } from './components/popup-modules/review-count.js';
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
+import { normalizeOpenAICompatibleConfig, resolveOpenAICompatibleDisplayedMaxTokens } from './utils/openai-compatible-options.js';
 
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_SIGNIN_WAIT = 500;
@@ -69,6 +70,10 @@ function getOpenAICompatibleModelInput() {
 
 function getOpenAICompatibleModelList() {
   return document.getElementById('openai-compatible-model-list');
+}
+
+function getOpenAICompatibleReasoningEffortInput() {
+  return document.getElementById('openai-compatible-reasoning-effort');
 }
 
 function getOpenAICompatibleEndpointErrorHint(errorMessage) {
@@ -2107,6 +2112,7 @@ async function loadAIProviderSettings() {
       model: '',
       contextLength: null
     };
+    const normalizedOpenAICompatibleConfig = normalizeOpenAICompatibleConfig(openaiCompatibleConfig);
     
     // Set the selected provider
     const providerRadio = document.getElementById(`provider-${provider}`);
@@ -2139,6 +2145,11 @@ async function loadAIProviderSettings() {
     const openaiCompatibleBaseUrlInput = document.getElementById('openai-compatible-base-url');
     const openaiCompatibleApiKeyInput = document.getElementById('openai-compatible-api-key');
     const openaiCompatibleModelInput = getOpenAICompatibleModelInput();
+    const openaiCompatibleTemperatureInput = document.getElementById('openai-compatible-temperature') || { value: '' };
+    const openaiCompatibleTopPInput = document.getElementById('openai-compatible-top-p') || { value: '' };
+    const openaiCompatibleTopKInput = document.getElementById('openai-compatible-top-k') || { value: '' };
+    const openaiCompatibleReasoningEffortInput = getOpenAICompatibleReasoningEffortInput() || { value: '' };
+    const openaiCompatibleMaxTokensInput = document.getElementById('openai-compatible-max-tokens') || { value: '' };
     
     if (urlInput) urlInput.value = config.url;
     if (tempInput) tempInput.value = clampTemperature(config.temperature);
@@ -2150,6 +2161,11 @@ async function loadAIProviderSettings() {
     if (modelInput && provider !== 'ollama') modelInput.value = config.model;
     if (openrouterModelInput && provider !== 'openrouter') openrouterModelInput.value = openrouterConfig.model;
     if (openaiCompatibleModelInput) openaiCompatibleModelInput.value = openaiCompatibleConfig.model;
+    if (openaiCompatibleTemperatureInput) openaiCompatibleTemperatureInput.value = normalizedOpenAICompatibleConfig.temperature;
+    if (openaiCompatibleTopPInput) openaiCompatibleTopPInput.value = normalizedOpenAICompatibleConfig.top_p;
+    if (openaiCompatibleTopKInput) openaiCompatibleTopKInput.value = normalizedOpenAICompatibleConfig.top_k ?? '';
+    if (openaiCompatibleReasoningEffortInput) openaiCompatibleReasoningEffortInput.value = normalizedOpenAICompatibleConfig.reasoning_effort || '';
+    if (openaiCompatibleMaxTokensInput) openaiCompatibleMaxTokensInput.value = resolveOpenAICompatibleDisplayedMaxTokens(openaiCompatibleConfig);
     
     // If Ollama is the selected provider, fetch available models
     if (provider === 'ollama') {
@@ -2723,6 +2739,18 @@ async function fetchAndPopulateOpenAICompatibleModels(baseUrl, apiKey = '', save
         modelInput.value = savedModel;
       }
 
+      const selectedModel = savedModel
+        ? modelsResult.models.find((item) => item.id === savedModel) || null
+        : null;
+      const maxTokensInput = document.getElementById('openai-compatible-max-tokens');
+      if (maxTokensInput && selectedModel?.context_length) {
+        const currentConfig = {
+          max_tokens: maxTokensInput.value,
+          contextLength: selectedModel.context_length
+        };
+        maxTokensInput.value = resolveOpenAICompatibleDisplayedMaxTokens(currentConfig);
+      }
+
       showOpenAICompatibleStatus(`✅ Found ${modelsResult.models.length} installed model(s)`, 'success');
       dbgLog('Successfully loaded', modelsResult.models.length, 'OpenAI Compatible models');
     } else {
@@ -2794,6 +2822,11 @@ async function saveOpenAICompatibleSettings() {
   const baseUrlInput = document.getElementById('openai-compatible-base-url');
   const apiKeyInput = document.getElementById('openai-compatible-api-key');
   const modelInput = getOpenAICompatibleModelInput();
+  const temperatureInput = document.getElementById('openai-compatible-temperature');
+  const topPInput = document.getElementById('openai-compatible-top-p');
+  const topKInput = document.getElementById('openai-compatible-top-k');
+  const reasoningEffortInput = getOpenAICompatibleReasoningEffortInput();
+  const maxTokensInput = document.getElementById('openai-compatible-max-tokens');
   const baseUrl = baseUrlInput ? baseUrlInput.value.trim() : '';
   const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
   const model = modelInput ? modelInput.value.trim() : '';
@@ -2829,10 +2862,25 @@ async function saveOpenAICompatibleSettings() {
       }
     }
 
-    const config = { baseUrl, apiKey, model };
+    const config = normalizeOpenAICompatibleConfig({
+      baseUrl,
+      apiKey,
+      model,
+      temperature: temperatureInput?.value,
+      top_p: topPInput?.value,
+      top_k: topKInput?.value,
+      reasoning_effort: reasoningEffortInput?.value,
+      max_tokens: maxTokensInput?.value
+    });
     if (contextLength != null) {
       config.contextLength = contextLength;
     }
+
+    if (temperatureInput) temperatureInput.value = config.temperature;
+    if (topPInput) topPInput.value = config.top_p;
+    if (topKInput) topKInput.value = config.top_k ?? '';
+    if (reasoningEffortInput) reasoningEffortInput.value = config.reasoning_effort || '';
+    if (maxTokensInput) maxTokensInput.value = config.max_tokens;
 
     await chrome.storage.local.set({ openaiCompatibleConfig: config });
     dbgLog('OpenAI Compatible settings saved:', { ...config, apiKey: apiKey ? '[redacted]' : '' });

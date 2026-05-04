@@ -516,6 +516,34 @@
                   <button id="refresh-openai-compatible-models-btn" class="refresh-models-btn" title="Refresh available models">🔄</button>
                 </div>
               </div>
+              <div class="openai-compatible-config-row">
+                <label for="openai-compatible-temperature" class="config-label">Temperature:</label>
+                <input type="number" id="openai-compatible-temperature" class="config-input" min="0" max="2" step="0.1" value="0.2">
+              </div>
+              <div class="openai-compatible-config-row">
+                <label for="openai-compatible-top-p" class="config-label">Top P:</label>
+                <input type="number" id="openai-compatible-top-p" class="config-input" min="0" max="1" step="0.05" value="1">
+              </div>
+              <div class="openai-compatible-config-row">
+                <label for="openai-compatible-top-k" class="config-label">Top K <span class="config-optional">(optional)</span>:</label>
+                <input type="number" id="openai-compatible-top-k" class="config-input" min="1" step="1" placeholder="Optional">
+              </div>
+              <div class="openai-compatible-config-row">
+                <label for="openai-compatible-reasoning-effort" class="config-label">Reasoning Effort <span class="config-optional">(optional)</span>:</label>
+                <select id="openai-compatible-reasoning-effort" class="config-select">
+                  <option value="">Use model default</option>
+                  <option value="none">None</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="xhigh">X-High</option>
+                </select>
+              </div>
+              <div class="openai-compatible-config-row">
+                <label for="openai-compatible-max-tokens" class="config-label">Max Tokens:</label>
+                <input type="number" id="openai-compatible-max-tokens" class="config-input" min="1" step="1" value="200000">
+              </div>
               <div class="ollama-actions">
                 <button id="test-openai-compatible-btn" class="test-ollama-btn">Test Connection</button>
                 <button id="save-openai-compatible-btn" class="save-ollama-btn">Save Settings</button>

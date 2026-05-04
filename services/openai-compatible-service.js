@@ -1,7 +1,8 @@
 import { dbgLog, dbgWarn } from '../utils/logger.js';
+import { normalizeOpenAICompatibleConfig } from '../utils/openai-compatible-options.js';
 
-const OPENAI_COMPATIBLE_REVIEW_MAX_TOKENS_BUDGET = 4096;
-const OPENAI_COMPATIBLE_CONVERSATION_MAX_TOKENS_BUDGET = 2048;
+const OPENAI_COMPATIBLE_REVIEW_MAX_TOKENS_BUDGET = 200000;
+const OPENAI_COMPATIBLE_CONVERSATION_MAX_TOKENS_BUDGET = 200000;
 const OPENAI_COMPATIBLE_RESERVED_RESPONSE_TOKENS = 1024;
 const OPENAI_COMPATIBLE_CONNECTION_TIMEOUT_MS = 10000;
 const OPENAI_COMPATIBLE_MODEL_DISCOVERY_TIMEOUT_MS = 15000;
@@ -13,6 +14,20 @@ function getStoredOpenAICompatibleConfig() {
       resolve(result?.openaiCompatibleConfig || {});
     });
   });
+}
+
+function buildOpenAICompatiblePatchSize(patchContent, patchToUse) {
+  const originalLength = typeof patchContent === 'string' ? patchContent.length : 0;
+  const sentLength = typeof patchToUse === 'string' ? patchToUse.length : 0;
+
+  return {
+    original: originalLength,
+    truncated: sentLength,
+    filesExcluded: 0,
+    excludedFileNames: [],
+    wasTruncated: sentLength > 0 && sentLength < originalLength,
+    wasForcedTruncated: false
+  };
 }
 
 function normalizeBaseUrl(baseUrl) {
@@ -207,6 +222,26 @@ function resolveOpenAICompatibleMaxTokens(contextLength, promptTokens, fallbackB
   return budget;
 }
 
+function applyOpenAICompatibleGenerationOptions(requestBody, config, maxTokens) {
+  const normalizedConfig = normalizeOpenAICompatibleConfig(config);
+  requestBody.temperature = normalizedConfig.temperature;
+  requestBody.max_tokens = maxTokens;
+
+  if (normalizedConfig.top_p != null) {
+    requestBody.top_p = normalizedConfig.top_p;
+  }
+
+  if (normalizedConfig.top_k != null) {
+    requestBody.top_k = normalizedConfig.top_k;
+  }
+
+  if (normalizedConfig.reasoning_effort) {
+    requestBody.reasoning_effort = normalizedConfig.reasoning_effort;
+  }
+
+  return requestBody;
+}
+
 function extractJsonFromText(text) {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) {
@@ -310,6 +345,7 @@ export class OpenAICompatibleService {
   static async testSelectedModel(modelId, baseUrlOverride = null, apiKeyOverride = null) {
     const baseUrl = await resolveOpenAICompatibleBaseUrl(baseUrlOverride);
     const apiKey = await resolveOpenAICompatibleApiKey(apiKeyOverride);
+    const config = normalizeOpenAICompatibleConfig(await getStoredOpenAICompatibleConfig());
     const model = typeof modelId === 'string' ? modelId.trim() : '';
 
     if (!model) {
@@ -326,10 +362,14 @@ export class OpenAICompatibleService {
           content: 'Reply with OK.'
         }
       ],
-      stream: false,
-      temperature: 0,
-      max_tokens: 8
+      stream: false
     };
+
+    applyOpenAICompatibleGenerationOptions(
+      requestBody,
+      config,
+      Math.max(1, Math.min(8, config.max_tokens))
+    );
 
     try {
       const data = await performOpenAICompatibleRequest(baseUrl, '/chat/completions', requestBody, apiKey, {
@@ -359,7 +399,7 @@ export class OpenAICompatibleService {
       throw new Error('Missing patch content');
     }
 
-    const config = await getStoredOpenAICompatibleConfig();
+    const config = normalizeOpenAICompatibleConfig(await getStoredOpenAICompatibleConfig());
     const baseUrl = validateBaseUrl(config.baseUrl || '');
     const apiKey = config.apiKey?.trim();
     const model = config.model?.trim();
@@ -408,10 +448,11 @@ export class OpenAICompatibleService {
     const requestBody = {
       model,
       messages: reviewMessages,
-      stream: false,
-      temperature: 0.2,
-      max_tokens: maxTokens
+      stream: false
     };
+
+    applyOpenAICompatibleGenerationOptions(requestBody, config, maxTokens);
+    const patchSize = buildOpenAICompatiblePatchSize(patchContent, patchToUse);
 
     try {
       const data = await performOpenAICompatibleRequest(baseUrl, '/chat/completions', requestBody, apiKey);
@@ -427,7 +468,9 @@ export class OpenAICompatibleService {
           status: 'success',
           review: normalizeReview(parsedReview, model),
           raw: parsedReview,
-          provider: 'openai-compatible'
+          provider: 'openai-compatible',
+          patchSize,
+          modelUsed: model
         };
       } catch (parseError) {
         dbgWarn('Failed to parse OpenAI Compatible JSON response, using fallback structure:', parseError);
@@ -453,6 +496,8 @@ export class OpenAICompatibleService {
             model,
             note: 'Model did not return structured JSON. See raw response below.'
           },
+          patchSize,
+          modelUsed: model,
           rawResponse: reviewText
         };
       }
@@ -475,7 +520,7 @@ export class OpenAICompatibleService {
       throw new Error('Missing patch content or conversation history');
     }
 
-    const config = await getStoredOpenAICompatibleConfig();
+    const config = normalizeOpenAICompatibleConfig(await getStoredOpenAICompatibleConfig());
     const baseUrl = validateBaseUrl(config.baseUrl || '');
     const apiKey = config.apiKey?.trim();
     const model = config.model?.trim();
@@ -501,10 +546,10 @@ export class OpenAICompatibleService {
     const requestBody = {
       model,
       messages,
-      stream: false,
-      temperature: 0.2,
-      max_tokens: maxTokens
+      stream: false
     };
+
+    applyOpenAICompatibleGenerationOptions(requestBody, config, maxTokens);
 
     try {
       const data = await performOpenAICompatibleRequest(baseUrl, '/chat/completions', requestBody, apiKey);

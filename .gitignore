@@ -53,3 +53,4 @@ cleanup-media.sh
 
 # Azure logs and diffs (removed from history)
 dev-azure-logs-diffs/
+.agents/*
