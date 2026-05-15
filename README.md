@@ -14,7 +14,7 @@
 
 **AI-powered code reviews for merge requests and pull requests, directly in your browser.** Available for **Chrome** (and other Chromium browsers) and **Firefox**.
 
-[🌐 Website](https://thinkreview.dev) • [📦 Chrome Web Store](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn) • [🦊 Firefox Add-ons](https://addons.mozilla.org/firefox/addon/thinkreview-code-review/) • [🖥️ Ollama Setup](OLLAMA_SETUP.md) • [📖 Docs](#documentation) • [💬 Contact](https://thinkreview.dev/contact)
+[🌐 Website](https://thinkreview.dev) • [📦 Chrome Web Store](https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn) • [🦊 Firefox Add-ons](https://addons.mozilla.org/firefox/addon/thinkreview-code-review/) • [🖥️ Ollama Setup](OLLAMA_SETUP.md) • [🌐 OpenRouter Setup](#openrouter) • [📖 Docs](#documentation) • [💬 Contact](https://thinkreview.dev/contact)
 
 <img src="media/hero-banner.png" alt="ThinkReview - AI Code Review" width="800">
 
@@ -92,7 +92,7 @@ Setup guides for every combination below live on the site: **[thinkreview.dev/do
 - **Local AI**: [Quick Ollama setup](OLLAMA_SETUP.md) (30 seconds if model is downloaded) for private reviews
 - **Hosted Routing**: OpenRouter provides API-key based access to models from multiple providers
 - **No API Keys**: Works out of the box (cloud) or fully local (Ollama)
-- **OpenRouter Support**: Use your own OpenRouter API key to choose a model via unified routing
+- **OpenRouter Support**: Use your own OpenRouter API key to choose a model via unified routing — [setup guide](#openrouter)
 - **Automatic Detection**: Recognizes MR/PR pages instantly
 - **Seamless Integration**: Doesn't disrupt your workflow
 
@@ -170,11 +170,16 @@ cd thinkreview-browser-extension
 3. Open extension popup → Settings → Select "Local Ollama"
 4. That's it! Your reviews now run locally
 
-**OpenRouter** - Unified LLM routing with a single OpenAI-compatible API key:
-1. Create an API key in your [OpenRouter account](https://openrouter.ai/keys)
-2. Open extension popup → Settings → Select "OpenRouter"
-3. Paste your API key, choose a model, and save
-4. The extension will use the selected OpenRouter model for reviews and chat
+### OpenRouter
+
+Use your own [OpenRouter](https://openrouter.ai) API key to run PR reviews and copilot chat with any supported model (300+ via unified routing):
+
+1. Create an API key at [openrouter.ai/keys](https://openrouter.ai/keys)
+2. Open the extension popup → **Settings** → select **OpenRouter** as the AI provider
+3. Paste your API key, pick a model from the list, and save
+4. Open a pull/merge request — reviews and chat use your selected OpenRouter model
+
+**Requirements:** An OpenRouter account with credits; you bring your own key (BYOK). The extension calls `https://openrouter.ai/api/v1` directly from your browser.
 
 ---
 
@@ -245,6 +250,7 @@ thinkreview-browser-extension/
 
 - **[Release Notes](release%20notes/)** — Version history
 - **🆕 [OLLAMA_SETUP.md](OLLAMA_SETUP.md)** — Run AI reviews locally with Ollama
+- **[OpenRouter setup](#openrouter)** — BYOK access to 300+ models for reviews and PR chat
 - **Platform setup (cloud & self-hosted)** — [Docs home](https://thinkreview.dev/docs) · [GitLab](https://thinkreview.dev/docs/gitlab-integration) · [GitHub](https://thinkreview.dev/docs/github-integration) · [Azure DevOps (cloud)](https://thinkreview.dev/docs/azure-devops) · [Azure DevOps (on-prem)](https://thinkreview.dev/docs/azure-devops-onpremise) · [Bitbucket Cloud](https://thinkreview.dev/docs/bitbucket-integration) · [Bitbucket Data Center](https://thinkreview.dev/docs/bitbucket-data-center)
 
 ---
