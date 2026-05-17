@@ -1695,7 +1695,9 @@ async function displayIntegratedReview(
   integrationOpts = null
 ) {
   // Store review data for copy-all functionality
-  currentReviewData = review;
+  currentReviewData = review
+    ? { ...review, modelUsed: modelUsed || review.modelUsed || review.model || review.modelName || review.ollamaMeta?.model }
+    : review;
 
   const integratedPanelEl = document.getElementById('gitlab-mr-integrated-review');
   if (integratedPanelEl) {
