@@ -6,6 +6,7 @@ import { subscriptionStatus } from './components/popup-modules/subscription-stat
 import { reviewCount } from './components/popup-modules/review-count.js';
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
+import { OPENROUTER_ORIGINS, hasOpenRouterHostPermission } from './utils/openrouter-permissions.js';
 
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_SIGNIN_WAIT = 500;
@@ -1987,8 +1988,99 @@ function clearTokenStatus() {
 
 // Subscription upgrade functionality has been moved to content.js and removed from popup
 
+// OpenRouter: optional host permission (request openrouter.ai access from popup)
+function initializeOpenRouterPermissionSettings() {
+  loadOpenRouterPermissionState();
+  const allowBtn = document.getElementById('allow-openrouter-btn');
+  if (allowBtn) {
+    allowBtn.addEventListener('click', allowOpenRouter);
+  }
+}
+
+async function loadOpenRouterPermissionState() {
+  try {
+    const hasPermission = await hasOpenRouterHostPermission();
+
+    // Use actual permission as the single source of truth
+    if (!hasPermission) {
+      await chrome.storage.local.set({ openrouterAllowed: false });
+    } else {
+      await chrome.storage.local.set({ openrouterAllowed: true });
+    }
+
+    const allowed = hasPermission;
+
+    const allowSection = document.getElementById('openrouter-allow-section');
+    const enabledMessage = document.getElementById('openrouter-enabled-message');
+    const statusEl = document.getElementById('openrouter-permission-status');
+    const allowBtn = document.getElementById('allow-openrouter-btn');
+
+    if (allowed) {
+      if (allowSection) allowSection.style.display = 'none';
+      if (enabledMessage) enabledMessage.style.display = 'flex';
+      if (statusEl) statusEl.textContent = '';
+    } else {
+      if (allowSection) allowSection.style.display = 'flex';
+      if (enabledMessage) enabledMessage.style.display = 'none';
+      if (statusEl) statusEl.textContent = '';
+      if (allowBtn) allowBtn.textContent = 'Allow OpenRouter';
+    }
+  } catch (error) {
+    dbgWarn('Error loading OpenRouter permission state:', error);
+  }
+}
+
+let isAllowingOpenRouter = false;
+
+async function allowOpenRouter() {
+  if (isAllowingOpenRouter) return;
+  const allowBtn = document.getElementById('allow-openrouter-btn');
+  const statusEl = document.getElementById('openrouter-permission-status');
+  const originalButtonText = allowBtn?.textContent ?? 'Allow OpenRouter';
+
+  try {
+    isAllowingOpenRouter = true;
+    if (allowBtn) {
+      allowBtn.textContent = 'Adding...';
+      allowBtn.disabled = true;
+    }
+    if (statusEl) statusEl.textContent = '';
+
+    const granted = await chrome.permissions.request({ origins: OPENROUTER_ORIGINS });
+
+    if (!granted) {
+      if (statusEl) statusEl.textContent = 'Permission not granted.';
+      return;
+    }
+
+    await chrome.storage.local.set({ openrouterAllowed: true });
+    loadOpenRouterPermissionState();
+    showOpenRouterStatus('OpenRouter access enabled. You can test and save your settings.', 'success');
+  } catch (error) {
+    dbgWarn('Error allowing OpenRouter:', error);
+    if (statusEl) statusEl.textContent = 'Error: ' + (error.message || 'Failed');
+  } finally {
+    isAllowingOpenRouter = false;
+    if (allowBtn) {
+      allowBtn.textContent = originalButtonText;
+      allowBtn.disabled = false;
+    }
+  }
+}
+
+async function ensureOpenRouterHostPermission() {
+  const allowed = await hasOpenRouterHostPermission();
+  if (!allowed) {
+    showOpenRouterStatus('❌ Allow OpenRouter access first using the button above', 'error');
+    loadOpenRouterPermissionState();
+    return false;
+  }
+  return true;
+}
+
 // AI Provider Management Functionality
 function initializeAIProviderSettings() {
+  initializeOpenRouterPermissionSettings();
   loadAIProviderSettings();
   setupAIProviderEventListeners();
 }
@@ -2090,8 +2182,11 @@ async function loadAIProviderSettings() {
       dbgLog('Ollama is selected provider, fetching available models...');
       await fetchAndPopulateModels(config.url, config.model);
     } else if (provider === 'openrouter') {
+      await loadOpenRouterPermissionState();
       dbgLog('OpenRouter is selected provider, fetching available models...');
-      await fetchAndPopulateOpenRouterModels(openrouterConfig.apiKey, openrouterConfig.model, openrouterConfig.contextLength);
+      if (openrouterConfig.apiKey && (await hasOpenRouterHostPermission())) {
+        await fetchAndPopulateOpenRouterModels(openrouterConfig.apiKey, openrouterConfig.model, openrouterConfig.contextLength);
+      }
     }
     
     dbgLog('AI Provider settings loaded:', { provider, config });
@@ -2145,13 +2240,17 @@ function handleProviderChange(event) {
     }
 
     if (provider === 'openrouter') {
+      loadOpenRouterPermissionState();
       const apiKeyInput = document.getElementById('openrouter-api-key');
       const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
 
       if (apiKey) {
-        dbgLog('OpenRouter selected, fetching available models...');
-        fetchAndPopulateOpenRouterModels(apiKey).catch(err => {
-          dbgWarn('Error auto-fetching OpenRouter models (non-critical):', err);
+        hasOpenRouterHostPermission().then((allowed) => {
+          if (!allowed) return;
+          dbgLog('OpenRouter selected, fetching available models...');
+          fetchAndPopulateOpenRouterModels(apiKey).catch(err => {
+            dbgWarn('Error auto-fetching OpenRouter models (non-critical):', err);
+          });
         });
       }
     }
@@ -2387,6 +2486,8 @@ async function refreshOllamaModels() {
 }
 
 async function fetchAndPopulateOpenRouterModels(apiKey, savedModel = null, savedContextLength = null) {
+  if (!(await ensureOpenRouterHostPermission())) return;
+
   const modelInput = document.getElementById('openrouter-model');
   const modelList = document.getElementById('openrouter-model-list');
   if (!modelInput || !modelList) return;
@@ -2444,6 +2545,8 @@ async function fetchAndPopulateOpenRouterModels(apiKey, savedModel = null, saved
 }
 
 async function refreshOpenRouterModels() {
+  if (!(await ensureOpenRouterHostPermission())) return;
+
   const apiKeyInput = document.getElementById('openrouter-api-key');
   const refreshButton = document.getElementById('refresh-openrouter-models-btn');
   const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
@@ -2470,6 +2573,8 @@ async function refreshOpenRouterModels() {
 }
 
 async function testOpenRouterConnection() {
+  if (!(await ensureOpenRouterHostPermission())) return;
+
   const apiKeyInput = document.getElementById('openrouter-api-key');
   const modelInput = document.getElementById('openrouter-model');
   const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
@@ -2498,6 +2603,8 @@ async function testOpenRouterConnection() {
 }
 
 async function saveOpenRouterSettings() {
+  if (!(await ensureOpenRouterHostPermission())) return;
+
   const apiKeyInput = document.getElementById('openrouter-api-key');
   const modelInput = document.getElementById('openrouter-model');
   const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';

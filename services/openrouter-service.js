@@ -76,35 +76,20 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
 }
 
 function buildConversationMessages(patchContent, conversationHistory, language) {
-  const truncatedPatch = patchContent.length > 40000
-    ? patchContent.substring(0, 20000) + '\n... (truncated for brevity)'
-    : patchContent;
-
-  const systemContext = `You are an expert code reviewer. The following code patch is being discussed:\n\nCODE PATCH (Git Diff Format):\n\`\`\`\n${truncatedPatch}\n\`\`\`\n\nYour role is to answer questions about this code review in a helpful, concise manner using Markdown formatting.`;
+  const systemContext = `You are an expert code reviewer. The following code patch is being discussed:\n\nCODE PATCH (Git Diff Format):\n\`\`\`\n${patchContent}\n\`\`\`\n\nYour role is to answer questions about this code review in a helpful, concise manner using Markdown formatting.`;
 
   const languageInstruction = language && language !== 'English'
     ? `\n\nIMPORTANT: You MUST respond entirely in ${language}. Your entire response must be written in ${language}.`
     : '';
 
-  const MAX_HISTORY_MESSAGES = 11;
-  let truncatedHistory = conversationHistory;
-
-  if (conversationHistory.length > MAX_HISTORY_MESSAGES) {
-    truncatedHistory = [
-      conversationHistory[0],
-      ...conversationHistory.slice(-(MAX_HISTORY_MESSAGES - 1))
-    ];
-    dbgLog(`Truncated conversation history from ${conversationHistory.length} to ${truncatedHistory.length} messages`);
-  }
-
-  const lastUserMessage = truncatedHistory[truncatedHistory.length - 1];
+  const lastUserMessage = conversationHistory[conversationHistory.length - 1];
   if (!lastUserMessage || lastUserMessage.role !== 'user') {
     throw new Error('The last message in the history must be from the user');
   }
 
   return [
     { role: 'system', content: systemContext },
-    ...truncatedHistory.slice(0, -1).map((message) => ({
+    ...conversationHistory.slice(0, -1).map((message) => ({
       role: message.role === 'user' ? 'user' : 'assistant',
       content: message.content
     })),
@@ -288,18 +273,13 @@ export class OpenRouterService {
 
     const { promptBeforePatch, promptAfterPatch } = buildReviewPrompt(patchContent, language);
 
-    let patchToUse = patchContent;
-    if (contextLength != null && contextLength > 0) {
-      const CHARS_PER_TOKEN = 2;
-      const RESERVED_RESPONSE_TOKENS = 1024;
-      const promptTokens = Math.ceil((promptBeforePatch.length + promptAfterPatch.length) / CHARS_PER_TOKEN);
-      const maxPatchTokens = Math.max(0, contextLength - RESERVED_RESPONSE_TOKENS - promptTokens);
-      const maxPatchChars = maxPatchTokens * CHARS_PER_TOKEN;
-      if (patchContent.length > maxPatchChars) {
-        patchToUse = patchContent.substring(0, maxPatchChars) + '\n\n... (truncated for context limit)';
-        dbgLog('OpenRouter patch truncated to fit context:', { contextLength, maxPatchChars, originalLength: patchContent.length });
-      }
-    }
+    const patchSizeChars = patchContent.length;
+    const openrouterMeta = {
+      patchSizeChars,
+      patchSentChars: patchSizeChars,
+      wasTruncated: false,
+      model
+    };
 
     const reviewMessages = [
       {
@@ -308,7 +288,7 @@ export class OpenRouterService {
       },
       {
         role: 'user',
-        content: `${promptBeforePatch}${patchToUse}${promptAfterPatch}`
+        content: `${promptBeforePatch}${patchContent}${promptAfterPatch}`
       }
     ];
     const maxTokens = resolveOpenRouterMaxTokens(
@@ -344,7 +324,8 @@ export class OpenRouterService {
           status: 'success',
           review: normalizeReview(parsedReview, model),
           raw: parsedReview,
-          provider: 'openrouter'
+          provider: 'openrouter',
+          openrouterMeta
         };
       } catch (parseError) {
         dbgWarn('Failed to parse OpenRouter JSON response, using fallback structure:', parseError);
@@ -370,7 +351,8 @@ export class OpenRouterService {
             model,
             note: 'Model did not return structured JSON. See raw response below.'
           },
-          rawResponse: reviewText
+          rawResponse: reviewText,
+          openrouterMeta
         };
       }
     } catch (error) {

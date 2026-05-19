@@ -14,6 +14,7 @@ import { azureDevOpsFetcher } from './services/azure-devops-fetcher.js';
 import { AzureDevOpsAuthError } from './services/azure-devops-api.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+import { hasOpenRouterHostPermission } from './utils/openrouter-permissions.js';
 import { fetchPatchContent } from './services/bitbucket-api.js';
 // Logger module will automatically initialize Honeybadger
 // Set uninstall URL to redirect users to feedback page
@@ -337,6 +338,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         if (provider === 'openrouter') {
+          if (!(await hasOpenRouterHostPermission())) {
+            sendResponse({
+              success: false,
+              error: 'OpenRouter host permission not granted.',
+              provider: 'openrouter',
+              suggestion: 'Open the extension popup, select OpenRouter, and click Allow OpenRouter.'
+            });
+            return;
+          }
           try {
             const data = await OpenRouterService.getConversationalResponse(
               patchContent,
@@ -451,6 +461,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         if (provider === 'openrouter') {
+          if (!(await hasOpenRouterHostPermission())) {
+            sendResponse({
+              success: false,
+              error: 'OpenRouter host permission not granted.',
+              provider: 'openrouter',
+              suggestion: 'Open the extension popup, select OpenRouter, and click Allow OpenRouter.'
+            });
+            return;
+          }
           try {
             const data = await OpenRouterService.reviewPatchCode(patchContent, language, mrId, mrUrl);
 

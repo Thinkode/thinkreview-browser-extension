@@ -16,7 +16,6 @@
     "https://github.com/*",
     "https://patch-diff.githubusercontent.com/*",
     "https://us-central1-thinkgpt.cloudfunctions.net/*",
-    "https://openrouter.ai/*",
     "https://dev.azure.com/*",
     "https://*.visualstudio.com/*"
   ],
