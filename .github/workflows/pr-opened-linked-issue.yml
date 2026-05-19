@@ -1,0 +1,41 @@
+# When a new pull request is opened, open a tracking GitHub Issue that
+# documents the PR, assign it to the maintainer, and comment on the PR with
+# the issue link. Skips PRs that only bump manifest/package metadata or edit
+# files under `release notes/`.
+#
+# Uses pull_request_target so the token can open issues for fork-based PRs.
+# Checkout is pinned to the base branch only (no PR head code is executed).
+name: PR opened — create linked tracking issue
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: pr-linked-issue-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  create-tracking-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout base branch (workflow script only)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Create issue and link from PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/pr-opened-create-linked-issue.mjs
