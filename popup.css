@@ -1833,7 +1833,8 @@ footer {
   font-size: 17px;
 }
 
-.bitbucket-allow-section {
+.bitbucket-allow-section,
+.openrouter-allow-section {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -1842,23 +1843,31 @@ footer {
   flex-shrink: 0;
 }
 
-.bitbucket-allow-button-row {
+.bitbucket-allow-button-row,
+.openrouter-allow-button-row {
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 8px;
 }
 
-.bitbucket-allow-section .add-domain-btn {
+.bitbucket-allow-section .add-domain-btn,
+.openrouter-allow-section .add-domain-btn {
   margin: 3px 0 0 0;
 }
 
-.bitbucket-allow-hint {
+.bitbucket-allow-hint,
+.openrouter-allow-hint {
   margin: 0;
   font-size: 11px;
   color: #666;
   text-align: right;
   max-width: 100%;
+}
+
+.openrouter-permission-status {
+  font-size: 11px;
+  color: #666;
 }
 
 /* Tighter spacing under Bitbucket email/token fields */

@@ -25,6 +25,12 @@ chrome.runtime.setUninstallURL('https://thinkreview.dev/goodbye.html', () => {
 const AUTH_TOKEN_KEY = 'oauth_token';
 const AUTH_USER_KEY = 'oauth_user';
 
+const OPENROUTER_ORIGINS = ['https://openrouter.ai/*'];
+
+async function hasOpenRouterHostPermission() {
+  return chrome.permissions.contains({ origins: OPENROUTER_ORIGINS });
+}
+
 // Rate limiter for OPEN_EXTENSION_PAGE — max 3 opens per 60 seconds
 const OPEN_PAGE_RATE_LIMIT = { max: 3, windowMs: 60 * 1000 };
 const openPageRateLimit = { count: 0, windowStart: 0 };
@@ -337,6 +343,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         if (provider === 'openrouter') {
+          if (!(await hasOpenRouterHostPermission())) {
+            sendResponse({
+              success: false,
+              error: 'OpenRouter host permission not granted.',
+              provider: 'openrouter',
+              suggestion: 'Open the extension popup, select OpenRouter, and click Allow OpenRouter.'
+            });
+            return;
+          }
           try {
             const data = await OpenRouterService.getConversationalResponse(
               patchContent,
@@ -451,6 +466,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         if (provider === 'openrouter') {
+          if (!(await hasOpenRouterHostPermission())) {
+            sendResponse({
+              success: false,
+              error: 'OpenRouter host permission not granted.',
+              provider: 'openrouter',
+              suggestion: 'Open the extension popup, select OpenRouter, and click Allow OpenRouter.'
+            });
+            return;
+          }
           try {
             const data = await OpenRouterService.reviewPatchCode(patchContent, language, mrId, mrUrl);
 

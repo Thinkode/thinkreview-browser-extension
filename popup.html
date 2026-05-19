@@ -318,7 +318,7 @@
                     </div>
                     <div class="provider-card-title-group">
                       <span class="provider-card-name">ThinkReview Cloud</span>
-                      <span class="provider-card-badge provider-card-badge--cloud">Default</span>
+                      <span class="provider-card-badge provider-card-badge--cloud">Recommended</span>
                     </div>
                     <div class="provider-card-check-icon">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -328,10 +328,12 @@
                   </div>
                   <p class="provider-card-desc">Frontier AI models with a free tier. No setup required.</p>
                   <div class="provider-card-tags">
-                    <span class="provider-tag provider-tag--cloud">Free tier</span>
+                    <span class="provider-tag provider-tag--cloud">Free Tier Available</span>
                     <span class="provider-tag provider-tag--cloud">15+ flagship models</span>
+                    <span class="provider-tag provider-tag--cloud">Full Repo Context</span>
+                    <span class="provider-tag provider-tag--cloud">Create Custom Agents</span>
                     <span class="provider-tag provider-tag--cloud">Custom rules</span>
-                    <span class="provider-tag provider-tag--cloud">Fast responses</span>
+                    <span class="provider-tag provider-tag--cloud">35% Cheaper than BYOK</span>
                   </div>
                 </div>
               </label>
@@ -360,10 +362,9 @@
                   </div>
                   <p class="provider-card-desc">Run your own LLM locally. Requires Setup.</p>
                   <div class="provider-card-tags">
-                    <span class="provider-tag provider-tag--ollama">Private</span>
-                    <span class="provider-tag provider-tag--ollama">Offline</span>
+                    <span class="provider-tag provider-tag--ollama">Limited Context to Diffs only</span>
                     <span class="provider-tag provider-tag--ollama">Runs locally</span>
-                    <span class="provider-tag provider-tag--ollama">Open source models</span>
+                    <span class="provider-tag provider-tag--ollama">No caching</span>
                   </div>
                 </div>
               </label>
@@ -394,9 +395,8 @@
                   </div>
                   <p class="provider-card-desc">Access models from multiple providers with one OpenAI-compatible API key.</p>
                   <div class="provider-card-tags">
-                    <span class="provider-tag provider-tag--openrouter">Multi-provider</span>
-                    <span class="provider-tag provider-tag--openrouter">OpenAI-compatible</span>
-                    <span class="provider-tag provider-tag--openrouter">Dynamic routing</span>
+                    <span class="provider-tag provider-tag--openrouter">Multiple Models</span>
+                    <span class="provider-tag provider-tag--openrouter">Limited Context to Diffs only</span>
                     <span class="provider-tag provider-tag--openrouter">Single API key</span>
                   </div>
                 </div>
@@ -441,6 +441,19 @@
               </div>
             </div>
             <div id="openrouter-config" class="openrouter-config" style="display: none;">
+              <div id="openrouter-allow-section" class="openrouter-allow-section">
+                <div class="openrouter-allow-button-row">
+                  <button id="allow-openrouter-btn" class="add-domain-btn">Allow OpenRouter</button>
+                  <span id="openrouter-permission-status" class="openrouter-permission-status"></span>
+                </div>
+                <p class="help-text openrouter-allow-hint">Grant permission to connect to openrouter.ai for API requests.</p>
+              </div>
+              <div id="openrouter-enabled-message" class="github-info" style="display: none;">
+                <div class="github-info-icon thinkreview-tick-green">✓</div>
+                <div class="github-info-content">
+                  <p class="github-info-text"><strong>OpenRouter enabled.</strong> You can test your API key and save settings below.</p>
+                </div>
+              </div>
               <div class="openrouter-config-row">
                 <label for="openrouter-api-key" class="config-label">OpenRouter API Key:</label>
                 <input type="password" id="openrouter-api-key" class="config-input" placeholder="sk-or-...">
@@ -461,7 +474,7 @@
               <div class="openrouter-help">
                 <p class="help-text">
                   <strong>📖 <a href="https://openrouter.ai/docs" target="_blank">OpenRouter Docs</a></strong>
-                  — use any OpenRouter model id such as <code>openai/gpt-5.2</code> or <code>anthropic/claude-sonnet-4</code>
+                  — use any OpenRouter model id such as <code>openai/gpt-5.3</code> or <code>anthropic/claude-sonnet-4.6</code>
                 </p>
               </div>
             </div>
