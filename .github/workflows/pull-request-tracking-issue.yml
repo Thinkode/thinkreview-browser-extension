@@ -1,0 +1,104 @@
+# When a pull request is opened, opens a tracking GitHub Issue (assigned to the
+# maintainer) and cross-links it with the PR. Skips PRs that only touch the
+# extension manifest and release note markdown files.
+#
+# Note: For pull requests from forks, the default GITHUB_TOKEN may be read-only;
+# those PRs are skipped when file metadata cannot be read.
+name: Pull request tracking issue
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  create-tracking-issue:
+    runs-on: ubuntu-latest
+    # Same-repo PRs only: fork PRs cannot list files or comment with default token.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Create tracking issue and link to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pullNumber = pr.number;
+
+            const allowedPath = (filename) =>
+              filename === 'manifest.json' || filename.startsWith('release notes/');
+
+            let files;
+            try {
+              files = await github.paginate(github.rest.pulls.listFiles, {
+                owner,
+                repo,
+                pull_number: pullNumber,
+                per_page: 100,
+              });
+            } catch (e) {
+              core.warning(`Could not list PR files: ${e.message}`);
+              return;
+            }
+
+            const filenames = files.map((f) => f.filename);
+            const isReleaseOnly =
+              filenames.length > 0 && filenames.every((name) => allowedPath(name));
+
+            if (isReleaseOnly) {
+              core.info(
+                'Skipping issue: PR only changes manifest.json and/or release notes.',
+              );
+              return;
+            }
+
+            const issueTitle = `[PR #${pullNumber}] ${pr.title}`;
+            const prBody = pr.body && pr.body.trim() ? pr.body : '_No description provided._';
+            const issueBody = [
+              'This issue was opened automatically to track the following pull request.',
+              '',
+              '## Pull request',
+              '',
+              `- **PR:** #${pullNumber}`,
+              `- **Title:** ${pr.title}`,
+              `- **Author:** @${pr.user.login}`,
+              `- **Branches:** \`${pr.head.ref}\` → \`${pr.base.ref}\``,
+              '',
+              '## PR description',
+              '',
+              prBody,
+              '',
+              '## Links',
+              '',
+              `- Pull request: ${pr.html_url}`,
+            ].join('\n');
+
+            const { data: issue } = await github.rest.issues.create({
+              owner,
+              repo,
+              title: issueTitle,
+              body: issueBody,
+              assignees: ['mshenawy22'],
+            });
+
+            const prComment = [
+              'A tracking issue has been created for this pull request:',
+              '',
+              `- Issue #${issue.number}: ${issue.html_url}`,
+              '',
+              '_This comment was added automatically by GitHub Actions._',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pullNumber,
+              body: prComment,
+            });
+
+            core.info(`Created issue #${issue.number} and linked it to PR #${pullNumber}.`);
