@@ -1,0 +1,37 @@
+# When a pull request is opened (or marked ready for review from draft), open a
+# tracking issue that documents the PR, assign it, and add a reference on the
+# PR so GitHub links them. Skips PRs that only bump manifest.json and add/edit
+# release notes under `release notes/release_notes_*.md`.
+#
+# Uses pull_request_target so the token can create issues for PRs opened from
+# forks; only the GitHub API is used—no checkout of the pull request head ref.
+name: Create PR tracking issue
+
+on:
+  pull_request_target:
+    types: [opened, ready_for_review]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  tracking-issue:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.action == 'ready_for_review' ||
+      (github.event.action == 'opened' && github.event.pull_request.draft == false)
+    steps:
+      - name: Checkout base branch (workflow + scripts only)
+        uses: actions/checkout@v4
+
+      - name: Create tracking issue and link PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_BODY: ${{ github.event.pull_request.body || '' }}
+          DEFAULT_ASSIGNEE: mshenawy22
+        run: bash .github/scripts/create-pr-tracking-issue.sh
