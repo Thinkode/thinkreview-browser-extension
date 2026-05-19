@@ -2972,7 +2972,7 @@ function showPlatformView(platform, scrollTarget = null) {
 async function computePlatformStatuses() {
   try {
     const result = await chrome.storage.local.get([
-      'azureToken',
+      'azureDevOpsToken',
       'customDomains',                  // GitLab custom domains
       'azureCustomDomains',             // Azure on-prem domains
       'githubEnterpriseDomains',
@@ -2983,10 +2983,11 @@ async function computePlatformStatuses() {
       'bitbucketDataCenterToken',
     ]);
 
-    // Cloud variants: always ready, no setup required
+    // Cloud variants
     setBadge('github-com',  'ready');
     setBadge('gitlab-com',  'ready');
-    setBadge('azure-cloud', 'ready');
+    const azureCloudReady = result.azureDevOpsToken && String(result.azureDevOpsToken).trim();
+    setBadge('azure-cloud', azureCloudReady ? 'ready' : 'setup');
 
     // GitHub Enterprise Server: ready once at least one domain is saved
     const ghesdomains = result.githubEnterpriseDomains;

@@ -594,7 +594,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({
             success: false,
             isAuthError: true,
-            error: 'Azure DevOps Personal Access Token is required for on-premises Azure DevOps',
+            error: 'Azure DevOps Personal Access Token is required',
             detailMessage: 'Please configure your Personal Access Token in the extension popup to use Azure DevOps.'
           });
           return;
