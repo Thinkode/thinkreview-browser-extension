@@ -1118,7 +1118,8 @@ async function getAzureDevOpsToken() {
         return;
       }
       const token = result.azureDevOpsToken;
-      resolve(token && String(token).trim() ? token : DUMMY_AZURE_DEVOPS_TOKEN);
+      const trimmed = token ? String(token).trim() : '';
+      resolve(trimmed || DUMMY_AZURE_DEVOPS_TOKEN);
     });
   });
 }
@@ -1235,106 +1236,64 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       reviewId = getGitHubPRId();
       
     } else if (platformDetector && platformDetector.isOnAzureDevOpsPRPage()) {
+      // Azure DevOps: fetch via background script using stored PAT (cloud and on-prem)
       dbgLog('Starting Azure DevOps code fetch');
+      const azureToken = await getAzureDevOpsToken();
+      if (!azureToken || azureToken === DUMMY_AZURE_DEVOPS_TOKEN) {
+        if (azureDevOpsTokenError) {
+          azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader);
+        } else {
+          throw new Error(
+            'Azure DevOps token not configured. Please set your Personal Access Token in the extension popup.'
+          );
+        }
+        return;
+      }
+
       const prInfo = platformDetector.detectPlatform().pageInfo;
       dbgLog('PR info retrieved:', {
         hasPrId: !!prInfo?.prId,
         hasPrUrl: !!prInfo?.prUrl
       });
 
-      const hostname = window.location.hostname || '';
-      const isAzureCloud =
-        hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
+      try {
+        const azureResponse = await new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            {
+              type: 'FETCH_AZURE_DEVOPS_PATCH',
+              prInfo,
+              azureToken
+            },
+            resolve
+          );
+        });
 
-      if (isAzureCloud) {
-        // Azure DevOps Services: use the logged-in browser session (cookies). Must run in the content script context.
-        const apiModule = await import(chrome.runtime.getURL('services/azure-devops-api.js'));
-        try {
-          const fetcherModule = await import(chrome.runtime.getURL('services/azure-devops-fetcher.js'));
-          await fetcherModule.azureDevOpsFetcher.init(prInfo, { useSessionCookies: true });
-          const formattedChanges = await fetcherModule.azureDevOpsFetcher.fetchCodeChanges();
-          codeContent = fetcherModule.azureDevOpsFetcher.toPatchString(formattedChanges);
-          reviewId = prInfo.prId;
-          dbgLog('Azure DevOps changes fetched (cloud session):', {
-            fileCount: formattedChanges?.files?.length || 0,
-            totalLines: formattedChanges?.totalLines || 0
-          });
-        } catch (error) {
-          const AuthErr = apiModule.AzureDevOpsAuthError;
-          const isAuth =
-            (AuthErr && error instanceof AuthErr) ||
-            error?.name === 'AzureDevOpsAuthError';
-          if (isAuth) {
-            dbgLog('Azure DevOps session authentication/access failed, showing sign-in UI');
+        if (!azureResponse || !azureResponse.success) {
+          if (azureResponse?.isAuthError) {
+            dbgLog('Azure DevOps token authentication/access failed, showing token error UI');
             if (azureDevOpsTokenError) {
-              const detailMessage =
-                error.details?.userMessage || error.details?.rawMessage || error.message;
-              azureDevOpsTokenError.showAzureDevOpsTokenError(
-                stopEnhancedLoader,
-                detailMessage,
-                { sessionAuth: true }
-              );
+              const detailMessage = azureResponse.detailMessage || azureResponse.error;
+              azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader, detailMessage);
             } else {
-              throw new Error(error.message);
+              throw new Error(
+                'Azure DevOps token is invalid or expired. Please update your Personal Access Token in the extension popup.'
+              );
             }
             return;
           }
-          throw error;
-        }
-      } else {
-        // On-premises / custom domain: PAT from extension storage; fetch in background (no session cookies).
-        const azureToken = await getAzureDevOpsToken();
-        if (!azureToken || azureToken === DUMMY_AZURE_DEVOPS_TOKEN) {
-          if (azureDevOpsTokenError) {
-            azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader);
-          } else {
-            throw new Error(
-              'Azure DevOps token not configured. Please set your Personal Access Token in the extension popup.'
-            );
-          }
-          return;
+
+          throw new Error(azureResponse?.error || 'Failed to fetch Azure DevOps changes');
         }
 
-        dbgLog('Azure PAT found for on-prem, fetching via background');
-        try {
-          const azureResponse = await new Promise((resolve) => {
-            chrome.runtime.sendMessage(
-              {
-                type: 'FETCH_AZURE_DEVOPS_PATCH',
-                prInfo,
-                azureToken
-              },
-              resolve
-            );
-          });
+        codeContent = azureResponse.content;
+        reviewId = prInfo.prId;
 
-          if (!azureResponse || !azureResponse.success) {
-            if (azureResponse?.isAuthError) {
-              dbgLog('Azure DevOps token authentication/access failed, showing token error UI');
-              if (azureDevOpsTokenError) {
-                const detailMessage = azureResponse.detailMessage || azureResponse.error;
-                azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader, detailMessage);
-              } else {
-                throw new Error(
-                  'Azure DevOps token is invalid or expired. Please update your Personal Access Token in the extension popup.'
-                );
-              }
-              return;
-            }
-
-            throw new Error(azureResponse?.error || 'Failed to fetch Azure DevOps changes');
-          }
-
-          codeContent = azureResponse.content;
-          reviewId = prInfo.prId;
-
-          dbgLog('Azure DevOps changes fetched:', {
-            fileCount: azureResponse.fileCount || 0,
-            totalLines: azureResponse.totalLines || 0
-          });
-        } catch (error) {
-          throw error;
-        }
+        dbgLog('Azure DevOps changes fetched:', {
+          fileCount: azureResponse.fileCount || 0,
+          totalLines: azureResponse.totalLines || 0
+        });
+      } catch (error) {
+        throw error;
       }
     } else if (platformDetector && platformDetector.isOnBitbucketPRPage()) {
       // Bitbucket: fetch patch via background script to avoid page CSP blocking connect-src
