@@ -1,0 +1,111 @@
+# When a pull request is opened, opens a GitHub issue that documents the PR,
+# assigns it to the maintainer, and comments on the PR with a link to the issue.
+#
+# Skips PRs that only change manifest.json and/or files under release notes/
+# (release-notes + version bump style PRs).
+#
+# Uses pull_request_target and only the GitHub API (no checkout of the PR
+# branch) so fork PRs can still get a tracking issue without running untrusted code.
+name: Create tracking issue for new pull requests
+
+on:
+  pull_request_target:
+    types:
+      - opened
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  create-tracking-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create issue and link from PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull_number = pr.number;
+
+            const allFiles = [];
+            let page = 1;
+            while (true) {
+              const { data } = await github.rest.pulls.listFiles({
+                owner,
+                repo,
+                pull_number,
+                per_page: 100,
+                page,
+              });
+              if (!data || data.length === 0) break;
+              allFiles.push(...data);
+              if (data.length < 100) break;
+              page += 1;
+            }
+
+            const releasePrefix = 'release notes/';
+            const isReleaseOnly =
+              allFiles.length > 0 &&
+              allFiles.every(
+                (f) =>
+                  f.filename === 'manifest.json' ||
+                  f.filename.startsWith(releasePrefix)
+              );
+
+            if (isReleaseOnly) {
+              console.log(
+                'Skipping tracking issue: changes are limited to manifest.json and/or release notes.'
+              );
+              return;
+            }
+
+            const filesSection = allFiles.length
+              ? allFiles
+                  .map((f) => {
+                    const stats =
+                      f.additions != null
+                        ? ` (+${f.additions}/-${f.deletions})`
+                        : '';
+                    return `- \`${f.filename}\` (${f.status}${stats})`;
+                  })
+                  .join('\n')
+              : '_No files returned by the API._';
+
+            const description = pr.body?.trim()
+              ? pr.body
+              : '_No description provided._';
+
+            const issueBody = [
+              `This issue tracks pull request #${pull_number}.`,
+              '',
+              '## Pull request',
+              `- **URL:** ${pr.html_url}`,
+              `- **Author:** @${pr.user.login}`,
+              `- **Head branch:** \`${pr.head.ref}\``,
+              `- **Base branch:** \`${pr.base.ref}\``,
+              '',
+              '## Description (from PR)',
+              description,
+              '',
+              '## Files changed',
+              filesSection,
+            ].join('\n');
+
+            const { data: issue } = await github.rest.issues.create({
+              owner,
+              repo,
+              title: `[PR #${pull_number}] ${pr.title}`,
+              body: issueBody,
+              assignees: ['mshenawy22'],
+            });
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pull_number,
+              body: `Created tracking issue for this pull request: ${issue.html_url}`,
+            });
