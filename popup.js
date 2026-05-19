@@ -2000,12 +2000,15 @@ function initializeOpenRouterPermissionSettings() {
 async function loadOpenRouterPermissionState() {
   try {
     const hasPermission = await hasOpenRouterHostPermission();
-    const result = await chrome.storage.local.get(['openrouterAllowed']);
-    const allowed = result.openrouterAllowed === true || hasPermission;
 
-    if (allowed) {
+    // Use actual permission as the single source of truth
+    if (!hasPermission) {
+      await chrome.storage.local.set({ openrouterAllowed: false });
+    } else {
       await chrome.storage.local.set({ openrouterAllowed: true });
     }
+
+    const allowed = hasPermission;
 
     const allowSection = document.getElementById('openrouter-allow-section');
     const enabledMessage = document.getElementById('openrouter-enabled-message');
