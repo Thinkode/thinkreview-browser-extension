@@ -4,13 +4,17 @@
 
 ---
 
-Contributions in this release: **Jay Elsheikh** (Azure DevOps authentication, popup status and copy, and related fixes).
+Contributions in this release: **Jay Elsheikh** (Azure DevOps authentication and PAT-based fetching, popup status and copy, and related fixes).
 
 ## 🎯 What's New
 
 ### Azure DevOps (cloud): reviews use your Personal Access Token again 🔑
 
 On `dev.azure.com` and `*.visualstudio.com`, ThinkReview now loads pull request details using the **Personal Access Token** you save in the extension—matching how on‑premises Azure DevOps already works. This keeps authentication consistent and avoids cases where the browser session alone was unreliable.
+
+### One familiar review path for cloud and self-hosted Azure DevOps 🔁
+
+Whether you open a pull request on `dev.azure.com`, `*.visualstudio.com`, or your organization’s own Azure DevOps host, ThinkReview now gathers the diff the same way—using the PAT you save in the extension—so the setup steps you follow in one place apply everywhere.
 
 ### Clearer “setup needed” state for Azure DevOps Cloud ⚙️
 
