@@ -1500,6 +1500,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       data.cached,
       bgResponse.provider,
       data.ollamaMeta,
+      data.openrouterMeta,
       {
         enabledReviewAgents: data.enabledReviewAgents,
         mrId: reviewId,

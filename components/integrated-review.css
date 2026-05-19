@@ -2089,8 +2089,9 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   text-decoration: none;
 }
 
-/* Ollama metadata bar: Switch to Cloud button and model dropdown */
-#gitlab-mr-integrated-review .thinkreview-ollama-metadata-banner .thinkreview-ollama-switch-to-cloud-btn {
+/* Ollama / OpenRouter metadata bar: Switch to Cloud button and model dropdown */
+#gitlab-mr-integrated-review .thinkreview-ollama-metadata-banner .thinkreview-ollama-switch-to-cloud-btn,
+#gitlab-mr-integrated-review .thinkreview-openrouter-metadata-banner .thinkreview-openrouter-switch-to-cloud-btn {
   flex-shrink: 0;
   padding: 5px 12px;
   background: linear-gradient(180deg, #7c5ce8 0%, #5b3ead 100%);
@@ -2106,7 +2107,8 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   white-space: nowrap;
 }
 
-#gitlab-mr-integrated-review .thinkreview-ollama-metadata-banner .thinkreview-ollama-switch-to-cloud-btn:hover {
+#gitlab-mr-integrated-review .thinkreview-ollama-metadata-banner .thinkreview-ollama-switch-to-cloud-btn:hover,
+#gitlab-mr-integrated-review .thinkreview-openrouter-metadata-banner .thinkreview-openrouter-switch-to-cloud-btn:hover {
   background: linear-gradient(180deg, #8b6bef 0%, #6b4fbb 100%);
   background-color: #7c5ce8;
   border-color: #b197fc;
@@ -2114,19 +2116,22 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   box-shadow: 0 2px 10px rgba(91, 62, 173, 0.5);
 }
 
-#gitlab-mr-integrated-review .thinkreview-ollama-model-wrap {
+#gitlab-mr-integrated-review .thinkreview-ollama-model-wrap,
+#gitlab-mr-integrated-review .thinkreview-openrouter-model-wrap {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-#gitlab-mr-integrated-review .thinkreview-ollama-model-label {
+#gitlab-mr-integrated-review .thinkreview-ollama-model-label,
+#gitlab-mr-integrated-review .thinkreview-openrouter-model-label {
   font-size: 12px;
   color: var(--thinkreview-text-secondary);
 }
 
-#gitlab-mr-integrated-review .thinkreview-ollama-model-select {
+#gitlab-mr-integrated-review .thinkreview-ollama-model-select,
+#gitlab-mr-integrated-review .thinkreview-openrouter-model-select {
   padding: 4px 8px;
   font-size: 12px;
   background-color: rgba(30, 30, 30, 0.8);
@@ -2139,20 +2144,47 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
 }
 
 #gitlab-mr-integrated-review .thinkreview-ollama-model-select:hover,
-#gitlab-mr-integrated-review .thinkreview-ollama-model-select:focus {
+#gitlab-mr-integrated-review .thinkreview-ollama-model-select:focus,
+#gitlab-mr-integrated-review .thinkreview-openrouter-model-select:hover,
+#gitlab-mr-integrated-review .thinkreview-openrouter-model-select:focus {
   border-color: rgba(107, 79, 187, 0.8);
   outline: none;
 }
 
-/* Ollama truncated-patch: info button + custom tooltip */
-#gitlab-mr-integrated-review .thinkreview-ollama-truncated-tooltip-wrapper {
+#gitlab-mr-integrated-review .thinkreview-openrouter-metadata-banner .thinkreview-openrouter-switch-to-cloud-btn {
+  background: linear-gradient(180deg, #ff9a4d 0%, #e86a10 100%);
+  background-color: #ff7a18;
+  border-color: #ffb380;
+  box-shadow: 0 1px 6px rgba(232, 106, 16, 0.4);
+}
+
+#gitlab-mr-integrated-review .thinkreview-openrouter-metadata-banner .thinkreview-openrouter-switch-to-cloud-btn:hover {
+  background: linear-gradient(180deg, #ffad66 0%, #ff7a18 100%);
+  background-color: #ff9a4d;
+  border-color: #ffc999;
+  box-shadow: 0 2px 10px rgba(232, 106, 16, 0.5);
+}
+
+#gitlab-mr-integrated-review .thinkreview-openrouter-model-select {
+  border-color: rgba(255, 122, 24, 0.5);
+}
+
+#gitlab-mr-integrated-review .thinkreview-openrouter-model-select:hover,
+#gitlab-mr-integrated-review .thinkreview-openrouter-model-select:focus {
+  border-color: rgba(255, 122, 24, 0.8);
+}
+
+/* Ollama / OpenRouter truncated-patch: info button + custom tooltip */
+#gitlab-mr-integrated-review .thinkreview-ollama-truncated-tooltip-wrapper,
+#gitlab-mr-integrated-review .thinkreview-openrouter-truncated-tooltip-wrapper {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
-#gitlab-mr-integrated-review .thinkreview-ollama-truncated-info-btn {
+#gitlab-mr-integrated-review .thinkreview-ollama-truncated-info-btn,
+#gitlab-mr-integrated-review .thinkreview-openrouter-truncated-info-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2173,14 +2205,30 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
 }
 
 #gitlab-mr-integrated-review .thinkreview-ollama-truncated-info-btn:hover,
-#gitlab-mr-integrated-review .thinkreview-ollama-truncated-info-btn:focus {
+#gitlab-mr-integrated-review .thinkreview-ollama-truncated-info-btn:focus,
+#gitlab-mr-integrated-review .thinkreview-openrouter-truncated-info-btn:hover,
+#gitlab-mr-integrated-review .thinkreview-openrouter-truncated-info-btn:focus {
   background: rgba(107, 79, 187, 0.4);
   border-color: rgba(107, 79, 187, 0.8);
   color: #d4c5ff;
   outline: none;
 }
 
-#gitlab-mr-integrated-review .thinkreview-ollama-truncated-tooltip {
+#gitlab-mr-integrated-review .thinkreview-openrouter-truncated-info-btn {
+  border-color: rgba(255, 122, 24, 0.6);
+  background: rgba(255, 122, 24, 0.2);
+  color: #ffc999;
+}
+
+#gitlab-mr-integrated-review .thinkreview-openrouter-truncated-info-btn:hover,
+#gitlab-mr-integrated-review .thinkreview-openrouter-truncated-info-btn:focus {
+  background: rgba(255, 122, 24, 0.35);
+  border-color: rgba(255, 122, 24, 0.85);
+  color: #ffe0c2;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-truncated-tooltip,
+#gitlab-mr-integrated-review .thinkreview-openrouter-truncated-tooltip {
   position: absolute;
   top: 100%;
   left: 0;
@@ -2202,7 +2250,8 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   z-index: var(--thinkreview-z-tooltip);
 }
 
-#gitlab-mr-integrated-review .thinkreview-ollama-truncated-tooltip.thinkreview-tooltip-visible {
+#gitlab-mr-integrated-review .thinkreview-ollama-truncated-tooltip.thinkreview-tooltip-visible,
+#gitlab-mr-integrated-review .thinkreview-openrouter-truncated-tooltip.thinkreview-tooltip-visible {
   opacity: 1;
 }
 

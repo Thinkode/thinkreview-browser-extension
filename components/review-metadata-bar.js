@@ -513,4 +513,100 @@ export function renderOllamaMetadataBar(container, ollamaMeta, callbacks = {}, r
   container.classList.remove('gl-hidden');
 }
 
+/**
+ * Render the OpenRouter-specific metadata bar (patch size, truncation, Switch to Cloud, model name).
+ * @param {HTMLElement} container
+ * @param {Object|null} openrouterMeta - { patchSizeChars, patchSentChars, wasTruncated, model }
+ * @param {Object} callbacks - { onSwitchToCloud() }
+ * @param {string|null} [reviewRequestLabel]
+ */
+export function renderOpenRouterMetadataBar(container, openrouterMeta, callbacks = {}, reviewRequestLabel = null) {
+  if (!container) return;
+
+  container.replaceChildren();
+
+  if (!openrouterMeta || typeof openrouterMeta.patchSizeChars !== 'number') {
+    container.classList.add('gl-hidden');
+    return;
+  }
+
+  const { patchSizeChars, patchSentChars, wasTruncated, model } = openrouterMeta;
+  const onSwitchToCloud = typeof callbacks.onSwitchToCloud === 'function' ? callbacks.onSwitchToCloud : () => {};
+
+  const banner = document.createElement('div');
+  banner.className = 'thinkreview-patch-size-banner thinkreview-openrouter-metadata-banner';
+
+  const topRow = document.createElement('div');
+  topRow.className = 'thinkreview-patch-size-top-row';
+
+  const content = document.createElement('div');
+  content.className = 'thinkreview-patch-size-content';
+  const patchSizeStr = formatCharsAsSize(patchSizeChars);
+  const truncatedSizeStr = formatCharsAsSize(patchSentChars);
+  if (reviewRequestLabel) {
+    content.appendChild(document.createTextNode(reviewRequestLabel));
+    content.appendChild(document.createTextNode(' • '));
+  }
+  content.appendChild(document.createTextNode(`Original patch: ${patchSizeStr}`));
+  if (wasTruncated && truncatedSizeStr) {
+    content.appendChild(document.createTextNode(' • '));
+    const tooltipMsg = "The patch was truncated to respect this model's context length. Switch to ThinkReview Cloud for full repo context.";
+    const truncatedWrapper = document.createElement('span');
+    truncatedWrapper.className = 'thinkreview-openrouter-truncated-tooltip-wrapper';
+    const truncatedSpan = document.createElement('span');
+    truncatedSpan.className = 'thinkreview-openrouter-truncated-label';
+    truncatedSpan.textContent = `Truncated patch: ${truncatedSizeStr}`;
+    const infoBtn = document.createElement('button');
+    infoBtn.type = 'button';
+    infoBtn.className = 'thinkreview-openrouter-truncated-info-btn';
+    infoBtn.textContent = 'i';
+    infoBtn.setAttribute('aria-label', 'Why was the patch truncated?');
+    const tooltipEl = document.createElement('span');
+    tooltipEl.className = 'thinkreview-openrouter-truncated-tooltip';
+    tooltipEl.setAttribute('aria-hidden', 'true');
+    tooltipEl.textContent = tooltipMsg;
+    truncatedWrapper.appendChild(truncatedSpan);
+    truncatedWrapper.appendChild(infoBtn);
+    truncatedWrapper.appendChild(tooltipEl);
+    let tooltipTimeout;
+    const showTooltip = () => {
+      tooltipTimeout = setTimeout(() => tooltipEl.classList.add('thinkreview-tooltip-visible'), 200);
+    };
+    const hideTooltip = () => {
+      clearTimeout(tooltipTimeout);
+      tooltipEl.classList.remove('thinkreview-tooltip-visible');
+    };
+    infoBtn.addEventListener('mouseenter', showTooltip);
+    infoBtn.addEventListener('mouseleave', hideTooltip);
+    infoBtn.addEventListener('focus', showTooltip);
+    infoBtn.addEventListener('blur', hideTooltip);
+    infoBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      tooltipEl.classList.toggle('thinkreview-tooltip-visible');
+    });
+    content.appendChild(truncatedWrapper);
+  }
+  if (model) {
+    content.appendChild(document.createTextNode(' • '));
+    content.appendChild(document.createTextNode(`Model: ${model}`));
+  }
+
+  topRow.appendChild(content);
+
+  const switchToCloudBtn = document.createElement('button');
+  switchToCloudBtn.type = 'button';
+  switchToCloudBtn.className = 'thinkreview-openrouter-switch-to-cloud-btn';
+  switchToCloudBtn.textContent = 'Switch to Cloud AI';
+  switchToCloudBtn.setAttribute('aria-label', 'Switch to Cloud AI and regenerate review');
+  switchToCloudBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    onSwitchToCloud();
+  });
+  topRow.appendChild(switchToCloudBtn);
+
+  banner.appendChild(topRow);
+  container.appendChild(banner);
+  container.classList.remove('gl-hidden');
+}
+
 

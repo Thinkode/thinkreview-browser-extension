@@ -1534,7 +1534,8 @@ async function handleSendMessage(messageText) {
     if (
       chatLog &&
       !chatLog.querySelector('.thinkreview-context-banner') &&
-      aiResponse.provider !== 'ollama'
+      aiResponse.provider !== 'ollama' &&
+      aiResponse.provider !== 'openrouter'
     ) {
       const contextType = aiResponse.contextType || 'patch_only';
       chatLog.appendChild(createContextBanner(contextType));
@@ -1692,6 +1693,7 @@ async function displayIntegratedReview(
   isCached = false,
   provider = null,
   ollamaMeta = null,
+  openrouterMeta = null,
   integrationOpts = null
 ) {
   // Store review data for copy-all functionality
@@ -1815,6 +1817,17 @@ async function displayIntegratedReview(
             },
             onModelChange(modelName) {
               document.dispatchEvent(new CustomEvent('thinkreview-ollama-model-changed', { detail: { model: modelName } }));
+            }
+          },
+          reviewRequestLabel
+        );
+      } else if (provider === 'openrouter' && openrouterMeta) {
+        metadataModule.renderOpenRouterMetadataBar(
+          patchSizeBanner,
+          openrouterMeta,
+          {
+            onSwitchToCloud() {
+              document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
             }
           },
           reviewRequestLabel
