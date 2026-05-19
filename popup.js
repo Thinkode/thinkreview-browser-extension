@@ -6,6 +6,7 @@ import { subscriptionStatus } from './components/popup-modules/subscription-stat
 import { reviewCount } from './components/popup-modules/review-count.js';
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
+import { OPENROUTER_ORIGINS, hasOpenRouterHostPermission } from './utils/openrouter-permissions.js';
 
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_SIGNIN_WAIT = 500;
@@ -1988,12 +1989,6 @@ function clearTokenStatus() {
 // Subscription upgrade functionality has been moved to content.js and removed from popup
 
 // OpenRouter: optional host permission (request openrouter.ai access from popup)
-const OPENROUTER_ORIGINS = ['https://openrouter.ai/*'];
-
-async function hasOpenRouterHostPermission() {
-  return chrome.permissions.contains({ origins: OPENROUTER_ORIGINS });
-}
-
 function initializeOpenRouterPermissionSettings() {
   loadOpenRouterPermissionState();
   const allowBtn = document.getElementById('allow-openrouter-btn');

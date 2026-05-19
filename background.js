@@ -14,6 +14,7 @@ import { azureDevOpsFetcher } from './services/azure-devops-fetcher.js';
 import { AzureDevOpsAuthError } from './services/azure-devops-api.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+import { hasOpenRouterHostPermission } from './utils/openrouter-permissions.js';
 import { fetchPatchContent } from './services/bitbucket-api.js';
 // Logger module will automatically initialize Honeybadger
 // Set uninstall URL to redirect users to feedback page
@@ -24,12 +25,6 @@ chrome.runtime.setUninstallURL('https://thinkreview.dev/goodbye.html', () => {
 // OAuth constants
 const AUTH_TOKEN_KEY = 'oauth_token';
 const AUTH_USER_KEY = 'oauth_user';
-
-const OPENROUTER_ORIGINS = ['https://openrouter.ai/*'];
-
-async function hasOpenRouterHostPermission() {
-  return chrome.permissions.contains({ origins: OPENROUTER_ORIGINS });
-}
 
 // Rate limiter for OPEN_EXTENSION_PAGE — max 3 opens per 60 seconds
 const OPEN_PAGE_RATE_LIMIT = { max: 3, windowMs: 60 * 1000 };
