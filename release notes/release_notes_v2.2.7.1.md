@@ -4,8 +4,6 @@
 
 ---
 
-Contributions in this release: **Jay Elsheikh** (Azure DevOps authentication, popup status and copy, and related fixes).
-
 ## 🎯 What's New
 
 ### Azure DevOps (cloud): reviews use your Personal Access Token again 🔑
