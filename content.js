@@ -191,12 +191,6 @@ if (DEBUG) {
 
 // Note: CloudService is imported dynamically when needed
 
-
-
-// Cloud function URL for code review
-const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net';
-const REVIEW_CODE_URL = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode`;
-
 /**
  * Check if the current page is a supported platform (GitLab MR, GitHub PR, or Azure DevOps PR)
  * @returns {boolean} True if the current page is supported
@@ -675,8 +669,10 @@ function isUserLoggedIn() {
 
 /**
  * Shows a login prompt in the review panel
+ * @param {{ sessionExpired?: boolean }} [options]
  */
-function showLoginPrompt() {
+function showLoginPrompt(options = {}) {
+  const { sessionExpired = false } = options;
   // Stop the enhanced loader if it's running
   if (typeof stopEnhancedLoader === 'function') {
     stopEnhancedLoader();
@@ -720,8 +716,18 @@ function showLoginPrompt() {
     // Add heading
     const heading = document.createElement('h3');
     heading.className = 'thinkreview-login-heading';
-    heading.textContent = 'Sign in to start generating reviews';
+    heading.textContent = sessionExpired
+      ? 'Sign in again'
+      : 'Sign in to start generating reviews';
     messageContainer.appendChild(heading);
+
+    if (sessionExpired) {
+      const sessionNotice = document.createElement('p');
+      sessionNotice.id = 'review-session-expired-notice';
+      sessionNotice.className = 'thinkreview-session-expired-notice';
+      sessionNotice.textContent = 'Your session has expired. Please sign in again to continue.';
+      messageContainer.insertBefore(sessionNotice, heading);
+    }
     
     const portalSignInUrl = 'https://portal.thinkreview.dev/signin-extension';
     const description = document.createElement('p');
@@ -779,13 +785,40 @@ function showLoginPrompt() {
     if (cardBody) {
       cardBody.appendChild(loginPrompt);
     }
+  } else {
+    applySessionExpiredToLoginPrompt(loginPrompt, sessionExpired);
   }
   
   // Show the login prompt
   loginPrompt.classList.remove('gl-hidden');
 }
 
+function applySessionExpiredToLoginPrompt(loginPrompt, sessionExpired) {
+  const heading = loginPrompt.querySelector('.thinkreview-login-heading');
+  let notice = loginPrompt.querySelector('#review-session-expired-notice');
 
+  if (sessionExpired) {
+    if (!notice && heading) {
+      notice = document.createElement('p');
+      notice.id = 'review-session-expired-notice';
+      notice.className = 'thinkreview-session-expired-notice';
+      notice.textContent = 'Your session has expired. Please sign in again to continue.';
+      heading.parentNode.insertBefore(notice, heading);
+    } else if (notice) {
+      notice.classList.remove('gl-hidden');
+    }
+    if (heading) heading.textContent = 'Sign in again';
+  } else {
+    if (notice) notice.classList.add('gl-hidden');
+    if (heading) heading.textContent = 'Sign in to start generating reviews';
+  }
+}
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type === 'AUTH_SESSION_EXPIRED') {
+    showLoginPrompt({ sessionExpired: true });
+  }
+});
 
 /**
  * Shows an upgrade message in the integrated review panel
@@ -1384,6 +1417,12 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     });
 
     if (!bgResponse || !bgResponse.success) {
+      if (bgResponse?.isAuthExpired) {
+        dbgLog('Session expired during code review');
+        showLoginPrompt({ sessionExpired: true });
+        isReviewInProgress = false;
+        return;
+      }
       // Check if it's a free-tier PR size limit exceeded error
       if (bgResponse?.isPatchTooLarge) {
         dbgLog('PR patch too large for free tier');
@@ -1781,6 +1820,10 @@ window.getAIResponse = (patchContent, conversationHistory, language = 'English')
             error.isRateLimit = response.isRateLimit;
             error.rateLimitMessage = response.rateLimitMessage;
             error.retryAfter = response.retryAfter;
+          }
+          if (response.isAuthExpired) {
+            error.isAuthExpired = true;
+            showLoginPrompt({ sessionExpired: true });
           }
           reject(error);
         }

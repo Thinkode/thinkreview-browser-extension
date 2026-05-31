@@ -14,6 +14,7 @@ import { azureDevOpsFetcher } from './services/azure-devops-fetcher.js';
 import { AzureDevOpsAuthError } from './services/azure-devops-api.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+import { getThinkReviewAuthHeaders, EXTENSION_AUTH_TOKEN_KEY, isAuthExpiredError, handleUnauthorizedResponse, AuthExpiredError } from './utils/extension-auth.js';
 import { hasOpenRouterHostPermission } from './utils/openrouter-permissions.js';
 import { fetchPatchContent } from './services/bitbucket-api.js';
 // Logger module will automatically initialize Honeybadger
@@ -25,6 +26,10 @@ chrome.runtime.setUninstallURL('https://thinkreview.dev/goodbye.html', () => {
 // OAuth constants
 const AUTH_TOKEN_KEY = 'oauth_token';
 const AUTH_USER_KEY = 'oauth_user';
+
+function authExpiredPayload(err) {
+  return { isAuthExpired: isAuthExpiredError(err) };
+}
 
 // Rate limiter for OPEN_EXTENSION_PAGE — max 3 opens per 60 seconds
 const OPEN_PAGE_RATE_LIMIT = { max: 3, windowMs: 60 * 1000 };
@@ -233,9 +238,10 @@ async function trackOllamaReview(patchContent, mrId, mrUrl, reviewData, model) {
     // Send tracking request to Firebase
     const TRACK_OLLAMA_REVIEW_URL = 'https://us-central1-thinkgpt.cloudfunctions.net/trackOllamaReviewThinkReview';
     
+    const authHeaders = await getThinkReviewAuthHeaders();
     const response = await fetch(TRACK_OLLAMA_REVIEW_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({
         email,
         mrId,
@@ -250,6 +256,10 @@ async function trackOllamaReview(patchContent, mrId, mrUrl, reviewData, model) {
     });
     
     if (!response.ok) {
+      if (response.status === 401) {
+        await handleUnauthorizedResponse();
+        throw new AuthExpiredError();
+      }
       const errorData = await response.json().catch(() => ({}));
       throw new Error(`Failed to track Ollama review: ${response.status} - ${errorData.message || 'Unknown error'}`);
     }
@@ -403,7 +413,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           error: err.message,
           isRateLimit: err.isRateLimit || false,
           rateLimitMessage: err.rateLimitMessage || null,
-          retryAfter: err.retryAfter || null
+          retryAfter: err.retryAfter || null,
+          ...authExpiredPayload(err),
         };
         
         sendResponse(errorResponse);
@@ -542,7 +553,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           maxPatchSize: err.maxPatchSize,
           dailyLimit: err.dailyLimit,
           currentCount: err.currentCount,
-          provider: settings.aiProvider || 'cloud'
+          provider: settings.aiProvider || 'cloud',
+          ...authExpiredPayload(err),
         });
       }
     })();
@@ -575,7 +587,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, data: payload });
       } catch (err) {
         dbgWarn('FETCH_AGENT_REVIEWS_FOR_PATCH error:', err);
-        sendResponse({ success: false, error: err?.message || String(err) });
+        sendResponse({ success: false, error: err?.message || String(err), ...authExpiredPayload(err) });
       }
     })();
     return true;
@@ -1067,7 +1079,15 @@ async function handleLogout(sendResponse) {
     }
     
     // Clear local storage
-    await chrome.storage.local.remove([AUTH_TOKEN_KEY, AUTH_USER_KEY, 'user', 'userData']);
+    await chrome.storage.local.remove([
+      AUTH_TOKEN_KEY,
+      AUTH_USER_KEY,
+      'user',
+      'userData',
+      EXTENSION_AUTH_TOKEN_KEY,
+      'authSource',
+      'lastSynced'
+    ]);
     sendResponse({ success: true });
   } catch (error) {
     dbgWarn('Logout failed:', error);
@@ -1113,6 +1133,11 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
     }
     
     dbgLog('Processing webapp auth change for user:', message.userData.email);
+
+    const extensionAuthToken =
+      typeof message.userData.extensionAuthToken === 'string'
+        ? message.userData.extensionAuthToken
+        : null;
     
     // Sync user data with CloudService to get full user profile
     try {
@@ -1120,14 +1145,17 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
       const userData = syncedUser.data && syncedUser.data.currentUser ? 
         syncedUser.data.currentUser : syncedUser;
       
-      // Store in extension storage
-      await chrome.storage.local.set({ 
+      const storagePayload = {
         [AUTH_USER_KEY]: userData,
         user: JSON.stringify(userData),
         userData: userData,
         authSource: 'webapp',
         lastSynced: Date.now()
-      });
+      };
+      if (extensionAuthToken) {
+        storagePayload[EXTENSION_AUTH_TOKEN_KEY] = extensionAuthToken;
+      }
+      await chrome.storage.local.set(storagePayload);
       
       dbgLog('Webapp auth synced successfully');
     
@@ -1148,14 +1176,17 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
     } catch (syncError) {
       dbgWarn('Failed to sync with CloudService, using basic user info:', syncError);
       
-      // Fallback: store basic user info
-      await chrome.storage.local.set({ 
+      const fallbackPayload = {
         [AUTH_USER_KEY]: message.userData,
         user: JSON.stringify(message.userData),
         userData: message.userData,
         authSource: 'webapp',
         lastSynced: Date.now()
-      });
+      };
+      if (extensionAuthToken) {
+        fallbackPayload[EXTENSION_AUTH_TOKEN_KEY] = extensionAuthToken;
+      }
+      await chrome.storage.local.set(fallbackPayload);
       
       // Notify popup to refresh if it's open
       try {

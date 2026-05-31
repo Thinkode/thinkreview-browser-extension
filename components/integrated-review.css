@@ -2935,6 +2935,22 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-card-
   text-align: center !important;
 }
 
+#gitlab-mr-integrated-review .thinkreview-session-expired-notice {
+  margin: 0 0 12px !important;
+  padding: 10px 12px !important;
+  border-radius: 8px !important;
+  background: rgba(251, 191, 36, 0.15) !important;
+  border: 1px solid rgba(251, 191, 36, 0.45) !important;
+  color: #fcd34d !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  text-align: center !important;
+}
+
+#gitlab-mr-integrated-review .thinkreview-session-expired-notice.gl-hidden {
+  display: none !important;
+}
+
 #gitlab-mr-integrated-review .thinkreview-login-description {
   margin-bottom: 20px !important;
   color: var(--thinkreview-text-secondary) !important;

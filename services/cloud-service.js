@@ -1,4 +1,5 @@
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
+import { getThinkReviewAuthHeaders, handleUnauthorizedResponse, AuthExpiredError } from '../utils/extension-auth.js';
 
 // Cached once at module load; chrome.runtime.getManifest() is synchronous and
 // returns the same static value for the lifetime of the extension page.
@@ -46,6 +47,31 @@ const SUBMIT_REVIEW_FEEDBACK_URL = `${CLOUD_FUNCTIONS_BASE_URL}/submitReviewFeed
  */
 export class CloudService {
   /**
+   * POST to a ThinkReview cloud function with Bearer auth when a token is stored.
+   * @param {string} url
+   * @param {Object} [body]
+   * @param {RequestInit} [extraInit] - signal, method override, etc.
+   * @returns {Promise<Response>}
+   */
+  static async thinkReviewFetch(url, body, extraInit = {}) {
+    const authHeaders = await getThinkReviewAuthHeaders();
+    const { headers: extraHeaders, method, ...rest } = extraInit;
+    const response = await fetch(url, {
+      method: method || 'POST',
+      headers: { ...authHeaders, ...extraHeaders },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      ...rest
+    });
+
+    if (response.status === 401) {
+      await handleUnauthorizedResponse();
+      throw new AuthExpiredError();
+    }
+
+    return response;
+  }
+
+  /**
    * Synchronize user data with the backend
    * @param {Object} userData - User data from Google Sign In
    * @returns {Promise<Object>} - Response from the backend with user data
@@ -84,13 +110,7 @@ export class CloudService {
       dbgLog('Sending request to cloud function:', payload);
       
       // Make the API call to the cloud function
-      const response = await fetch(SYNC_USER_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+      const response = await CloudService.thinkReviewFetch(SYNC_USER_URL, payload);
       
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -170,13 +190,7 @@ export class CloudService {
       };
       
       // Make the API call to the cloud function
-      const response = await fetch(SYNC_USER_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+      const response = await CloudService.thinkReviewFetch(SYNC_USER_URL, payload);
       
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -318,13 +332,7 @@ export class CloudService {
         requestBody.platform = platform;
       }
       
-      const response = await fetch(REVIEW_CODE_URL_V1_1, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
+      const response = await CloudService.thinkReviewFetch(REVIEW_CODE_URL_V1_1, requestBody);
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -396,11 +404,7 @@ export class CloudService {
       if (mrId != null && mrId !== '') {
         body.mrId = mrId;
       }
-      const response = await fetch(GET_AGENT_REVIEWS_FOR_PATCH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
+      const response = await CloudService.thinkReviewFetch(GET_AGENT_REVIEWS_FOR_PATCH_URL, body);
       if (!response.ok) {
         const text = await response.text();
         throw new Error(`HTTP ${response.status}: ${text}`);
@@ -494,13 +498,7 @@ export class CloudService {
         language: language
       });
       
-      const response = await fetch(CONVERSATIONAL_REVIEW_URL_V1_1, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
+      const response = await CloudService.thinkReviewFetch(CONVERSATIONAL_REVIEW_URL_V1_1, requestBody);
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -635,15 +633,7 @@ export class CloudService {
       
       dbgLog('Getting review count for email:', email);
       
-      const response = await fetch(GET_REVIEW_COUNT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email
-        })
-      });
+      const response = await CloudService.thinkReviewFetch(GET_REVIEW_COUNT_URL, { email });
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -724,15 +714,9 @@ export class CloudService {
       
       dbgLog('Getting user data for email:', email);
       
-      const response = await fetch(GET_USER_DATA_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email,
-          ...EXTENSION_VERSION_PAYLOAD
-        })
+      const response = await CloudService.thinkReviewFetch(GET_USER_DATA_URL, {
+        email,
+        ...EXTENSION_VERSION_PAYLOAD
       });
       
       if (!response.ok) {
@@ -845,11 +829,7 @@ export class CloudService {
     }
 
     try {
-      const response = await fetch(GET_USER_SUBSCRIPTION_DATA_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
+      const response = await CloudService.thinkReviewFetch(GET_USER_SUBSCRIPTION_DATA_URL, { email });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -919,12 +899,9 @@ export class CloudService {
       dbgLog('Fetching user data for email:', email);
       
       // Call GET_USER_DATA_URL endpoint
-      const response = await fetch(GET_USER_DATA_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, ...EXTENSION_VERSION_PAYLOAD })
+      const response = await CloudService.thinkReviewFetch(GET_USER_DATA_URL, {
+        email,
+        ...EXTENSION_VERSION_PAYLOAD
       });
       
       if (!response.ok) {
@@ -991,13 +968,7 @@ export class CloudService {
 
       dbgLog('Sending trackReviewPromptInteraction request:', payload);
 
-      const response = await fetch(TRACK_REVIEW_PROMPT_INTERACTION_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+      const response = await CloudService.thinkReviewFetch(TRACK_REVIEW_PROMPT_INTERACTION_URL, payload);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -1038,13 +1009,7 @@ export class CloudService {
 
       dbgLog('Sending getReviewPromptMessages request:', payload);
 
-      const response = await fetch(GET_REVIEW_PROMPT_MESSAGES_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+      const response = await CloudService.thinkReviewFetch(GET_REVIEW_PROMPT_MESSAGES_URL, payload);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -1080,13 +1045,7 @@ export class CloudService {
       throw new Error('Email is required');
     }
 
-    const response = await fetch(GET_UPGRADE_PROMPT_CONFIG_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email })
-    });
+    const response = await CloudService.thinkReviewFetch(GET_UPGRADE_PROMPT_CONFIG_URL, { email });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -1121,14 +1080,11 @@ export class CloudService {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
-      const response = await fetch(FETCH_NEWS_MESSAGE_THINKREVIEW_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({}),
-        signal: controller.signal
-      });
+      const response = await CloudService.thinkReviewFetch(
+        FETCH_NEWS_MESSAGE_THINKREVIEW_URL,
+        {},
+        { signal: controller.signal }
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -1234,15 +1190,7 @@ export class CloudService {
       
       dbgLog('Cancelling subscription for user:', { email });
       
-      const response = await fetch(CANCEL_SUBSCRIPTION_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email
-        })
-      });
+      const response = await CloudService.thinkReviewFetch(CANCEL_SUBSCRIPTION_URL, { email });
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -1304,16 +1252,10 @@ export class CloudService {
       
       dbgLog('Tracking custom domain for user:', { email, domain, action });
       
-      const response = await fetch(TRACK_CUSTOM_DOMAINS_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email,
-          domain,
-          action
-        })
+      const response = await CloudService.thinkReviewFetch(TRACK_CUSTOM_DOMAINS_URL, {
+        email,
+        domain,
+        action
       });
       
       if (!response.ok) {
@@ -1366,13 +1308,7 @@ export class CloudService {
         throw new Error('User not authenticated');
       }
 
-      const response = await fetch(STORE_LAYOUT_SETTINGS_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, settings })
-      });
+      const response = await CloudService.thinkReviewFetch(STORE_LAYOUT_SETTINGS_URL, { email, settings });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -1423,11 +1359,7 @@ export class CloudService {
       const payload = { email, origin, version, collection };
       if (azureOnPremiseApiVersion != null) payload.azureOnPremiseApiVersion = azureOnPremiseApiVersion;
       if (azureOnPremiseVersion != null) payload.azureOnPremiseVersion = azureOnPremiseVersion;
-      const response = await fetch(LOG_AZURE_DEVOPS_VERSION_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const response = await CloudService.thinkReviewFetch(LOG_AZURE_DEVOPS_VERSION_URL, payload);
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP error ${response.status}: ${errorText}`);
@@ -1488,16 +1420,10 @@ export class CloudService {
       
       dbgLog('Tracking Ollama config for user:', { email, enabled, config });
       
-      const response = await fetch(TRACK_OLLAMA_CONFIG_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email,
-          enabled,
-          config
-        })
+      const response = await CloudService.thinkReviewFetch(TRACK_OLLAMA_CONFIG_URL, {
+        email,
+        enabled,
+        config
       });
       
       if (!response.ok) {
@@ -1576,13 +1502,7 @@ export class CloudService {
 
       dbgLog('Sending feedback request:', payload);
 
-      const response = await fetch(SUBMIT_REVIEW_FEEDBACK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+      const response = await CloudService.thinkReviewFetch(SUBMIT_REVIEW_FEEDBACK_URL, payload);
 
       if (!response.ok) {
         const errorText = await response.text();
