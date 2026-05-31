@@ -37,11 +37,7 @@
       "matches": [
         "https://thinkreview.dev/*",
         "https://portal.thinkreview.dev/*",
-        "https://app.thinkreview.dev/*",
-        "http://localhost/*",
-        "http://localhost:*/*",
-        "http://127.0.0.1/*",
-        "http://127.0.0.1:*/*"
+        "https://app.thinkreview.dev/*"
       ],
       "js": ["vendor/honeybadger.ext.min.js", "content-webapp-auth.js"],
       "run_at": "document_idle",

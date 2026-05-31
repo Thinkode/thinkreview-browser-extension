@@ -10,9 +10,6 @@ export const ALLOWED_ORIGINS = [
   'thinkreview.dev',
   'portal.thinkreview.dev',
   'app.thinkreview.dev',
-  // TEMP: remove before release — local webapp dev
-  'localhost',
-  '127.0.0.1',
 ];
 
 /**
