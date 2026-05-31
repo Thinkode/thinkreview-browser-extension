@@ -71,6 +71,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     updateReviewCount(message.count);
   }
   
+  // Session expired on a cloud function call — show login prompt
+  if (message.type === 'AUTH_SESSION_EXPIRED') {
+    dbgLog('Session expired — showing login prompt');
+    (async () => {
+      showSessionExpiredNotice();
+      await updateUIForLoginStatus();
+    })();
+    sendResponse({ success: true });
+    return true;
+  }
+
   // Handle webapp auth sync - refresh popup when webapp login is detected
   if (message.type === 'WEBAPP_AUTH_SYNCED') {
     dbgLog('Received webapp auth sync notification, refreshing popup');
@@ -85,6 +96,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ success: true });
   }
 });
+
+function showSessionExpiredNotice() {
+  const notice = document.getElementById('session-expired-notice');
+  const loginPrompt = document.getElementById('login-prompt');
+  if (notice) notice.style.display = 'block';
+  if (loginPrompt) {
+    loginPrompt.textContent = 'Your session has expired. Please sign in again.';
+    loginPrompt.style.display = 'block';
+  }
+}
+
+function hideSessionExpiredNotice() {
+  const notice = document.getElementById('session-expired-notice');
+  const loginPrompt = document.getElementById('login-prompt');
+  if (notice) notice.style.display = 'none';
+  if (loginPrompt) loginPrompt.textContent = 'Please login to continue';
+}
 
 // Function to show loading state (status line only; user-data fetch uses ThinkReviewLoader on #user-data-loading-overlay)
 function showLoadingState() {
@@ -287,6 +315,7 @@ async function updateUIForLoginStatus() {
     dbgLog('updateUIForLoginStatus - isLoggedIn:', isLoggedIn, 'cloudServiceReady:', cloudServiceReady, 'CloudService available:', !!window.CloudService);
     
     if (isLoggedIn) {
+      hideSessionExpiredNotice();
       // User is logged in - show authenticated content, hide welcome, login prompt and privacy policy
       if (authenticatedContent) {
         authenticatedContent.style.display = 'block';

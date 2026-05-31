@@ -14,7 +14,7 @@ import { azureDevOpsFetcher } from './services/azure-devops-fetcher.js';
 import { AzureDevOpsAuthError } from './services/azure-devops-api.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
-import { getThinkReviewAuthHeaders, EXTENSION_AUTH_TOKEN_KEY } from './utils/extension-auth.js';
+import { getThinkReviewAuthHeaders, EXTENSION_AUTH_TOKEN_KEY, isAuthExpiredError, handleUnauthorizedResponse, AuthExpiredError } from './utils/extension-auth.js';
 import { hasOpenRouterHostPermission } from './utils/openrouter-permissions.js';
 import { fetchPatchContent } from './services/bitbucket-api.js';
 // Logger module will automatically initialize Honeybadger
@@ -26,6 +26,10 @@ chrome.runtime.setUninstallURL('https://thinkreview.dev/goodbye.html', () => {
 // OAuth constants
 const AUTH_TOKEN_KEY = 'oauth_token';
 const AUTH_USER_KEY = 'oauth_user';
+
+function authExpiredPayload(err) {
+  return { isAuthExpired: isAuthExpiredError(err) };
+}
 
 // Rate limiter for OPEN_EXTENSION_PAGE — max 3 opens per 60 seconds
 const OPEN_PAGE_RATE_LIMIT = { max: 3, windowMs: 60 * 1000 };
@@ -252,6 +256,10 @@ async function trackOllamaReview(patchContent, mrId, mrUrl, reviewData, model) {
     });
     
     if (!response.ok) {
+      if (response.status === 401) {
+        await handleUnauthorizedResponse();
+        throw new AuthExpiredError();
+      }
       const errorData = await response.json().catch(() => ({}));
       throw new Error(`Failed to track Ollama review: ${response.status} - ${errorData.message || 'Unknown error'}`);
     }
@@ -405,7 +413,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           error: err.message,
           isRateLimit: err.isRateLimit || false,
           rateLimitMessage: err.rateLimitMessage || null,
-          retryAfter: err.retryAfter || null
+          retryAfter: err.retryAfter || null,
+          ...authExpiredPayload(err),
         };
         
         sendResponse(errorResponse);
@@ -544,7 +553,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           maxPatchSize: err.maxPatchSize,
           dailyLimit: err.dailyLimit,
           currentCount: err.currentCount,
-          provider: settings.aiProvider || 'cloud'
+          provider: settings.aiProvider || 'cloud',
+          ...authExpiredPayload(err),
         });
       }
     })();
@@ -577,7 +587,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, data: payload });
       } catch (err) {
         dbgWarn('FETCH_AGENT_REVIEWS_FOR_PATCH error:', err);
-        sendResponse({ success: false, error: err?.message || String(err) });
+        sendResponse({ success: false, error: err?.message || String(err), ...authExpiredPayload(err) });
       }
     })();
     return true;
