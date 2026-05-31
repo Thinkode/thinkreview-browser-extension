@@ -191,12 +191,6 @@ if (DEBUG) {
 
 // Note: CloudService is imported dynamically when needed
 
-
-
-// Cloud function URL for code review
-const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net';
-const REVIEW_CODE_URL = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode`;
-
 /**
  * Check if the current page is a supported platform (GitLab MR, GitHub PR, or Azure DevOps PR)
  * @returns {boolean} True if the current page is supported
