@@ -20,8 +20,7 @@ const _extensionVersion = (() => {
 const EXTENSION_VERSION_PAYLOAD = _extensionVersion ? { extensionVersion: _extensionVersion } : {};
 
 // Cloud function URLs
-// const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net';
-const CLOUD_FUNCTIONS_BASE_URL = 'http://127.0.0.1:5002/thinkgpt/us-central1';
+const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net';
 const SYNC_USER_URL = `${CLOUD_FUNCTIONS_BASE_URL}/syncUserByEmailReviews`;
 const REVIEW_CODE_URL = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode`;
 const REVIEW_CODE_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode_1_1`;
