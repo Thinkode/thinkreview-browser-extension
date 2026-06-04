@@ -88,7 +88,6 @@ export class CloudService {
       // Prepare the payload for the cloud function
       const payload = {
         email: userData.email,
-        uid: userData.id || userData.sub || userData.email.replace('@', '_at_'), // Use id, sub, or email-derived id
         userData: {
           name: userData.name,
           given_name: userData.given_name,
@@ -100,13 +99,7 @@ export class CloudService {
         source: 'extension',
         ...EXTENSION_VERSION_PAYLOAD
       };
-      
-      // Ensure uid is not undefined or null
-      if (!payload.uid) {
-        payload.uid = `ext_${Date.now()}`; // Fallback to a timestamp-based ID
-        dbgLog('Using fallback uid:', payload.uid);
-      }
-      
+
       dbgLog('Sending request to cloud function:', payload);
       
       // Make the API call to the cloud function
@@ -179,30 +172,27 @@ export class CloudService {
       return localUser;
     }
     
-    // Otherwise, try to get from the cloud function
+    // Otherwise, fetch from read-only endpoint (do not use sync — that would create users)
     try {
-      // Prepare the request payload
-      const payload = {
-        email: email,
-        uid: 'query', // Just a placeholder for query operations
-        source: 'extension',
+      const response = await CloudService.thinkReviewFetch(GET_USER_DATA_URL, {
+        email,
         ...EXTENSION_VERSION_PAYLOAD
-      };
-      
-      // Make the API call to the cloud function
-      const response = await CloudService.thinkReviewFetch(SYNC_USER_URL, payload);
-      
+      });
+
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
-      if (data.status === 'success' && data.data && data.data.currentUser) {
-        return data.data.currentUser;
-      } else {
-        return null;
+
+      if (data.status === 'success' && data.userExists) {
+        return {
+          email,
+          serverId: data.firestoreUserId,
+          ...data
+        };
       }
+      return null;
     } catch (error) {
       dbgWarn('Error getting user data:', error);
       return localUser; // Fall back to local user if available
