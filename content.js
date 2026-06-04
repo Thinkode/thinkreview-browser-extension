@@ -826,8 +826,9 @@ chrome.runtime.onMessage.addListener((message) => {
  * @param {number} dailyLimit - The daily review limit (optional, defaults to 3)
  * @param {Object|null} limitOverride - Optional override for the limit title/body (e.g. for PR size errors).
  *   If provided, { title: string, body: string } will be used instead of the remote config / fallback values.
+ * @param {number|null} purchasedReviewCredits - Prepaid credits balance (used after daily limit).
  */
-async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
+async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null, purchasedReviewCredits = null) {
   // Stop the enhanced loader if it's running
   if (typeof stopEnhancedLoader === 'function') {
     stopEnhancedLoader();
@@ -966,12 +967,18 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
         : String(upgradeConfig.prompt.limitTitle || fallbackConfig.prompt.limitTitle);
 
       const html = response.content;
+      const prepaidBalance =
+        typeof purchasedReviewCredits === 'number' && Number.isFinite(purchasedReviewCredits)
+          ? purchasedReviewCredits
+          : null;
+
       upgradeWrapper.innerHTML = `
         ${tipBannerModule.getHTML()}
         <div class="gl-alert gl-alert-warning">
           <div class="gl-alert-content">
             <div class="gl-alert-title" id="upgrade-limit-title"></div>
             <div class="gl-mb-3" id="upgrade-limit-body"></div>
+            <div id="upgrade-credits-actions" class="gl-mt-3"></div>
           </div>
         </div>
         ${html}
@@ -981,6 +988,20 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
       const limitBodyEl = upgradeWrapper.querySelector('#upgrade-limit-body');
       if (limitTitleEl) limitTitleEl.textContent = safeLimitTitle;
       if (limitBodyEl) limitBodyEl.textContent = safeBody;
+
+      const creditsActionsEl = upgradeWrapper.querySelector('#upgrade-credits-actions');
+      if (creditsActionsEl) {
+        if (prepaidBalance != null && prepaidBalance > 0) {
+          creditsActionsEl.innerHTML = `<p class="gl-mb-0" style="font-size:13px;">You have <strong>${prepaidBalance}</strong> purchased credits for reviews after your daily plan limit (each pack expires 1 year after purchase).</p>`;
+        } else {
+          creditsActionsEl.innerHTML = `
+            <a href="https://portal.thinkreview.dev/subscription#credits" target="_blank" rel="noopener noreferrer"
+               class="btn btn-md btn-confirm gl-mt-2" style="display:inline-block;text-decoration:none;">
+              Buy review credits
+            </a>
+          `;
+        }
+      }
 
       const titleEl = upgradeWrapper.querySelector('#subscription-title');
       const descriptionEl = upgradeWrapper.querySelector('#subscription-description');
@@ -1436,8 +1457,10 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       if (bgResponse?.isLimitExceeded) {
         dbgLog('Daily review limit exceeded');
         showUpgradeMessage(
-          bgResponse.currentCount || bgResponse.dailyLimit, 
-          bgResponse.dailyLimit || 15
+          bgResponse.currentCount || bgResponse.dailyLimit,
+          bgResponse.dailyLimit || 15,
+          null,
+          bgResponse.purchasedReviewCredits
         );
         return; // Exit early, don't show error
       }

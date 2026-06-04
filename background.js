@@ -553,6 +553,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           maxPatchSize: err.maxPatchSize,
           dailyLimit: err.dailyLimit,
           currentCount: err.currentCount,
+          purchasedReviewCredits: err.purchasedReviewCredits,
           provider: settings.aiProvider || 'cloud',
           ...authExpiredPayload(err),
         });

@@ -337,6 +337,7 @@ export class CloudService {
               limitError.isLimitExceeded = true;
               limitError.dailyLimit = errorData.dailyLimit;
               limitError.currentCount = errorData.currentCount;
+              limitError.purchasedReviewCredits = errorData.purchasedReviewCredits;
               throw limitError;
             }
             if (errorData.message === 'PR-size-limit-exceeded') {
@@ -507,6 +508,7 @@ export class CloudService {
               originalError.isLimitExceeded = true;
               originalError.dailyLimit = errorData.dailyLimit;
               originalError.currentCount = errorData.currentCount;
+              originalError.purchasedReviewCredits = errorData.purchasedReviewCredits;
               originalError.rateLimitMessage = 'Daily review limit exceeded';
             }
           } catch (parseError) {
