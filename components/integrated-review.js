@@ -156,6 +156,7 @@ async function initReviewPromptComponent() {
     reviewPrompt = new module.ReviewPrompt({
       threshold: 5, // Show prompt after 5 total reviews
       chromeStoreUrl: 'https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn/reviews',
+      firefoxStoreUrl: 'https://addons.mozilla.org/firefox/addon/thinkreview-code-review/reviews/',
       feedbackUrl: 'https://thinkreview.dev/extension-feedback.html'
     });
     reviewPrompt.init('review-prompt-container');

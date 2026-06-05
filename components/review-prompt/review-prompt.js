@@ -7,6 +7,7 @@ import { dbgLog, dbgWarn, dbgError } from '../../utils/logger.js';
 const REVIEW_PROMPT_CONFIG = {
   threshold: 5, // Show prompt after 5 total reviews
   chromeStoreUrl: 'https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn/reviews',
+  firefoxStoreUrl: 'https://addons.mozilla.org/firefox/addon/thinkreview-code-review/reviews/',
   feedbackUrl: 'https://thinkreview.dev/extension-feedback.html', // Updated to new extension-specific feedback form
   // Only suppress the prompt for submits on/after this date (older submits are ignored)
   submitSuppressCutoffDate: '2026-06-07',
@@ -42,6 +43,38 @@ class ReviewPrompt {
     this.isInitialized = true;
     
     dbgLog('Initialized with config:', this.config);
+  }
+
+  /**
+   * Detect Firefox via the extension origin (moz-extension://).
+   * @returns {boolean}
+   */
+  isFirefoxBrowser() {
+    try {
+      return chrome.runtime.getURL('').startsWith('moz-extension://');
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Store review URL for the current browser.
+   * @returns {string}
+   */
+  getStoreReviewUrl() {
+    return this.isFirefoxBrowser()
+      ? this.config.firefoxStoreUrl
+      : this.config.chromeStoreUrl;
+  }
+
+  /**
+   * Thank-you copy for the current browser store.
+   * @returns {string}
+   */
+  getStoreReviewThankYouMessage() {
+    return this.isFirefoxBrowser()
+      ? 'Thank you! Please leave a review on Firefox Add-ons.'
+      : 'Thank you! Please leave a review on the Chrome Web Store.';
   }
 
   /**
@@ -343,9 +376,9 @@ class ReviewPrompt {
     
     this.hide();
     
-    const redirectUrl = this.config.chromeStoreUrl;
+    const redirectUrl = this.getStoreReviewUrl();
     window.open(redirectUrl, '_blank');
-    this.showThankYouMessage('Thank you! Please leave a review on the Chrome Web Store.');
+    this.showThankYouMessage(this.getStoreReviewThankYouMessage());
     
     this.trackReviewPromptInteraction('submit', null, redirectUrl)
       .catch(error => {
