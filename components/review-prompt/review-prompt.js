@@ -203,7 +203,7 @@ class ReviewPrompt {
   createPromptElement(reviewCount = this.config.threshold) {
     // Fallback messages (hardcoded defaults)
     const DEFAULT_SUBTITLE = "We'd love to hear your feedback about ThinkReview";
-    const DEFAULT_QUESTION = "Please spend a minute to rate our extension";
+    const DEFAULT_QUESTION = "Would you mind leaving us a quick review?";
     
     // Use fetched messages if available, otherwise use fallbacks
     const subtitle = (this.messages && this.messages.subtitle) ? this.messages.subtitle : DEFAULT_SUBTITLE;
@@ -229,52 +229,15 @@ class ReviewPrompt {
           <div class="review-prompt-content">
             <p class="review-prompt-question">${escapedQuestion}</p>
             
-            <div class="star-rating-container">
-              <div class="star-rating" data-rating="0">
-                <button class="star" data-value="1" type="button" aria-label="Rate 1 star">
-                  <svg class="star-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
-                  </svg>
-                </button>
-                <button class="star" data-value="2" type="button" aria-label="Rate 2 stars">
-                  <svg class="star-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
-                  </svg>
-                </button>
-                <button class="star" data-value="3" type="button" aria-label="Rate 3 stars">
-                  <svg class="star-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
-                  </svg>
-                </button>
-                <button class="star" data-value="4" type="button" aria-label="Rate 4 stars">
-                  <svg class="star-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
-                  </svg>
-                </button>
-                <button class="star" data-value="5" type="button" aria-label="Rate 5 stars">
-                  <svg class="star-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
-                  </svg>
-                </button>
-              </div>
-              <div class="rating-labels">
-                <span class="rating-label" data-rating="1">Poor</span>
-                <span class="rating-label" data-rating="2">Fair</span>
-                <span class="rating-label" data-rating="3">Good</span>
-                <span class="rating-label" data-rating="4">Very Good</span>
-                <span class="rating-label" data-rating="5">Excellent</span>
-              </div>
-            </div>
-            
             <div class="review-prompt-github-link">
               <a href="https://github.com/Thinkode/thinkreview-browser-extension" target="_blank" rel="noopener noreferrer">
-                ⭐ Star us on GitHub
+                Star our Repo on Github
               </a>
             </div>
             
             <div class="review-prompt-actions">
               <button id="review-prompt-dismiss" class="review-prompt-btn review-prompt-btn-secondary">Maybe Later</button>
-              <button id="review-prompt-submit" class="review-prompt-btn review-prompt-btn-primary" disabled>Submit</button>
+              <button id="review-prompt-submit" class="review-prompt-btn review-prompt-btn-primary">Leave a Review</button>
             </div>
           </div>
         </div>
@@ -291,49 +254,6 @@ class ReviewPrompt {
   addEventListeners(promptElement) {
     // Remove existing listeners to prevent duplicates
     this.removeEventListeners(promptElement);
-
-    // Star rating system
-    const starContainer = promptElement.querySelector('.star-rating');
-    const stars = promptElement.querySelectorAll('.star');
-    const ratingLabels = promptElement.querySelectorAll('.rating-label');
-    
-    // Add hover effects and click handlers for stars
-    stars.forEach((star, index) => {
-      const value = parseInt(star.getAttribute('data-value'));
-      
-      // Mouse enter - highlight stars up to this one
-      const mouseEnterListener = () => {
-        this.highlightStars(stars, value);
-        this.showRatingLabel(ratingLabels, value);
-      };
-      
-      // Mouse leave - reset to current rating
-      const mouseLeaveListener = () => {
-        const currentRating = parseInt(starContainer.getAttribute('data-rating')) || 0;
-        this.highlightStars(stars, currentRating);
-        this.hideRatingLabels(ratingLabels);
-      };
-      
-      // Click - set rating
-      const clickListener = (e) => {
-        e.preventDefault();
-        starContainer.setAttribute('data-rating', value);
-        this.highlightStars(stars, value);
-        
-        // Enable the submit button
-        const submitBtn = promptElement.querySelector('#review-prompt-submit');
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.classList.add('enabled');
-        }
-      };
-      
-      star.addEventListener('mouseenter', mouseEnterListener);
-      star.addEventListener('mouseleave', mouseLeaveListener);
-      star.addEventListener('click', clickListener);
-      
-      this.eventListeners.set(star, { mouseEnterListener, mouseLeaveListener, clickListener });
-    });
 
     // Dismiss button
     const dismissBtn = promptElement.querySelector('#review-prompt-dismiss');
@@ -352,12 +272,7 @@ class ReviewPrompt {
     if (submitBtn) {
       const listener = (e) => {
         e.preventDefault();
-        const starContainer = promptElement.querySelector('.star-rating');
-        const rating = parseInt(starContainer.getAttribute('data-rating')) || 0;
-        
-        if (rating > 0) {
-          this.handleRating(rating);
-        }
+        this.handleSubmit();
       };
       
       submitBtn.addEventListener('click', listener);
@@ -391,53 +306,23 @@ class ReviewPrompt {
   }
 
   /**
-   * Handle user rating selection
-   * @param {number} rating - User's rating (1-5 stars)
+   * Handle user choosing to leave a review
    */
-  async handleRating(rating) {
-    dbgLog('User rated extension:', rating, 'stars');
+  async handleSubmit() {
+    dbgLog('User chose to leave a review');
     
-    // Hide the prompt immediately
     this.hide();
     
-    // Open URL immediately to avoid delaying user feedback experience
-    if (rating >= 4) {
-      // 4-5 stars: Direct to Chrome Web Store
-      const redirectUrl = this.config.chromeStoreUrl;
-      window.open(redirectUrl, '_blank');
-      this.showThankYouMessage('Thank you for your positive feedback! Please leave a review on the Chrome Web Store.');
-      
-      // Track the interaction with the cloud function in the background (non-blocking)
-      this.trackReviewPromptInteraction('submit', rating, redirectUrl)
-        .catch(error => {
-          // Silently handle errors to avoid affecting user experience
-          dbgWarn('Background tracking failed:', error);
-        });
-    } else {
-      // 1-3 stars: Direct to feedback form with email parameter
-      // Get user email first
-      const userEmail = await this.getUserEmail();
-      const feedbackUrl = userEmail 
-        ? `https://thinkreview.dev/extension-feedback.html?email=${encodeURIComponent(userEmail)}`
-        : 'https://thinkreview.dev/extension-feedback.html';
-      
-      window.open(feedbackUrl, '_blank');
-      this.showThankYouMessage('Thank you for your feedback! We\'d love to hear how we can improve.');
-      
-      // Track the interaction with the cloud function in the background (non-blocking)
-      this.trackReviewPromptInteraction('submit', rating, feedbackUrl)
-        .catch(error => {
-          // Silently handle errors to avoid affecting user experience
-          dbgWarn('Background tracking failed:', error);
-        });
-    }
+    const redirectUrl = this.config.chromeStoreUrl;
+    window.open(redirectUrl, '_blank');
+    this.showThankYouMessage('Thank you! Please leave a review on the Chrome Web Store.');
     
-    // Note: We no longer set localStorage/sessionStorage flags
-    // The source of truth is now lastFeedbackPromptInteraction in Firestore
-    // which gets updated via trackReviewPromptInteraction() below and cached in chrome.storage.local
+    this.trackReviewPromptInteraction('submit', null, redirectUrl)
+      .catch(error => {
+        dbgWarn('Background tracking failed:', error);
+      });
     
-    // Emit custom event
-    this.emit('rated', { rating, reviewCount: this.getCurrentReviewCount() });
+    this.emit('rated', { reviewCount: this.getCurrentReviewCount() });
   }
 
   /**
@@ -539,54 +424,6 @@ class ReviewPrompt {
   }
 
   /**
-   * Highlight stars up to the given rating
-   * @param {NodeList} stars - Star elements
-   * @param {number} rating - Rating to highlight up to
-   */
-  highlightStars(stars, rating) {
-    stars.forEach((star, index) => {
-      const value = parseInt(star.getAttribute('data-value'));
-      const starIcon = star.querySelector('.star-icon');
-      
-      if (value <= rating) {
-        starIcon.setAttribute('fill', '#ffc107');
-        starIcon.setAttribute('stroke', '#ffc107');
-        star.classList.add('active');
-      } else {
-        starIcon.setAttribute('fill', 'none');
-        starIcon.setAttribute('stroke', '#d1d5db');
-        star.classList.remove('active');
-      }
-    });
-  }
-
-  /**
-   * Show the rating label for the given rating
-   * @param {NodeList} labels - Rating label elements
-   * @param {number} rating - Rating to show label for
-   */
-  showRatingLabel(labels, rating) {
-    labels.forEach(label => {
-      const labelRating = parseInt(label.getAttribute('data-rating'));
-      if (labelRating === rating) {
-        label.classList.add('active');
-      } else {
-        label.classList.remove('active');
-      }
-    });
-  }
-
-  /**
-   * Hide all rating labels
-   * @param {NodeList} labels - Rating label elements
-   */
-  hideRatingLabels(labels) {
-    labels.forEach(label => {
-      label.classList.remove('active');
-    });
-  }
-
-  /**
    * Comprehensive debugging function
    */
   async debugInfo() {
@@ -656,7 +493,7 @@ class ReviewPrompt {
   /**
    * Track review prompt interaction with the cloud function
    * @param {string} action - The action taken ('submit', 'later', or 'never')
-   * @param {number} [rating] - The star rating (1-5) if action is 'submit'
+   * @param {number} [rating] - Optional rating if action is 'submit'
    * @param {string} [redirectUrl] - The URL user was redirected to if action is 'submit'
    */
   async trackReviewPromptInteraction(action, rating = null, redirectUrl = null) {
