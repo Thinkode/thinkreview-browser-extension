@@ -1029,106 +1029,13 @@ async function showUpgradeMessage(
 
       const creditsActionsEl = upgradeWrapper.querySelector('#upgrade-credits-actions');
       if (creditsActionsEl) {
-        creditsActionsEl.replaceChildren();
-
-        if (prepaidBalance != null && prepaidBalance > 0) {
-          const balanceNote = document.createElement('p');
-          balanceNote.className = 'upgrade-credits-balance-note';
-          balanceNote.textContent = `You have ${prepaidBalance} purchased credits for reviews after your daily plan limit (each pack expires 1 year after purchase).`;
-          creditsActionsEl.appendChild(balanceNote);
-        }
-
-        const creditPackValidation = await import(
-          chrome.runtime.getURL('utils/credit-pack-validation.js')
+        const upgradeCreditPacks = await import(
+          chrome.runtime.getURL('components/upgrade-credit-packs.js')
         );
-        const creditPacks = creditPackValidation.filterValidCreditPacks(upgradeConfig.creditPacks);
-        if (creditPacks.length > 0) {
-          const packsLabel = document.createElement('p');
-          packsLabel.className = 'upgrade-credits-packs-label';
-          packsLabel.textContent =
-            prepaidBalance != null && prepaidBalance > 0
-              ? 'Buy more review credits:'
-              : 'Buy review credits without upgrading your plan:';
-          creditsActionsEl.appendChild(packsLabel);
-
-          const validityNote = document.createElement('p');
-          validityNote.className = 'upgrade-credits-validity-note';
-          validityNote.textContent = 'Additional credits are valid for 1 year from purchase.';
-          creditsActionsEl.appendChild(validityNote);
-
-          const packsRow = document.createElement('div');
-          packsRow.className = 'upgrade-credit-packs';
-          const lastPackIndex = creditPacks.length - 1;
-          creditPacks.forEach((pack, packIndex) => {
-            const isBestValuePack = packIndex === lastPackIndex;
-            const isMostPurchasedPack =
-              creditPacks.length >= 2 && packIndex === lastPackIndex - 1;
-
-            const packItem = document.createElement('div');
-            packItem.className = 'upgrade-credit-pack-item';
-
-            const badgeSlot = document.createElement('div');
-            badgeSlot.className = 'upgrade-credit-pack-badge-slot';
-            if (isBestValuePack || isMostPurchasedPack) {
-              const badge = document.createElement('span');
-              badge.className = 'upgrade-credit-pack-badge';
-              if (isBestValuePack) {
-                badge.classList.add('is-best-value');
-                badge.textContent = 'Best value';
-              } else {
-                badge.classList.add('is-most-purchased');
-                badge.textContent = 'Most purchased';
-              }
-              badgeSlot.appendChild(badge);
-            }
-            packItem.appendChild(badgeSlot);
-
-            const packBtn = document.createElement('button');
-            packBtn.type = 'button';
-            packBtn.className = 'upgrade-credit-pack-btn';
-            if (isBestValuePack) packBtn.classList.add('is-best-value');
-            if (isMostPurchasedPack) packBtn.classList.add('is-most-purchased');
-
-            const price = Number(pack.price);
-            const priceLabel = Number.isFinite(price) && price > 0 ? `$${price}` : '';
-            packBtn.textContent = priceLabel
-              ? `${pack.credits} credits · ${priceLabel}`
-              : (pack.ctaText || `Buy ${pack.credits} credits`);
-
-            packBtn.addEventListener('click', async (e) => {
-              e.preventDefault();
-              try {
-                const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
-                trackUserAction('credit_pack_checkout_clicked', {
-                  context: 'daily_limit_upgrade_prompt',
-                  packId: pack.id || null,
-                  credits: pack.credits || null
-                }).catch(() => {});
-              } catch (error) {
-                // Silently fail - analytics should never break CTA
-              }
-              const destinationUrl =
-                pack.checkoutUrl || 'https://portal.thinkreview.dev/additional-credits';
-              window.open(destinationUrl, '_blank');
-            });
-            packItem.appendChild(packBtn);
-            packsRow.appendChild(packItem);
-          });
-          creditsActionsEl.appendChild(packsRow);
-        } else if (!(prepaidBalance != null && prepaidBalance > 0)) {
-          const fallbackLink = document.createElement('a');
-          fallbackLink.href = 'https://portal.thinkreview.dev/additional-credits';
-          fallbackLink.target = '_blank';
-          fallbackLink.rel = 'noopener noreferrer';
-          fallbackLink.className = 'btn btn-md btn-confirm gl-mt-2 upgrade-credits-fallback-link';
-          fallbackLink.textContent = 'Buy review credits';
-          creditsActionsEl.appendChild(fallbackLink);
-
-          const fallbackValidityNote = document.createElement('p');
-          fallbackValidityNote.className = 'upgrade-credits-validity-note';
-          fallbackValidityNote.textContent = 'Additional credits are valid for 1 year from purchase.';
-          creditsActionsEl.appendChild(fallbackValidityNote);
-        }
+        await upgradeCreditPacks.renderUpgradeCreditPacksActions(creditsActionsEl, {
+          creditPacks: upgradeConfig.creditPacks,
+          prepaidBalance
+        });
       }
 
       const titleEl = upgradeWrapper.querySelector('#subscription-title');
