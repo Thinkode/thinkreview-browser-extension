@@ -24,7 +24,6 @@ const EXTENSION_VERSION_PAYLOAD = _extensionVersion ? { extensionVersion: _exten
 const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net';
 const SYNC_USER_URL = `${CLOUD_FUNCTIONS_BASE_URL}/syncUserByEmailReviews`;
 const REVIEW_CODE_URL = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode`;
-const REVIEW_CODE_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/reviewPatchCode_1_1`;
 const SYNC_REVIEWS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/syncCodeReviews`;
 const GET_REVIEW_COUNT_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getReviewCount`;
 const GET_USER_DATA_URL = `${CLOUD_FUNCTIONS_BASE_URL}/ThinkReviewGetUserData`;
@@ -36,7 +35,6 @@ const GET_UPGRADE_PROMPT_CONFIG_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getUpgradePro
 const FETCH_NEWS_MESSAGE_THINKREVIEW_URL = `${CLOUD_FUNCTIONS_BASE_URL}/fetchNewsMessageThinkReview`;
 const CANCEL_SUBSCRIPTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/cancelSubscriptionThinkReview`;
 const CONVERSATIONAL_REVIEW_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview`;
-const CONVERSATIONAL_REVIEW_URL_V1_1 = `${CLOUD_FUNCTIONS_BASE_URL}/getConversationalReview_1_1`;
 const TRACK_CUSTOM_DOMAINS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackCustomDomainsThinkReview`;
 const STORE_LAYOUT_SETTINGS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/storeLayoutSettingsThinkReview`;
 const LOG_AZURE_DEVOPS_VERSION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/logAzureDevOpsVersionThinkReview`;
@@ -70,6 +68,36 @@ export class CloudService {
     }
 
     return response;
+  }
+
+  /**
+   * Enterprise on-prem gateway base URL (optional). When set, patch review and
+   * conversational endpoints use the gateway instead of ThinkReview cloud.
+   * @returns {Promise<string>}
+   */
+  static async getReviewApiBaseUrl() {
+    try {
+      const stored = await new Promise((resolve) => {
+        chrome.storage.local.get(['gatewayBaseUrl'], resolve);
+      });
+      const raw = stored?.gatewayBaseUrl;
+      if (typeof raw === 'string' && raw.trim()) {
+        return raw.trim().replace(/\/$/, '');
+      }
+    } catch (_) {
+      // ignore
+    }
+    return CLOUD_FUNCTIONS_BASE_URL;
+  }
+
+  static async getReviewCodeUrlV11() {
+    const base = await CloudService.getReviewApiBaseUrl();
+    return `${base}/reviewPatchCode_1_1`;
+  }
+
+  static async getConversationalReviewUrlV11() {
+    const base = await CloudService.getReviewApiBaseUrl();
+    return `${base}/getConversationalReview_1_1`;
   }
 
   /**
@@ -323,7 +351,7 @@ export class CloudService {
         requestBody.platform = platform;
       }
       
-      const response = await CloudService.thinkReviewFetch(REVIEW_CODE_URL_V1_1, requestBody);
+      const response = await CloudService.thinkReviewFetch(await CloudService.getReviewCodeUrlV11(), requestBody);
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -490,7 +518,7 @@ export class CloudService {
         language: language
       });
       
-      const response = await CloudService.thinkReviewFetch(CONVERSATIONAL_REVIEW_URL_V1_1, requestBody);
+      const response = await CloudService.thinkReviewFetch(await CloudService.getConversationalReviewUrlV11(), requestBody);
       
       if (!response.ok) {
         const errorText = await response.text();
