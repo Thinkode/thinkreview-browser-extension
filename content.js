@@ -827,24 +827,40 @@ chrome.runtime.onMessage.addListener((message) => {
  * @param {Object|null} limitOverride - Optional override for the limit title/body (e.g. for PR size errors).
  *   If provided, { title: string, body: string } will be used instead of the remote config / fallback values.
  * @param {number|null} purchasedReviewCredits - Prepaid credits balance (used after daily limit).
+ * @param {{ skipLoader?: boolean }} [options] - When skipLoader is true (e.g. chat follow-up), keep the review panel visible while fetching upgrade config.
  */
-function revealUpgradePrompt(upgradeWrapper, reviewContent) {
+function revealUpgradePrompt(upgradeWrapper, reviewContent, options = {}) {
+  const skipLoader = options?.skipLoader === true;
   if (upgradeWrapper && reviewContent && !upgradeWrapper.isConnected) {
     reviewContent.insertBefore(upgradeWrapper, reviewContent.firstChild);
   }
-  dismissIntegratedReviewLoadingUI();
+  if (!skipLoader) {
+    dismissIntegratedReviewLoadingUI();
+  }
   if (reviewContent) reviewContent.classList.remove('gl-hidden');
 }
 
-async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null, purchasedReviewCredits = null) {
+async function showUpgradeMessage(
+  reviewCount,
+  dailyLimit = 3,
+  limitOverride = null,
+  purchasedReviewCredits = null,
+  options = {}
+) {
+  const skipLoader = options?.skipLoader === true;
   const reviewLoading = document.getElementById('review-loading');
   const reviewContent = document.getElementById('review-content');
   const reviewError = document.getElementById('review-error');
   const loginPrompt = document.getElementById('review-login-prompt');
 
-  // Keep the initial review loader visible until upgrade prompt config is fetched.
-  if (reviewLoading) reviewLoading.classList.remove('gl-hidden');
-  if (reviewContent) reviewContent.classList.add('gl-hidden');
+  if (skipLoader) {
+    dismissIntegratedReviewLoadingUI();
+    if (reviewContent) reviewContent.classList.remove('gl-hidden');
+  } else {
+    // Keep the initial review loader visible until upgrade prompt config is fetched.
+    if (reviewLoading) reviewLoading.classList.remove('gl-hidden');
+    if (reviewContent) reviewContent.classList.add('gl-hidden');
+  }
 
   // Hide error area
   if (reviewError) reviewError.classList.add('gl-hidden');
@@ -903,7 +919,7 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
             </div>
           </div>
         `;
-        revealUpgradePrompt(upgradeWrapper, reviewContent);
+        revealUpgradePrompt(upgradeWrapper, reviewContent, options);
         return;
       }
       const fallbackConfig = {
@@ -1242,10 +1258,12 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
       });
 
       tipBannerModule.wireActionButtons(upgradeWrapper);
-      revealUpgradePrompt(upgradeWrapper, reviewContent);
+      revealUpgradePrompt(upgradeWrapper, reviewContent, options);
     }
   );
 }
+
+window.showUpgradeMessage = showUpgradeMessage;
 
 /**
  * Shows a PR size limit upgrade message for free-tier users whose PR exceeds the max patch size.
@@ -1950,6 +1968,12 @@ window.getAIResponse = (patchContent, conversationHistory, language = 'English')
             error.isRateLimit = response.isRateLimit;
             error.rateLimitMessage = response.rateLimitMessage;
             error.retryAfter = response.retryAfter;
+          }
+          if (response.isLimitExceeded) {
+            error.isLimitExceeded = true;
+            error.dailyLimit = response.dailyLimit;
+            error.currentCount = response.currentCount;
+            error.purchasedReviewCredits = response.purchasedReviewCredits;
           }
           if (response.isAuthExpired) {
             error.isAuthExpired = true;
