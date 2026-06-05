@@ -828,30 +828,34 @@ chrome.runtime.onMessage.addListener((message) => {
  *   If provided, { title: string, body: string } will be used instead of the remote config / fallback values.
  * @param {number|null} purchasedReviewCredits - Prepaid credits balance (used after daily limit).
  */
-async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null, purchasedReviewCredits = null) {
-  // Stop the enhanced loader if it's running
-  if (typeof stopEnhancedLoader === 'function') {
-    stopEnhancedLoader();
+function revealUpgradePrompt(upgradeWrapper, reviewContent) {
+  if (upgradeWrapper && reviewContent && !upgradeWrapper.isConnected) {
+    reviewContent.insertBefore(upgradeWrapper, reviewContent.firstChild);
   }
-  
+  dismissIntegratedReviewLoadingUI();
+  if (reviewContent) reviewContent.classList.remove('gl-hidden');
+}
+
+async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null, purchasedReviewCredits = null) {
   const reviewLoading = document.getElementById('review-loading');
   const reviewContent = document.getElementById('review-content');
   const reviewError = document.getElementById('review-error');
   const loginPrompt = document.getElementById('review-login-prompt');
-  
-  // Hide loading indicator
-  if (reviewLoading) reviewLoading.classList.add('gl-hidden');
-  
-  // Show content area
-  if (reviewContent) reviewContent.classList.remove('gl-hidden');
-  
+
+  // Keep the initial review loader visible until upgrade prompt config is fetched.
+  if (reviewLoading) reviewLoading.classList.remove('gl-hidden');
+  if (reviewContent) reviewContent.classList.add('gl-hidden');
+
   // Hide error area
   if (reviewError) reviewError.classList.add('gl-hidden');
-  
+
   // Hide login prompt
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
 
-  if (!reviewContent) return;
+  if (!reviewContent) {
+    dismissIntegratedReviewLoadingUI();
+    return;
+  }
 
   // Hide all existing review UI (tabs, sections, chat input) so only the
   // upgrade message is visible and nothing remains interactive.
@@ -887,6 +891,19 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
     async (response) => {
       if (chrome.runtime.lastError || !response?.success) {
         dbgWarn('Error loading subscription section:', response?.error || chrome.runtime.lastError?.message);
+        upgradeWrapper.innerHTML = `
+          <div class="gl-alert gl-alert-warning">
+            <div class="gl-alert-content">
+              <div class="gl-alert-title">Daily Review Limit Reached</div>
+              <div class="gl-mb-3">Unable to load upgrade options. Please try again or visit the portal.</div>
+              <a href="https://portal.thinkreview.dev/subscription" target="_blank" rel="noopener noreferrer"
+                 class="btn btn-md btn-confirm" style="display:inline-block;text-decoration:none;">
+                Open subscription portal
+              </a>
+            </div>
+          </div>
+        `;
+        revealUpgradePrompt(upgradeWrapper, reviewContent);
         return;
       }
       const fallbackConfig = {
@@ -1225,11 +1242,9 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
       });
 
       tipBannerModule.wireActionButtons(upgradeWrapper);
+      revealUpgradePrompt(upgradeWrapper, reviewContent);
     }
   );
-
-  // Prepend so it appears at the top of the content area
-  reviewContent.insertBefore(upgradeWrapper, reviewContent.firstChild);
 }
 
 /**
