@@ -1567,6 +1567,17 @@ async function handleSendMessage(messageText) {
       }
     }
     
+    if (error.isLimitExceeded && typeof window.showUpgradeMessage === 'function') {
+      await window.showUpgradeMessage(
+        error.currentCount ?? 0,
+        error.dailyLimit ?? 15,
+        null,
+        error.purchasedReviewCredits ?? null,
+        { skipLoader: true }
+      );
+      return;
+    }
+
     // Check if this is a rate limit error
     let errorMessage = 'Sorry, something went wrong. Please try again.';
     if (error.isRateLimit) {

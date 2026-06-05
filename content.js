@@ -826,31 +826,52 @@ chrome.runtime.onMessage.addListener((message) => {
  * @param {number} dailyLimit - The daily review limit (optional, defaults to 3)
  * @param {Object|null} limitOverride - Optional override for the limit title/body (e.g. for PR size errors).
  *   If provided, { title: string, body: string } will be used instead of the remote config / fallback values.
+ * @param {number|null} purchasedReviewCredits - Prepaid credits balance (used after daily limit).
+ * @param {{ skipLoader?: boolean }} [options] - When skipLoader is true (e.g. chat follow-up), keep the review panel visible while fetching upgrade config.
  */
-async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = null) {
-  // Stop the enhanced loader if it's running
-  if (typeof stopEnhancedLoader === 'function') {
-    stopEnhancedLoader();
+function revealUpgradePrompt(upgradeWrapper, reviewContent, options = {}) {
+  const skipLoader = options?.skipLoader === true;
+  if (upgradeWrapper && reviewContent && !upgradeWrapper.isConnected) {
+    reviewContent.insertBefore(upgradeWrapper, reviewContent.firstChild);
   }
-  
+  if (!skipLoader) {
+    dismissIntegratedReviewLoadingUI();
+  }
+  if (reviewContent) reviewContent.classList.remove('gl-hidden');
+}
+
+async function showUpgradeMessage(
+  reviewCount,
+  dailyLimit = 3,
+  limitOverride = null,
+  purchasedReviewCredits = null,
+  options = {}
+) {
+  const skipLoader = options?.skipLoader === true;
   const reviewLoading = document.getElementById('review-loading');
   const reviewContent = document.getElementById('review-content');
   const reviewError = document.getElementById('review-error');
   const loginPrompt = document.getElementById('review-login-prompt');
-  
-  // Hide loading indicator
-  if (reviewLoading) reviewLoading.classList.add('gl-hidden');
-  
-  // Show content area
-  if (reviewContent) reviewContent.classList.remove('gl-hidden');
-  
+
+  if (skipLoader) {
+    dismissIntegratedReviewLoadingUI();
+    if (reviewContent) reviewContent.classList.remove('gl-hidden');
+  } else {
+    // Keep the initial review loader visible until upgrade prompt config is fetched.
+    if (reviewLoading) reviewLoading.classList.remove('gl-hidden');
+    if (reviewContent) reviewContent.classList.add('gl-hidden');
+  }
+
   // Hide error area
   if (reviewError) reviewError.classList.add('gl-hidden');
-  
+
   // Hide login prompt
   if (loginPrompt) loginPrompt.classList.add('gl-hidden');
 
-  if (!reviewContent) return;
+  if (!reviewContent) {
+    dismissIntegratedReviewLoadingUI();
+    return;
+  }
 
   // Hide all existing review UI (tabs, sections, chat input) so only the
   // upgrade message is visible and nothing remains interactive.
@@ -886,6 +907,19 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
     async (response) => {
       if (chrome.runtime.lastError || !response?.success) {
         dbgWarn('Error loading subscription section:', response?.error || chrome.runtime.lastError?.message);
+        upgradeWrapper.innerHTML = `
+          <div class="gl-alert gl-alert-warning">
+            <div class="gl-alert-content">
+              <div class="gl-alert-title">Daily Review Limit Reached</div>
+              <div class="gl-mb-3">Unable to load upgrade options. Please try again or visit the portal.</div>
+              <a href="https://portal.thinkreview.dev/subscription" target="_blank" rel="noopener noreferrer"
+                 class="btn btn-md btn-confirm" style="display:inline-block;text-decoration:none;">
+                Open subscription portal
+              </a>
+            </div>
+          </div>
+        `;
+        revealUpgradePrompt(upgradeWrapper, reviewContent, options);
         return;
       }
       const fallbackConfig = {
@@ -941,14 +975,19 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
 
         if (email) {
           const remoteConfig = await cloudModule.CloudService.getUpgradePromptConfig(email);
-          if (remoteConfig && Array.isArray(remoteConfig.plans) && remoteConfig.plans.length > 0) {
+          const hasRemotePlans = Array.isArray(remoteConfig?.plans) && remoteConfig.plans.length > 0;
+          const hasRemoteCreditPacks =
+            Array.isArray(remoteConfig?.creditPacks) && remoteConfig.creditPacks.length > 0;
+          if (remoteConfig && (hasRemotePlans || hasRemoteCreditPacks)) {
             upgradeConfig = {
               ...fallbackConfig,
               ...remoteConfig,
               prompt: {
                 ...fallbackConfig.prompt,
                 ...(remoteConfig.prompt || {})
-              }
+              },
+              plans: hasRemotePlans ? remoteConfig.plans : fallbackConfig.plans,
+              creditPacks: hasRemoteCreditPacks ? remoteConfig.creditPacks : []
             };
           }
         }
@@ -966,12 +1005,18 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
         : String(upgradeConfig.prompt.limitTitle || fallbackConfig.prompt.limitTitle);
 
       const html = response.content;
+      const prepaidBalance =
+        typeof purchasedReviewCredits === 'number' && Number.isFinite(purchasedReviewCredits)
+          ? purchasedReviewCredits
+          : null;
+
       upgradeWrapper.innerHTML = `
         ${tipBannerModule.getHTML()}
         <div class="gl-alert gl-alert-warning">
           <div class="gl-alert-content">
             <div class="gl-alert-title" id="upgrade-limit-title"></div>
             <div class="gl-mb-3" id="upgrade-limit-body"></div>
+            <div id="upgrade-credits-actions" class="gl-mt-3"></div>
           </div>
         </div>
         ${html}
@@ -981,6 +1026,17 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
       const limitBodyEl = upgradeWrapper.querySelector('#upgrade-limit-body');
       if (limitTitleEl) limitTitleEl.textContent = safeLimitTitle;
       if (limitBodyEl) limitBodyEl.textContent = safeBody;
+
+      const creditsActionsEl = upgradeWrapper.querySelector('#upgrade-credits-actions');
+      if (creditsActionsEl) {
+        const upgradeCreditPacks = await import(
+          chrome.runtime.getURL('components/upgrade-credit-packs.js')
+        );
+        await upgradeCreditPacks.renderUpgradeCreditPacksActions(creditsActionsEl, {
+          creditPacks: upgradeConfig.creditPacks,
+          prepaidBalance
+        });
+      }
 
       const titleEl = upgradeWrapper.querySelector('#subscription-title');
       const descriptionEl = upgradeWrapper.querySelector('#subscription-description');
@@ -1112,12 +1168,12 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
       });
 
       tipBannerModule.wireActionButtons(upgradeWrapper);
+      revealUpgradePrompt(upgradeWrapper, reviewContent, options);
     }
   );
-
-  // Prepend so it appears at the top of the content area
-  reviewContent.insertBefore(upgradeWrapper, reviewContent.firstChild);
 }
+
+window.showUpgradeMessage = showUpgradeMessage;
 
 /**
  * Shows a PR size limit upgrade message for free-tier users whose PR exceeds the max patch size.
@@ -1436,8 +1492,10 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       if (bgResponse?.isLimitExceeded) {
         dbgLog('Daily review limit exceeded');
         showUpgradeMessage(
-          bgResponse.currentCount || bgResponse.dailyLimit, 
-          bgResponse.dailyLimit || 15
+          bgResponse.currentCount || bgResponse.dailyLimit,
+          bgResponse.dailyLimit || 15,
+          null,
+          bgResponse.purchasedReviewCredits
         );
         return; // Exit early, don't show error
       }
@@ -1820,6 +1878,12 @@ window.getAIResponse = (patchContent, conversationHistory, language = 'English')
             error.isRateLimit = response.isRateLimit;
             error.rateLimitMessage = response.rateLimitMessage;
             error.retryAfter = response.retryAfter;
+          }
+          if (response.isLimitExceeded) {
+            error.isLimitExceeded = true;
+            error.dailyLimit = response.dailyLimit;
+            error.currentCount = response.currentCount;
+            error.purchasedReviewCredits = response.purchasedReviewCredits;
           }
           if (response.isAuthExpired) {
             error.isAuthExpired = true;

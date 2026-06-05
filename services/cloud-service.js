@@ -1,5 +1,6 @@
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 import { getThinkReviewAuthHeaders, handleUnauthorizedResponse, AuthExpiredError } from '../utils/extension-auth.js';
+import { filterValidCreditPacks } from '../utils/credit-pack-validation.js';
 
 // Cached once at module load; chrome.runtime.getManifest() is synchronous and
 // returns the same static value for the lifetime of the extension page.
@@ -88,7 +89,6 @@ export class CloudService {
       // Prepare the payload for the cloud function
       const payload = {
         email: userData.email,
-        uid: userData.id || userData.sub || userData.email.replace('@', '_at_'), // Use id, sub, or email-derived id
         userData: {
           name: userData.name,
           given_name: userData.given_name,
@@ -100,13 +100,7 @@ export class CloudService {
         source: 'extension',
         ...EXTENSION_VERSION_PAYLOAD
       };
-      
-      // Ensure uid is not undefined or null
-      if (!payload.uid) {
-        payload.uid = `ext_${Date.now()}`; // Fallback to a timestamp-based ID
-        dbgLog('Using fallback uid:', payload.uid);
-      }
-      
+
       dbgLog('Sending request to cloud function:', payload);
       
       // Make the API call to the cloud function
@@ -179,30 +173,27 @@ export class CloudService {
       return localUser;
     }
     
-    // Otherwise, try to get from the cloud function
+    // Otherwise, fetch from read-only endpoint (do not use sync — that would create users)
     try {
-      // Prepare the request payload
-      const payload = {
-        email: email,
-        uid: 'query', // Just a placeholder for query operations
-        source: 'extension',
+      const response = await CloudService.thinkReviewFetch(GET_USER_DATA_URL, {
+        email,
         ...EXTENSION_VERSION_PAYLOAD
-      };
-      
-      // Make the API call to the cloud function
-      const response = await CloudService.thinkReviewFetch(SYNC_USER_URL, payload);
-      
+      });
+
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
-      if (data.status === 'success' && data.data && data.data.currentUser) {
-        return data.data.currentUser;
-      } else {
-        return null;
+
+      if (data.status === 'success' && data.userExists) {
+        return {
+          email,
+          serverId: data.firestoreUserId,
+          ...data
+        };
       }
+      return null;
     } catch (error) {
       dbgWarn('Error getting user data:', error);
       return localUser; // Fall back to local user if available
@@ -347,6 +338,7 @@ export class CloudService {
               limitError.isLimitExceeded = true;
               limitError.dailyLimit = errorData.dailyLimit;
               limitError.currentCount = errorData.currentCount;
+              limitError.purchasedReviewCredits = errorData.purchasedReviewCredits;
               throw limitError;
             }
             if (errorData.message === 'PR-size-limit-exceeded') {
@@ -517,6 +509,7 @@ export class CloudService {
               originalError.isLimitExceeded = true;
               originalError.dailyLimit = errorData.dailyLimit;
               originalError.currentCount = errorData.currentCount;
+              originalError.purchasedReviewCredits = errorData.purchasedReviewCredits;
               originalError.rateLimitMessage = 'Daily review limit exceeded';
             }
           } catch (parseError) {
@@ -740,6 +733,7 @@ export class CloudService {
           planInterval: null,
           stripeCanceledDate: null,
           lastFeedbackPromptInteraction: null,
+          purchasedReviewCredits: 0,
           enabledReviewAgents: []
         };
       }
@@ -789,6 +783,10 @@ export class CloudService {
         stripeCanceledDate: data.stripeCanceledDate || null,
         lastFeedbackPromptInteraction: data.lastFeedbackPromptInteraction || null,
         lastReviewDate: data.lastReviewDate || null,
+        purchasedReviewCredits:
+          typeof data.purchasedReviewCredits === 'number'
+            ? data.purchasedReviewCredits
+            : Number(data.purchasedReviewCredits) || 0,
 
         // Expose subscription payload in case callers need the extra flags
         userSubscriptionData: subscriptionData || null,
@@ -810,6 +808,7 @@ export class CloudService {
         cancellationRequested: false,
         planInterval: null,
         stripeCanceledDate: null,
+        purchasedReviewCredits: 0,
         enabledReviewAgents: []
       };
     }
@@ -918,6 +917,10 @@ export class CloudService {
           todayReviewCount: data.todayReviewCount || 0,
           lastReviewDate: data.lastReviewDate || null,
           lastFeedbackPromptInteraction: data.lastFeedbackPromptInteraction || null,
+          purchasedReviewCredits:
+            typeof data.purchasedReviewCredits === 'number'
+              ? data.purchasedReviewCredits
+              : Number(data.purchasedReviewCredits) || 0,
           enabledReviewAgents: Array.isArray(data.enabledReviewAgents) ? data.enabledReviewAgents : []
         };
       } else {
@@ -1036,7 +1039,7 @@ export class CloudService {
   /**
    * Get daily-limit upgrade prompt configuration from Remote Config (via cloud function).
    * @param {string} email - User's email for authentication
-   * @returns {Promise<Object>} - { prompt, allowDiscounts, plans[], promotionalMessage? }
+   * @returns {Promise<Object>} - { prompt, allowDiscounts, plans[], creditPacks[], promotionalMessage? }
    */
   static async getUpgradePromptConfig(email) {
     dbgLog('Fetching upgrade prompt config');
@@ -1055,17 +1058,22 @@ export class CloudService {
     const data = await response.json();
     dbgLog('GetUpgradePromptConfig response:', {
       status: data.status,
-      planCount: Array.isArray(data.plans) ? data.plans.length : 0
+      planCount: Array.isArray(data.plans) ? data.plans.length : 0,
+      creditPackCount: Array.isArray(data.creditPacks) ? data.creditPacks.length : 0
     });
 
-    if (data.status !== 'success' || !Array.isArray(data.plans)) {
+    if (data.status !== 'success') {
+      throw new Error('Invalid response format from getUpgradePromptConfig');
+    }
+    if (!Array.isArray(data.plans) && !Array.isArray(data.creditPacks)) {
       throw new Error('Invalid response format from getUpgradePromptConfig');
     }
 
     return {
       prompt: data.prompt || {},
       allowDiscounts: data.allowDiscounts !== false,
-      plans: data.plans,
+      plans: Array.isArray(data.plans) ? data.plans : [],
+      creditPacks: filterValidCreditPacks(data.creditPacks),
       promotionalMessage: typeof data.promotionalMessage === 'string' ? data.promotionalMessage : ''
     };
   }

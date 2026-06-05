@@ -398,6 +398,12 @@ h1 {
   font-weight: 500;
 }
 
+.review-count-hint {
+  font-size: 11px;
+  color: #6c757d;
+  margin-top: 4px;
+}
+
 .review-count {
   font-size: 24px;
   font-weight: 700;

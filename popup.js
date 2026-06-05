@@ -175,6 +175,20 @@ function updateReviewCount(count) {
   reviewCount.updateCount(count);
 }
 
+function updatePurchasedCreditsBalance(balance) {
+  const section = document.getElementById('purchased-credits-section');
+  const el = document.getElementById('purchased-credits-balance');
+  if (!section || !el) return;
+  const n = typeof balance === 'number' ? balance : Number(balance);
+  if (!Number.isFinite(n) || n <= 0) {
+    section.style.display = 'none';
+    return;
+  }
+  const rounded = Math.round(n * 10) / 10;
+  el.textContent = String(rounded);
+  section.style.display = 'block';
+}
+
 // Function to force refresh user data (can be called when popup opens)
 async function forceRefreshUserData() {
   try {
@@ -270,6 +284,7 @@ async function fetchAndDisplayUserData() {
       try {
         const userData = await window.CloudService.getUserDataWithSubscription();
         updateReviewCount(userData.reviewCount);
+        updatePurchasedCreditsBalance(userData.purchasedReviewCredits);
         const subscriptionType = userData.subscriptionType || userData.stripeSubscriptionType || 'Free';
         const cancellationRequested = userData.cancellationRequested || false;
         const initialTrialEndDate = userData.initialTrialEndDate || null;
@@ -656,6 +671,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         trackUserAction('usage_opened', { context: 'popup' }).catch(() => {});
       } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/usage' });
+    });
+  }
+
+  const buyCreditsBtn = document.getElementById('buy-credits-btn');
+  if (buyCreditsBtn) {
+    buyCreditsBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('additional_credits_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
+      chrome.tabs.create({ url: 'https://portal.thinkreview.dev/additional-credits' });
     });
   }
   

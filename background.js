@@ -412,6 +412,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           success: false,
           error: err.message,
           isRateLimit: err.isRateLimit || false,
+          isLimitExceeded: err.isLimitExceeded || false,
+          dailyLimit: err.dailyLimit,
+          currentCount: err.currentCount,
+          purchasedReviewCredits: err.purchasedReviewCredits,
           rateLimitMessage: err.rateLimitMessage || null,
           retryAfter: err.retryAfter || null,
           ...authExpiredPayload(err),
@@ -553,6 +557,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           maxPatchSize: err.maxPatchSize,
           dailyLimit: err.dailyLimit,
           currentCount: err.currentCount,
+          purchasedReviewCredits: err.purchasedReviewCredits,
           provider: settings.aiProvider || 'cloud',
           ...authExpiredPayload(err),
         });
@@ -856,6 +861,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           planInterval: userData.planInterval || null,
           lastFeedbackPromptInteraction: userData.lastFeedbackPromptInteraction || null,
           lastReviewDate: userData.lastReviewDate || null,
+          purchasedReviewCredits: userData.purchasedReviewCredits ?? 0,
           enabledReviewAgents: Array.isArray(userData.enabledReviewAgents) ? userData.enabledReviewAgents : []
         };
         if (subscriptionData) responseUserData.userSubscriptionData = subscriptionData;
