@@ -732,6 +732,7 @@ export class CloudService {
           planInterval: null,
           stripeCanceledDate: null,
           lastFeedbackPromptInteraction: null,
+          purchasedReviewCredits: 0,
           enabledReviewAgents: []
         };
       }
@@ -781,6 +782,10 @@ export class CloudService {
         stripeCanceledDate: data.stripeCanceledDate || null,
         lastFeedbackPromptInteraction: data.lastFeedbackPromptInteraction || null,
         lastReviewDate: data.lastReviewDate || null,
+        purchasedReviewCredits:
+          typeof data.purchasedReviewCredits === 'number'
+            ? data.purchasedReviewCredits
+            : Number(data.purchasedReviewCredits) || 0,
 
         // Expose subscription payload in case callers need the extra flags
         userSubscriptionData: subscriptionData || null,
@@ -802,6 +807,7 @@ export class CloudService {
         cancellationRequested: false,
         planInterval: null,
         stripeCanceledDate: null,
+        purchasedReviewCredits: 0,
         enabledReviewAgents: []
       };
     }
@@ -910,6 +916,10 @@ export class CloudService {
           todayReviewCount: data.todayReviewCount || 0,
           lastReviewDate: data.lastReviewDate || null,
           lastFeedbackPromptInteraction: data.lastFeedbackPromptInteraction || null,
+          purchasedReviewCredits:
+            typeof data.purchasedReviewCredits === 'number'
+              ? data.purchasedReviewCredits
+              : Number(data.purchasedReviewCredits) || 0,
           enabledReviewAgents: Array.isArray(data.enabledReviewAgents) ? data.enabledReviewAgents : []
         };
       } else {

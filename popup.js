@@ -673,6 +673,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/usage' });
     });
   }
+
+  const buyCreditsBtn = document.getElementById('buy-credits-btn');
+  if (buyCreditsBtn) {
+    buyCreditsBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('additional_credits_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
+      chrome.tabs.create({ url: 'https://portal.thinkreview.dev/additional-credits' });
+    });
+  }
   
   const analyticsBtn = document.getElementById('analytics-btn');
   if (analyticsBtn) {

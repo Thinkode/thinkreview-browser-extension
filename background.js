@@ -857,6 +857,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           planInterval: userData.planInterval || null,
           lastFeedbackPromptInteraction: userData.lastFeedbackPromptInteraction || null,
           lastReviewDate: userData.lastReviewDate || null,
+          purchasedReviewCredits: userData.purchasedReviewCredits ?? 0,
           enabledReviewAgents: Array.isArray(userData.enabledReviewAgents) ? userData.enabledReviewAgents : []
         };
         if (subscriptionData) responseUserData.userSubscriptionData = subscriptionData;
