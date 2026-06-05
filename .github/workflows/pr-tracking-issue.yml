@@ -1,0 +1,101 @@
+# Creates a tracking GitHub Issue when a pull request is opened, assigns the owner,
+# and links the issue from the PR body. Skips version-only PRs (manifest + release notes).
+#
+# Uses pull_request_target and does not check out the PR head, so fork PRs can be
+# handled without running untrusted code in the workflow.
+name: PR tracking issue
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  create-tracking-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create issue, assign, and link from PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REPO="${{ github.repository }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+
+          pr_json="$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json title,body)"
+          PR_TITLE="$(printf '%s' "$pr_json" | jq -r .title)"
+          PR_BODY="$(printf '%s' "$pr_json" | jq -r .body)"
+
+          mapfile -t FILES < <(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')
+
+          skip_release_only=true
+          if ((${#FILES[@]} == 0)); then
+            skip_release_only=false
+          fi
+          for f in "${FILES[@]}"; do
+            if [[ "$f" == "manifest.json" ]]; then
+              continue
+            fi
+            if [[ "$f" == "release notes/"* ]]; then
+              continue
+            fi
+            skip_release_only=false
+            break
+          done
+
+          if [[ "$skip_release_only" == true ]]; then
+            echo "Skipping: changes are only manifest.json and/or release notes (version + release notes PR)."
+            exit 0
+          fi
+
+          list_files() {
+            printf '%s\n' "${FILES[@]}" | sed 's/^/- /'
+          }
+
+          BODY_FILE="$(mktemp)"
+          {
+            echo "This issue was opened automatically to track the pull request below."
+            echo
+            echo "## Pull request"
+            echo "- **Title:** ${PR_TITLE}"
+            echo "- **Number:** #${PR_NUMBER}"
+            echo "- **Link:** ${PR_URL}"
+            echo
+            echo "## Description"
+            printf '%s\n' "${PR_BODY:-}"
+            echo
+            echo "## Files changed"
+            list_files
+          } > "$BODY_FILE"
+
+          issue_title="Track PR #${PR_NUMBER}: ${PR_TITLE}"
+          if ((${#issue_title} > 240)); then
+            issue_title="${issue_title:0:237}..."
+          fi
+
+          issue_url="$(gh issue create \
+            --repo "${REPO}" \
+            --title "${issue_title}" \
+            --body-file "$BODY_FILE" \
+            --assignee mshenawy22)"
+
+          issue_num="$(basename "$issue_url")"
+          echo "Created ${issue_url}"
+
+          current_body_file="$(mktemp)"
+          gh pr view "${PR_NUMBER}" --repo "${REPO}" --json body -q .body > "$current_body_file"
+
+          updated_body_file="$(mktemp)"
+          {
+            cat "$current_body_file"
+            echo
+            echo "---"
+            echo "Tracking issue: #${issue_num}"
+          } > "$updated_body_file"
+
+          gh pr edit "${PR_NUMBER}" --repo "${REPO}" --body-file "$updated_body_file"
+          echo "Updated PR #${PR_NUMBER} with link to issue #${issue_num}."
