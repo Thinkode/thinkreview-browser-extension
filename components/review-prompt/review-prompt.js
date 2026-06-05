@@ -8,6 +8,8 @@ const REVIEW_PROMPT_CONFIG = {
   threshold: 5, // Show prompt after 5 total reviews
   chromeStoreUrl: 'https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn/reviews',
   feedbackUrl: 'https://thinkreview.dev/extension-feedback.html', // Updated to new extension-specific feedback form
+  // Only suppress the prompt for submits on/after this date (older submits are ignored)
+  submitSuppressCutoffDate: '2026-06-07',
   storageKeys: {
     reviewCount: 'reviewCount',
     todayReviewCount: 'todayReviewCount'
@@ -43,6 +45,35 @@ class ReviewPrompt {
   }
 
   /**
+   * Whether a prior submit should permanently hide the feedback prompt.
+   * Submissions before submitSuppressCutoffDate are ignored so users see the updated prompt.
+   * @param {Object} lastFeedbackPromptInteraction
+   * @returns {boolean}
+   */
+  shouldSuppressForSubmit(lastFeedbackPromptInteraction) {
+    if (!lastFeedbackPromptInteraction || lastFeedbackPromptInteraction.action !== 'submit') {
+      return false;
+    }
+
+    if (!lastFeedbackPromptInteraction.date) {
+      dbgLog('Submit has no date; treating as pre-cutoff and showing prompt');
+      return false;
+    }
+
+    const submitDate = new Date(lastFeedbackPromptInteraction.date);
+    const cutoffDate = new Date(`${this.config.submitSuppressCutoffDate}T00:00:00`);
+    const suppress = submitDate >= cutoffDate;
+
+    if (suppress) {
+      dbgLog('Not showing prompt: User submitted feedback on or after', this.config.submitSuppressCutoffDate);
+    } else {
+      dbgLog('Ignoring submit before', this.config.submitSuppressCutoffDate, '- will check other conditions');
+    }
+
+    return suppress;
+  }
+
+  /**
    * Check if the review prompt should be shown
    * @param {number} reviewCount - Current number of reviews generated
    * @param {Object} lastFeedbackPromptInteraction - Last feedback prompt interaction data from Firestore
@@ -53,9 +84,8 @@ class ReviewPrompt {
     if (lastFeedbackPromptInteraction && lastFeedbackPromptInteraction.action) {
       dbgLog('Last feedback prompt interaction from Firestore:', lastFeedbackPromptInteraction);
       
-      // If action was "submit", never show the prompt
-      if (lastFeedbackPromptInteraction.action === 'submit') {
-        dbgLog('Not showing prompt: User already submitted feedback (action: submit)');
+      // If action was "submit", only hide for submissions on/after the cutoff date
+      if (this.shouldSuppressForSubmit(lastFeedbackPromptInteraction)) {
         return false;
       }
       
