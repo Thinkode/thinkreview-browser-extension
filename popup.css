@@ -45,32 +45,39 @@ header {
 }
 
 .title-with-logo {
+  --header-title-font-size: calc(12px * 42 / 11);
+  --header-subtitle-font-size: 12px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .title-with-logo h2 {
   color: #6b4fbb;
-  font-size: 28px;
+  font-size: var(--header-title-font-size);
   font-weight: 700;
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+  white-space: nowrap;
+  width: 100%;
+  text-align: center;
 }
 
 .header-title-block {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0;
+  align-items: stretch;
+  gap: 2px;
   text-align: center;
 }
 
 .header-subtitle {
-  margin: -2px 0 0 0;
-  font-size: 12px;
+  margin: 0;
+  font-size: var(--header-subtitle-font-size);
   font-weight: 400;
   color: #666;
+  white-space: nowrap;
 }
 
 .header-bottom-row {
@@ -268,8 +275,10 @@ header {
 }
 
 .header-logo {
-  width: 48px;
-  height: 48px;
+  width: calc(var(--header-title-font-size) * 1.05 + var(--header-subtitle-font-size) + 2px);
+  height: calc(var(--header-title-font-size) * 1.05 + var(--header-subtitle-font-size) + 2px);
+  flex-shrink: 0;
+  object-fit: contain;
 }
 
 h1 {
@@ -581,17 +590,9 @@ h1 {
     padding: 16px;
   }
   
-  .title-with-logo h2 {
-    font-size: 24px;
-  }
-  
-  .header-subtitle {
-    font-size: 11px;
-  }
-  
-  .header-logo {
-    width: 40px;
-    height: 40px;
+  .title-with-logo {
+    --header-title-font-size: calc(11px * 42 / 11);
+    --header-subtitle-font-size: 11px;
   }
 }
 
@@ -600,21 +601,13 @@ h1 {
     padding: 12px;
   }
   
-  .title-with-logo h2 {
-    font-size: 20px;
-  }
-  
-  .header-subtitle {
-    font-size: 10px;
+  .title-with-logo {
+    --header-title-font-size: calc(10px * 42 / 11);
+    --header-subtitle-font-size: 10px;
   }
   
   .review-count {
     font-size: 20px;
-  }
-  
-  .header-logo {
-    width: 32px;
-    height: 32px;
   }
 }
 
