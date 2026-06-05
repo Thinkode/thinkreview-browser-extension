@@ -1022,11 +1022,36 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
 
           const packsRow = document.createElement('div');
           packsRow.className = 'upgrade-credit-packs';
-          creditPacks.forEach((pack) => {
+          const lastPackIndex = creditPacks.length - 1;
+          creditPacks.forEach((pack, packIndex) => {
+            const isBestValuePack = packIndex === lastPackIndex;
+            const isMostPurchasedPack =
+              creditPacks.length >= 2 && packIndex === lastPackIndex - 1;
+
+            const packItem = document.createElement('div');
+            packItem.className = 'upgrade-credit-pack-item';
+
+            const badgeSlot = document.createElement('div');
+            badgeSlot.className = 'upgrade-credit-pack-badge-slot';
+            if (isBestValuePack || isMostPurchasedPack) {
+              const badge = document.createElement('span');
+              badge.className = 'upgrade-credit-pack-badge';
+              if (isBestValuePack) {
+                badge.classList.add('is-best-value');
+                badge.textContent = 'Best value';
+              } else {
+                badge.classList.add('is-most-purchased');
+                badge.textContent = 'Most purchased';
+              }
+              badgeSlot.appendChild(badge);
+            }
+            packItem.appendChild(badgeSlot);
+
             const packBtn = document.createElement('button');
             packBtn.type = 'button';
             packBtn.className = 'upgrade-credit-pack-btn';
-            if (pack.isBestValue) packBtn.classList.add('is-best-value');
+            if (isBestValuePack) packBtn.classList.add('is-best-value');
+            if (isMostPurchasedPack) packBtn.classList.add('is-most-purchased');
 
             const price = Number(pack.price);
             const priceLabel = Number.isFinite(price) && price > 0 ? `$${price}` : '';
@@ -1050,7 +1075,8 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
                 pack.checkoutUrl || 'https://portal.thinkreview.dev/additional-credits';
               window.open(destinationUrl, '_blank');
             });
-            packsRow.appendChild(packBtn);
+            packItem.appendChild(packBtn);
+            packsRow.appendChild(packItem);
           });
           creditsActionsEl.appendChild(packsRow);
         } else if (!(prepaidBalance != null && prepaidBalance > 0)) {

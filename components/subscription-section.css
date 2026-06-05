@@ -185,7 +185,42 @@
 .upgrade-credit-packs {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-end;
   gap: 8px;
+}
+
+.upgrade-credit-pack-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+
+.upgrade-credit-pack-badge-slot {
+  min-height: 20px;
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 4px;
+}
+
+.upgrade-credit-pack-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+.upgrade-credit-pack-badge.is-best-value {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.upgrade-credit-pack-badge.is-most-purchased {
+  background: #fef3c7;
+  color: #b45309;
 }
 
 .upgrade-credit-pack-btn {
@@ -198,6 +233,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .upgrade-credit-pack-btn:hover {
@@ -208,6 +244,11 @@
 .upgrade-credit-pack-btn.is-best-value {
   border-color: #2563eb;
   background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+}
+
+.upgrade-credit-pack-btn.is-most-purchased {
+  border-color: #d97706;
+  background: linear-gradient(135deg, #b45309 0%, #f59e0b 100%);
 }
 
 .upgrade-credits-fallback-link {
