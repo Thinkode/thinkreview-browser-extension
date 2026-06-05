@@ -936,7 +936,7 @@ export class CloudService {
    * Track user interaction with the review prompt
    * @param {string} email - User's email address
    * @param {string} action - The action taken ('submit', 'later', or 'never')
-   * @param {number} [rating] - The star rating (1-5) if action is 'submit'
+   * @param {number} [rating] - Optional rating if action is 'submit'
    * @param {string} [redirectUrl] - The URL user was redirected to if action is 'submit'
    * @returns {Promise<Object>} - Promise that resolves with the tracking result
    */
@@ -954,10 +954,6 @@ export class CloudService {
 
       if (!['submit', 'later', 'never'].includes(action)) {
         throw new Error('Invalid action type');
-      }
-
-      if (action === 'submit' && !rating) {
-        throw new Error('Rating is required for submit action');
       }
 
       const payload = {

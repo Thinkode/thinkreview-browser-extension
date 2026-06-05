@@ -102,81 +102,6 @@
   transform: translateY(0);
 }
 
-/* Star Rating Container */
-#review-prompt .star-rating-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-#review-prompt .star-rating {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-#review-prompt .star {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#review-prompt .star:hover {
-  transform: scale(1.1);
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-#review-prompt .star:active {
-  transform: scale(0.95);
-}
-
-#review-prompt .star:focus {
-  outline: 2px solid rgba(255, 255, 255, 0.5);
-  outline-offset: 1px;
-}
-
-#review-prompt .star-icon {
-  width: 22px;
-  height: 22px;
-  stroke: #d1d5db;
-  fill: none;
-  stroke-width: 2;
-  transition: all 0.2s ease;
-}
-
-#review-prompt .star.active .star-icon {
-  fill: #ffc107;
-  stroke: #ffc107;
-  filter: drop-shadow(0 0 8px rgba(255, 193, 7, 0.3));
-}
-
-/* Rating Labels */
-#review-prompt .rating-labels {
-  display: flex;
-  justify-content: center;
-  min-height: 20px;
-}
-
-#review-prompt .rating-label {
-  font-size: 11px;
-  font-weight: 500;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  text-align: center;
-}
-
-#review-prompt .rating-label.active {
-  opacity: 1;
-}
-
 /* Modern Button Styles */
 #review-prompt .review-prompt-actions {
   display: flex;
@@ -348,11 +273,6 @@
 
 /* Responsive Design */
 @media (max-width: 480px) {
-  #review-prompt .star-rating-btn {
-    font-size: 18px;
-    padding: 3px 6px;
-  }
-  
   #review-prompt .gl-btn-sm {
     padding: 3px 6px;
     font-size: 10px;
@@ -365,10 +285,6 @@
 
 /* High Contrast Mode Support */
 @media (prefers-contrast: high) {
-  #review-prompt .star-rating-btn {
-    border: 1px solid currentColor;
-  }
-  
   #review-prompt .gl-btn {
     border-width: 2px;
   }
@@ -376,18 +292,6 @@
 
 /* Reduced Motion Support */
 @media (prefers-reduced-motion: reduce) {
-  #review-prompt .star-rating-btn {
-    transition: none;
-  }
-  
-  #review-prompt .star-rating-btn:hover {
-    transform: none;
-  }
-  
-  #review-prompt .star-rating-btn:active {
-    transform: none;
-  }
-  
   .review-thank-you-message {
     animation: none;
   }
