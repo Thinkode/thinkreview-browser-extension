@@ -256,6 +256,20 @@
   padding: 16px;
   width: 100%;
   box-sizing: border-box;
+  position: relative;
+  min-height: 280px;
+}
+
+#upgrade-prompt-loading.tr-loader-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  min-height: 280px;
+  border-radius: 8px;
+}
+
+#upgrade-prompt-loading.tr-loader-overlay .tr-loader-content {
+  min-height: 220px;
 }
 
 #review-scroll-container {

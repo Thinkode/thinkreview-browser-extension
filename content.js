@@ -942,14 +942,19 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
 
         if (email) {
           const remoteConfig = await cloudModule.CloudService.getUpgradePromptConfig(email);
-          if (remoteConfig && Array.isArray(remoteConfig.plans) && remoteConfig.plans.length > 0) {
+          const hasRemotePlans = Array.isArray(remoteConfig?.plans) && remoteConfig.plans.length > 0;
+          const hasRemoteCreditPacks =
+            Array.isArray(remoteConfig?.creditPacks) && remoteConfig.creditPacks.length > 0;
+          if (remoteConfig && (hasRemotePlans || hasRemoteCreditPacks)) {
             upgradeConfig = {
               ...fallbackConfig,
               ...remoteConfig,
               prompt: {
                 ...fallbackConfig.prompt,
                 ...(remoteConfig.prompt || {})
-              }
+              },
+              plans: hasRemotePlans ? remoteConfig.plans : fallbackConfig.plans,
+              creditPacks: hasRemoteCreditPacks ? remoteConfig.creditPacks : []
             };
           }
         }
@@ -991,15 +996,66 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
 
       const creditsActionsEl = upgradeWrapper.querySelector('#upgrade-credits-actions');
       if (creditsActionsEl) {
+        creditsActionsEl.replaceChildren();
+
         if (prepaidBalance != null && prepaidBalance > 0) {
-          creditsActionsEl.innerHTML = `<p class="gl-mb-0" style="font-size:13px;">You have <strong>${prepaidBalance}</strong> purchased credits for reviews after your daily plan limit (each pack expires 1 year after purchase).</p>`;
-        } else {
-          creditsActionsEl.innerHTML = `
-            <a href="https://portal.thinkreview.dev/subscription#credits" target="_blank" rel="noopener noreferrer"
-               class="btn btn-md btn-confirm gl-mt-2" style="display:inline-block;text-decoration:none;">
-              Buy review credits
-            </a>
-          `;
+          const balanceNote = document.createElement('p');
+          balanceNote.className = 'upgrade-credits-balance-note';
+          balanceNote.textContent = `You have ${prepaidBalance} purchased credits for reviews after your daily plan limit (each pack expires 1 year after purchase).`;
+          creditsActionsEl.appendChild(balanceNote);
+        }
+
+        const creditPacks = Array.isArray(upgradeConfig.creditPacks) ? upgradeConfig.creditPacks : [];
+        if (creditPacks.length > 0) {
+          const packsLabel = document.createElement('p');
+          packsLabel.className = 'upgrade-credits-packs-label';
+          packsLabel.textContent =
+            prepaidBalance != null && prepaidBalance > 0
+              ? 'Buy more review credits:'
+              : 'Buy review credits without upgrading your plan:';
+          creditsActionsEl.appendChild(packsLabel);
+
+          const packsRow = document.createElement('div');
+          packsRow.className = 'upgrade-credit-packs';
+          creditPacks.forEach((pack) => {
+            const packBtn = document.createElement('button');
+            packBtn.type = 'button';
+            packBtn.className = 'upgrade-credit-pack-btn';
+            if (pack.isBestValue) packBtn.classList.add('is-best-value');
+
+            const price = Number(pack.price);
+            const priceLabel = Number.isFinite(price) && price > 0 ? `$${price}` : '';
+            packBtn.textContent = priceLabel
+              ? `${pack.credits} credits · ${priceLabel}`
+              : (pack.ctaText || `Buy ${pack.credits} credits`);
+
+            packBtn.addEventListener('click', async (e) => {
+              e.preventDefault();
+              try {
+                const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+                trackUserAction('credit_pack_checkout_clicked', {
+                  context: 'daily_limit_upgrade_prompt',
+                  packId: pack.id || null,
+                  credits: pack.credits || null
+                }).catch(() => {});
+              } catch (error) {
+                // Silently fail - analytics should never break CTA
+              }
+              const destinationUrl =
+                pack.checkoutUrl || 'https://portal.thinkreview.dev/additional-credits';
+              window.open(destinationUrl, '_blank');
+            });
+            packsRow.appendChild(packBtn);
+          });
+          creditsActionsEl.appendChild(packsRow);
+        } else if (!(prepaidBalance != null && prepaidBalance > 0)) {
+          const fallbackLink = document.createElement('a');
+          fallbackLink.href = 'https://portal.thinkreview.dev/additional-credits';
+          fallbackLink.target = '_blank';
+          fallbackLink.rel = 'noopener noreferrer';
+          fallbackLink.className = 'btn btn-md btn-confirm gl-mt-2 upgrade-credits-fallback-link';
+          fallbackLink.textContent = 'Buy review credits';
+          creditsActionsEl.appendChild(fallbackLink);
         }
       }
 

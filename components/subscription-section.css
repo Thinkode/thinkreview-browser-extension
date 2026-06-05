@@ -164,3 +164,47 @@
   transform: translateY(-2px);
   box-shadow: 0 2px 5px rgba(107, 79, 187, 0.3);
 }
+
+.upgrade-credits-balance-note {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.upgrade-credits-packs-label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.upgrade-credit-packs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.upgrade-credit-pack-btn {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #047857;
+  background: linear-gradient(135deg, #047857 0%, #059669 100%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upgrade-credit-pack-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(4, 120, 87, 0.35);
+}
+
+.upgrade-credit-pack-btn.is-best-value {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+}
+
+.upgrade-credits-fallback-link {
+  display: inline-block;
+  text-decoration: none;
+}

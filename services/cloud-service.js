@@ -1038,7 +1038,7 @@ export class CloudService {
   /**
    * Get daily-limit upgrade prompt configuration from Remote Config (via cloud function).
    * @param {string} email - User's email for authentication
-   * @returns {Promise<Object>} - { prompt, allowDiscounts, plans[], promotionalMessage? }
+   * @returns {Promise<Object>} - { prompt, allowDiscounts, plans[], creditPacks[], promotionalMessage? }
    */
   static async getUpgradePromptConfig(email) {
     dbgLog('Fetching upgrade prompt config');
@@ -1057,17 +1057,22 @@ export class CloudService {
     const data = await response.json();
     dbgLog('GetUpgradePromptConfig response:', {
       status: data.status,
-      planCount: Array.isArray(data.plans) ? data.plans.length : 0
+      planCount: Array.isArray(data.plans) ? data.plans.length : 0,
+      creditPackCount: Array.isArray(data.creditPacks) ? data.creditPacks.length : 0
     });
 
-    if (data.status !== 'success' || !Array.isArray(data.plans)) {
+    if (data.status !== 'success') {
+      throw new Error('Invalid response format from getUpgradePromptConfig');
+    }
+    if (!Array.isArray(data.plans) && !Array.isArray(data.creditPacks)) {
       throw new Error('Invalid response format from getUpgradePromptConfig');
     }
 
     return {
       prompt: data.prompt || {},
       allowDiscounts: data.allowDiscounts !== false,
-      plans: data.plans,
+      plans: Array.isArray(data.plans) ? data.plans : [],
+      creditPacks: Array.isArray(data.creditPacks) ? data.creditPacks : [],
       promotionalMessage: typeof data.promotionalMessage === 'string' ? data.promotionalMessage : ''
     };
   }
