@@ -1,5 +1,6 @@
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 import { getThinkReviewAuthHeaders, handleUnauthorizedResponse, AuthExpiredError } from '../utils/extension-auth.js';
+import { filterValidCreditPacks } from '../utils/credit-pack-validation.js';
 
 // Cached once at module load; chrome.runtime.getManifest() is synchronous and
 // returns the same static value for the lifetime of the extension page.
@@ -1072,7 +1073,7 @@ export class CloudService {
       prompt: data.prompt || {},
       allowDiscounts: data.allowDiscounts !== false,
       plans: Array.isArray(data.plans) ? data.plans : [],
-      creditPacks: Array.isArray(data.creditPacks) ? data.creditPacks : [],
+      creditPacks: filterValidCreditPacks(data.creditPacks),
       promotionalMessage: typeof data.promotionalMessage === 'string' ? data.promotionalMessage : ''
     };
   }

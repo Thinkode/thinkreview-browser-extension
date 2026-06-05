@@ -1038,7 +1038,10 @@ async function showUpgradeMessage(
           creditsActionsEl.appendChild(balanceNote);
         }
 
-        const creditPacks = Array.isArray(upgradeConfig.creditPacks) ? upgradeConfig.creditPacks : [];
+        const creditPackValidation = await import(
+          chrome.runtime.getURL('utils/credit-pack-validation.js')
+        );
+        const creditPacks = creditPackValidation.filterValidCreditPacks(upgradeConfig.creditPacks);
         if (creditPacks.length > 0) {
           const packsLabel = document.createElement('p');
           packsLabel.className = 'upgrade-credits-packs-label';
