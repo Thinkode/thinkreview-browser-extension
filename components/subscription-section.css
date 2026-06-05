@@ -171,9 +171,15 @@
 }
 
 .upgrade-credits-packs-label {
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   font-size: 13px;
   font-weight: 600;
+}
+
+.upgrade-credits-validity-note {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #5f6368;
 }
 
 .upgrade-credit-packs {

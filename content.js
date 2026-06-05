@@ -1015,6 +1015,11 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
               : 'Buy review credits without upgrading your plan:';
           creditsActionsEl.appendChild(packsLabel);
 
+          const validityNote = document.createElement('p');
+          validityNote.className = 'upgrade-credits-validity-note';
+          validityNote.textContent = 'Additional credits are valid for 1 year from purchase.';
+          creditsActionsEl.appendChild(validityNote);
+
           const packsRow = document.createElement('div');
           packsRow.className = 'upgrade-credit-packs';
           creditPacks.forEach((pack) => {
@@ -1056,6 +1061,11 @@ async function showUpgradeMessage(reviewCount, dailyLimit = 3, limitOverride = n
           fallbackLink.className = 'btn btn-md btn-confirm gl-mt-2 upgrade-credits-fallback-link';
           fallbackLink.textContent = 'Buy review credits';
           creditsActionsEl.appendChild(fallbackLink);
+
+          const fallbackValidityNote = document.createElement('p');
+          fallbackValidityNote.className = 'upgrade-credits-validity-note';
+          fallbackValidityNote.textContent = 'Additional credits are valid for 1 year from purchase.';
+          creditsActionsEl.appendChild(fallbackValidityNote);
         }
       }
 
