@@ -827,7 +827,7 @@ chrome.runtime.onMessage.addListener((message) => {
  * @param {Object|null} limitOverride - Optional override for the limit title/body (e.g. for PR size errors).
  *   If provided, { title: string, body: string } will be used instead of the remote config / fallback values.
  * @param {number|null} purchasedReviewCredits - Prepaid credits balance (used after daily limit).
- * @param {{ skipLoader?: boolean }} [options] - When skipLoader is true (e.g. chat follow-up), keep the review panel visible while fetching upgrade config.
+ * @param {{ skipLoader?: boolean, hideCreditPacks?: boolean }} [options] - skipLoader: keep review panel visible while loading; hideCreditPacks: plans only (e.g. PR size limit).
  */
 function revealUpgradePrompt(upgradeWrapper, reviewContent, options = {}) {
   const skipLoader = options?.skipLoader === true;
@@ -848,6 +848,7 @@ async function showUpgradeMessage(
   options = {}
 ) {
   const skipLoader = options?.skipLoader === true;
+  const hideCreditPacks = options?.hideCreditPacks === true;
   const reviewLoading = document.getElementById('review-loading');
   const reviewContent = document.getElementById('review-content');
   const reviewError = document.getElementById('review-error');
@@ -987,12 +988,17 @@ async function showUpgradeMessage(
                 ...(remoteConfig.prompt || {})
               },
               plans: hasRemotePlans ? remoteConfig.plans : fallbackConfig.plans,
-              creditPacks: hasRemoteCreditPacks ? remoteConfig.creditPacks : []
+              creditPacks:
+                hideCreditPacks || !hasRemoteCreditPacks ? [] : remoteConfig.creditPacks
             };
           }
         }
       } catch (configError) {
         dbgWarn('Error fetching upgrade prompt config, using fallback:', configError);
+      }
+
+      if (hideCreditPacks) {
+        upgradeConfig.creditPacks = [];
       }
 
       const safeBody = limitOverride
@@ -1029,13 +1035,19 @@ async function showUpgradeMessage(
 
       const creditsActionsEl = upgradeWrapper.querySelector('#upgrade-credits-actions');
       if (creditsActionsEl) {
-        const upgradeCreditPacks = await import(
-          chrome.runtime.getURL('components/upgrade-credit-packs.js')
-        );
-        await upgradeCreditPacks.renderUpgradeCreditPacksActions(creditsActionsEl, {
-          creditPacks: upgradeConfig.creditPacks,
-          prepaidBalance
-        });
+        if (hideCreditPacks) {
+          creditsActionsEl.replaceChildren();
+          creditsActionsEl.classList.add('gl-hidden');
+        } else {
+          creditsActionsEl.classList.remove('gl-hidden');
+          const upgradeCreditPacks = await import(
+            chrome.runtime.getURL('components/upgrade-credit-packs.js')
+          );
+          await upgradeCreditPacks.renderUpgradeCreditPacksActions(creditsActionsEl, {
+            creditPacks: upgradeConfig.creditPacks,
+            prepaidBalance
+          });
+        }
       }
 
       const titleEl = upgradeWrapper.querySelector('#subscription-title');
@@ -1185,10 +1197,16 @@ window.showUpgradeMessage = showUpgradeMessage;
 function showPatchTooLargeMessage(patchSize, maxPatchSize) {
   const patchSizeKB = Math.round(patchSize / 1024);
   const maxPatchSizeKB = Math.round(maxPatchSize / 1024);
-  showUpgradeMessage(0, 0, {
-    title: 'PR Too Large for Free Plan',
-    body: `Your PR is ${patchSizeKB} KB, which exceeds the ${maxPatchSizeKB} KB limit for free accounts. Upgrade to review larger PRs with more powerful AI models.`
-  });
+  showUpgradeMessage(
+    0,
+    0,
+    {
+      title: 'PR Too Large for Free Plan',
+      body: `Your PR is ${patchSizeKB} KB, which exceeds the ${maxPatchSizeKB} KB limit for free accounts. Upgrade to review larger PRs with more powerful AI models.`
+    },
+    null,
+    { hideCreditPacks: true }
+  );
 }
 
 /** Dummy Azure DevOps token used when none is set in storage (>25 chars to satisfy length checks). */
