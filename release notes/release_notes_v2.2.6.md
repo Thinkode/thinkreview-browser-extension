@@ -8,15 +8,15 @@
 
 ### OpenRouter: bring your own models from the extension popup 🌐
 
-You can choose **OpenRouter** next to Cloud AI and local Ollama in extension settings. Add your OpenRouter API key, pick a model, and save—reviews and follow-up chat in the panel then run through OpenRouter’s unified routing instead of the built-in cloud path. (Thank you @tongseng!)
+You can choose **OpenRouter** next to Cloud AI and local Ollama in extension settings. Add your OpenRouter API key, pick a model, and save—reviews and follow-up chat in the panel then run through OpenRouter’s unified routing instead of the built-in cloud path. (Thank you @klvinlee01 !)
 
 ### Check that your OpenRouter model works before you rely on it ✅
 
-A **Test model** flow in the OpenRouter settings helps confirm your key and model respond correctly, so you are less likely to hit surprises when you start a real review. (Thank you @tongseng!)
+A **Test model** flow in the OpenRouter settings helps confirm your key and model respond correctly, so you are less likely to hit surprises when you start a real review. (Thank you @klvinlee01 !)
 
 ### Better fit across models and clearer limits 📐
 
-OpenRouter requests now account for how large your prompt is and adjust limits more sensibly for the model you picked, which improves reliability when switching between different hosted models. (Thank you @tongseng!)
+OpenRouter requests now account for how large your prompt is and adjust limits more sensibly for the model you picked, which improves reliability when switching between different hosted models. (Thank you @klvinlee01 !)
 
 ### More time for slower OpenRouter responses ⏱️
 
