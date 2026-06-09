@@ -512,6 +512,32 @@
           </div>
         </div>
 
+        <!-- Enterprise Gateway Settings (collapsed by default) -->
+        <div id="gateway-settings" class="ai-provider-settings-section">
+          <button class="collapsible-header" id="gateway-toggle" aria-expanded="false">
+            <h3 class="settings-title">Enterprise Gateway</h3>
+            <svg class="collapsible-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div id="gateway-body" class="collapsible-body" style="display:none;">
+            <p class="settings-description">Route patch review and conversational API calls to your on-prem ThinkReview gateway. Sign-in, agents, and billing still use ThinkReview cloud.</p>
+            <div class="ollama-config">
+              <div class="ollama-config-row">
+                <label for="gateway-base-url" class="config-label">Gateway Base URL:</label>
+                <input type="url" id="gateway-base-url" class="config-input" placeholder="https://thinkreview-gateway.yourcompany.internal:8443" autocomplete="off" spellcheck="false">
+              </div>
+              <div class="ollama-actions">
+                <button id="test-gateway-btn" class="test-ollama-btn" type="button">Test Connection</button>
+                <button id="save-gateway-btn" class="save-ollama-btn" type="button">Save</button>
+                <button id="clear-gateway-btn" class="test-ollama-btn" type="button">Use ThinkReview Cloud</button>
+              </div>
+              <div id="gateway-status" class="ollama-status"></div>
+              <p class="help-text">Leave empty and save to use the default ThinkReview cloud API. Only review endpoints are routed to your gateway.</p>
+            </div>
+          </div>
+        </div>
+
       </div><!-- /platform-home -->
 
 

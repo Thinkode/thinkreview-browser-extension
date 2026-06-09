@@ -856,6 +856,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize collapsible AI Provider header
   initializeAIProviderCollapsible();
 
+  // Initialize enterprise gateway settings
+  initializeGatewaySettings();
+  initializeGatewayCollapsible();
+
 });
 
 // Domain Management Functionality
@@ -3093,6 +3097,212 @@ function setBadge(platform, status) {
 function initializeAIProviderCollapsible() {
   const toggle = document.getElementById('ai-provider-toggle');
   const body = document.getElementById('ai-provider-body');
+  if (!toggle || !body) return;
+
+  toggle.addEventListener('click', () => {
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', String(!expanded));
+    body.style.display = expanded ? 'none' : 'block';
+  });
+}
+
+// =====================================================================
+// ENTERPRISE GATEWAY SETTINGS
+// =====================================================================
+
+function initializeGatewaySettings() {
+  loadGatewaySettings();
+  setupGatewayEventListeners();
+}
+
+function setupGatewayEventListeners() {
+  const saveButton = document.getElementById('save-gateway-btn');
+  const testButton = document.getElementById('test-gateway-btn');
+  const clearButton = document.getElementById('clear-gateway-btn');
+  const urlInput = document.getElementById('gateway-base-url');
+
+  if (saveButton) {
+    saveButton.addEventListener('click', saveGatewaySettings);
+  }
+  if (testButton) {
+    testButton.addEventListener('click', testGatewayConnection);
+  }
+  if (clearButton) {
+    clearButton.addEventListener('click', clearGatewaySettings);
+  }
+  if (urlInput) {
+    urlInput.addEventListener('keypress', (event) => {
+      if (event.key === 'Enter') {
+        saveGatewaySettings();
+      }
+    });
+  }
+}
+
+function normalizeGatewayBaseUrl(raw) {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return '';
+
+  let candidate = trimmed;
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(candidate)) {
+    candidate = `https://${candidate}`;
+  }
+
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null;
+    }
+    const pathname = url.pathname.replace(/\/$/, '');
+    return `${url.origin}${pathname === '' ? '' : pathname}`.replace(/\/$/, '');
+  } catch (_) {
+    return null;
+  }
+}
+
+function getGatewayOriginPattern(baseUrl) {
+  const url = new URL(baseUrl);
+  return `${url.origin}/*`;
+}
+
+async function requestGatewayHostPermission(baseUrl) {
+  const originPattern = getGatewayOriginPattern(baseUrl);
+  const existing = await chrome.permissions.contains({ origins: [originPattern] });
+  if (existing) return true;
+
+  return chrome.permissions.request({ origins: [originPattern] });
+}
+
+async function loadGatewaySettings() {
+  try {
+    const result = await chrome.storage.local.get(['gatewayBaseUrl']);
+    const urlInput = document.getElementById('gateway-base-url');
+    if (urlInput) {
+      urlInput.value = result.gatewayBaseUrl || '';
+    }
+  } catch (error) {
+    dbgWarn('Error loading gateway settings:', error);
+  }
+}
+
+function showGatewayStatus(message, type = 'info') {
+  const statusDiv = document.getElementById('gateway-status');
+  if (!statusDiv) return;
+
+  statusDiv.textContent = message;
+  statusDiv.className = `ollama-status show ${type}`;
+
+  if (type === 'success') {
+    setTimeout(() => {
+      statusDiv.classList.remove('show');
+    }, 5000);
+  }
+}
+
+async function testGatewayConnection() {
+  const urlInput = document.getElementById('gateway-base-url');
+  const testButton = document.getElementById('test-gateway-btn');
+  const raw = urlInput ? urlInput.value : '';
+  const baseUrl = normalizeGatewayBaseUrl(raw);
+
+  if (!baseUrl) {
+    showGatewayStatus('Please enter a valid gateway URL (http or https)', 'error');
+    return;
+  }
+
+  if (urlInput) urlInput.value = baseUrl;
+
+  if (testButton) testButton.disabled = true;
+  showGatewayStatus('Testing gateway connection...', 'info');
+
+  try {
+    const granted = await requestGatewayHostPermission(baseUrl);
+    if (!granted) {
+      showGatewayStatus('Permission not granted. Allow access to your gateway host to test the connection.', 'error');
+      return;
+    }
+
+    const response = await fetch(`${baseUrl}/health`);
+    if (!response.ok) {
+      showGatewayStatus(`Gateway returned HTTP ${response.status}`, 'error');
+      return;
+    }
+
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch (_) {
+      // non-JSON health response is still a successful connection
+    }
+
+    if (payload && payload.engineReady === false) {
+      showGatewayStatus('Gateway reachable, but review engine is not ready yet', 'error');
+      return;
+    }
+
+    showGatewayStatus('Gateway connection successful', 'success');
+  } catch (error) {
+    dbgWarn('Gateway connection test failed:', error);
+    showGatewayStatus(`Connection failed: ${error.message}`, 'error');
+  } finally {
+    if (testButton) testButton.disabled = false;
+  }
+}
+
+async function saveGatewaySettings() {
+  const urlInput = document.getElementById('gateway-base-url');
+  const saveButton = document.getElementById('save-gateway-btn');
+  const raw = urlInput ? urlInput.value : '';
+  const baseUrl = normalizeGatewayBaseUrl(raw);
+
+  if (raw.trim() && !baseUrl) {
+    showGatewayStatus('Please enter a valid gateway URL (http or https)', 'error');
+    return;
+  }
+
+  if (urlInput) urlInput.value = baseUrl;
+
+  if (saveButton) saveButton.disabled = true;
+
+  try {
+    if (baseUrl) {
+      const granted = await requestGatewayHostPermission(baseUrl);
+      if (!granted) {
+        showGatewayStatus('Permission not granted. Allow access to your gateway host to save this URL.', 'error');
+        return;
+      }
+      await chrome.storage.local.set({ gatewayBaseUrl: baseUrl });
+      showGatewayStatus('Enterprise gateway URL saved', 'success');
+    } else {
+      await chrome.storage.local.remove(['gatewayBaseUrl']);
+      showGatewayStatus('Using ThinkReview cloud for reviews', 'success');
+    }
+    dbgLog('Gateway settings saved:', { gatewayBaseUrl: baseUrl || null });
+  } catch (error) {
+    dbgWarn('Error saving gateway settings:', error);
+    showGatewayStatus('Failed to save gateway settings', 'error');
+  } finally {
+    if (saveButton) saveButton.disabled = false;
+  }
+}
+
+async function clearGatewaySettings() {
+  const urlInput = document.getElementById('gateway-base-url');
+  if (urlInput) urlInput.value = '';
+
+  try {
+    await chrome.storage.local.remove(['gatewayBaseUrl']);
+    showGatewayStatus('Using ThinkReview cloud for reviews', 'success');
+    dbgLog('Gateway settings cleared');
+  } catch (error) {
+    dbgWarn('Error clearing gateway settings:', error);
+    showGatewayStatus('Failed to clear gateway settings', 'error');
+  }
+}
+
+function initializeGatewayCollapsible() {
+  const toggle = document.getElementById('gateway-toggle');
+  const body = document.getElementById('gateway-body');
   if (!toggle || !body) return;
 
   toggle.addEventListener('click', () => {
