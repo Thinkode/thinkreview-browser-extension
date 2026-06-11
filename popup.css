@@ -1098,6 +1098,11 @@ footer {
   color: #475569;
 }
 
+.provider-card-icon--self-hosted {
+  background: linear-gradient(135deg, #e8f4fc 0%, #cfe8f7 100%);
+  color: #1565c0;
+}
+
 .provider-card-title-group {
   display: flex;
   flex-direction: column;
@@ -1138,6 +1143,12 @@ footer {
   background: #f1f5f9;
   color: #334155;
   border: 1px solid #cbd5e1;
+}
+
+.provider-card-badge--self-hosted {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #90caf9;
 }
 
 .provider-card-check-icon {
@@ -1191,6 +1202,12 @@ footer {
   background: #f8fafc;
   color: #475569;
   border: 1px solid #d7e0ea;
+}
+
+.provider-tag--self-hosted {
+  background: #e8f4fc;
+  color: #1565c0;
+  border: 1px solid #bbdefb;
 }
 
 /* Selected state */
