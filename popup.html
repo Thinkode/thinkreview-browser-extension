@@ -355,8 +355,8 @@
                 </div>
               </label>
 
-              <!-- ThinkReview Self-Hosted Gateway -->
-              <label class="provider-card" id="provider-card-self-hosted">
+              <!-- ThinkReview Self-Hosted Gateway (Teams only) -->
+              <label class="provider-card" id="provider-card-self-hosted" style="display:none;">
                 <input type="radio" name="ai-provider" value="self-hosted" id="provider-self-hosted" class="provider-card-radio">
                 <div class="provider-card-inner">
                   <div class="provider-card-top">
@@ -370,7 +370,7 @@
                     </div>
                     <div class="provider-card-title-group">
                       <span class="provider-card-name">ThinkReview Self-Hosted Gateway</span>
-                      <span class="provider-card-badge provider-card-badge--self-hosted">On-prem</span>
+                      <span class="provider-card-badge provider-card-badge--self-hosted">Teams</span>
                     </div>
                     <div class="provider-card-check-icon">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -453,7 +453,7 @@
 
             </div>
             <div id="self-hosted-config" class="ollama-config" style="display: none;">
-              <p class="help-text">Reviews route to your gateway; sign-in, agents, and billing still use ThinkReview cloud.</p>
+              <p class="help-text">Teams plan only. Reviews route to your gateway; sign-in, agents, and billing still use ThinkReview cloud.</p>
               <div class="ollama-config-row">
                 <label for="gateway-base-url" class="config-label">Gateway Base URL:</label>
                 <input type="url" id="gateway-base-url" class="config-input" placeholder="http://localhost:8443" autocomplete="off" spellcheck="false">

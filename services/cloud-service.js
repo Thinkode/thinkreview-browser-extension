@@ -1,6 +1,7 @@
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 import { getThinkReviewAuthHeaders, handleUnauthorizedResponse, AuthExpiredError } from '../utils/extension-auth.js';
 import { filterValidCreditPacks } from '../utils/credit-pack-validation.js';
+import { canUseEnterpriseGatewayFromStorage } from '../utils/enterprise-gateway.js';
 
 // Cached once at module load; chrome.runtime.getManifest() is synchronous and
 // returns the same static value for the lifetime of the extension page.
@@ -78,10 +79,19 @@ export class CloudService {
   static async getReviewApiBaseUrl() {
     try {
       const stored = await new Promise((resolve) => {
-        chrome.storage.local.get(['aiProvider', 'gatewayBaseUrl'], resolve);
+        chrome.storage.local.get([
+          'aiProvider',
+          'gatewayBaseUrl',
+          'userSubscriptionData',
+          'userData',
+          'subscriptionType',
+        ], resolve);
       });
       const provider = stored?.aiProvider || 'cloud';
       if (provider !== 'self-hosted') {
+        return CLOUD_FUNCTIONS_BASE_URL;
+      }
+      if (!canUseEnterpriseGatewayFromStorage(stored)) {
         return CLOUD_FUNCTIONS_BASE_URL;
       }
       const raw = stored?.gatewayBaseUrl;

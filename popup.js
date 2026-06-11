@@ -7,7 +7,7 @@ import { reviewCount } from './components/popup-modules/review-count.js';
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
 import { OPENROUTER_ORIGINS, hasOpenRouterHostPermission } from './utils/openrouter-permissions.js';
-import { normalizeGatewayBaseUrl } from './utils/enterprise-gateway.js';
+import { normalizeGatewayBaseUrl, canUseEnterpriseGatewayFromStorage } from './utils/enterprise-gateway.js';
 
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_SIGNIN_WAIT = 500;
@@ -267,6 +267,7 @@ async function fetchAndDisplayUserData() {
         showErrorState('Unable to load user data');
         updateReviewCount('error');
         await updateSubscriptionStatus('Free', null, false, null);
+        await updateSelfHostedProviderVisibility(null);
         return;
       }
       const backoffTime = Math.pow(2, cloudRetry) * 500;
@@ -296,6 +297,11 @@ async function fetchAndDisplayUserData() {
           userData.stripeCanceledDate,
           initialTrialEndDate
         );
+        await chrome.storage.local.set({
+          subscriptionType,
+          userSubscriptionData: userData.userSubscriptionData || null,
+        });
+        await updateSelfHostedProviderVisibility(userData);
         dbgLog('User data updated:', userData);
         return;
       } catch (error) {
@@ -304,6 +310,7 @@ async function fetchAndDisplayUserData() {
           showErrorState('Failed to load user data');
           updateReviewCount('error');
           await updateSubscriptionStatus('Free', null, false, null);
+          await updateSelfHostedProviderVisibility(null);
           return;
         }
         const backoffTime = Math.pow(2, fetchAttempt) * 500;
@@ -2202,10 +2209,21 @@ function setupAIProviderEventListeners() {
 
 async function loadAIProviderSettings() {
   try {
-    const result = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openrouterConfig', 'gatewayBaseUrl']);
+    const result = await chrome.storage.local.get([
+      'aiProvider',
+      'ollamaConfig',
+      'openrouterConfig',
+      'gatewayBaseUrl',
+      'userSubscriptionData',
+      'subscriptionType',
+    ]);
     let provider = result.aiProvider || 'cloud';
-    // Migrate: if gateway URL was saved before self-hosted provider existed
-    if (provider === 'cloud' && result.gatewayBaseUrl) {
+    const canUseGateway = canUseEnterpriseGatewayFromStorage(result);
+
+    if (provider === 'self-hosted' && !canUseGateway) {
+      provider = 'cloud';
+      await chrome.storage.local.set({ aiProvider: 'cloud' });
+    } else if (provider === 'cloud' && result.gatewayBaseUrl && canUseGateway) {
       provider = 'self-hosted';
       await chrome.storage.local.set({ aiProvider: 'self-hosted' });
     }
@@ -2266,6 +2284,10 @@ async function loadAIProviderSettings() {
     }
     
     dbgLog('AI Provider settings loaded:', { provider, config });
+    await updateSelfHostedProviderVisibility({
+      userSubscriptionData: result.userSubscriptionData,
+      subscriptionType: result.subscriptionType,
+    });
   } catch (error) {
     dbgWarn('Error loading AI Provider settings:', error);
   }
@@ -2293,6 +2315,20 @@ function showProviderConfigPanels(provider) {
 
 async function handleProviderChange(event) {
   const provider = event.target.value;
+
+  if (provider === 'self-hosted') {
+    const stored = await chrome.storage.local.get(['userSubscriptionData', 'subscriptionType']);
+    if (!canUseEnterpriseGatewayFromStorage(stored)) {
+      showGatewayStatus('ThinkReview Self-Hosted Gateway is available on the Teams plan only', 'error');
+      const cloudRadio = document.getElementById('provider-cloud');
+      if (cloudRadio) cloudRadio.checked = true;
+      updateProviderCardSelection('cloud');
+      showProviderConfigPanels('cloud');
+      await chrome.storage.local.set({ aiProvider: 'cloud' });
+      return;
+    }
+  }
+
   updateProviderCardSelection(provider);
   showProviderConfigPanels(provider);
 
@@ -3131,8 +3167,43 @@ function initializeAIProviderCollapsible() {
 }
 
 // =====================================================================
-// THINKREVIEW SELF-HOSTED GATEWAY (aiProvider: self-hosted)
+// THINKREVIEW SELF-HOSTED GATEWAY (Teams plan only — aiProvider: self-hosted)
 // =====================================================================
+
+async function updateSelfHostedProviderVisibility(userData) {
+  const card = document.getElementById('provider-card-self-hosted');
+  const canUse = canUseEnterpriseGatewayFromStorage({
+    userSubscriptionData: userData?.userSubscriptionData,
+    subscriptionType: userData?.subscriptionType,
+  });
+
+  if (card) {
+    card.style.display = canUse ? 'block' : 'none';
+  }
+
+  if (!canUse) {
+    const stored = await chrome.storage.local.get(['aiProvider']);
+    if (stored.aiProvider === 'self-hosted') {
+      await chrome.storage.local.set({ aiProvider: 'cloud' });
+      const cloudRadio = document.getElementById('provider-cloud');
+      if (cloudRadio) cloudRadio.checked = true;
+      updateProviderCardSelection('cloud');
+      showProviderConfigPanels('cloud');
+    }
+  }
+}
+
+async function ensureTeamsPlanForGateway() {
+  const stored = await chrome.storage.local.get([
+    'userSubscriptionData',
+    'subscriptionType',
+  ]);
+  if (canUseEnterpriseGatewayFromStorage(stored)) {
+    return true;
+  }
+  showGatewayStatus('ThinkReview Self-Hosted Gateway is available on the Teams plan only', 'error');
+  return false;
+}
 
 function getGatewayOriginPattern(baseUrl) {
   const url = new URL(baseUrl);
@@ -3162,6 +3233,9 @@ function showGatewayStatus(message, type = 'info') {
 }
 
 async function testGatewayConnection() {
+  if (!(await ensureTeamsPlanForGateway())) {
+    return;
+  }
   const urlInput = document.getElementById('gateway-base-url');
   const testButton = document.getElementById('test-gateway-btn');
   const raw = urlInput ? urlInput.value : '';
@@ -3212,6 +3286,9 @@ async function testGatewayConnection() {
 }
 
 async function saveGatewaySettings() {
+  if (!(await ensureTeamsPlanForGateway())) {
+    return;
+  }
   const urlInput = document.getElementById('gateway-base-url');
   const saveButton = document.getElementById('save-gateway-btn');
   const raw = urlInput ? urlInput.value : '';
