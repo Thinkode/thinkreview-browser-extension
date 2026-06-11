@@ -17,11 +17,34 @@
   var dbgLog = (...args) => { if (DEBUG) console.log('[ThinkReview Extension]', ...args); };
   var dbgWarn = (...args) => { if (DEBUG) console.warn('[ThinkReview Extension]', ...args); };
   var dbgError = (...args) => { if (DEBUG) console.error('[ThinkReview Extension]', ...args); };
+
+  /** True when this content script can still talk to the extension (false after reload/update). */
+  function canMessageExtension() {
+    try {
+      return typeof chrome !== 'undefined'
+        && !!chrome.runtime
+        && typeof chrome.runtime.sendMessage === 'function'
+        && !!chrome.runtime.id;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function getExtensionResourceUrl(path) {
+    if (!canMessageExtension()) return null;
+    try {
+      return chrome.runtime.getURL(path);
+    } catch (_) {
+      return null;
+    }
+  }
   
   // Initialize logger functions with dynamic import
   (async () => {
     try {
-      const loggerModule = await import(chrome.runtime.getURL('utils/logger.js'));
+      const loggerUrl = getExtensionResourceUrl('utils/logger.js');
+      if (!loggerUrl) return;
+      const loggerModule = await import(loggerUrl);
       dbgLog = loggerModule.dbgLog;
       dbgWarn = loggerModule.dbgWarn;
       dbgError = loggerModule.dbgError;
@@ -38,7 +61,12 @@
   // Load the origin validator utility
   (async () => {
     try {
-      const module = await import(chrome.runtime.getURL('utils/origin-validator.js'));
+      const validatorUrl = getExtensionResourceUrl('utils/origin-validator.js');
+      if (!validatorUrl) {
+        dbgWarn('Extension context unavailable; refresh the portal page after updating ThinkReview.');
+        return;
+      }
+      const module = await import(validatorUrl);
       isValidOrigin = module.isValidOrigin;
       originValidatorLoaded = true;
       initializeContentScript();
@@ -56,6 +84,10 @@
     // so the button works in dev environments too. Low-risk: only opens a new tab.
     window.addEventListener('thinkreview-open-extension', () => {
       dbgLog('Received open-extension event from webapp');
+      if (!canMessageExtension()) {
+        dbgWarn('Extension context unavailable; refresh the page after updating ThinkReview.');
+        return;
+      }
       try {
         chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_PAGE' }, (response) => {
           if (chrome.runtime.lastError) {
@@ -107,6 +139,11 @@
         dbgWarn('Auth data is stale, ignoring');
         return;
       }
+
+      if (!canMessageExtension()) {
+        dbgWarn('Extension context unavailable; refresh the portal page to sync sign-in with ThinkReview.');
+        return;
+      }
       
       try {
         chrome.runtime.sendMessage({
@@ -122,7 +159,7 @@
           }
         });
       } catch (error) {
-        console.error('Error sending auth message:', error);
+        dbgWarn('Error sending auth message:', error);
       }
     }
   
