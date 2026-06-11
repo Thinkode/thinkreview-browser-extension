@@ -355,6 +355,38 @@
                 </div>
               </label>
 
+              <!-- ThinkReview Self-Hosted Gateway -->
+              <label class="provider-card" id="provider-card-self-hosted">
+                <input type="radio" name="ai-provider" value="self-hosted" id="provider-self-hosted" class="provider-card-radio">
+                <div class="provider-card-inner">
+                  <div class="provider-card-top">
+                    <div class="provider-card-icon provider-card-icon--self-hosted">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M8 21h8"></path>
+                        <path d="M12 17v4"></path>
+                        <path d="M7 7h.01M7 11h.01"></path>
+                      </svg>
+                    </div>
+                    <div class="provider-card-title-group">
+                      <span class="provider-card-name">ThinkReview Self-Hosted Gateway</span>
+                      <span class="provider-card-badge provider-card-badge--self-hosted">On-prem</span>
+                    </div>
+                    <div class="provider-card-check-icon">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </div>
+                  </div>
+                  <p class="provider-card-desc">Run reviews on your on-prem ThinkReview gateway with your own LLM. Code stays in your network.</p>
+                  <div class="provider-card-tags">
+                    <span class="provider-tag provider-tag--self-hosted">Your LLM</span>
+                    <span class="provider-tag provider-tag--self-hosted">On-prem</span>
+                    <span class="provider-tag provider-tag--self-hosted">Full repo context</span>
+                  </div>
+                </div>
+              </label>
+
               <!-- Ollama Card -->
               <label class="provider-card" id="provider-card-ollama">
                 <input type="radio" name="ai-provider" value="ollama" id="provider-ollama" class="provider-card-radio">
@@ -419,6 +451,18 @@
                 </div>
               </label>
 
+            </div>
+            <div id="self-hosted-config" class="ollama-config" style="display: none;">
+              <p class="help-text">Reviews route to your gateway; sign-in, agents, and billing still use ThinkReview cloud.</p>
+              <div class="ollama-config-row">
+                <label for="gateway-base-url" class="config-label">Gateway Base URL:</label>
+                <input type="url" id="gateway-base-url" class="config-input" placeholder="http://localhost:8443" autocomplete="off" spellcheck="false">
+              </div>
+              <div class="ollama-actions">
+                <button id="test-gateway-btn" class="test-ollama-btn" type="button">Test Connection</button>
+                <button id="save-gateway-btn" class="save-ollama-btn" type="button">Save Settings</button>
+              </div>
+              <div id="gateway-status" class="ollama-status"></div>
             </div>
             <div id="ollama-config" class="ollama-config" style="display: none;">
               <div class="ollama-config-row">
@@ -508,32 +552,6 @@
                   <span class="auto-start-info-icon" data-tooltip="Review only starts when you click the ThinkReview button." aria-label="Info">ⓘ</span>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Enterprise Gateway Settings (collapsed by default) -->
-        <div id="gateway-settings" class="ai-provider-settings-section">
-          <button class="collapsible-header" id="gateway-toggle" aria-expanded="false">
-            <h3 class="settings-title">Enterprise Gateway</h3>
-            <svg class="collapsible-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-          </button>
-          <div id="gateway-body" class="collapsible-body" style="display:none;">
-            <p class="settings-description">Route patch review and conversational API calls to your on-prem ThinkReview gateway. Sign-in, agents, and billing still use ThinkReview cloud.</p>
-            <div class="ollama-config">
-              <div class="ollama-config-row">
-                <label for="gateway-base-url" class="config-label">Gateway Base URL:</label>
-                <input type="url" id="gateway-base-url" class="config-input" placeholder="https://thinkreview-gateway.yourcompany.internal:8443" autocomplete="off" spellcheck="false">
-              </div>
-              <div class="ollama-actions">
-                <button id="test-gateway-btn" class="test-ollama-btn" type="button">Test Connection</button>
-                <button id="save-gateway-btn" class="save-ollama-btn" type="button">Save</button>
-                <button id="clear-gateway-btn" class="test-ollama-btn" type="button">Use ThinkReview Cloud</button>
-              </div>
-              <div id="gateway-status" class="ollama-status"></div>
-              <p class="help-text">Leave empty and save to use the default ThinkReview cloud API. Only review endpoints are routed to your gateway.</p>
             </div>
           </div>
         </div>

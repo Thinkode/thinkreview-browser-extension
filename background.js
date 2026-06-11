@@ -16,6 +16,7 @@ import { AzureDevOpsAuthError } from './services/azure-devops-api.js';
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { getThinkReviewAuthHeaders, EXTENSION_AUTH_TOKEN_KEY, isAuthExpiredError, handleUnauthorizedResponse, AuthExpiredError } from './utils/extension-auth.js';
 import { hasOpenRouterHostPermission } from './utils/openrouter-permissions.js';
+import { assertSelfHostedGatewayReady } from './utils/enterprise-gateway.js';
 import { fetchPatchContent } from './services/bitbucket-api.js';
 // Logger module will automatically initialize Honeybadger
 // Set uninstall URL to redirect users to feedback page
@@ -310,7 +311,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       try {
         // Get AI provider setting
         const settings = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openrouterConfig']);
-        const provider = settings.aiProvider || 'cloud';
+        let provider = settings.aiProvider || 'cloud';
         
         dbgLog('Using AI provider for conversation:', provider);
         
@@ -380,8 +381,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return;
           }
         }
+
+        const latestSettings = await chrome.storage.local.get(['aiProvider']);
+        provider = latestSettings.aiProvider || provider || 'cloud';
+
+        const selfHostedGate = await assertSelfHostedGatewayReady(provider);
+        if (!selfHostedGate.ok) {
+          sendResponse({ success: false, ...selfHostedGate });
+          return;
+        }
         
-        // Default: Use cloud service (Gemini)
+        // ThinkReview Cloud or self-hosted gateway (via CloudService routing)
         const data = await CloudService.getConversationalResponse(patchContent, conversationHistory, mrId, mrUrl, language || 'English');
         // Log only metadata, not the actual response content
         dbgLog('Conversational response received:', {
@@ -393,7 +403,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ 
           success: true, 
           data: data, 
-          provider: 'cloud' 
+          provider: provider === 'self-hosted' ? 'self-hosted' : 'cloud'
         });
       } catch (err) {
         // Log error details for debugging
@@ -503,8 +513,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return;
           }
         }
+
+        const latestSettings = await chrome.storage.local.get(['aiProvider']);
+        provider = latestSettings.aiProvider || provider || 'cloud';
+
+        const selfHostedGate = await assertSelfHostedGatewayReady(provider);
+        if (!selfHostedGate.ok) {
+          sendResponse({ success: false, ...selfHostedGate });
+          return;
+        }
         
-        // Default: Use cloud service (Gemini)
+        // ThinkReview Cloud or self-hosted gateway (via CloudService routing)
         // Validate patchContent before sending
         if (!patchContent || patchContent.trim().length === 0) {
           throw new Error('There are no code changes yet in this merge request. If you think this is a bug, please report it here: https://thinkreview.dev/bug-report');
@@ -545,7 +564,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         })();
         
-        sendResponse({ success: true, data, provider: 'cloud' });
+        sendResponse({
+          success: true,
+          data,
+          provider: provider === 'self-hosted' ? 'self-hosted' : 'cloud',
+        });
       } catch (err) {
         dbgWarn('Review fetch error:', err);
         sendResponse({ 

@@ -7,6 +7,7 @@ import { reviewCount } from './components/popup-modules/review-count.js';
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
 import { OPENROUTER_ORIGINS, hasOpenRouterHostPermission } from './utils/openrouter-permissions.js';
+import { normalizeGatewayBaseUrl } from './utils/enterprise-gateway.js';
 
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_SIGNIN_WAIT = 500;
@@ -855,10 +856,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Initialize collapsible AI Provider header
   initializeAIProviderCollapsible();
-
-  // Initialize enterprise gateway settings
-  initializeGatewaySettings();
-  initializeGatewayCollapsible();
 
 });
 
@@ -2152,6 +2149,9 @@ function setupAIProviderEventListeners() {
   const testOpenRouterButton = document.getElementById('test-openrouter-btn');
   const saveOpenRouterButton = document.getElementById('save-openrouter-btn');
   const refreshOpenRouterModelsButton = document.getElementById('refresh-openrouter-models-btn');
+  const testGatewayButton = document.getElementById('test-gateway-btn');
+  const saveGatewayButton = document.getElementById('save-gateway-btn');
+  const gatewayUrlInput = document.getElementById('gateway-base-url');
   
   // Provider selection change
   providerRadios.forEach(radio => {
@@ -2184,12 +2184,31 @@ function setupAIProviderEventListeners() {
   if (refreshOpenRouterModelsButton) {
     refreshOpenRouterModelsButton.addEventListener('click', refreshOpenRouterModels);
   }
+
+  if (testGatewayButton) {
+    testGatewayButton.addEventListener('click', testGatewayConnection);
+  }
+  if (saveGatewayButton) {
+    saveGatewayButton.addEventListener('click', saveGatewaySettings);
+  }
+  if (gatewayUrlInput) {
+    gatewayUrlInput.addEventListener('keypress', (event) => {
+      if (event.key === 'Enter') {
+        saveGatewaySettings();
+      }
+    });
+  }
 }
 
 async function loadAIProviderSettings() {
   try {
-    const result = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openrouterConfig']);
-    const provider = result.aiProvider || 'cloud';
+    const result = await chrome.storage.local.get(['aiProvider', 'ollamaConfig', 'openrouterConfig', 'gatewayBaseUrl']);
+    let provider = result.aiProvider || 'cloud';
+    // Migrate: if gateway URL was saved before self-hosted provider existed
+    if (provider === 'cloud' && result.gatewayBaseUrl) {
+      provider = 'self-hosted';
+      await chrome.storage.local.set({ aiProvider: 'self-hosted' });
+    }
     const config = result.ollamaConfig || {
       url: 'http://localhost:11434',
       model: 'gemma4',
@@ -2204,21 +2223,19 @@ async function loadAIProviderSettings() {
     };
     
     // Set the selected provider
-    const providerRadio = document.getElementById(`provider-${provider}`);
+    const providerRadioId = provider === 'self-hosted' ? 'provider-self-hosted' : `provider-${provider}`;
+    const providerRadio = document.getElementById(providerRadioId);
     if (providerRadio) {
       providerRadio.checked = true;
     }
     updateProviderCardSelection(provider);
+    showProviderConfigPanels(provider);
+
+    const gatewayUrlInput = document.getElementById('gateway-base-url');
+    if (gatewayUrlInput) {
+      gatewayUrlInput.value = result.gatewayBaseUrl || '';
+    }
     
-    // Show/hide Ollama config based on provider
-    const ollamaConfig = document.getElementById('ollama-config');
-    if (ollamaConfig) {
-      ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
-    }
-    const openrouterConfigEl = document.getElementById('openrouter-config');
-    if (openrouterConfigEl) {
-      openrouterConfigEl.style.display = provider === 'openrouter' ? 'block' : 'none';
-    }
     // Load Ollama config values
     const urlInput = document.getElementById('ollama-url');
     const modelInput = document.getElementById('ollama-model');
@@ -2256,80 +2273,87 @@ async function loadAIProviderSettings() {
 
 function updateProviderCardSelection(provider) {
   const cloudCard = document.getElementById('provider-card-cloud');
+  const selfHostedCard = document.getElementById('provider-card-self-hosted');
   const ollamaCard = document.getElementById('provider-card-ollama');
   const openrouterCard = document.getElementById('provider-card-openrouter');
   if (cloudCard) cloudCard.classList.toggle('is-selected', provider === 'cloud');
+  if (selfHostedCard) selfHostedCard.classList.toggle('is-selected', provider === 'self-hosted');
   if (ollamaCard) ollamaCard.classList.toggle('is-selected', provider === 'ollama');
   if (openrouterCard) openrouterCard.classList.toggle('is-selected', provider === 'openrouter');
 }
 
-function handleProviderChange(event) {
-  const provider = event.target.value;
-  updateProviderCardSelection(provider);
+function showProviderConfigPanels(provider) {
   const ollamaConfig = document.getElementById('ollama-config');
   const openrouterConfig = document.getElementById('openrouter-config');
-  
-  if (ollamaConfig) {
-    ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
-  }
-  if (openrouterConfig) {
-    openrouterConfig.style.display = provider === 'openrouter' ? 'block' : 'none';
-  }
-  // Auto-save provider selection
-  chrome.storage.local.set({ aiProvider: provider }, () => {
+  const selfHostedConfig = document.getElementById('self-hosted-config');
+  if (ollamaConfig) ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
+  if (openrouterConfig) openrouterConfig.style.display = provider === 'openrouter' ? 'block' : 'none';
+  if (selfHostedConfig) selfHostedConfig.style.display = provider === 'self-hosted' ? 'block' : 'none';
+}
+
+async function handleProviderChange(event) {
+  const provider = event.target.value;
+  updateProviderCardSelection(provider);
+  showProviderConfigPanels(provider);
+
+  try {
+    await chrome.storage.local.set({ aiProvider: provider });
     dbgLog('AI Provider changed to:', provider);
+  } catch (error) {
+    dbgWarn('Error saving AI provider selection:', error);
+  }
+
+  if (provider === 'self-hosted') {
+    showGatewayStatus('ThinkReview Self-Hosted Gateway selected — enter your gateway URL below', 'info');
+  } else {
     showOllamaStatus(
-      provider === 'cloud' 
-        ? '☁️ Using Cloud AI (Advanced Models)' 
+      provider === 'cloud'
+        ? '☁️ Using ThinkReview Cloud'
         : provider === 'ollama'
           ? '🖥️ Local Ollama selected - configure and test below'
           : '🌐 OpenRouter selected - enter your API key and choose a model',
       provider === 'cloud' ? 'success' : 'info'
     );
-    
-    // Automatically fetch models when Ollama is selected
-    if (provider === 'ollama') {
-      const urlInput = document.getElementById('ollama-url');
-      const url = urlInput ? urlInput.value.trim() : 'http://localhost:11434';
-      
-      dbgLog('Ollama selected, fetching available models...');
-      fetchAndPopulateModels(url).catch(err => {
-        dbgWarn('Error auto-fetching models (non-critical):', err);
+  }
+
+  if (provider === 'ollama') {
+    const urlInput = document.getElementById('ollama-url');
+    const url = urlInput ? urlInput.value.trim() : 'http://localhost:11434';
+
+    dbgLog('Ollama selected, fetching available models...');
+    fetchAndPopulateModels(url).catch(err => {
+      dbgWarn('Error auto-fetching models (non-critical):', err);
+    });
+  }
+
+  if (provider === 'openrouter') {
+    loadOpenRouterPermissionState();
+    const apiKeyInput = document.getElementById('openrouter-api-key');
+    const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+
+    if (apiKey) {
+      hasOpenRouterHostPermission().then((allowed) => {
+        if (!allowed) return;
+        dbgLog('OpenRouter selected, fetching available models...');
+        fetchAndPopulateOpenRouterModels(apiKey).catch(err => {
+          dbgWarn('Error auto-fetching OpenRouter models (non-critical):', err);
+        });
       });
     }
+  }
 
-    if (provider === 'openrouter') {
-      loadOpenRouterPermissionState();
-      const apiKeyInput = document.getElementById('openrouter-api-key');
-      const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
-
-      if (apiKey) {
-        hasOpenRouterHostPermission().then((allowed) => {
-          if (!allowed) return;
-          dbgLog('OpenRouter selected, fetching available models...');
-          fetchAndPopulateOpenRouterModels(apiKey).catch(err => {
-            dbgWarn('Error auto-fetching OpenRouter models (non-critical):', err);
-          });
-        });
+  isUserLoggedIn().then(isLoggedIn => {
+    if (isLoggedIn && window.CloudService) {
+      dbgLog('User logged in, tracking AI provider change in cloud (async)');
+      if (provider === 'cloud') {
+        window.CloudService.trackOllamaConfig(false, null)
+          .then(() => dbgLog('Ollama disabled tracked successfully in cloud'))
+          .catch(trackError => dbgWarn('Error tracking provider change in cloud (non-critical):', trackError));
       }
+    } else {
+      dbgLog('User not logged in or CloudService not available, skipping cloud tracking');
     }
-    
-    // Track provider change in cloud asynchronously (fire-and-forget)
-    isUserLoggedIn().then(isLoggedIn => {
-      if (isLoggedIn && window.CloudService) {
-        dbgLog('User logged in, tracking AI provider change in cloud (async)');
-        // If switching to cloud, track Ollama as disabled
-        if (provider === 'cloud') {
-          window.CloudService.trackOllamaConfig(false, null)
-            .then(() => dbgLog('Ollama disabled tracked successfully in cloud'))
-            .catch(trackError => dbgWarn('Error tracking provider change in cloud (non-critical):', trackError));
-        }
-        // If switching to Ollama, it will be tracked when user saves the config
-      } else {
-        dbgLog('User not logged in or CloudService not available, skipping cloud tracking');
-      }
-    }).catch(err => dbgWarn('Error checking login status for cloud tracking:', err));
-  });
+  }).catch(err => dbgWarn('Error checking login status for cloud tracking:', err));
 }
 
 async function fetchAndPopulateModels(url, savedModel = null) {
@@ -3107,58 +3131,8 @@ function initializeAIProviderCollapsible() {
 }
 
 // =====================================================================
-// ENTERPRISE GATEWAY SETTINGS
+// THINKREVIEW SELF-HOSTED GATEWAY (aiProvider: self-hosted)
 // =====================================================================
-
-function initializeGatewaySettings() {
-  loadGatewaySettings();
-  setupGatewayEventListeners();
-}
-
-function setupGatewayEventListeners() {
-  const saveButton = document.getElementById('save-gateway-btn');
-  const testButton = document.getElementById('test-gateway-btn');
-  const clearButton = document.getElementById('clear-gateway-btn');
-  const urlInput = document.getElementById('gateway-base-url');
-
-  if (saveButton) {
-    saveButton.addEventListener('click', saveGatewaySettings);
-  }
-  if (testButton) {
-    testButton.addEventListener('click', testGatewayConnection);
-  }
-  if (clearButton) {
-    clearButton.addEventListener('click', clearGatewaySettings);
-  }
-  if (urlInput) {
-    urlInput.addEventListener('keypress', (event) => {
-      if (event.key === 'Enter') {
-        saveGatewaySettings();
-      }
-    });
-  }
-}
-
-function normalizeGatewayBaseUrl(raw) {
-  const trimmed = String(raw || '').trim();
-  if (!trimmed) return '';
-
-  let candidate = trimmed;
-  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(candidate)) {
-    candidate = `https://${candidate}`;
-  }
-
-  try {
-    const url = new URL(candidate);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      return null;
-    }
-    const pathname = url.pathname.replace(/\/$/, '');
-    return `${url.origin}${pathname === '' ? '' : pathname}`.replace(/\/$/, '');
-  } catch (_) {
-    return null;
-  }
-}
 
 function getGatewayOriginPattern(baseUrl) {
   const url = new URL(baseUrl);
@@ -3171,18 +3145,6 @@ async function requestGatewayHostPermission(baseUrl) {
   if (existing) return true;
 
   return chrome.permissions.request({ origins: [originPattern] });
-}
-
-async function loadGatewaySettings() {
-  try {
-    const result = await chrome.storage.local.get(['gatewayBaseUrl']);
-    const urlInput = document.getElementById('gateway-base-url');
-    if (urlInput) {
-      urlInput.value = result.gatewayBaseUrl || '';
-    }
-  } catch (error) {
-    dbgWarn('Error loading gateway settings:', error);
-  }
 }
 
 function showGatewayStatus(message, type = 'info') {
@@ -3255,8 +3217,14 @@ async function saveGatewaySettings() {
   const raw = urlInput ? urlInput.value : '';
   const baseUrl = normalizeGatewayBaseUrl(raw);
 
-  if (raw.trim() && !baseUrl) {
+  if (!baseUrl) {
     showGatewayStatus('Please enter a valid gateway URL (http or https)', 'error');
+    return;
+  }
+
+  const selectedProvider = document.querySelector('input[name="ai-provider"]:checked')?.value;
+  if (selectedProvider !== 'self-hosted') {
+    showGatewayStatus('Select ThinkReview Self-Hosted Gateway before saving the URL', 'error');
     return;
   }
 
@@ -3265,49 +3233,18 @@ async function saveGatewaySettings() {
   if (saveButton) saveButton.disabled = true;
 
   try {
-    if (baseUrl) {
-      const granted = await requestGatewayHostPermission(baseUrl);
-      if (!granted) {
-        showGatewayStatus('Permission not granted. Allow access to your gateway host to save this URL.', 'error');
-        return;
-      }
-      await chrome.storage.local.set({ gatewayBaseUrl: baseUrl });
-      showGatewayStatus('Enterprise gateway URL saved', 'success');
-    } else {
-      await chrome.storage.local.remove(['gatewayBaseUrl']);
-      showGatewayStatus('Using ThinkReview cloud for reviews', 'success');
+    const granted = await requestGatewayHostPermission(baseUrl);
+    if (!granted) {
+      showGatewayStatus('Permission not granted. Allow access to your gateway host to save this URL.', 'error');
+      return;
     }
-    dbgLog('Gateway settings saved:', { gatewayBaseUrl: baseUrl || null });
+    await chrome.storage.local.set({ gatewayBaseUrl: baseUrl });
+    showGatewayStatus('Self-hosted gateway URL saved', 'success');
+    dbgLog('Gateway settings saved:', { gatewayBaseUrl: baseUrl });
   } catch (error) {
     dbgWarn('Error saving gateway settings:', error);
     showGatewayStatus('Failed to save gateway settings', 'error');
   } finally {
     if (saveButton) saveButton.disabled = false;
   }
-}
-
-async function clearGatewaySettings() {
-  const urlInput = document.getElementById('gateway-base-url');
-  if (urlInput) urlInput.value = '';
-
-  try {
-    await chrome.storage.local.remove(['gatewayBaseUrl']);
-    showGatewayStatus('Using ThinkReview cloud for reviews', 'success');
-    dbgLog('Gateway settings cleared');
-  } catch (error) {
-    dbgWarn('Error clearing gateway settings:', error);
-    showGatewayStatus('Failed to clear gateway settings', 'error');
-  }
-}
-
-function initializeGatewayCollapsible() {
-  const toggle = document.getElementById('gateway-toggle');
-  const body = document.getElementById('gateway-body');
-  if (!toggle || !body) return;
-
-  toggle.addEventListener('click', () => {
-    const expanded = toggle.getAttribute('aria-expanded') === 'true';
-    toggle.setAttribute('aria-expanded', String(!expanded));
-    body.style.display = expanded ? 'none' : 'block';
-  });
 }

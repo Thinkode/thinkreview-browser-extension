@@ -78,8 +78,12 @@ export class CloudService {
   static async getReviewApiBaseUrl() {
     try {
       const stored = await new Promise((resolve) => {
-        chrome.storage.local.get(['gatewayBaseUrl'], resolve);
+        chrome.storage.local.get(['aiProvider', 'gatewayBaseUrl'], resolve);
       });
+      const provider = stored?.aiProvider || 'cloud';
+      if (provider !== 'self-hosted') {
+        return CLOUD_FUNCTIONS_BASE_URL;
+      }
       const raw = stored?.gatewayBaseUrl;
       if (typeof raw === 'string' && raw.trim()) {
         return raw.trim().replace(/\/$/, '');
