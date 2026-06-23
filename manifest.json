@@ -9,12 +9,8 @@
       "strict_min_version": "109.0"
     }
   },
-  "permissions": [
-    "storage",
-    "identity",
-    "scripting",
-    "activeTab"
-  ],
+  "permissions": ["storage", "identity", "scripting", "activeTab"],
+
   "host_permissions": [
     "https://gitlab.com/*",
     "https://github.com/*",
@@ -23,10 +19,7 @@
     "https://dev.azure.com/*",
     "https://*.visualstudio.com/*"
   ],
-  "optional_host_permissions": [
-    "http://*:*/*",
-    "https://*:*/*"
-  ],
+  "optional_host_permissions": ["http://*:*/*", "https://*:*/*"],
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -46,10 +39,7 @@
         "https://portal.thinkreview.dev/*",
         "https://app.thinkreview.dev/*"
       ],
-      "js": [
-        "vendor/honeybadger.ext.min.js",
-        "content-webapp-auth.js"
-      ],
+      "js": ["vendor/honeybadger.ext.min.js", "content-webapp-auth.js"],
       "run_at": "document_idle",
       "all_frames": false
     }
@@ -80,9 +70,7 @@
         "components/subscription-section.css",
         "vendor/*"
       ],
-      "matches": [
-        "<all_urls>"
-      ]
+      "matches": ["<all_urls>"]
     }
   ],
   "content_security_policy": {
