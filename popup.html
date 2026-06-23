@@ -418,39 +418,6 @@
                 </div>
               </label>
 
-              <!-- OpenRouter Card -->
-              <label class="provider-card" id="provider-card-openrouter">
-                <input type="radio" name="ai-provider" value="openrouter" id="provider-openrouter" class="provider-card-radio">
-                <div class="provider-card-inner">
-                  <div class="provider-card-top">
-                    <div class="provider-card-icon provider-card-icon--openrouter">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M4 12h6.5"></path>
-                        <path d="M10.5 12l4-4"></path>
-                        <path d="M10.5 12l4 4"></path>
-                        <path d="M14.5 8h4l-2 2"></path>
-                        <path d="M14.5 16h4l-2-2"></path>
-                      </svg>
-                    </div>
-                    <div class="provider-card-title-group">
-                      <span class="provider-card-name">OpenRouter</span>
-                      <span class="provider-card-badge provider-card-badge--openrouter">Unified LLM Interface</span>
-                    </div>
-                    <div class="provider-card-check-icon">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </div>
-                  </div>
-                  <p class="provider-card-desc">Access models from multiple providers with one OpenAI-compatible API key.</p>
-                  <div class="provider-card-tags">
-                    <span class="provider-tag provider-tag--openrouter">Multiple Models</span>
-                    <span class="provider-tag provider-tag--openrouter">Limited Context to Diffs only</span>
-                    <span class="provider-tag provider-tag--openrouter">BYOK</span>
-                  </div>
-                </div>
-              </label>
-
             </div>
             <div id="self-hosted-config" class="ollama-config" style="display: none;">
               <p class="help-text">Teams plan only. Reviews route to your gateway; sign-in, agents, and billing still use ThinkReview cloud.</p>
@@ -498,44 +465,6 @@
                 <p class="help-text">
                   <strong>📖 <a href="https://github.com/Thinkode/thinkreview-browser-extension/blob/main/OLLAMA_SETUP.md" target="_blank">Full Setup Guide</a></strong>
                   — recommended model: <a href="https://ollama.com/library/gemma4" target="_blank">gemma4</a> (<code>ollama pull gemma4</code>)
-                </p>
-              </div>
-            </div>
-            <div id="openrouter-config" class="openrouter-config" style="display: none;">
-              <div id="openrouter-allow-section" class="openrouter-allow-section">
-                <div class="openrouter-allow-button-row">
-                  <button id="allow-openrouter-btn" class="add-domain-btn">Allow OpenRouter</button>
-                  <span id="openrouter-permission-status" class="openrouter-permission-status"></span>
-                </div>
-                <p class="help-text openrouter-allow-hint">Grant permission to connect to openrouter.ai for API requests.</p>
-              </div>
-              <div id="openrouter-enabled-message" class="github-info" style="display: none;">
-                <div class="github-info-icon thinkreview-tick-green">✓</div>
-                <div class="github-info-content">
-                  <p class="github-info-text"><strong>OpenRouter enabled.</strong> You can test your API key and save settings below.</p>
-                </div>
-              </div>
-              <div class="openrouter-config-row">
-                <label for="openrouter-api-key" class="config-label">OpenRouter API Key:</label>
-                <input type="password" id="openrouter-api-key" class="config-input" placeholder="sk-or-...">
-              </div>
-              <div class="openrouter-config-row">
-                <label for="openrouter-model" class="config-label">Model:</label>
-                <div class="model-select-wrapper">
-                  <input type="text" id="openrouter-model" class="config-input" list="openrouter-model-list" placeholder="Loading models...">
-                  <datalist id="openrouter-model-list"></datalist>
-                  <button id="refresh-openrouter-models-btn" class="refresh-models-btn" title="Refresh available models">🔄</button>
-                </div>
-              </div>
-              <div class="ollama-actions">
-                <button id="test-openrouter-btn" class="test-ollama-btn">Test Connection</button>
-                <button id="save-openrouter-btn" class="save-ollama-btn">Save Settings</button>
-              </div>
-              <div id="openrouter-status" class="openrouter-status"></div>
-              <div class="openrouter-help">
-                <p class="help-text">
-                  <strong>📖 <a href="https://openrouter.ai/docs" target="_blank">OpenRouter Docs</a></strong>
-                  — use any OpenRouter model id such as <code>openai/gpt-5.3</code> or <code>anthropic/claude-sonnet-4.6</code>
                 </p>
               </div>
             </div>

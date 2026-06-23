@@ -6,7 +6,6 @@ import { subscriptionStatus } from './components/popup-modules/subscription-stat
 import { reviewCount } from './components/popup-modules/review-count.js';
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
-import { OPENROUTER_ORIGINS, hasOpenRouterHostPermission } from './utils/openrouter-permissions.js';
 import { normalizeGatewayBaseUrl, canUseEnterpriseGatewayFromStorage } from './utils/enterprise-gateway.js';
 
 // Timing constants (in milliseconds)
@@ -62,7 +61,6 @@ let isInitialized = false;
 let cloudServiceReady = false;
 let pendingUserDataFetch = false; // Track if we need to fetch user data when CloudService becomes ready
 let ollamaModelList = [];
-let openrouterModelList = [];
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -2051,99 +2049,8 @@ function clearTokenStatus() {
 
 // Subscription upgrade functionality has been moved to content.js and removed from popup
 
-// OpenRouter: optional host permission (request openrouter.ai access from popup)
-function initializeOpenRouterPermissionSettings() {
-  loadOpenRouterPermissionState();
-  const allowBtn = document.getElementById('allow-openrouter-btn');
-  if (allowBtn) {
-    allowBtn.addEventListener('click', allowOpenRouter);
-  }
-}
-
-async function loadOpenRouterPermissionState() {
-  try {
-    const hasPermission = await hasOpenRouterHostPermission();
-
-    // Use actual permission as the single source of truth
-    if (!hasPermission) {
-      await chrome.storage.local.set({ openrouterAllowed: false });
-    } else {
-      await chrome.storage.local.set({ openrouterAllowed: true });
-    }
-
-    const allowed = hasPermission;
-
-    const allowSection = document.getElementById('openrouter-allow-section');
-    const enabledMessage = document.getElementById('openrouter-enabled-message');
-    const statusEl = document.getElementById('openrouter-permission-status');
-    const allowBtn = document.getElementById('allow-openrouter-btn');
-
-    if (allowed) {
-      if (allowSection) allowSection.style.display = 'none';
-      if (enabledMessage) enabledMessage.style.display = 'flex';
-      if (statusEl) statusEl.textContent = '';
-    } else {
-      if (allowSection) allowSection.style.display = 'flex';
-      if (enabledMessage) enabledMessage.style.display = 'none';
-      if (statusEl) statusEl.textContent = '';
-      if (allowBtn) allowBtn.textContent = 'Allow OpenRouter';
-    }
-  } catch (error) {
-    dbgWarn('Error loading OpenRouter permission state:', error);
-  }
-}
-
-let isAllowingOpenRouter = false;
-
-async function allowOpenRouter() {
-  if (isAllowingOpenRouter) return;
-  const allowBtn = document.getElementById('allow-openrouter-btn');
-  const statusEl = document.getElementById('openrouter-permission-status');
-  const originalButtonText = allowBtn?.textContent ?? 'Allow OpenRouter';
-
-  try {
-    isAllowingOpenRouter = true;
-    if (allowBtn) {
-      allowBtn.textContent = 'Adding...';
-      allowBtn.disabled = true;
-    }
-    if (statusEl) statusEl.textContent = '';
-
-    const granted = await chrome.permissions.request({ origins: OPENROUTER_ORIGINS });
-
-    if (!granted) {
-      if (statusEl) statusEl.textContent = 'Permission not granted.';
-      return;
-    }
-
-    await chrome.storage.local.set({ openrouterAllowed: true });
-    loadOpenRouterPermissionState();
-    showOpenRouterStatus('OpenRouter access enabled. You can test and save your settings.', 'success');
-  } catch (error) {
-    dbgWarn('Error allowing OpenRouter:', error);
-    if (statusEl) statusEl.textContent = 'Error: ' + (error.message || 'Failed');
-  } finally {
-    isAllowingOpenRouter = false;
-    if (allowBtn) {
-      allowBtn.textContent = originalButtonText;
-      allowBtn.disabled = false;
-    }
-  }
-}
-
-async function ensureOpenRouterHostPermission() {
-  const allowed = await hasOpenRouterHostPermission();
-  if (!allowed) {
-    showOpenRouterStatus('❌ Allow OpenRouter access first using the button above', 'error');
-    loadOpenRouterPermissionState();
-    return false;
-  }
-  return true;
-}
-
 // AI Provider Management Functionality
 function initializeAIProviderSettings() {
-  initializeOpenRouterPermissionSettings();
   loadAIProviderSettings();
   setupAIProviderEventListeners();
 }
@@ -2153,9 +2060,6 @@ function setupAIProviderEventListeners() {
   const testButton = document.getElementById('test-ollama-btn');
   const saveButton = document.getElementById('save-ollama-btn');
   const refreshModelsButton = document.getElementById('refresh-models-btn');
-  const testOpenRouterButton = document.getElementById('test-openrouter-btn');
-  const saveOpenRouterButton = document.getElementById('save-openrouter-btn');
-  const refreshOpenRouterModelsButton = document.getElementById('refresh-openrouter-models-btn');
   const testGatewayButton = document.getElementById('test-gateway-btn');
   const saveGatewayButton = document.getElementById('save-gateway-btn');
   const gatewayUrlInput = document.getElementById('gateway-base-url');
@@ -2180,18 +2084,6 @@ function setupAIProviderEventListeners() {
     refreshModelsButton.addEventListener('click', refreshOllamaModels);
   }
 
-  if (testOpenRouterButton) {
-    testOpenRouterButton.addEventListener('click', testOpenRouterConnection);
-  }
-
-  if (saveOpenRouterButton) {
-    saveOpenRouterButton.addEventListener('click', saveOpenRouterSettings);
-  }
-
-  if (refreshOpenRouterModelsButton) {
-    refreshOpenRouterModelsButton.addEventListener('click', refreshOpenRouterModels);
-  }
-
   if (testGatewayButton) {
     testGatewayButton.addEventListener('click', testGatewayConnection);
   }
@@ -2212,13 +2104,17 @@ async function loadAIProviderSettings() {
     const result = await chrome.storage.local.get([
       'aiProvider',
       'ollamaConfig',
-      'openrouterConfig',
       'gatewayBaseUrl',
       'userSubscriptionData',
       'subscriptionType',
     ]);
     let provider = result.aiProvider || 'cloud';
     const canUseGateway = canUseEnterpriseGatewayFromStorage(result);
+
+    if (provider === 'openrouter') {
+      provider = 'cloud';
+      await chrome.storage.local.set({ aiProvider: 'cloud' });
+    }
 
     if (provider === 'self-hosted' && !canUseGateway) {
       provider = 'cloud';
@@ -2233,11 +2129,6 @@ async function loadAIProviderSettings() {
       temperature: 0.3,
       top_p: 0.4,
       top_k: 90
-    };
-    const openrouterConfig = result.openrouterConfig || {
-      apiKey: '',
-      model: '',
-      contextLength: null
     };
     
     // Set the selected provider
@@ -2260,27 +2151,17 @@ async function loadAIProviderSettings() {
     const tempInput = document.getElementById('ollama-temperature');
     const topPInput = document.getElementById('ollama-top-p');
     const topKInput = document.getElementById('ollama-top-k');
-    const openrouterApiKeyInput = document.getElementById('openrouter-api-key');
-    const openrouterModelInput = document.getElementById('openrouter-model');
     
     if (urlInput) urlInput.value = config.url;
     if (tempInput) tempInput.value = clampTemperature(config.temperature);
     if (topPInput) topPInput.value = clampTopP(config.top_p);
     if (topKInput) topKInput.value = clampTopK(config.top_k);
-    if (openrouterApiKeyInput) openrouterApiKeyInput.value = openrouterConfig.apiKey || '';
     if (modelInput && provider !== 'ollama') modelInput.value = config.model;
-    if (openrouterModelInput && provider !== 'openrouter') openrouterModelInput.value = openrouterConfig.model;
     
     // If Ollama is the selected provider, fetch available models
     if (provider === 'ollama') {
       dbgLog('Ollama is selected provider, fetching available models...');
       await fetchAndPopulateModels(config.url, config.model);
-    } else if (provider === 'openrouter') {
-      await loadOpenRouterPermissionState();
-      dbgLog('OpenRouter is selected provider, fetching available models...');
-      if (openrouterConfig.apiKey && (await hasOpenRouterHostPermission())) {
-        await fetchAndPopulateOpenRouterModels(openrouterConfig.apiKey, openrouterConfig.model, openrouterConfig.contextLength);
-      }
     }
     
     dbgLog('AI Provider settings loaded:', { provider, config });
@@ -2297,19 +2178,15 @@ function updateProviderCardSelection(provider) {
   const cloudCard = document.getElementById('provider-card-cloud');
   const selfHostedCard = document.getElementById('provider-card-self-hosted');
   const ollamaCard = document.getElementById('provider-card-ollama');
-  const openrouterCard = document.getElementById('provider-card-openrouter');
   if (cloudCard) cloudCard.classList.toggle('is-selected', provider === 'cloud');
   if (selfHostedCard) selfHostedCard.classList.toggle('is-selected', provider === 'self-hosted');
   if (ollamaCard) ollamaCard.classList.toggle('is-selected', provider === 'ollama');
-  if (openrouterCard) openrouterCard.classList.toggle('is-selected', provider === 'openrouter');
 }
 
 function showProviderConfigPanels(provider) {
   const ollamaConfig = document.getElementById('ollama-config');
-  const openrouterConfig = document.getElementById('openrouter-config');
   const selfHostedConfig = document.getElementById('self-hosted-config');
   if (ollamaConfig) ollamaConfig.style.display = provider === 'ollama' ? 'block' : 'none';
-  if (openrouterConfig) openrouterConfig.style.display = provider === 'openrouter' ? 'block' : 'none';
   if (selfHostedConfig) selfHostedConfig.style.display = provider === 'self-hosted' ? 'block' : 'none';
 }
 
@@ -2345,9 +2222,7 @@ async function handleProviderChange(event) {
     showOllamaStatus(
       provider === 'cloud'
         ? '☁️ Using ThinkReview Cloud'
-        : provider === 'ollama'
-          ? '🖥️ Local Ollama selected - configure and test below'
-          : '🌐 OpenRouter selected - enter your API key and choose a model',
+        : '🖥️ Local Ollama selected - configure and test below',
       provider === 'cloud' ? 'success' : 'info'
     );
   }
@@ -2360,22 +2235,6 @@ async function handleProviderChange(event) {
     fetchAndPopulateModels(url).catch(err => {
       dbgWarn('Error auto-fetching models (non-critical):', err);
     });
-  }
-
-  if (provider === 'openrouter') {
-    loadOpenRouterPermissionState();
-    const apiKeyInput = document.getElementById('openrouter-api-key');
-    const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
-
-    if (apiKey) {
-      hasOpenRouterHostPermission().then((allowed) => {
-        if (!allowed) return;
-        dbgLog('OpenRouter selected, fetching available models...');
-        fetchAndPopulateOpenRouterModels(apiKey).catch(err => {
-          dbgWarn('Error auto-fetching OpenRouter models (non-critical):', err);
-        });
-      });
-    }
   }
 
   isUserLoggedIn().then(isLoggedIn => {
@@ -2604,185 +2463,6 @@ async function refreshOllamaModels() {
   }
 }
 
-async function fetchAndPopulateOpenRouterModels(apiKey, savedModel = null, savedContextLength = null) {
-  if (!(await ensureOpenRouterHostPermission())) return;
-
-  const modelInput = document.getElementById('openrouter-model');
-  const modelList = document.getElementById('openrouter-model-list');
-  if (!modelInput || !modelList) return;
-
-  if (!apiKey) {
-    modelInput.value = '';
-    showOpenRouterStatus('❌ Please enter your OpenRouter API key first', 'error');
-    return;
-  }
-
-  openrouterModelList = [];
-  modelList.replaceChildren();
-
-  try {
-    const { OpenRouterService } = await import(chrome.runtime.getURL('services/openrouter-service.js'));
-    const connectionResult = await OpenRouterService.checkConnection(apiKey);
-
-    if (!connectionResult.connected) {
-      modelInput.value = '';
-      showOpenRouterStatus(
-        connectionResult.isAuthError
-          ? '❌ OpenRouter API key is invalid. Check the key and try again.'
-          : `❌ Cannot connect to OpenRouter: ${connectionResult.error || 'unknown error'}`,
-        'error'
-      );
-      return;
-    }
-
-    const modelsResult = await OpenRouterService.getAvailableModels(apiKey);
-
-    if (modelsResult.models.length > 0) {
-      updateOpenRouterModelSelect(modelsResult.models);
-
-      if (savedModel && openrouterModelList.includes(savedModel)) {
-        modelInput.value = savedModel;
-      } else if (savedModel && !openrouterModelList.includes(savedModel)) {
-        modelInput.value = '';
-      }
-
-      if (!modelInput.value && openrouterModelList.length > 0) {
-        modelInput.value = openrouterModelList[0];
-      }
-
-      showOpenRouterStatus(`✅ Found ${modelsResult.models.length} model(s)`, 'success');
-      dbgLog('Successfully loaded OpenRouter models:', modelsResult.models.length);
-    } else {
-      modelInput.value = '';
-      showOpenRouterStatus('⚠️ No models found for this OpenRouter account.', 'error');
-    }
-  } catch (error) {
-    dbgWarn('Error fetching OpenRouter models:', error);
-    modelInput.value = '';
-    showOpenRouterStatus(`❌ Failed to fetch models: ${error.message}`, 'error');
-  }
-}
-
-async function refreshOpenRouterModels() {
-  if (!(await ensureOpenRouterHostPermission())) return;
-
-  const apiKeyInput = document.getElementById('openrouter-api-key');
-  const refreshButton = document.getElementById('refresh-openrouter-models-btn');
-  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
-
-  if (!apiKey) {
-    showOpenRouterStatus('❌ Please enter an API key first', 'error');
-    return;
-  }
-
-  if (refreshButton) {
-    refreshButton.disabled = true;
-    refreshButton.style.animation = 'spin 1s linear infinite';
-  }
-  showOpenRouterStatus('🔄 Fetching available models...', 'info');
-
-  try {
-    await fetchAndPopulateOpenRouterModels(apiKey);
-  } finally {
-    if (refreshButton) {
-      refreshButton.disabled = false;
-      refreshButton.style.animation = '';
-    }
-  }
-}
-
-async function testOpenRouterConnection() {
-  if (!(await ensureOpenRouterHostPermission())) return;
-
-  const apiKeyInput = document.getElementById('openrouter-api-key');
-  const modelInput = document.getElementById('openrouter-model');
-  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
-  const model = modelInput ? modelInput.value.trim() : '';
-
-  if (!apiKey) {
-    showOpenRouterStatus('❌ Please enter a valid API key', 'error');
-    return;
-  }
-
-  if (!model) {
-    showOpenRouterStatus('❌ Please select a model first', 'error');
-    return;
-  }
-
-  showOpenRouterStatus('🔄 Testing selected model...', 'info');
-
-  try {
-    const { OpenRouterService } = await import(chrome.runtime.getURL('services/openrouter-service.js'));
-    const testResult = await OpenRouterService.testSelectedModel(model, apiKey);
-    showOpenRouterStatus(`✅ Model "${testResult.model}" is working with OpenRouter.`, 'success');
-  } catch (error) {
-    dbgWarn('Error testing OpenRouter connection:', error);
-    showOpenRouterStatus(`❌ Connection failed: ${error.message}`, 'error');
-  }
-}
-
-async function saveOpenRouterSettings() {
-  if (!(await ensureOpenRouterHostPermission())) return;
-
-  const apiKeyInput = document.getElementById('openrouter-api-key');
-  const modelInput = document.getElementById('openrouter-model');
-  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
-  const model = modelInput ? modelInput.value.trim() : '';
-
-  if (!apiKey) {
-    showOpenRouterStatus('❌ Please enter a valid API key', 'error');
-    return;
-  }
-
-  if (!model) {
-    showOpenRouterStatus('❌ Please select a model', 'error');
-    return;
-  }
-
-  if (openrouterModelList.length > 0 && !openrouterModelList.includes(model)) {
-    showOpenRouterStatus('❌ Selected model is not available. Refresh and try again.', 'error');
-    return;
-  }
-
-  try {
-    const { OpenRouterService } = await import(chrome.runtime.getURL('services/openrouter-service.js'));
-    const connectionResult = await OpenRouterService.checkConnection(apiKey);
-
-    if (!connectionResult.connected) {
-      showOpenRouterStatus(
-        connectionResult.isAuthError
-          ? '❌ OpenRouter API key is invalid. Check the key and try again.'
-          : `❌ Cannot connect to OpenRouter: ${connectionResult.error || 'unknown error'}`,
-        'error'
-      );
-      return;
-    }
-
-    let contextLength = null;
-    const modelsResult = await OpenRouterService.getAvailableModels(apiKey);
-    const selectedModel = modelsResult.models.find((item) => item.id === model);
-    if (!selectedModel) {
-      showOpenRouterStatus('❌ Selected model is not available. Refresh and try again.', 'error');
-      return;
-    }
-    if (selectedModel?.context_length) {
-      contextLength = selectedModel.context_length;
-    }
-
-    const config = { apiKey, model };
-    if (contextLength != null) {
-      config.contextLength = contextLength;
-    }
-
-    await chrome.storage.local.set({ openrouterConfig: config });
-    dbgLog('OpenRouter settings saved:', { ...config, apiKey: '[redacted]' });
-    showOpenRouterStatus('✅ Settings saved successfully!', 'success');
-  } catch (error) {
-    dbgWarn('Error saving OpenRouter settings:', error);
-    showOpenRouterStatus(`❌ Failed to save settings: ${error.message}`, 'error');
-  }
-}
-
 function updateModelSelect(models) {
   const modelInput = document.getElementById('ollama-model');
   const modelList = document.getElementById('ollama-model-list');
@@ -2805,28 +2485,6 @@ function updateModelSelect(models) {
   dbgLog('Updated model select with', models.length, 'models');
 }
 
-function updateOpenRouterModelSelect(models) {
-  const modelInput = document.getElementById('openrouter-model');
-  const modelList = document.getElementById('openrouter-model-list');
-  if (!modelInput || !modelList) return;
-
-  openrouterModelList = models.map((model) => model.id);
-  modelList.replaceChildren();
-
-  models.forEach((model) => {
-    const option = document.createElement('option');
-    option.value = model.id;
-    option.label = model.name || model.id;
-    modelList.appendChild(option);
-  });
-
-  if (!modelInput.value || !openrouterModelList.includes(modelInput.value.trim())) {
-    modelInput.value = openrouterModelList[0] || '';
-  }
-
-  dbgLog('Updated OpenRouter model select with', models.length, 'models');
-}
-
 function showOllamaStatus(message, type = 'info') {
   const statusDiv = document.getElementById('ollama-status');
   if (!statusDiv) return;
@@ -2835,20 +2493,6 @@ function showOllamaStatus(message, type = 'info') {
   statusDiv.className = `ollama-status show ${type}`;
   
   // Auto-hide after 5 seconds for success messages
-  if (type === 'success') {
-    setTimeout(() => {
-      statusDiv.classList.remove('show');
-    }, 5000);
-  }
-}
-
-function showOpenRouterStatus(message, type = 'info') {
-  const statusDiv = document.getElementById('openrouter-status');
-  if (!statusDiv) return;
-
-  statusDiv.textContent = message;
-  statusDiv.className = `openrouter-status show ${type}`;
-
   if (type === 'success') {
     setTimeout(() => {
       statusDiv.classList.remove('show');
