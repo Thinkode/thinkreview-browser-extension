@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ThinkReview: AI Code Review for GitLab, Azure DevOps, GitHub & Bitbucket",
-  "version": "2.2.10",
+  "version": "2.3.0",
   "description": "Agentic code reviews built into every PR page. GitLab, Azure DevOps, GitHub & Bitbucket — Ollama and OpenRouter support",
   "browser_specific_settings": {
     "gecko": {
