@@ -657,6 +657,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/dashboard' });
     });
   }
+
+  const fullContextBtn = document.getElementById('full-context-btn');
+  if (fullContextBtn) {
+    fullContextBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('full_context_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
+      chrome.tabs.create({ url: 'https://portal.thinkreview.dev/integrations' });
+    });
+  }
   
   const agentsBtn = document.getElementById('agents-btn');
   if (agentsBtn) {
@@ -691,17 +702,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
   
-  const analyticsBtn = document.getElementById('analytics-btn');
-  if (analyticsBtn) {
-    analyticsBtn.addEventListener('click', async () => {
-      try {
-        const { trackUserAction } = await import('./utils/analytics-service.js');
-        trackUserAction('analytics_opened', { context: 'popup' }).catch(() => {});
-      } catch (e) { /* silent */ }
-      chrome.tabs.create({ url: 'https://portal.thinkreview.dev/analytics' });
-    });
-  }
-  
   const modelSelectionBtn = document.getElementById('model-selection-btn');
   if (modelSelectionBtn) {
     modelSelectionBtn.addEventListener('click', async () => {
@@ -710,6 +710,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         trackUserAction('model_selection_opened', { context: 'popup' }).catch(() => {});
       } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/model-selection' });
+    });
+  }
+
+  const mcpBtn = document.getElementById('mcp-btn');
+  if (mcpBtn) {
+    mcpBtn.addEventListener('click', async () => {
+      try {
+        const { trackUserAction } = await import('./utils/analytics-service.js');
+        trackUserAction('mcp_opened', { context: 'popup' }).catch(() => {});
+      } catch (e) { /* silent */ }
+      chrome.tabs.create({ url: 'https://portal.thinkreview.dev/mcp' });
     });
   }
   
