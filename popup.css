@@ -1035,6 +1035,10 @@ footer {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-bottom: 10px;
+}
+
+.byok-portal-notice {
   margin-bottom: 16px;
 }
 
