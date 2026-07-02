@@ -2017,6 +2017,20 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   transform: scale(1.05);
 }
 
+/* Self-hosted gateway badge (replaces Change Model in metadata bar) */
+#gitlab-mr-integrated-review .thinkreview-gateway-badge {
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 4px 8px;
+  background-color: rgba(13, 148, 136, 0.6);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* Customize button */
 #gitlab-mr-integrated-review .thinkreview-patch-size-customize-button {
   flex-shrink: 0;

@@ -42,6 +42,8 @@ export function formatReviewRequestLabel(platform, mrId) {
  * @param {string|null} modelUsed - Model used for the review
  * @param {boolean} isCached - Whether the review was retrieved from cache
  * @param {string|null} reviewRequestLabel - e.g. MR !12 or PR #34 from {@link formatReviewRequestLabel}
+ * @param {Object} [options]
+ * @param {boolean} [options.isGateway=false] - Self-hosted gateway active; hides Change Model and shows Gateway badge
  */
 export function renderReviewMetadataBar(
   container,
@@ -49,8 +51,10 @@ export function renderReviewMetadataBar(
   subscriptionType = null,
   modelUsed = null,
   isCached = false,
-  reviewRequestLabel = null
+  reviewRequestLabel = null,
+  options = {}
 ) {
+  const { isGateway = false } = options;
   if (!container) return;
 
   // Clear previous content
@@ -188,29 +192,37 @@ export function renderReviewMetadataBar(
   topRow.appendChild(icon);
   topRow.appendChild(content);
   
-  // Add customize button to link to model selection page
-  const customizeButton = document.createElement('a');
-  customizeButton.href = 'https://portal.thinkreview.dev/model-selection';
-  customizeButton.target = '_blank';
-  customizeButton.rel = 'noopener noreferrer';
-  customizeButton.className = 'thinkreview-patch-size-customize-button';
-  customizeButton.textContent = 'Change Model';
-  customizeButton.setAttribute('aria-label', 'Change review model');
-  
-  // Prevent click event from bubbling to topRow (which might be clickable for expanding)
-  customizeButton.addEventListener('click', (e) => {
-    e.stopPropagation();
+  if (isGateway) {
+    const gatewayBadge = document.createElement('span');
+    gatewayBadge.className = 'thinkreview-gateway-badge';
+    gatewayBadge.textContent = 'TR-Gateway';
+    gatewayBadge.setAttribute('aria-label', 'Review powered by ThinkReview self-hosted gateway');
+    topRow.appendChild(gatewayBadge);
+  } else {
+    // Add customize button to link to model selection page
+    const customizeButton = document.createElement('a');
+    customizeButton.href = 'https://portal.thinkreview.dev/model-selection';
+    customizeButton.target = '_blank';
+    customizeButton.rel = 'noopener noreferrer';
+    customizeButton.className = 'thinkreview-patch-size-customize-button';
+    customizeButton.textContent = 'Change Model';
+    customizeButton.setAttribute('aria-label', 'Change review model');
     
-    // Track customize button click
-    if (trackUserAction) {
-      trackUserAction('customize_review_models', {
-        context: 'metadata_bar',
-        location: 'integrated_panel'
-      }).catch(() => {}); // Silently fail
-    }
-  });
-  
-  topRow.appendChild(customizeButton);
+    // Prevent click event from bubbling to topRow (which might be clickable for expanding)
+    customizeButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      
+      // Track customize button click
+      if (trackUserAction) {
+        trackUserAction('customize_review_models', {
+          context: 'metadata_bar',
+          location: 'integrated_panel'
+        }).catch(() => {}); // Silently fail
+      }
+    });
+    
+    topRow.appendChild(customizeButton);
+  }
   banner.appendChild(topRow);
 
   // Optional expandable list of excluded files (separate section below top row)
