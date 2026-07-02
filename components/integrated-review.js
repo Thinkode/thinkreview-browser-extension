@@ -1851,7 +1851,8 @@ async function displayIntegratedReview(
           subscriptionTypeForDisplay,
           modelUsed,
           isCached,
-          reviewRequestLabel
+          reviewRequestLabel,
+          { isGateway: provider === 'self-hosted' }
         );
       }
     } catch (error) {
