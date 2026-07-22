@@ -439,7 +439,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   // Handle code review request from content script to avoid CSP issues
   if (message.type === 'REVIEW_PATCH_CODE') {
-    const { patchContent, mrId, mrUrl, language, platform, forceRegenerate } = message;
+    const { patchContent, mrId, mrUrl, language, platform, forceRegenerate, reviewFormat } = message;
     
     (async () => {
       // Get AI provider setting (declare outside try block so it's accessible in catch)
@@ -530,7 +530,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         // Use CloudService to review the patch code
-        const data = await CloudService.reviewPatchCode(patchContent, language, mrId, mrUrl, forceRegenerate, platform);
+        const data = await CloudService.reviewPatchCode(patchContent, language, mrId, mrUrl, forceRegenerate, platform, reviewFormat);
         
         // Track the review if mrId is provided
         if (mrId) {

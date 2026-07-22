@@ -2,12 +2,58 @@
 // Utilities for building Markdown representations of review data
 
 /**
+ * Format a severity issue as markdown bullet
+ * @param {Object} issue
+ * @returns {string}
+ */
+function formatSeverityIssueMarkdown(issue) {
+  if (!issue) return '';
+  const title = issue.title || 'Untitled';
+  const location = issue.filePath
+    ? (typeof issue.startLine === 'number'
+      ? (typeof issue.endLine === 'number' && issue.endLine !== issue.startLine
+        ? `${issue.filePath}:${issue.startLine}-${issue.endLine}`
+        : `${issue.filePath}:${issue.startLine}`)
+      : issue.filePath)
+    : '';
+  const desc = String(issue.description || '').trim();
+  const locLine = location ? ` (${location})` : '';
+  return `- **${title}**${locLine}${desc ? `\n  ${desc}` : ''}`;
+}
+
+/**
  * Builds a Markdown string from the review data for copy-all.
  * @param {Object} review - The review data object
  * @returns {string} Formatted Markdown text
  */
 export function buildReviewMarkdown(review) {
   if (!review) return '';
+
+  // Severity layout
+  if (review.reviewFormat === 'severity') {
+    const sections = ['# AI Code Review'];
+
+    if (review.prDescription) {
+      sections.push(`## PR Description\n\n${review.prDescription}`);
+    }
+
+    if (Array.isArray(review.criticalIssues) && review.criticalIssues.length > 0) {
+      const items = review.criticalIssues.map(formatSeverityIssueMarkdown).join('\n');
+      sections.push(`## Critical Issues\n\n${items}`);
+    }
+
+    if (Array.isArray(review.highIssues) && review.highIssues.length > 0) {
+      const items = review.highIssues.map(formatSeverityIssueMarkdown).join('\n');
+      sections.push(`## High Issues\n\n${items}`);
+    }
+
+    if (Array.isArray(review.lowIssues) && review.lowIssues.length > 0) {
+      const items = review.lowIssues.map(formatSeverityIssueMarkdown).join('\n');
+      sections.push(`## Low Issues\n\n${items}`);
+    }
+
+    return sections.join('\n\n');
+  }
 
   const sections = ['# AI Code Review'];
 
@@ -47,4 +93,3 @@ export function buildReviewMarkdown(review) {
 
   return sections.join('\n\n');
 }
-

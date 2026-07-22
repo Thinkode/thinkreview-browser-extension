@@ -357,6 +357,10 @@ async function createIntegratedReviewPanel(patchUrl) {
             <option value="Romanian">Română</option>
             <option value="Italian">Italiano</option>
           </select>
+          <select id="review-format-selector" class="thinkreview-language-dropdown thinkreview-format-dropdown" title="Select review format">
+            <option value="scoring">Scoring</option>
+            <option value="severity">PR Description &amp; Issues</option>
+          </select>
           <span class="thinkreview-bug-report-btn-wrapper">
             <button id="bug-report-btn" class="thinkreview-bug-report-btn" aria-label="Report a Bug">
               🐞
@@ -438,6 +442,7 @@ async function createIntegratedReviewPanel(patchUrl) {
             <div id="review-news-banner" class="thinkreview-news-banner gl-hidden gl-mb-4" role="region" aria-label="ThinkReview announcement"></div>
             <div id="review-patch-size-banner" class="gl-mb-4 gl-hidden"></div>
             <div id="review-metrics-container" class="gl-mb-4"></div>
+            <div id="review-severity-container" class="gl-mb-4 gl-hidden"></div>
             <div id="review-summary-container" class="gl-mb-4">
               <div class="thinkreview-section-header-row">
                 <h5 class="gl-font-weight-bold thinkreview-section-title">Summary</h5>
@@ -862,6 +867,8 @@ async function createIntegratedReviewPanel(patchUrl) {
           e.target.closest('#copy-all-review-btn') ||
           e.target.id === 'language-selector' ||
           e.target.closest('#language-selector') ||
+          e.target.id === 'review-format-selector' ||
+          e.target.closest('#review-format-selector') ||
           e.target.id === 'thinkreview-layout-btn' ||
           e.target.closest('#thinkreview-layout-btn') ||
           e.target.id === 'thinkreview-ide-assist-btn' ||
@@ -918,6 +925,67 @@ async function createIntegratedReviewPanel(patchUrl) {
       
       setLanguagePreference(selectedLanguage);
       dbgLog('Language preference updated to:', selectedLanguage);
+    });
+  }
+
+  // Add event listener for the review format selector
+  const formatSelector = container.querySelector('#review-format-selector');
+  if (formatSelector) {
+    const savedFormat = await getReviewFormatPreference();
+    formatSelector.value = savedFormat;
+
+    // Hide format selector for local providers (cloud-only feature for now)
+    try {
+      const providerSettings = await chrome.storage.local.get(['aiProvider']);
+      const aiProvider = providerSettings.aiProvider || 'cloud';
+      if (aiProvider === 'ollama' || aiProvider === 'openrouter') {
+        formatSelector.classList.add('gl-hidden');
+        formatSelector.disabled = true;
+      }
+    } catch (error) { /* silent */ }
+
+    const blockFormatEvent = (e) => {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    };
+    formatSelector.addEventListener('click', blockFormatEvent, true);
+    formatSelector.addEventListener('mousedown', blockFormatEvent, true);
+    formatSelector.addEventListener('mouseup', blockFormatEvent, true);
+    formatSelector.addEventListener('pointerdown', blockFormatEvent, true);
+    formatSelector.addEventListener('pointerup', blockFormatEvent, true);
+    formatSelector.addEventListener('touchstart', blockFormatEvent, true);
+    formatSelector.addEventListener('touchend', blockFormatEvent, true);
+
+    formatSelector.addEventListener('change', async (e) => {
+      e.stopPropagation();
+      const selectedFormat = e.target.value === 'severity' ? 'severity' : 'scoring';
+      setReviewFormatPreference(selectedFormat);
+      dbgLog('Review format preference updated to:', selectedFormat);
+
+      try {
+        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        analyticsModule.trackUserAction('review_format_changed', {
+          context: 'integrated_review_panel',
+          reviewFormat: selectedFormat
+        }).catch(() => {});
+      } catch (error) { /* silent */ }
+
+      // Fetch review for the new format (cache is segmented server-side by format)
+      const reviewLoading = document.getElementById('review-loading');
+      const reviewContent = document.getElementById('review-content');
+      const reviewError = document.getElementById('review-error');
+      currentReviewData = null;
+      if (reviewLoading) reviewLoading.classList.remove('gl-hidden');
+      if (reviewContent) reviewContent.classList.add('gl-hidden');
+      if (reviewError) reviewError.classList.add('gl-hidden');
+      startEnhancedLoader();
+
+      if (typeof fetchAndDisplayCodeReview === 'function') {
+        // forceRegenerate=false so a previously cached review for this format can be reused
+        await fetchAndDisplayCodeReview(false);
+      } else {
+        console.error('fetchAndDisplayCodeReview function not found');
+      }
     });
   }
 
@@ -1864,6 +1932,61 @@ async function displayIntegratedReview(
   // Determine if the patch was forcibly truncated due to free-tier limits
   const wasForcedTruncated = !!(patchSize && patchSize.wasForcedTruncated);
 
+  const isSeverityFormat = review.reviewFormat === 'severity';
+  const severityContainer = document.getElementById('review-severity-container');
+  const summaryContainer = document.getElementById('review-summary-container');
+  const suggestionsContainer = document.getElementById('review-suggestions-container');
+  const securityContainer = document.getElementById('review-security-container');
+  const practicesContainer = document.getElementById('review-practices-container');
+  const suggestedQuestionsOuter = document.getElementById('suggested-questions-container');
+
+  if (isSeverityFormat) {
+    // Hide scoring-layout sections
+    if (reviewMetricsContainer) {
+      const previousScorecard = reviewMetricsContainer.querySelector('.thinkreview-quality-scorecard');
+      if (previousScorecard && typeof previousScorecard._cleanupMetricListeners === 'function') {
+        previousScorecard._cleanupMetricListeners();
+      }
+      reviewMetricsContainer.replaceChildren();
+      reviewMetricsContainer.classList.add('gl-hidden');
+    }
+    if (summaryContainer) summaryContainer.classList.add('gl-hidden');
+    if (suggestionsContainer) suggestionsContainer.classList.add('gl-hidden');
+    if (securityContainer) securityContainer.classList.add('gl-hidden');
+    if (practicesContainer) practicesContainer.classList.add('gl-hidden');
+    if (suggestedQuestionsOuter) suggestedQuestionsOuter.classList.add('gl-hidden');
+
+    // Render severity layout
+    if (severityContainer) {
+      try {
+        const severityModule = await import(chrome.runtime.getURL('components/severity-review-layout.js'));
+        severityModule.renderSeverityLayout(severityContainer, review, {
+          markdownToHtml,
+          preprocessAIResponse,
+          attachCopyButtonToItem,
+          applySimpleSyntaxHighlighting,
+          onIssueClick: (plainText, severity) => {
+            const severityLabel = severity === 'critical' ? 'critical issue'
+              : severity === 'high' ? 'high issue'
+              : 'low issue';
+            const query = `Can you provide more details about this ${severityLabel}? ${plainText}`;
+            handleSendMessage(query);
+          }
+        });
+      } catch (error) {
+        dbgWarn('Failed to load severity review layout:', error);
+        severityContainer.classList.add('gl-hidden');
+      }
+    }
+  } else {
+    // Scoring layout — hide severity container and show scoring sections
+    if (severityContainer) {
+      severityContainer.replaceChildren();
+      severityContainer.classList.add('gl-hidden');
+    }
+    if (summaryContainer) summaryContainer.classList.remove('gl-hidden');
+    // suggestions/security/practices visibility is controlled by populateList below
+
   // Render quality scorecard if metrics are available
   if (reviewMetricsContainer) {
     // Clean up previous scorecard event listeners before clearing
@@ -2228,6 +2351,8 @@ async function displayIntegratedReview(
     document.getElementById('suggested-questions-container').classList.remove('gl-hidden');
   }
 
+  } // end scoring-format branch (else of isSeverityFormat)
+
   // Show initial review feedback buttons
   // Use mrUrl to query the review document
   const initialFeedbackContainer = document.getElementById('initial-review-feedback-container');
@@ -2247,7 +2372,9 @@ async function displayIntegratedReview(
 
   // Store patch content and initialize conversation history
   currentPatchContent = patchContent;
-  const initialPrompt = `This is an AI code review. The summary is: "${review.summary}". I can answer questions about the suggestions, security issues, and best practices mentioned in the review. What would you like to know?`;
+  const initialPrompt = isSeverityFormat
+    ? `This is an AI code review (severity layout). The PR description is: "${(review.prDescription || '').slice(0, 500)}". I can answer questions about the critical, high, and low issues mentioned in the review. What would you like to know?`
+    : `This is an AI code review. The summary is: "${review.summary}". I can answer questions about the suggestions, security issues, and best practices mentioned in the review. What would you like to know?`;
   
   // Initialize conversation history without the patch content
   // The patch is sent separately as patchContent, so we don't need it in the conversation history
@@ -2605,4 +2732,22 @@ async function getLanguagePreference() {
  */
 function setLanguagePreference(language) {
   chrome.storage.local.set({ 'code-review-language': language });
+}
+
+/**
+ * Get the user's review format preference from extension storage
+ * @returns {Promise<string>} - 'scoring' (default) or 'severity'
+ */
+async function getReviewFormatPreference() {
+  const result = await chrome.storage.local.get(['code-review-format']);
+  return result['code-review-format'] === 'severity' ? 'severity' : 'scoring';
+}
+
+/**
+ * Set the user's review format preference in extension storage
+ * @param {string} format - 'scoring' or 'severity'
+ */
+function setReviewFormatPreference(format) {
+  const normalized = format === 'severity' ? 'severity' : 'scoring';
+  chrome.storage.local.set({ 'code-review-format': normalized });
 }

@@ -285,9 +285,10 @@ export class CloudService {
    * @param {string} [mrUrl] - Optional merge request URL for tracking
    * @param {boolean} [forceRegenerate] - Optional flag to force regenerate review even if cached
    * @param {string} [platform] - Optional platform information ('gitlab' or 'azure-devops')
+   * @param {string} [reviewFormat='scoring'] - Optional review layout: 'scoring' (default) or 'severity'
    * @returns {Promise<Object>} - Code review results from Gemini API
    */
-  static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null, forceRegenerate = false, platform = null) {
+  static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null, forceRegenerate = false, platform = null, reviewFormat = 'scoring') {
     dbgLog('Sending patch for code review');
     
     if (!patchContent) {
@@ -363,6 +364,11 @@ export class CloudService {
       // Include platform information if provided
       if (platform) {
         requestBody.platform = platform;
+      }
+
+      // Include reviewFormat when not the default scoring layout
+      if (reviewFormat && reviewFormat !== 'scoring') {
+        requestBody.reviewFormat = reviewFormat;
       }
       
       const response = await CloudService.thinkReviewFetch(await CloudService.getReviewCodeUrlV11(), requestBody);

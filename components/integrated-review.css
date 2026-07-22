@@ -4258,3 +4258,54 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   transform: translateY(0);
 }
 
+
+/* ===== Severity review layout ===== */
+.thinkreview-format-dropdown {
+  max-width: 180px;
+}
+
+.thinkreview-severity-pr-description {
+  white-space: normal;
+}
+
+.thinkreview-severity-issue-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.thinkreview-severity-issue-location {
+  font-size: 0.85em;
+  opacity: 0.75;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  margin-bottom: 6px;
+}
+
+.thinkreview-severity-issue-description {
+  margin-top: 2px;
+}
+
+.thinkreview-severity-empty {
+  opacity: 0.7;
+  font-style: italic;
+  margin: 0;
+}
+
+.thinkreview-severity-critical .thinkreview-section-title {
+  color: #ef4444;
+}
+
+.thinkreview-severity-high .thinkreview-section-title {
+  color: #f59e0b;
+}
+
+.thinkreview-severity-low .thinkreview-section-title {
+  color: #3b82f6;
+}
+
+.thinkreview-severity-issue-wrapper.thinkreview-clickable-item {
+  cursor: pointer;
+}
+
+.thinkreview-copy-pr-desc-btn {
+  margin-left: auto;
+}
