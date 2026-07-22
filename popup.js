@@ -2130,9 +2130,6 @@ async function loadAIProviderSettings() {
     if (provider === 'self-hosted' && !canUseGateway) {
       provider = 'cloud';
       await chrome.storage.local.set({ aiProvider: 'cloud' });
-    } else if (provider === 'cloud' && result.gatewayBaseUrl && canUseGateway) {
-      provider = 'self-hosted';
-      await chrome.storage.local.set({ aiProvider: 'self-hosted' });
     }
     const config = result.ollamaConfig || {
       url: 'http://localhost:11434',
