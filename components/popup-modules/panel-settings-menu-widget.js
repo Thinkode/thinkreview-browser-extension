@@ -26,6 +26,49 @@ function _gearIconSvg() {
   return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
 }
 
+function _creditsIconSvg() {
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>`;
+}
+
+function _agentsIconSvg() {
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.4 18.2c.38.5.6 1.12.6 1.8 0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3c.44 0 .85.09 1.23.26l1.41-1.77c-.92-1.03-1.29-2.39-1.09-3.69l-2.03-.68c-.54.83-1.46 1.38-2.52 1.38-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3c0 .07 0 .14-.01.21l2.03.68c.64-1.21 1.82-2.09 3.22-2.32V5.91C9.96 5.57 9 4.4 9 3c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.4-.96 2.57-2.25 2.91v2.16c1.4.23 2.58 1.11 3.22 2.32L18 9.71V9.5c0-1.66 1.34-3 3-3s3 1.34 3 3-1.34 3-3 3c-1.06 0-1.98-.55-2.52-1.37l-2.03.68c.2 1.29-.16 2.65-1.09 3.69l1.41 1.77Q17.34 17 18 17c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3c0-.68.22-1.3.6-1.8l-1.41-1.77c-1.35.75-3.01.76-4.37 0z"/></svg>`;
+}
+
+function _mcpIconSvg() {
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v6"/><path d="M12 16v6"/><path d="M2 12h6"/><path d="M16 12h6"/><path d="m8 6 4-4 4 4"/><path d="m8 18 4 4 4-4"/><path d="m6 8-4 4 4 4"/><path d="m18 8 4 4-4 4"/></svg>`;
+}
+
+function _usageIconSvg() {
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>`;
+}
+
+function _historyIconSvg() {
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>`;
+}
+
+const PORTAL_LINKS = {
+  'buy-credits': {
+    url: 'https://portal.thinkreview.dev/additional-credits',
+    analytics: 'additional_credits_opened'
+  },
+  agents: {
+    url: 'https://portal.thinkreview.dev/agents',
+    analytics: 'agents_opened'
+  },
+  mcp: {
+    url: 'https://portal.thinkreview.dev/mcp',
+    analytics: 'mcp_opened'
+  },
+  usage: {
+    url: 'https://portal.thinkreview.dev/usage',
+    analytics: 'usage_opened'
+  },
+  history: {
+    url: 'https://portal.thinkreview.dev/usage',
+    analytics: 'history_opened'
+  }
+};
+
 function _positionMainMenu(dropdown, btn) {
   const rect = btn.getBoundingClientRect();
   const dropW = 240;
@@ -60,7 +103,7 @@ function _positionSubmenu(submenu, anchorBtn, preferredWidth) {
   submenu.style.width = `${dropW}px`;
 }
 
-function _createMenuRow({ id, label, value, iconHtml, hasSubmenu }) {
+function _createMenuRow({ id, label, value, iconHtml, hasSubmenu, isExternal }) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'thinkreview-settings-menu-item';
@@ -69,6 +112,9 @@ function _createMenuRow({ id, label, value, iconHtml, hasSubmenu }) {
   if (hasSubmenu) {
     btn.setAttribute('aria-haspopup', 'true');
     btn.setAttribute('aria-expanded', 'false');
+  }
+  if (isExternal) {
+    btn.classList.add('thinkreview-settings-menu-item--link');
   }
 
   const icon = document.createElement('span');
@@ -92,11 +138,12 @@ function _createMenuRow({ id, label, value, iconHtml, hasSubmenu }) {
   btn.appendChild(icon);
   btn.appendChild(text);
 
-  if (hasSubmenu) {
+  if (hasSubmenu || isExternal) {
     const chevron = document.createElement('span');
     chevron.className = 'thinkreview-settings-menu-item-chevron';
     chevron.setAttribute('aria-hidden', 'true');
-    chevron.textContent = '›';
+    chevron.textContent = isExternal ? '↗' : '›';
+    if (isExternal) chevron.setAttribute('aria-label', 'Opens in new tab');
     btn.appendChild(chevron);
   }
 
@@ -193,10 +240,56 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   main.appendChild(layoutRow);
   main.appendChild(ideRow);
 
-  const divider = document.createElement('div');
-  divider.className = 'thinkreview-settings-menu-divider';
-  divider.setAttribute('role', 'separator');
-  main.appendChild(divider);
+  const portalDivider = document.createElement('div');
+  portalDivider.className = 'thinkreview-settings-menu-divider';
+  portalDivider.setAttribute('role', 'separator');
+  main.appendChild(portalDivider);
+
+  const buyCreditsRow = _createMenuRow({
+    id: 'buy-credits',
+    label: 'Buy credits',
+    value: null,
+    iconHtml: _creditsIconSvg(),
+    isExternal: true
+  });
+  const usageRow = _createMenuRow({
+    id: 'usage',
+    label: 'Usage',
+    value: null,
+    iconHtml: _usageIconSvg(),
+    isExternal: true
+  });
+  const historyRow = _createMenuRow({
+    id: 'history',
+    label: 'History',
+    value: null,
+    iconHtml: _historyIconSvg(),
+    isExternal: true
+  });
+  const agentsRow = _createMenuRow({
+    id: 'agents',
+    label: 'Agents',
+    value: null,
+    iconHtml: _agentsIconSvg(),
+    isExternal: true
+  });
+  const mcpRow = _createMenuRow({
+    id: 'mcp',
+    label: 'MCP',
+    value: null,
+    iconHtml: _mcpIconSvg(),
+    isExternal: true
+  });
+  main.appendChild(buyCreditsRow);
+  main.appendChild(usageRow);
+  main.appendChild(historyRow);
+  main.appendChild(agentsRow);
+  main.appendChild(mcpRow);
+
+  const settingsDivider = document.createElement('div');
+  settingsDivider.className = 'thinkreview-settings-menu-divider';
+  settingsDivider.setAttribute('role', 'separator');
+  main.appendChild(settingsDivider);
 
   const allSettingsRow = _createMenuRow({
     id: 'all-settings',
@@ -323,6 +416,13 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     if (action === 'implement') {
       await _trackSettingsMenu('settings_menu_implement_clicked');
       await _openSubmenu('implement');
+      return;
+    }
+    if (PORTAL_LINKS[action]) {
+      const link = PORTAL_LINKS[action];
+      await _trackSettingsMenu(link.analytics, { url: link.url });
+      _closeAll();
+      window.open(link.url, '_blank', 'noopener,noreferrer');
       return;
     }
     if (action === 'all-settings') {

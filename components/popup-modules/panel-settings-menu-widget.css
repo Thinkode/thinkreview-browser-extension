@@ -107,6 +107,11 @@
   line-height: 1;
 }
 
+.thinkreview-settings-menu-item--link .thinkreview-settings-menu-item-chevron {
+  font-size: 11px;
+  opacity: 0.5;
+}
+
 .thinkreview-settings-submenu {
   position: fixed;
   z-index: 2147483647;
