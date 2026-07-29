@@ -1015,39 +1015,51 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
 }
 
 #gitlab-mr-integrated-review .thinkreview-settings-btn {
-  background: none;
-  border: none;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   color: white;
   cursor: pointer;
-  padding: 6px;
+  padding: 4px 7px;
   border-radius: 4px;
-  transition: all 0.2s ease;
-  display: flex;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.7;
-  width: 28px;
+  line-height: 1;
+  opacity: 1;
+  box-sizing: border-box;
   height: 28px;
+  width: 28px;
 }
 
-#gitlab-mr-integrated-review .thinkreview-settings-btn:hover {
-  background-color: rgba(107, 79, 187, 0.2);
+#gitlab-mr-integrated-review .thinkreview-settings-btn:hover,
+#gitlab-mr-integrated-review .thinkreview-settings-btn[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.35);
   color: white;
-  opacity: 1;
-  transform: scale(1.1);
 }
 
 #gitlab-mr-integrated-review .thinkreview-settings-btn svg {
-  transition: transform 0.4s ease;
+  width: 16px;
+  height: 16px;
+  display: block;
+  transition: transform 0.35s ease;
 }
 
-#gitlab-mr-integrated-review .thinkreview-settings-btn:hover svg {
+#gitlab-mr-integrated-review .thinkreview-settings-btn:hover svg,
+#gitlab-mr-integrated-review .thinkreview-settings-btn[aria-expanded='true'] svg {
   transform: rotate(60deg);
 }
 
 #gitlab-mr-integrated-review .thinkreview-settings-btn:active {
-  transform: scale(0.95);
-  background-color: rgba(107, 79, 187, 0.3);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Match severity / language control height so borders line up */
+#gitlab-mr-integrated-review .thinkreview-language-dropdown,
+#gitlab-mr-integrated-review .thinkreview-review-format-btn {
+  height: 28px;
+  box-sizing: border-box;
 }
 
 .thinkreview-chat-send-btn {
