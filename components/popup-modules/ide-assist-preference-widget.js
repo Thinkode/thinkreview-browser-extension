@@ -148,6 +148,105 @@ function _refreshDropdownActive(dropdown, activeId) {
   });
 }
 
+export function getIdeAssistRowLabel(targetId) {
+  const row = ROWS.find((r) => r.id === targetId && !r.href) || ROWS[0];
+  return row.label;
+}
+
+/**
+ * Fill a container with Implement via options (same rows as the standalone header menu).
+ * @param {HTMLElement} container
+ * @param {{ activeId?: string, onSelect?: (id: string) => void | Promise<void> }} [options]
+ */
+export async function populateIdeAssistOptions(container, options = {}) {
+  try {
+    await ensureIdeActionIconsLoaded();
+  } catch (e) {
+    dbgWarn('IDE assist options: failed to preload icons', e);
+  }
+
+  const { activeId = 'cursor', onSelect } = options;
+  container.replaceChildren();
+
+  const label = document.createElement('div');
+  label.className = 'thinkreview-ide-assist-section-label';
+  label.textContent = 'Implement via';
+  container.appendChild(label);
+
+  for (const row of ROWS) {
+    if (row.dividerBefore) {
+      const divider = document.createElement('div');
+      divider.className = 'thinkreview-ide-assist-divider';
+      divider.setAttribute('role', 'separator');
+      container.appendChild(divider);
+    }
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'thinkreview-ide-assist-item';
+    item.dataset.ide = row.id;
+    item.setAttribute('role', 'menuitem');
+    if (row.href) {
+      item.dataset.href = row.href;
+      item.classList.add('thinkreview-ide-assist-item--link');
+    }
+
+    const iconWrap = document.createElement('span');
+    iconWrap.className = 'thinkreview-ide-assist-item-icon';
+    const ic = row.icon();
+    ic.setAttribute('aria-hidden', 'true');
+    iconWrap.appendChild(ic);
+
+    const lab = document.createElement('span');
+    lab.className = 'thinkreview-ide-assist-item-label';
+    lab.textContent = row.label;
+
+    const check = document.createElement('span');
+    check.className = 'thinkreview-ide-assist-item-check';
+    check.setAttribute('aria-hidden', 'true');
+    if (row.href) {
+      check.textContent = '↗';
+      check.setAttribute('aria-label', 'Opens in new tab');
+    }
+
+    item.appendChild(iconWrap);
+    item.appendChild(lab);
+    item.appendChild(check);
+    container.appendChild(item);
+  }
+
+  _refreshDropdownActive(container, activeId);
+
+  container.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const item = e.target.closest('.thinkreview-ide-assist-item');
+    if (!item) return;
+    const id = item.dataset.ide;
+    if (!id) return;
+
+    if (item.dataset.href) {
+      await _trackIdeAssistMenu(`ide_assist_menu_${id}_opened`, { ide: id, url: item.dataset.href });
+      window.open(item.dataset.href, '_blank', 'noopener,noreferrer');
+      if (typeof onSelect === 'function') await onSelect(id, { href: item.dataset.href });
+      return;
+    }
+
+    const previousIde = await getIdeAssistTarget();
+    await setIdeAssistTarget(id);
+    await _trackIdeAssistMenu(`ide_assist_menu_${id}_selected_clicked`, {
+      ide: id,
+      previous_ide: previousIde
+    });
+    _refreshDropdownActive(container, id);
+    document.dispatchEvent(new CustomEvent('thinkreview:ideassistchanged'));
+
+    if (typeof onSelect === 'function') await onSelect(id);
+  });
+}
+
+export function refreshIdeAssistActiveItems(container, activeId) {
+  _refreshDropdownActive(container, activeId);
+}
+
 /**
  * @param {HTMLElement} headerActionsEl
  */
@@ -190,55 +289,18 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
   dropdown.id = 'thinkreview-ide-assist-dropdown';
   dropdown.setAttribute('role', 'menu');
   dropdown.style.display = 'none';
-
-  const label = document.createElement('div');
-  label.className = 'thinkreview-ide-assist-section-label';
-  label.textContent = 'Implement via';
-  dropdown.appendChild(label);
-
-  for (const row of ROWS) {
-    if (row.dividerBefore) {
-      const divider = document.createElement('div');
-      divider.className = 'thinkreview-ide-assist-divider';
-      divider.setAttribute('role', 'separator');
-      dropdown.appendChild(divider);
-    }
-    const item = document.createElement('button');
-    item.type = 'button';
-    item.className = 'thinkreview-ide-assist-item';
-    item.dataset.ide = row.id;
-    item.setAttribute('role', 'menuitem');
-    if (row.href) {
-      item.dataset.href = row.href;
-      item.classList.add('thinkreview-ide-assist-item--link');
-    }
-
-    const iconWrap = document.createElement('span');
-    iconWrap.className = 'thinkreview-ide-assist-item-icon';
-    const ic = row.icon();
-    ic.setAttribute('aria-hidden', 'true');
-    iconWrap.appendChild(ic);
-
-    const lab = document.createElement('span');
-    lab.className = 'thinkreview-ide-assist-item-label';
-    lab.textContent = row.label;
-
-    const check = document.createElement('span');
-    check.className = 'thinkreview-ide-assist-item-check';
-    check.setAttribute('aria-hidden', 'true');
-    if (row.href) {
-      check.textContent = '↗';
-      check.setAttribute('aria-label', 'Opens in new tab');
-    }
-
-    item.appendChild(iconWrap);
-    item.appendChild(lab);
-    item.appendChild(check);
-    dropdown.appendChild(item);
-  }
-
-  _refreshDropdownActive(dropdown, current);
   document.body.appendChild(dropdown);
+
+  await populateIdeAssistOptions(dropdown, {
+    activeId: current,
+    onSelect: async (id, meta) => {
+      if (!meta?.href) {
+        _setTriggerIcon(btn, id);
+      }
+      dropdown.style.display = 'none';
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
 
   btn.addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -262,36 +324,6 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
       dropdown.style.display = 'none';
       btn.setAttribute('aria-expanded', 'false');
     }
-  });
-
-  dropdown.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const item = e.target.closest('.thinkreview-ide-assist-item');
-    if (!item) return;
-    const id = item.dataset.ide;
-    if (!id) return;
-
-    // Link rows open an external page (MCP setup) instead of changing the implement target
-    if (item.dataset.href) {
-      await _trackIdeAssistMenu(`ide_assist_menu_${id}_opened`, { ide: id, url: item.dataset.href });
-      dropdown.style.display = 'none';
-      btn.setAttribute('aria-expanded', 'false');
-      window.open(item.dataset.href, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    const previousIde = await getIdeAssistTarget();
-    await setIdeAssistTarget(id);
-    await _trackIdeAssistMenu(`ide_assist_menu_${id}_selected_clicked`, {
-      ide: id,
-      previous_ide: previousIde
-    });
-    _setTriggerIcon(btn, id);
-    _refreshDropdownActive(dropdown, id);
-    dropdown.style.display = 'none';
-    btn.setAttribute('aria-expanded', 'false');
-
-    document.dispatchEvent(new CustomEvent('thinkreview:ideassistchanged'));
   });
 
   window.addEventListener(

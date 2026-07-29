@@ -1,0 +1,132 @@
+/* Panel settings gear menu + nested Layout / Implement via flyouts */
+
+#thinkreview-settings-dropdown {
+  position: fixed;
+  z-index: 2147483647;
+  background: #1a1628;
+  border: 1px solid #3d2d6e;
+  border-radius: 10px;
+  padding: 6px 0;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  animation: thinkreview-settings-dropdown-in 0.12s ease;
+  min-width: 220px;
+}
+
+@keyframes thinkreview-settings-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.thinkreview-settings-menu-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(155, 126, 240, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 6px 14px 3px;
+}
+
+.thinkreview-settings-menu-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 4px 8px;
+}
+
+.thinkreview-settings-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.88);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.thinkreview-settings-menu-item:hover,
+.thinkreview-settings-menu-item[aria-expanded='true'] {
+  background: rgba(107, 79, 187, 0.22);
+  color: white;
+}
+
+.thinkreview-settings-menu-item-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  opacity: 0.9;
+}
+
+.thinkreview-settings-menu-item-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.thinkreview-settings-menu-item-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.thinkreview-settings-menu-item-label {
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.thinkreview-settings-menu-item-value {
+  font-size: 11px;
+  color: rgba(201, 180, 255, 0.75);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.thinkreview-settings-menu-item-chevron {
+  flex-shrink: 0;
+  font-size: 14px;
+  opacity: 0.55;
+  line-height: 1;
+}
+
+.thinkreview-settings-submenu {
+  position: fixed;
+  z-index: 2147483647;
+  background: #1a1628;
+  border: 1px solid #3d2d6e;
+  border-radius: 10px;
+  padding: 6px 0;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  animation: thinkreview-settings-dropdown-in 0.12s ease;
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+}
+
+#thinkreview-settings-layout-submenu {
+  width: 232px;
+}
+
+#thinkreview-settings-ide-submenu {
+  width: 280px;
+}

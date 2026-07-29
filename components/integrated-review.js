@@ -569,25 +569,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   // Initialize resize functionality
   initializeResizeHandle(container);
 
-  // Mount the layout settings widget in the header actions (use getURL so it loads from extension origin in content script context e.g. Firefox)
-  try {
-    const layoutWidgetUrl = chrome.runtime.getURL('components/popup-modules/layout-settings-widget.js');
-    const { mountLayoutSettingsWidget } = await import(layoutWidgetUrl);
-    const headerActionsEl = container.querySelector('.thinkreview-header-actions');
-    await mountLayoutSettingsWidget(headerActionsEl);
-  } catch (error) {
-    dbgWarn('Failed to mount layout settings widget:', error);
-  }
-
-  try {
-    const ideAssistWidgetUrl = chrome.runtime.getURL('components/popup-modules/ide-assist-preference-widget.js');
-    const { mountIdeAssistPreferenceWidget } = await import(ideAssistWidgetUrl);
-    const headerActionsElIde = container.querySelector('.thinkreview-header-actions');
-    await mountIdeAssistPreferenceWidget(headerActionsElIde);
-  } catch (error) {
-    dbgWarn('Failed to mount IDE assist preference widget:', error);
-  }
-
+  // Layout + Implement via live under the settings gear menu (no standalone header buttons)
   if (!document.documentElement.dataset.thinkreviewIdeAssistSyncBound) {
     document.documentElement.dataset.thinkreviewIdeAssistSyncBound = '1';
     document.addEventListener('thinkreview:ideassistchanged', async () => {
@@ -753,7 +735,7 @@ async function createIntegratedReviewPanel(patchUrl) {
     // No need to update the toggle icon in the header - it stays as a down arrow
   }
   
-  // Add event listener for the settings button
+  // Settings gear → inclusive dropdown (Layout + Implement via submenus + all settings)
   const settingsButton = container.querySelector('#thinkreview-settings-btn');
   if (settingsButton) {
     const settingsWrapper = container.querySelector('.thinkreview-settings-btn-wrapper');
@@ -768,17 +750,18 @@ async function createIntegratedReviewPanel(patchUrl) {
         settingsTooltipEl.classList.remove('thinkreview-tooltip-visible');
       });
     }
-    settingsButton.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      try {
-        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
-        analyticsModule.trackUserAction('settings_opened', {
-          context: 'integrated_panel',
-          location: 'header'
-        }).catch(() => {});
-      } catch (_) { /* silent */ }
-      chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_POPUP' });
-    });
+    try {
+      const settingsMenuUrl = chrome.runtime.getURL('components/popup-modules/panel-settings-menu-widget.js');
+      const { mountPanelSettingsMenu } = await import(settingsMenuUrl);
+      await mountPanelSettingsMenu(settingsButton, { settingsWrapper });
+    } catch (error) {
+      dbgWarn('Failed to mount panel settings menu:', error);
+      // Fallback: open full extension settings
+      settingsButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_POPUP' });
+      });
+    }
   }
 
   // Fast tooltip for regenerate button (short delay vs native title)
@@ -844,7 +827,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   const headerActions = container.querySelector('.thinkreview-header-actions');
   if (headerActions) {
     const blockEvent = (e) => {
-      // Allow clicks on regenerate button, copy-all button, language selector, and layout button
+      // Allow clicks on regenerate, copy-all, language, review format, and settings menu
       if (e.target.id === 'regenerate-review-btn' ||
           e.target.closest('#regenerate-review-btn') ||
           e.target.id === 'copy-all-review-btn' ||
@@ -854,13 +837,11 @@ async function createIntegratedReviewPanel(patchUrl) {
           e.target.id === 'thinkreview-review-format-btn' ||
           e.target.closest('#thinkreview-review-format-btn') ||
           e.target.closest('#thinkreview-review-format-dropdown') ||
-          e.target.id === 'thinkreview-layout-btn' ||
-          e.target.closest('#thinkreview-layout-btn') ||
-          e.target.id === 'thinkreview-ide-assist-btn' ||
-          e.target.closest('#thinkreview-ide-assist-btn') ||
-          e.target.closest('#thinkreview-ide-assist-dropdown') ||
           e.target.id === 'thinkreview-settings-btn' ||
-          e.target.closest('#thinkreview-settings-btn')) {
+          e.target.closest('#thinkreview-settings-btn') ||
+          e.target.closest('#thinkreview-settings-dropdown') ||
+          e.target.closest('#thinkreview-settings-layout-submenu') ||
+          e.target.closest('#thinkreview-settings-ide-submenu')) {
         return; // Don't block these events
       }
       e.stopPropagation();

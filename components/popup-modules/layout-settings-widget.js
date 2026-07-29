@@ -49,7 +49,7 @@ const LAYOUT_GROUPS = [
 
 const ALL_COMBOS = LAYOUT_GROUPS.flatMap(g => g.combos);
 
-async function _getSettings() {
+export async function getLayoutSettings() {
   try {
     const result = await chrome.storage.local.get(['reviewLayoutSettings']);
     const raw = { ...DEFAULT_LAYOUT_SETTINGS, ...(result.reviewLayoutSettings || {}) };
@@ -60,6 +60,10 @@ async function _getSettings() {
   }
 }
 
+async function _getSettings() {
+  return getLayoutSettings();
+}
+
 /** Normalize deprecated top-right/top-left to bottom-right/bottom-left. */
 function _normalizeLayoutSettings(settings) {
   const pos = settings.buttonPosition;
@@ -68,12 +72,16 @@ function _normalizeLayoutSettings(settings) {
   return settings;
 }
 
-async function _saveSettings(settings) {
+export async function saveLayoutSettings(settings) {
   await chrome.storage.local.set({ reviewLayoutSettings: settings });
   CloudService.storeLayoutSettings(settings).catch(e => dbgWarn('Failed to sync layout settings:', e));
 }
 
-function _getActiveComboId(settings) {
+async function _saveSettings(settings) {
+  return saveLayoutSettings(settings);
+}
+
+export function getActiveLayoutComboId(settings) {
   const c = ALL_COMBOS.find(c =>
     c.settings.triggerMode === settings.triggerMode &&
     c.settings.buttonPosition === settings.buttonPosition &&
@@ -81,6 +89,53 @@ function _getActiveComboId(settings) {
     c.settings.sidebarSide === settings.sidebarSide
   );
   return c ? c.id : null;
+}
+
+function _getActiveComboId(settings) {
+  return getActiveLayoutComboId(settings);
+}
+
+/** Human-readable label for the current layout combo (e.g. "Docked Sidebar · Right side"). */
+export function getLayoutComboSummary(settings) {
+  const activeId = getActiveLayoutComboId(settings);
+  for (const group of LAYOUT_GROUPS) {
+    const combo = group.combos.find((c) => c.id === activeId);
+    if (combo) return `${group.label} · ${combo.label}`;
+  }
+  return 'Custom';
+}
+
+/**
+ * Fill a container with the grouped layout option list (no chrome chrome).
+ * Used by the standalone layout button and by the panel settings submenu.
+ * @param {HTMLElement} container
+ * @param {{ settings?: object, onSelect?: (settings: object) => void | Promise<void> }} [options]
+ */
+export function populateLayoutOptions(container, options = {}) {
+  const { settings = DEFAULT_LAYOUT_SETTINGS, onSelect } = options;
+  container.innerHTML = _buildDropdownHTML(settings);
+
+  container.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const item = e.target.closest('.thinkreview-layout-item');
+    if (!item) return;
+
+    const comboId = item.dataset.combo;
+    const combo = ALL_COMBOS.find((c) => c.id === comboId);
+    if (!combo) return;
+
+    await _saveSettings(combo.settings);
+    _refreshActiveItems(container, combo.settings);
+    document.dispatchEvent(new CustomEvent('thinkreview:layoutchanged', { detail: combo.settings }));
+
+    if (typeof onSelect === 'function') {
+      await onSelect(combo.settings);
+    }
+  });
+}
+
+export function refreshLayoutActiveItems(container, settings) {
+  _refreshActiveItems(container, settings);
 }
 
 /**
@@ -115,7 +170,12 @@ export async function mountLayoutSettingsWidget(headerActionsEl) {
   dropdown.id = 'thinkreview-layout-dropdown';
   dropdown.className = 'thinkreview-layout-dropdown';
   dropdown.style.display = 'none';
-  dropdown.innerHTML = _buildDropdownHTML(settings);
+  populateLayoutOptions(dropdown, {
+    settings,
+    onSelect: async () => {
+      setTimeout(() => { dropdown.style.display = 'none'; }, 150);
+    }
+  });
   document.body.appendChild(dropdown);
 
   // ── Toggle dropdown ──────────────────────────────────────
@@ -140,23 +200,6 @@ export async function mountLayoutSettingsWidget(headerActionsEl) {
     if (e.target !== btn && !dropdown.contains(e.target)) {
       dropdown.style.display = 'none';
     }
-  });
-
-  // ── Handle combo item clicks ─────────────────────────────
-  dropdown.addEventListener('click', async (e) => {
-    e.stopPropagation(); // Prevent panel header from collapsing
-    const item = e.target.closest('.thinkreview-layout-item');
-    if (!item) return;
-
-    const comboId = item.dataset.combo;
-    const combo = ALL_COMBOS.find(c => c.id === comboId);
-    if (!combo) return;
-
-    await _saveSettings(combo.settings);
-    _refreshActiveItems(dropdown, combo.settings);
-    document.dispatchEvent(new CustomEvent('thinkreview:layoutchanged', { detail: combo.settings }));
-
-    setTimeout(() => { dropdown.style.display = 'none'; }, 150);
   });
 
   // ── Reposition on scroll/resize ─────────────────────────
