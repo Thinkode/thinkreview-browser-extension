@@ -42,15 +42,7 @@ function _usageIconSvg() {
   return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>`;
 }
 
-function _historyIconSvg() {
-  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>`;
-}
-
 const PORTAL_LINKS = {
-  'buy-credits': {
-    url: 'https://portal.thinkreview.dev/additional-credits',
-    analytics: 'additional_credits_opened'
-  },
   agents: {
     url: 'https://portal.thinkreview.dev/agents',
     analytics: 'agents_opened'
@@ -62,12 +54,10 @@ const PORTAL_LINKS = {
   usage: {
     url: 'https://portal.thinkreview.dev/usage',
     analytics: 'usage_opened'
-  },
-  history: {
-    url: 'https://portal.thinkreview.dev/usage',
-    analytics: 'history_opened'
   }
 };
+
+const ADDITIONAL_CREDITS_PORTAL_URL = 'https://portal.thinkreview.dev/additional-credits';
 
 function _positionMainMenu(dropdown, btn) {
   const rect = btn.getBoundingClientRect();
@@ -165,6 +155,152 @@ async function _trackSettingsMenu(eventName, params = {}) {
   }
 }
 
+async function _getSignedInEmail() {
+  try {
+    const storageData = await chrome.storage.local.get(['userData', 'user']);
+    let email = storageData?.userData?.email || null;
+    if (!email && storageData?.user) {
+      try {
+        const parsed =
+          typeof storageData.user === 'string' ? JSON.parse(storageData.user) : storageData.user;
+        email = parsed?.email || null;
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    return email;
+  } catch (e) {
+    dbgWarn('Failed to read signed-in email for credit packs:', e);
+    return null;
+  }
+}
+
+function _appendCreditsPortalLink(container) {
+  const divider = document.createElement('div');
+  divider.className = 'thinkreview-settings-menu-divider';
+  divider.setAttribute('role', 'separator');
+  container.appendChild(divider);
+
+  const linkBtn = document.createElement('button');
+  linkBtn.type = 'button';
+  linkBtn.className = 'thinkreview-settings-menu-item thinkreview-settings-menu-item--link';
+  linkBtn.dataset.creditsAction = 'portal';
+  linkBtn.setAttribute('role', 'menuitem');
+
+  const text = document.createElement('span');
+  text.className = 'thinkreview-settings-menu-item-text';
+  const lab = document.createElement('span');
+  lab.className = 'thinkreview-settings-menu-item-label';
+  lab.textContent = 'View all on portal';
+  text.appendChild(lab);
+
+  const chevron = document.createElement('span');
+  chevron.className = 'thinkreview-settings-menu-item-chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+  chevron.textContent = '↗';
+
+  linkBtn.appendChild(text);
+  linkBtn.appendChild(chevron);
+  container.appendChild(linkBtn);
+}
+
+/**
+ * Load credit packs from getUpgradePromptConfigThinkReview into the Buy credits flyout.
+ * @param {HTMLElement} container
+ * @param {(packs: object[]) => void} [onLoaded]
+ */
+async function _populateCreditsSubmenu(container, onLoaded) {
+  container.replaceChildren();
+
+  const sectionLabel = document.createElement('div');
+  sectionLabel.className = 'thinkreview-settings-menu-section-label';
+  sectionLabel.textContent = 'Buy credits';
+  container.appendChild(sectionLabel);
+
+  const status = document.createElement('div');
+  status.className = 'thinkreview-settings-credits-status';
+  status.textContent = 'Loading packs…';
+  container.appendChild(status);
+
+  try {
+    const email = await _getSignedInEmail();
+    if (!email) {
+      status.textContent = 'Sign in to see credit packs';
+      _appendCreditsPortalLink(container);
+      if (typeof onLoaded === 'function') onLoaded([]);
+      return;
+    }
+
+    const [cloudMod, packsMod] = await Promise.all([
+      import(chrome.runtime.getURL('services/cloud-service.js')),
+      import(chrome.runtime.getURL('components/upgrade-credit-packs.js'))
+    ]);
+
+    const config = await cloudMod.CloudService.getUpgradePromptConfig(email);
+    const packs = Array.isArray(config.creditPacks) ? config.creditPacks : [];
+    status.remove();
+
+    if (packs.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'thinkreview-settings-credits-status';
+      empty.textContent = 'No packs available right now';
+      container.appendChild(empty);
+      _appendCreditsPortalLink(container);
+      if (typeof onLoaded === 'function') onLoaded([]);
+      return;
+    }
+
+    const note = document.createElement('div');
+    note.className = 'thinkreview-settings-credits-note';
+    note.textContent = 'Additional credits are valid for 1 year from purchase.';
+    container.appendChild(note);
+
+    packs.forEach((pack, packIndex) => {
+      const badgeKind = packsMod.getPackBadgeKind(packIndex, packs.length);
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'thinkreview-settings-menu-item thinkreview-settings-credits-item';
+      item.setAttribute('role', 'menuitem');
+      item.dataset.creditsAction = 'checkout';
+      item.dataset.checkoutUrl = pack.checkoutUrl || ADDITIONAL_CREDITS_PORTAL_URL;
+      item.dataset.packId = pack.id || '';
+      item.dataset.credits = String(pack.credits || '');
+
+      const text = document.createElement('span');
+      text.className = 'thinkreview-settings-menu-item-text';
+      const lab = document.createElement('span');
+      lab.className = 'thinkreview-settings-menu-item-label';
+      lab.textContent = packsMod.formatPackButtonLabel(pack);
+      text.appendChild(lab);
+      if (pack.tagline) {
+        const desc = document.createElement('span');
+        desc.className = 'thinkreview-settings-menu-item-value';
+        desc.textContent = pack.tagline;
+        text.appendChild(desc);
+      }
+
+      item.appendChild(text);
+
+      if (badgeKind) {
+        const badge = document.createElement('span');
+        badge.className = `thinkreview-settings-credits-badge is-${badgeKind}`;
+        badge.textContent = badgeKind === 'best-value' ? 'Best value' : 'Most purchased';
+        item.appendChild(badge);
+      }
+
+      container.appendChild(item);
+    });
+
+    _appendCreditsPortalLink(container);
+    if (typeof onLoaded === 'function') onLoaded(packs);
+  } catch (e) {
+    dbgWarn('Failed to load credit packs for settings menu:', e);
+    status.textContent = 'Could not load packs';
+    _appendCreditsPortalLink(container);
+    if (typeof onLoaded === 'function') onLoaded([]);
+  }
+}
+
 /**
  * Attach nested settings dropdown to the existing gear button.
  * @param {HTMLElement} settingsButton
@@ -248,22 +384,15 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   const buyCreditsRow = _createMenuRow({
     id: 'buy-credits',
     label: 'Buy credits',
-    value: null,
+    value: 'Credit packs',
     iconHtml: _creditsIconSvg(),
-    isExternal: true
+    hasSubmenu: true
   });
   const usageRow = _createMenuRow({
     id: 'usage',
     label: 'Usage',
     value: null,
     iconHtml: _usageIconSvg(),
-    isExternal: true
-  });
-  const historyRow = _createMenuRow({
-    id: 'history',
-    label: 'History',
-    value: null,
-    iconHtml: _historyIconSvg(),
     isExternal: true
   });
   const agentsRow = _createMenuRow({
@@ -282,7 +411,6 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   });
   main.appendChild(buyCreditsRow);
   main.appendChild(usageRow);
-  main.appendChild(historyRow);
   main.appendChild(agentsRow);
   main.appendChild(mcpRow);
 
@@ -333,13 +461,24 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   });
   document.body.appendChild(ideSub);
 
-  let openSubmenu = null; // 'layout' | 'implement' | null
+  const creditsSub = document.createElement('div');
+  creditsSub.id = 'thinkreview-settings-credits-submenu';
+  creditsSub.className = 'thinkreview-settings-submenu';
+  creditsSub.setAttribute('role', 'menu');
+  creditsSub.style.display = 'none';
+  document.body.appendChild(creditsSub);
+
+  let openSubmenu = null; // 'layout' | 'implement' | 'buy-credits' | null
+  let creditsLoadPromise = null;
+  let creditsPacksCached = false;
 
   function _closeSubmenus() {
     layoutSub.style.display = 'none';
     ideSub.style.display = 'none';
+    creditsSub.style.display = 'none';
     layoutRow.setAttribute('aria-expanded', 'false');
     ideRow.setAttribute('aria-expanded', 'false');
+    buyCreditsRow.setAttribute('aria-expanded', 'false');
     openSubmenu = null;
   }
 
@@ -347,6 +486,24 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     _closeSubmenus();
     main.style.display = 'none';
     settingsButton.setAttribute('aria-expanded', 'false');
+  }
+
+  async function _ensureCreditsLoaded() {
+    if (creditsPacksCached && creditsSub.querySelector('[data-credits-action]')) {
+      return;
+    }
+    if (creditsLoadPromise) return creditsLoadPromise;
+    creditsLoadPromise = _populateCreditsSubmenu(creditsSub, (packs) => {
+      creditsPacksCached = true;
+      const valueEl = buyCreditsRow.querySelector('[data-menu-value="buy-credits"]');
+      if (valueEl) {
+        valueEl.textContent =
+          packs.length > 0 ? `${packs.length} pack${packs.length === 1 ? '' : 's'}` : 'Credit packs';
+      }
+    }).finally(() => {
+      creditsLoadPromise = null;
+    });
+    return creditsLoadPromise;
   }
 
   async function _openSubmenu(kind) {
@@ -373,6 +530,14 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
       _positionSubmenu(ideSub, ideRow, 280);
       ideSub.style.display = 'block';
       ideRow.setAttribute('aria-expanded', 'true');
+    } else if (kind === 'buy-credits') {
+      _positionSubmenu(creditsSub, buyCreditsRow, 280);
+      creditsSub.style.display = 'block';
+      buyCreditsRow.setAttribute('aria-expanded', 'true');
+      await _ensureCreditsLoaded();
+      if (openSubmenu === 'buy-credits') {
+        _positionSubmenu(creditsSub, buyCreditsRow, 280);
+      }
     }
   }
 
@@ -418,6 +583,11 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
       await _openSubmenu('implement');
       return;
     }
+    if (action === 'buy-credits') {
+      await _trackSettingsMenu('settings_menu_buy_credits_clicked');
+      await _openSubmenu('buy-credits');
+      return;
+    }
     if (PORTAL_LINKS[action]) {
       const link = PORTAL_LINKS[action];
       await _trackSettingsMenu(link.analytics, { url: link.url });
@@ -432,6 +602,31 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     }
   });
 
+  creditsSub.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const item = e.target.closest('[data-credits-action]');
+    if (!item) return;
+    const action = item.dataset.creditsAction;
+
+    if (action === 'portal') {
+      await _trackSettingsMenu('additional_credits_opened', { via: 'credits_submenu_portal' });
+      _closeAll();
+      window.open(ADDITIONAL_CREDITS_PORTAL_URL, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    if (action === 'checkout') {
+      const url = item.dataset.checkoutUrl || ADDITIONAL_CREDITS_PORTAL_URL;
+      await _trackSettingsMenu('credit_pack_checkout_clicked', {
+        packId: item.dataset.packId || null,
+        credits: item.dataset.credits ? Number(item.dataset.credits) : null,
+        url
+      });
+      _closeAll();
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  });
+
   document.addEventListener('click', (e) => {
     const t = /** @type {Node} */ (e.target);
     if (
@@ -439,7 +634,8 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
       settingsButton.contains(t) ||
       main.contains(t) ||
       layoutSub.contains(t) ||
-      ideSub.contains(t)
+      ideSub.contains(t) ||
+      creditsSub.contains(t)
     ) {
       return;
     }
@@ -451,6 +647,7 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     _positionMainMenu(main, settingsButton);
     if (openSubmenu === 'layout') _positionSubmenu(layoutSub, layoutRow, 232);
     if (openSubmenu === 'implement') _positionSubmenu(ideSub, ideRow, 280);
+    if (openSubmenu === 'buy-credits') _positionSubmenu(creditsSub, buyCreditsRow, 280);
   };
   window.addEventListener('scroll', reposition, { passive: true });
   window.addEventListener('resize', reposition, { passive: true });

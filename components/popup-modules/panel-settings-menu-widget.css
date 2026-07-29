@@ -135,3 +135,48 @@
 #thinkreview-settings-ide-submenu {
   width: 280px;
 }
+
+#thinkreview-settings-credits-submenu {
+  width: 280px;
+}
+
+.thinkreview-settings-credits-status,
+.thinkreview-settings-credits-note {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.35;
+}
+
+.thinkreview-settings-credits-note {
+  padding-top: 4px;
+  padding-bottom: 6px;
+  font-size: 11px;
+}
+
+.thinkreview-settings-credits-item {
+  align-items: flex-start;
+}
+
+.thinkreview-settings-credits-badge {
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 999px;
+  line-height: 1.2;
+}
+
+.thinkreview-settings-credits-badge.is-best-value {
+  color: #1a1628;
+  background: #c9b4ff;
+}
+
+.thinkreview-settings-credits-badge.is-most-purchased {
+  color: #c9b4ff;
+  background: rgba(107, 79, 187, 0.35);
+  border: 1px solid rgba(201, 180, 255, 0.35);
+}

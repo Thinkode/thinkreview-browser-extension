@@ -841,7 +841,8 @@ async function createIntegratedReviewPanel(patchUrl) {
           e.target.closest('#thinkreview-settings-btn') ||
           e.target.closest('#thinkreview-settings-dropdown') ||
           e.target.closest('#thinkreview-settings-layout-submenu') ||
-          e.target.closest('#thinkreview-settings-ide-submenu')) {
+          e.target.closest('#thinkreview-settings-ide-submenu') ||
+          e.target.closest('#thinkreview-settings-credits-submenu')) {
         return; // Don't block these events
       }
       e.stopPropagation();
