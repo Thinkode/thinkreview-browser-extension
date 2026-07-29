@@ -1457,8 +1457,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     }
     
     // Get the user's language preference from extension storage
-    const result = await chrome.storage.local.get(['code-review-language']);
+    const result = await chrome.storage.local.get(['code-review-language', 'code-review-format']);
     const language = result['code-review-language'] || 'English';
+    const reviewFormat = result['code-review-format'] === 'severity' ? 'severity' : 'scoring';
     
     // Get the full MR/PR URL
     const mrUrl = window.location.href;
@@ -1486,7 +1487,8 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         mrUrl: mrUrl, // Include the full MR/PR URL
         language, // Include the language preference
         platform, // Include platform information
-        forceRegenerate // Include force regenerate flag
+        forceRegenerate, // Include force regenerate flag
+        reviewFormat // Include review layout format (scoring | severity)
       }, resolve);
     });
 
@@ -1565,6 +1567,10 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     }
 
     // Display the review results (use filtered patch — same string as reviewPatchCode_1_1 for agent checksums).
+    // Ensure reviewFormat is on the review object for conditional rendering (API may also set top-level reviewFormat).
+    if (!data.review.reviewFormat) {
+      data.review.reviewFormat = data.reviewFormat || reviewFormat || 'scoring';
+    }
     displayIntegratedReview(
       data.review,
       filteredCodeContent,
