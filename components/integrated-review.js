@@ -353,20 +353,14 @@ async function createIntegratedReviewPanel(patchUrl) {
             <option value="Czech">Čeština</option>
             <option value="Dutch">Dutch</option>
             <option value="Vietnamese">Tiếng Việt</option>
-            <option value="Indonesian">Bahasa Indonesia</option>
+            <option value="Indonesian">Indonesia</option>
             <option value="Romanian">Română</option>
             <option value="Italian">Italiano</option>
           </select>
           <select id="review-format-selector" class="thinkreview-language-dropdown thinkreview-format-dropdown" title="Select review format">
-            <option value="scoring">Scoring</option>
-            <option value="severity">PR Description &amp; Issues</option>
+            <option value="scoring">scoring</option>
+            <option value="severity">severity</option>
           </select>
-          <span class="thinkreview-bug-report-btn-wrapper">
-            <button id="bug-report-btn" class="thinkreview-bug-report-btn" aria-label="Report a Bug">
-              🐞
-            </button>
-            <span class="thinkreview-bug-report-tooltip" aria-hidden="true">Report a Bug</span>
-          </span>
           <span class="thinkreview-settings-btn-wrapper">
             <button id="thinkreview-settings-btn" class="thinkreview-settings-btn" aria-label="Open extension settings" title="Settings">
               ${settingsIconSvg}
@@ -765,36 +759,6 @@ async function createIntegratedReviewPanel(patchUrl) {
     });
   }
 
-  // Add event listener for the bug report button first
-  const bugReportButton = document.getElementById('bug-report-btn');
-  if (bugReportButton) {
-    const bugWrapper = container.querySelector('.thinkreview-bug-report-btn-wrapper');
-    const bugTooltipEl = bugWrapper?.querySelector('.thinkreview-bug-report-tooltip');
-    if (bugWrapper && bugTooltipEl) {
-      let bugTooltipTimeout;
-      bugWrapper.addEventListener('mouseenter', () => {
-        bugTooltipTimeout = setTimeout(() => bugTooltipEl.classList.add('thinkreview-tooltip-visible'), 200);
-      });
-      bugWrapper.addEventListener('mouseleave', () => {
-        clearTimeout(bugTooltipTimeout);
-        bugTooltipEl.classList.remove('thinkreview-tooltip-visible');
-      });
-    }
-    bugReportButton.addEventListener('click', async (e) => {
-      e.stopPropagation(); // Prevent triggering the header click event
-      dbgLog('Bug report button clicked');
-      // Track bug report button click
-      try {
-        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
-        analyticsModule.trackUserAction('bug_report_clicked', {
-          context: 'integrated_review_panel',
-          location: 'header'
-        }).catch(() => {});
-      } catch (error) { /* silent */ }
-      window.open('https://thinkreview.dev/bug-report', '_blank');
-    });
-  }
-  
   // Fast tooltip for regenerate button (short delay vs native title)
   const regenerateWrapper = container.querySelector('.thinkreview-regenerate-btn-wrapper');
   if (regenerateWrapper) {
@@ -854,14 +818,12 @@ async function createIntegratedReviewPanel(patchUrl) {
   }
 
   // Block events from header-actions to prevent panel minimization
-  // But allow clicks on the bug report button, regenerate button, and language selector to pass through
+  // But allow clicks on the regenerate button and language selector to pass through
   const headerActions = container.querySelector('.thinkreview-header-actions');
   if (headerActions) {
     const blockEvent = (e) => {
-      // Allow clicks on bug report button, regenerate button, copy-all button, language selector, and layout button
-      if (e.target.id === 'bug-report-btn' ||
-          e.target.closest('#bug-report-btn') ||
-          e.target.id === 'regenerate-review-btn' ||
+      // Allow clicks on regenerate button, copy-all button, language selector, and layout button
+      if (e.target.id === 'regenerate-review-btn' ||
           e.target.closest('#regenerate-review-btn') ||
           e.target.id === 'copy-all-review-btn' ||
           e.target.closest('#copy-all-review-btn') ||

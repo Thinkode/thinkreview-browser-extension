@@ -841,66 +841,6 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   transition: color 0.2s ease;
 }
 
-/* Wrapper for bug report button + fast tooltip */
-#gitlab-mr-integrated-review .thinkreview-bug-report-btn-wrapper {
-  position: relative;
-  display: inline-flex;
-  margin-right: 0;
-}
-
-#gitlab-mr-integrated-review .thinkreview-bug-report-tooltip {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%) translateY(2px);
-  margin-top: 4px;
-  padding: 4px 8px;
-  background: #fff;
-  color: #333;
-  font-size: 12px;
-  white-space: nowrap;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  border: 1px solid #e1e4e8;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.1s ease;
-  z-index: var(--thinkreview-z-tooltip);
-}
-
-#gitlab-mr-integrated-review .thinkreview-bug-report-tooltip.thinkreview-tooltip-visible {
-  opacity: 1;
-}
-
-#gitlab-mr-integrated-review .thinkreview-bug-report-btn {
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  line-height: 1;
-  opacity: 0.7;
-  width: 28px;
-  height: 28px;
-}
-
-#gitlab-mr-integrated-review .thinkreview-bug-report-btn:hover {
-  background-color: rgba(107, 79, 187, 0.2);
-  opacity: 1;
-  transform: scale(1.1);
-}
-
-#gitlab-mr-integrated-review .thinkreview-bug-report-btn:active {
-  transform: scale(0.95);
-  background-color: rgba(107, 79, 187, 0.3);
-}
-
 /* Wrapper for copy-all button + fast tooltip */
 #gitlab-mr-integrated-review .thinkreview-copy-all-btn-wrapper {
   position: relative;
@@ -4264,48 +4204,209 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   max-width: 180px;
 }
 
+/* PR Description section */
+.thinkreview-severity-pr-section {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px !important;
+}
+
+.thinkreview-severity-pr-section .thinkreview-section-title {
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: #ffffff;
+}
+
 .thinkreview-severity-pr-description {
   white-space: normal;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
 }
 
-.thinkreview-severity-issue-title {
+.thinkreview-severity-pr-description h3,
+.thinkreview-severity-pr-description h4 {
+  margin-top: 16px;
+  margin-bottom: 8px;
   font-weight: 600;
-  margin-bottom: 4px;
+  color: #ffffff;
 }
 
-.thinkreview-severity-issue-location {
-  font-size: 0.85em;
-  opacity: 0.75;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  margin-bottom: 6px;
+.thinkreview-severity-pr-description p {
+  margin-bottom: 16px;
 }
 
-.thinkreview-severity-issue-description {
-  margin-top: 2px;
+.thinkreview-severity-pr-description br {
+  display: block;
+  margin-bottom: 10px;
+  content: '';
 }
 
-.thinkreview-severity-empty {
-  opacity: 0.7;
-  font-style: italic;
-  margin: 0;
+.thinkreview-severity-pr-description ul,
+.thinkreview-severity-pr-description ol {
+  margin-left: 20px;
+  margin-bottom: 12px;
+}
+
+.thinkreview-severity-pr-description code {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+/* Issue sections */
+.thinkreview-severity-section {
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px !important;
+  transition: all 0.2s ease;
+}
+
+.thinkreview-severity-section:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.thinkreview-severity-section .thinkreview-section-title {
+  font-size: 16px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Severity-specific colors with icon indicators */
+.thinkreview-severity-critical {
+  border-left: 4px solid #ef4444;
 }
 
 .thinkreview-severity-critical .thinkreview-section-title {
   color: #ef4444;
 }
 
+.thinkreview-severity-critical .thinkreview-section-title::before {
+  content: '●';
+  font-size: 20px;
+  line-height: 1;
+}
+
+.thinkreview-severity-high {
+  border-left: 4px solid #f59e0b;
+}
+
 .thinkreview-severity-high .thinkreview-section-title {
   color: #f59e0b;
+}
+
+.thinkreview-severity-high .thinkreview-section-title::before {
+  content: '●';
+  font-size: 20px;
+  line-height: 1;
+}
+
+.thinkreview-severity-low {
+  border-left: 4px solid #3b82f6;
 }
 
 .thinkreview-severity-low .thinkreview-section-title {
   color: #3b82f6;
 }
 
+.thinkreview-severity-low .thinkreview-section-title::before {
+  content: '●';
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* Issue list */
+.thinkreview-severity-list {
+  list-style: none;
+  padding-left: 0 !important;
+  margin: 0;
+}
+
+.thinkreview-severity-issue-item {
+  margin-bottom: 12px;
+}
+
+.thinkreview-severity-issue-item:last-child {
+  margin-bottom: 0;
+}
+
+.thinkreview-severity-issue-wrapper {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
 .thinkreview-severity-issue-wrapper.thinkreview-clickable-item {
   cursor: pointer;
 }
 
+.thinkreview-severity-issue-wrapper.thinkreview-clickable-item:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateX(4px);
+}
+
+.thinkreview-severity-issue-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: #ffffff;
+  line-height: 1.4;
+}
+
+.thinkreview-severity-issue-location {
+  font-size: 12px;
+  opacity: 0.65;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.thinkreview-severity-issue-description {
+  margin-top: 8px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+}
+
+.thinkreview-severity-issue-description p {
+  margin-bottom: 8px;
+}
+
+.thinkreview-severity-issue-description code {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+/* Empty state */
+.thinkreview-severity-empty {
+  opacity: 0.5;
+  font-style: italic;
+  margin: 0;
+  padding: 12px;
+  text-align: center;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  background-color: rgba(255, 255, 255, 0.02);
+  border-radius: 4px;
+}
+
+/* Copy button */
 .thinkreview-copy-pr-desc-btn {
   margin-left: auto;
 }
