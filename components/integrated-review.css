@@ -4200,9 +4200,6 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
 
 
 /* ===== Severity review layout ===== */
-.thinkreview-format-dropdown {
-  max-width: 180px;
-}
 
 /* PR Description section */
 .thinkreview-severity-pr-section {

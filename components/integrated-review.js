@@ -357,10 +357,6 @@ async function createIntegratedReviewPanel(patchUrl) {
             <option value="Romanian">Română</option>
             <option value="Italian">Italiano</option>
           </select>
-          <select id="review-format-selector" class="thinkreview-language-dropdown thinkreview-format-dropdown" title="Select review format">
-            <option value="scoring">scoring</option>
-            <option value="severity">severity</option>
-          </select>
           <span class="thinkreview-settings-btn-wrapper">
             <button id="thinkreview-settings-btn" class="thinkreview-settings-btn" aria-label="Open extension settings" title="Settings">
               ${settingsIconSvg}
@@ -829,8 +825,9 @@ async function createIntegratedReviewPanel(patchUrl) {
           e.target.closest('#copy-all-review-btn') ||
           e.target.id === 'language-selector' ||
           e.target.closest('#language-selector') ||
-          e.target.id === 'review-format-selector' ||
-          e.target.closest('#review-format-selector') ||
+          e.target.id === 'thinkreview-review-format-btn' ||
+          e.target.closest('#thinkreview-review-format-btn') ||
+          e.target.closest('#thinkreview-review-format-dropdown') ||
           e.target.id === 'thinkreview-layout-btn' ||
           e.target.closest('#thinkreview-layout-btn') ||
           e.target.id === 'thinkreview-ide-assist-btn' ||
@@ -890,65 +887,44 @@ async function createIntegratedReviewPanel(patchUrl) {
     });
   }
 
-  // Add event listener for the review format selector
-  const formatSelector = container.querySelector('#review-format-selector');
-  if (formatSelector) {
-    const savedFormat = await getReviewFormatPreference();
-    formatSelector.value = savedFormat;
+  // Mount visual review-format picker (scoring | severity) — cloud-only for now
+  try {
+    const providerSettings = await chrome.storage.local.get(['aiProvider']);
+    const aiProvider = providerSettings.aiProvider || 'cloud';
+    const isLocalProvider = aiProvider === 'ollama' || aiProvider === 'openrouter';
 
-    // Hide format selector for local providers (cloud-only feature for now)
-    try {
-      const providerSettings = await chrome.storage.local.get(['aiProvider']);
-      const aiProvider = providerSettings.aiProvider || 'cloud';
-      if (aiProvider === 'ollama' || aiProvider === 'openrouter') {
-        formatSelector.classList.add('gl-hidden');
-        formatSelector.disabled = true;
-      }
-    } catch (error) { /* silent */ }
+    if (!isLocalProvider) {
+      const formatWidgetUrl = chrome.runtime.getURL('components/popup-modules/review-format-preference-widget.js');
+      const { mountReviewFormatPreferenceWidget } = await import(formatWidgetUrl);
+      const headerActionsEl = container.querySelector('.thinkreview-header-actions');
+      const settingsWrapper = headerActionsEl?.querySelector('.thinkreview-settings-btn-wrapper');
 
-    const blockFormatEvent = (e) => {
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-    };
-    formatSelector.addEventListener('click', blockFormatEvent, true);
-    formatSelector.addEventListener('mousedown', blockFormatEvent, true);
-    formatSelector.addEventListener('mouseup', blockFormatEvent, true);
-    formatSelector.addEventListener('pointerdown', blockFormatEvent, true);
-    formatSelector.addEventListener('pointerup', blockFormatEvent, true);
-    formatSelector.addEventListener('touchstart', blockFormatEvent, true);
-    formatSelector.addEventListener('touchend', blockFormatEvent, true);
+      await mountReviewFormatPreferenceWidget(headerActionsEl, {
+        insertBeforeEl: settingsWrapper || null,
+        onFormatChange: async (selectedFormat) => {
+          dbgLog('Review format preference updated to:', selectedFormat);
 
-    formatSelector.addEventListener('change', async (e) => {
-      e.stopPropagation();
-      const selectedFormat = e.target.value === 'severity' ? 'severity' : 'scoring';
-      setReviewFormatPreference(selectedFormat);
-      dbgLog('Review format preference updated to:', selectedFormat);
+          // Fetch review for the new format (cache is segmented server-side by format)
+          const reviewLoading = document.getElementById('review-loading');
+          const reviewContent = document.getElementById('review-content');
+          const reviewError = document.getElementById('review-error');
+          currentReviewData = null;
+          if (reviewLoading) reviewLoading.classList.remove('gl-hidden');
+          if (reviewContent) reviewContent.classList.add('gl-hidden');
+          if (reviewError) reviewError.classList.add('gl-hidden');
+          startEnhancedLoader();
 
-      try {
-        const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
-        analyticsModule.trackUserAction('review_format_changed', {
-          context: 'integrated_review_panel',
-          reviewFormat: selectedFormat
-        }).catch(() => {});
-      } catch (error) { /* silent */ }
-
-      // Fetch review for the new format (cache is segmented server-side by format)
-      const reviewLoading = document.getElementById('review-loading');
-      const reviewContent = document.getElementById('review-content');
-      const reviewError = document.getElementById('review-error');
-      currentReviewData = null;
-      if (reviewLoading) reviewLoading.classList.remove('gl-hidden');
-      if (reviewContent) reviewContent.classList.add('gl-hidden');
-      if (reviewError) reviewError.classList.add('gl-hidden');
-      startEnhancedLoader();
-
-      if (typeof fetchAndDisplayCodeReview === 'function') {
-        // forceRegenerate=false so a previously cached review for this format can be reused
-        await fetchAndDisplayCodeReview(false);
-      } else {
-        console.error('fetchAndDisplayCodeReview function not found');
-      }
-    });
+          if (typeof fetchAndDisplayCodeReview === 'function') {
+            // forceRegenerate=false so a previously cached review for this format can be reused
+            await fetchAndDisplayCodeReview(false);
+          } else {
+            console.error('fetchAndDisplayCodeReview function not found');
+          }
+        }
+      });
+    }
+  } catch (error) {
+    dbgWarn('Failed to mount review format preference widget:', error);
   }
 
   getOllamaBrowserExtensionCorsMessageModule().catch(() => {});
@@ -2696,20 +2672,3 @@ function setLanguagePreference(language) {
   chrome.storage.local.set({ 'code-review-language': language });
 }
 
-/**
- * Get the user's review format preference from extension storage
- * @returns {Promise<string>} - 'scoring' (default) or 'severity'
- */
-async function getReviewFormatPreference() {
-  const result = await chrome.storage.local.get(['code-review-format']);
-  return result['code-review-format'] === 'severity' ? 'severity' : 'scoring';
-}
-
-/**
- * Set the user's review format preference in extension storage
- * @param {string} format - 'scoring' or 'severity'
- */
-function setReviewFormatPreference(format) {
-  const normalized = format === 'severity' ? 'severity' : 'scoring';
-  chrome.storage.local.set({ 'code-review-format': normalized });
-}
