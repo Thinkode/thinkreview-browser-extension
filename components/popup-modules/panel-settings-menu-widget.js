@@ -627,7 +627,7 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     }
   });
 
-  document.addEventListener('click', (e) => {
+  const onDocumentClick = (e) => {
     const t = /** @type {Node} */ (e.target);
     if (
       t === settingsButton ||
@@ -640,7 +640,8 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
       return;
     }
     _closeAll();
-  });
+  };
+  document.addEventListener('click', onDocumentClick);
 
   const reposition = () => {
     if (main.style.display === 'none') return;
@@ -655,4 +656,34 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   // Keep tooltip text in sync with inclusive menu
   const tooltip = options.settingsWrapper?.querySelector('.thinkreview-settings-tooltip');
   if (tooltip) tooltip.textContent = 'Settings';
+
+  let destroyed = false;
+  function _destroy() {
+    if (destroyed) return;
+    destroyed = true;
+    document.removeEventListener('click', onDocumentClick);
+    window.removeEventListener('scroll', reposition);
+    window.removeEventListener('resize', reposition);
+    main.remove();
+    layoutSub.remove();
+    ideSub.remove();
+    creditsSub.remove();
+    creditsLoadPromise = null;
+  }
+
+  // Body-appended menus/listeners have no natural teardown point, so auto-clean once the
+  // panel itself is removed from the DOM (defensive against future panel destroy/recreate
+  // flows; currently the panel persists for the tab's lifetime and is never recreated).
+  const panelEl = settingsButton.closest('#gitlab-mr-integrated-review');
+  if (panelEl && panelEl.parentNode) {
+    const panelObserver = new MutationObserver(() => {
+      if (!document.body.contains(panelEl)) {
+        panelObserver.disconnect();
+        _destroy();
+      }
+    });
+    panelObserver.observe(panelEl.parentNode, { childList: true });
+  }
+
+  return { destroy: _destroy };
 }
