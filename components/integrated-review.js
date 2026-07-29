@@ -1728,228 +1728,101 @@ async function refreshThinkReviewNewsBanner() {
   }
 }
 
-async function displayIntegratedReview(
-  review,
-  patchContent,
-  patchSize = null,
-  subscriptionType = null,
-  modelUsed = null,
-  isCached = false,
-  provider = null,
-  ollamaMeta = null,
-  openrouterMeta = null,
-  integrationOpts = null
-) {
-  // Store review data for copy-all functionality
-  currentReviewData = review;
+/**
+ * Render severity-layout review sections (PR description + issues).
+ * Hides scoring-layout containers.
+ * @param {Object} review
+ * @param {Object} containers
+ * @param {HTMLElement|null} containers.reviewMetricsContainer
+ * @param {HTMLElement|null} containers.severityContainer
+ * @param {HTMLElement|null} containers.summaryContainer
+ * @param {HTMLElement|null} containers.suggestionsContainer
+ * @param {HTMLElement|null} containers.securityContainer
+ * @param {HTMLElement|null} containers.practicesContainer
+ * @param {HTMLElement|null} containers.suggestedQuestionsOuter
+ */
+async function renderSeverityReviewSections(review, containers) {
+  const {
+    reviewMetricsContainer,
+    severityContainer,
+    summaryContainer,
+    suggestionsContainer,
+    securityContainer,
+    practicesContainer,
+    suggestedQuestionsOuter
+  } = containers;
 
-  const integratedPanelEl = document.getElementById('gitlab-mr-integrated-review');
-  if (integratedPanelEl) {
-    integratedPanelEl.thinkreviewIntegrationOpts = integrationOpts;
-  }
-
-  // Ensure copy button utils are loaded
-  if (!attachCopyButtonToItem) {
-    await initCopyButtonUtils();
-  }
-
-  // Check if there was a JSON parsing error (safety check)
-  if (review.parsingError === true) {
-    dbgWarn('JSON parsing error detected in review object');
-    const errorMessage = review.errorMessage 
-      ? `Unable to parse AI response: ${review.errorMessage}. Please try regenerating the review.`
-      : 'The AI generated a response that could not be parsed. Please try regenerating the review or report this issue at https://thinkreview.dev/bug-report';
-    await showIntegratedReviewError(errorMessage);
-    return;
-  }
-  
-  // Stop the enhanced loader
-  stopEnhancedLoader();
-
-  // Ensure the Review tab is active (panel may have been on a different tab when the loader started)
-  switchToReviewTab();
-  
-  // Hide loading indicator on button when review completes
-  try {
-    const loadingModule = await import(chrome.runtime.getURL('components/popup-modules/button-loading-indicator.js'));
-    loadingModule.hideButtonLoadingIndicator();
-  } catch (error) {
-    // Silently fail if module not available
-    dbgWarn('Failed to hide loading indicator:', error);
-  }
-
-  const reviewLoading = document.getElementById('review-loading');
-  const reviewContent = document.getElementById('review-content');
-  const reviewError = document.getElementById('review-error');
-  const tokenError = document.getElementById('review-azure-token-error');
-  const loginPrompt = document.getElementById('review-login-prompt');
-
-  if (!reviewLoading || !reviewContent || !reviewError) {
-    dbgWarn('Review panel elements not found (panel may have been closed or navigated away)');
-    showPanelRecoveryMessage();
-    return;
-  }
-
-  // Static review elements
-  const reviewSummary = document.getElementById('review-summary');
-  const reviewSuggestions = document.getElementById('review-suggestions');
-  const reviewSecurity = document.getElementById('review-security');
-  const reviewPractices = document.getElementById('review-practices');
-  const reviewMetricsContainer = document.getElementById('review-metrics-container');
-  const patchSizeBanner = document.getElementById('review-patch-size-banner');
-
-  // Hide loading indicator and other states, show the main content area
-  reviewLoading.classList.add('gl-hidden');
-  reviewError.classList.add('gl-hidden');
-  const reviewScrollMain = document.getElementById('review-scroll-main');
-  if (reviewScrollMain) reviewScrollMain.classList.remove('gl-hidden');
-  if (tokenError) tokenError.classList.add('gl-hidden');
-  if (loginPrompt) loginPrompt.classList.add('gl-hidden');
-  reviewContent.classList.remove('gl-hidden');
-
-  // Clean up any previously shown upgrade/limit message so the review UI is
-  // fully restored when the API returns a success (e.g. after daily count resets).
-  clearUpgradeMessage(reviewContent);
-
-  // Update subscription type in header (Free, Lite, Premium, Teams)
-  // Always read from storage (getUserSubscriptionDataThinkReview) - stored by background via REFRESH_USER_DATA_STORAGE / GET_USER_DATA_WITH_SUBSCRIPTION
-  const storage = await chrome.storage.local.get(['userSubscriptionData']);
-  const subscriptionTypeForDisplay = storage.userSubscriptionData?.userSubscriptionType || 'Free';
-
-  const subscriptionLabel = document.getElementById('review-subscription-label');
-  if (subscriptionLabel) {
-    const raw = (subscriptionTypeForDisplay ?? '').toString().trim().toLowerCase();
-    let displayName = 'Free';
-    if (raw && !raw.includes('free')) {
-      if (raw === 'lite') displayName = 'Lite';
-      else if (raw === 'teams') displayName = 'Teams';
-      else if (raw === 'professional') displayName = 'Professional';
+  // Hide scoring-layout sections
+  if (reviewMetricsContainer) {
+    const previousScorecard = reviewMetricsContainer.querySelector('.thinkreview-quality-scorecard');
+    if (previousScorecard && typeof previousScorecard._cleanupMetricListeners === 'function') {
+      previousScorecard._cleanupMetricListeners();
     }
-    subscriptionLabel.textContent = displayName;
-    const slug = displayName.toLowerCase();
-    subscriptionLabel.className = 'thinkreview-header-subscription thinkreview-header-subscription-' + slug;
+    reviewMetricsContainer.replaceChildren();
+    reviewMetricsContainer.classList.add('gl-hidden');
   }
+  if (summaryContainer) summaryContainer.classList.add('gl-hidden');
+  if (suggestionsContainer) suggestionsContainer.classList.add('gl-hidden');
+  if (securityContainer) securityContainer.classList.add('gl-hidden');
+  if (practicesContainer) practicesContainer.classList.add('gl-hidden');
+  if (suggestedQuestionsOuter) suggestedQuestionsOuter.classList.add('gl-hidden');
 
-  void refreshThinkReviewNewsBanner();
-
-  // Render patch size / metadata banner (Ollama-specific bar vs cloud bar)
-  if (patchSizeBanner) {
+  // Render severity layout
+  if (severityContainer) {
     try {
-      const metadataModule = await import(chrome.runtime.getURL('components/review-metadata-bar.js'));
-      const reviewRequestLabel = metadataModule.formatReviewRequestLabel(
-        integrationOpts?.platform ?? null,
-        integrationOpts?.mrId ?? null
-      );
-      if (provider === 'ollama' && ollamaMeta) {
-        metadataModule.renderOllamaMetadataBar(
-          patchSizeBanner,
-          ollamaMeta,
-          {
-            onSwitchToCloud() {
-              document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
-            },
-            getModels() {
-              return new Promise((resolve) => {
-                chrome.runtime.sendMessage({ type: 'GET_OLLAMA_MODELS' }, (response) => {
-                  if (chrome.runtime.lastError || !response) {
-                    resolve([]);
-                    return;
-                  }
-                  resolve(response.models || []);
-                });
-              });
-            },
-            onModelChange(modelName) {
-              document.dispatchEvent(new CustomEvent('thinkreview-ollama-model-changed', { detail: { model: modelName } }));
-            }
-          },
-          reviewRequestLabel
-        );
-      } else if (provider === 'openrouter' && openrouterMeta) {
-        metadataModule.renderOpenRouterMetadataBar(
-          patchSizeBanner,
-          openrouterMeta,
-          {
-            onSwitchToCloud() {
-              document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
-            }
-          },
-          reviewRequestLabel
-        );
-      } else {
-        metadataModule.renderReviewMetadataBar(
-          patchSizeBanner,
-          patchSize,
-          subscriptionTypeForDisplay,
-          modelUsed,
-          isCached,
-          reviewRequestLabel,
-          { isGateway: provider === 'self-hosted' }
-        );
-      }
+      const severityModule = await import(chrome.runtime.getURL('components/severity-review-layout.js'));
+      severityModule.renderSeverityLayout(severityContainer, review, {
+        markdownToHtml,
+        preprocessAIResponse,
+        attachCopyButtonToItem,
+        applySimpleSyntaxHighlighting,
+        onIssueClick: (plainText, severity) => {
+          const severityLabel = severity === 'critical' ? 'critical issue'
+            : severity === 'high' ? 'high issue'
+            : 'low issue';
+          const query = `Can you provide more details about this ${severityLabel}? ${plainText}`;
+          handleSendMessage(query);
+        }
+      });
     } catch (error) {
-      dbgWarn('Failed to load review metadata bar:', error);
-      patchSizeBanner.classList.add('gl-hidden');
-    }
-  }
-
-  // Determine if the patch was forcibly truncated due to free-tier limits
-  const wasForcedTruncated = !!(patchSize && patchSize.wasForcedTruncated);
-
-  const isSeverityFormat = review.reviewFormat === 'severity';
-  const severityContainer = document.getElementById('review-severity-container');
-  const summaryContainer = document.getElementById('review-summary-container');
-  const suggestionsContainer = document.getElementById('review-suggestions-container');
-  const securityContainer = document.getElementById('review-security-container');
-  const practicesContainer = document.getElementById('review-practices-container');
-  const suggestedQuestionsOuter = document.getElementById('suggested-questions-container');
-
-  if (isSeverityFormat) {
-    // Hide scoring-layout sections
-    if (reviewMetricsContainer) {
-      const previousScorecard = reviewMetricsContainer.querySelector('.thinkreview-quality-scorecard');
-      if (previousScorecard && typeof previousScorecard._cleanupMetricListeners === 'function') {
-        previousScorecard._cleanupMetricListeners();
-      }
-      reviewMetricsContainer.replaceChildren();
-      reviewMetricsContainer.classList.add('gl-hidden');
-    }
-    if (summaryContainer) summaryContainer.classList.add('gl-hidden');
-    if (suggestionsContainer) suggestionsContainer.classList.add('gl-hidden');
-    if (securityContainer) securityContainer.classList.add('gl-hidden');
-    if (practicesContainer) practicesContainer.classList.add('gl-hidden');
-    if (suggestedQuestionsOuter) suggestedQuestionsOuter.classList.add('gl-hidden');
-
-    // Render severity layout
-    if (severityContainer) {
-      try {
-        const severityModule = await import(chrome.runtime.getURL('components/severity-review-layout.js'));
-        severityModule.renderSeverityLayout(severityContainer, review, {
-          markdownToHtml,
-          preprocessAIResponse,
-          attachCopyButtonToItem,
-          applySimpleSyntaxHighlighting,
-          onIssueClick: (plainText, severity) => {
-            const severityLabel = severity === 'critical' ? 'critical issue'
-              : severity === 'high' ? 'high issue'
-              : 'low issue';
-            const query = `Can you provide more details about this ${severityLabel}? ${plainText}`;
-            handleSendMessage(query);
-          }
-        });
-      } catch (error) {
-        dbgWarn('Failed to load severity review layout:', error);
-        severityContainer.classList.add('gl-hidden');
-      }
-    }
-  } else {
-    // Scoring layout — hide severity container and show scoring sections
-    if (severityContainer) {
-      severityContainer.replaceChildren();
+      dbgWarn('Failed to load severity review layout:', error);
       severityContainer.classList.add('gl-hidden');
     }
-    if (summaryContainer) summaryContainer.classList.remove('gl-hidden');
-    // suggestions/security/practices visibility is controlled by populateList below
+  }
+}
+
+/**
+ * Render scoring-layout review sections (metrics, summary, lists, suggested questions).
+ * Hides severity-layout containers.
+ * @param {Object} review
+ * @param {Object} containers
+ * @param {HTMLElement|null} containers.reviewMetricsContainer
+ * @param {HTMLElement|null} containers.severityContainer
+ * @param {HTMLElement|null} containers.summaryContainer
+ * @param {HTMLElement|null} containers.reviewSummary
+ * @param {HTMLElement|null} containers.reviewSuggestions
+ * @param {HTMLElement|null} containers.reviewSecurity
+ * @param {HTMLElement|null} containers.reviewPractices
+ * @param {Object|null} integrationOpts
+ */
+async function renderScoringReviewLayout(review, containers, integrationOpts = null) {
+  const {
+    reviewMetricsContainer,
+    severityContainer,
+    summaryContainer,
+    reviewSummary,
+    reviewSuggestions,
+    reviewSecurity,
+    reviewPractices
+  } = containers;
+
+  // Scoring layout — hide severity container and show scoring sections
+  if (severityContainer) {
+    severityContainer.replaceChildren();
+    severityContainer.classList.add('gl-hidden');
+  }
+  if (summaryContainer) summaryContainer.classList.remove('gl-hidden');
+  // suggestions/security/practices visibility is controlled by populateList below
 
   // Render quality scorecard if metrics are available
   if (reviewMetricsContainer) {
@@ -2315,7 +2188,206 @@ async function displayIntegratedReview(
     document.getElementById('suggested-questions-container').classList.remove('gl-hidden');
   }
 
-  } // end scoring-format branch (else of isSeverityFormat)
+}
+
+async function displayIntegratedReview(
+  review,
+  patchContent,
+  patchSize = null,
+  subscriptionType = null,
+  modelUsed = null,
+  isCached = false,
+  provider = null,
+  ollamaMeta = null,
+  openrouterMeta = null,
+  integrationOpts = null
+) {
+  // Store review data for copy-all functionality
+  currentReviewData = review;
+
+  const integratedPanelEl = document.getElementById('gitlab-mr-integrated-review');
+  if (integratedPanelEl) {
+    integratedPanelEl.thinkreviewIntegrationOpts = integrationOpts;
+  }
+
+  // Ensure copy button utils are loaded
+  if (!attachCopyButtonToItem) {
+    await initCopyButtonUtils();
+  }
+
+  // Check if there was a JSON parsing error (safety check)
+  if (review.parsingError === true) {
+    dbgWarn('JSON parsing error detected in review object');
+    const errorMessage = review.errorMessage 
+      ? `Unable to parse AI response: ${review.errorMessage}. Please try regenerating the review.`
+      : 'The AI generated a response that could not be parsed. Please try regenerating the review or report this issue at https://thinkreview.dev/bug-report';
+    await showIntegratedReviewError(errorMessage);
+    return;
+  }
+  
+  // Stop the enhanced loader
+  stopEnhancedLoader();
+
+  // Ensure the Review tab is active (panel may have been on a different tab when the loader started)
+  switchToReviewTab();
+  
+  // Hide loading indicator on button when review completes
+  try {
+    const loadingModule = await import(chrome.runtime.getURL('components/popup-modules/button-loading-indicator.js'));
+    loadingModule.hideButtonLoadingIndicator();
+  } catch (error) {
+    // Silently fail if module not available
+    dbgWarn('Failed to hide loading indicator:', error);
+  }
+
+  const reviewLoading = document.getElementById('review-loading');
+  const reviewContent = document.getElementById('review-content');
+  const reviewError = document.getElementById('review-error');
+  const tokenError = document.getElementById('review-azure-token-error');
+  const loginPrompt = document.getElementById('review-login-prompt');
+
+  if (!reviewLoading || !reviewContent || !reviewError) {
+    dbgWarn('Review panel elements not found (panel may have been closed or navigated away)');
+    showPanelRecoveryMessage();
+    return;
+  }
+
+  // Static review elements
+  const reviewSummary = document.getElementById('review-summary');
+  const reviewSuggestions = document.getElementById('review-suggestions');
+  const reviewSecurity = document.getElementById('review-security');
+  const reviewPractices = document.getElementById('review-practices');
+  const reviewMetricsContainer = document.getElementById('review-metrics-container');
+  const patchSizeBanner = document.getElementById('review-patch-size-banner');
+
+  // Hide loading indicator and other states, show the main content area
+  reviewLoading.classList.add('gl-hidden');
+  reviewError.classList.add('gl-hidden');
+  const reviewScrollMain = document.getElementById('review-scroll-main');
+  if (reviewScrollMain) reviewScrollMain.classList.remove('gl-hidden');
+  if (tokenError) tokenError.classList.add('gl-hidden');
+  if (loginPrompt) loginPrompt.classList.add('gl-hidden');
+  reviewContent.classList.remove('gl-hidden');
+
+  // Clean up any previously shown upgrade/limit message so the review UI is
+  // fully restored when the API returns a success (e.g. after daily count resets).
+  clearUpgradeMessage(reviewContent);
+
+  // Update subscription type in header (Free, Lite, Premium, Teams)
+  // Always read from storage (getUserSubscriptionDataThinkReview) - stored by background via REFRESH_USER_DATA_STORAGE / GET_USER_DATA_WITH_SUBSCRIPTION
+  const storage = await chrome.storage.local.get(['userSubscriptionData']);
+  const subscriptionTypeForDisplay = storage.userSubscriptionData?.userSubscriptionType || 'Free';
+
+  const subscriptionLabel = document.getElementById('review-subscription-label');
+  if (subscriptionLabel) {
+    const raw = (subscriptionTypeForDisplay ?? '').toString().trim().toLowerCase();
+    let displayName = 'Free';
+    if (raw && !raw.includes('free')) {
+      if (raw === 'lite') displayName = 'Lite';
+      else if (raw === 'teams') displayName = 'Teams';
+      else if (raw === 'professional') displayName = 'Professional';
+    }
+    subscriptionLabel.textContent = displayName;
+    const slug = displayName.toLowerCase();
+    subscriptionLabel.className = 'thinkreview-header-subscription thinkreview-header-subscription-' + slug;
+  }
+
+  void refreshThinkReviewNewsBanner();
+
+  // Render patch size / metadata banner (Ollama-specific bar vs cloud bar)
+  if (patchSizeBanner) {
+    try {
+      const metadataModule = await import(chrome.runtime.getURL('components/review-metadata-bar.js'));
+      const reviewRequestLabel = metadataModule.formatReviewRequestLabel(
+        integrationOpts?.platform ?? null,
+        integrationOpts?.mrId ?? null
+      );
+      if (provider === 'ollama' && ollamaMeta) {
+        metadataModule.renderOllamaMetadataBar(
+          patchSizeBanner,
+          ollamaMeta,
+          {
+            onSwitchToCloud() {
+              document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
+            },
+            getModels() {
+              return new Promise((resolve) => {
+                chrome.runtime.sendMessage({ type: 'GET_OLLAMA_MODELS' }, (response) => {
+                  if (chrome.runtime.lastError || !response) {
+                    resolve([]);
+                    return;
+                  }
+                  resolve(response.models || []);
+                });
+              });
+            },
+            onModelChange(modelName) {
+              document.dispatchEvent(new CustomEvent('thinkreview-ollama-model-changed', { detail: { model: modelName } }));
+            }
+          },
+          reviewRequestLabel
+        );
+      } else if (provider === 'openrouter' && openrouterMeta) {
+        metadataModule.renderOpenRouterMetadataBar(
+          patchSizeBanner,
+          openrouterMeta,
+          {
+            onSwitchToCloud() {
+              document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
+            }
+          },
+          reviewRequestLabel
+        );
+      } else {
+        metadataModule.renderReviewMetadataBar(
+          patchSizeBanner,
+          patchSize,
+          subscriptionTypeForDisplay,
+          modelUsed,
+          isCached,
+          reviewRequestLabel,
+          { isGateway: provider === 'self-hosted' }
+        );
+      }
+    } catch (error) {
+      dbgWarn('Failed to load review metadata bar:', error);
+      patchSizeBanner.classList.add('gl-hidden');
+    }
+  }
+
+  // Determine if the patch was forcibly truncated due to free-tier limits
+  const wasForcedTruncated = !!(patchSize && patchSize.wasForcedTruncated);
+
+  const isSeverityFormat = review.reviewFormat === 'severity';
+  const severityContainer = document.getElementById('review-severity-container');
+  const summaryContainer = document.getElementById('review-summary-container');
+  const suggestionsContainer = document.getElementById('review-suggestions-container');
+  const securityContainer = document.getElementById('review-security-container');
+  const practicesContainer = document.getElementById('review-practices-container');
+  const suggestedQuestionsOuter = document.getElementById('suggested-questions-container');
+
+  if (isSeverityFormat) {
+    await renderSeverityReviewSections(review, {
+      reviewMetricsContainer,
+      severityContainer,
+      summaryContainer,
+      suggestionsContainer,
+      securityContainer,
+      practicesContainer,
+      suggestedQuestionsOuter
+    });
+  } else {
+    await renderScoringReviewLayout(review, {
+      reviewMetricsContainer,
+      severityContainer,
+      summaryContainer,
+      reviewSummary,
+      reviewSuggestions,
+      reviewSecurity,
+      reviewPractices
+    }, integrationOpts);
+  }
+
 
   // Show initial review feedback buttons
   // Use mrUrl to query the review document
