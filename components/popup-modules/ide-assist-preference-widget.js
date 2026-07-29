@@ -44,11 +44,50 @@ function createNoneIdeIconSvg() {
   return svg;
 }
 
+/** MCP connector glyph (matches popup MCP button). */
+function createMcpIconSvg() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', '14');
+  svg.setAttribute('height', '14');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  const paths = [
+    'M12 2v6',
+    'M12 16v6',
+    'M2 12h6',
+    'M16 12h6',
+    'm8 6 4-4 4 4',
+    'm8 18 4 4 4-4',
+    'm6 8-4 4 4 4',
+    'm18 8 4 4-4 4'
+  ];
+  for (const d of paths) {
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', d);
+    svg.appendChild(path);
+  }
+  return svg;
+}
+
+const MCP_SETUP_URL = 'https://portal.thinkreview.dev/mcp';
+
 const ROWS = [
   { id: 'cursor', label: 'Cursor', icon: createCursorProductIconSvg },
   { id: 'github_copilot', label: 'GitHub Copilot via VS Code', icon: createGitHubCopilotIconSvg },
   { id: 'claude_code', label: 'Claude Code via VS Code', icon: createClaudeCodeIconSvg },
-  { id: 'none', label: 'None (hide Implement buttons)', icon: createNoneIdeIconSvg }
+  {
+    id: 'mcp',
+    label: 'MCP',
+    icon: createMcpIconSvg,
+    href: MCP_SETUP_URL,
+    dividerBefore: true
+  },
+  { id: 'none', label: 'None (hide Implement buttons)', icon: createNoneIdeIconSvg, dividerBefore: true }
 ];
 
 function _positionDropdown(dropdown, btn) {
@@ -64,7 +103,7 @@ function _positionDropdown(dropdown, btn) {
 }
 
 function _setTriggerIcon(btn, targetId) {
-  const row = ROWS.find((r) => r.id === targetId) || ROWS[0];
+  const row = ROWS.find((r) => r.id === targetId && !r.href) || ROWS[0];
   btn.replaceChildren();
   const icon = row.icon();
   icon.setAttribute('aria-hidden', 'true');
@@ -94,6 +133,13 @@ async function _trackIdeAssistMenu(eventName, params = {}) {
 
 function _refreshDropdownActive(dropdown, activeId) {
   dropdown.querySelectorAll('.thinkreview-ide-assist-item').forEach((el) => {
+    // Link rows (e.g. MCP setup) are never the active implement target
+    if (el.dataset.href) {
+      el.classList.remove('active');
+      const check = el.querySelector('.thinkreview-ide-assist-item-check');
+      if (check) check.textContent = '↗';
+      return;
+    }
     const id = el.dataset.ide;
     const on = id === activeId;
     el.classList.toggle('active', on);
@@ -151,7 +197,7 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
   dropdown.appendChild(label);
 
   for (const row of ROWS) {
-    if (row.id === 'none') {
+    if (row.dividerBefore) {
       const divider = document.createElement('div');
       divider.className = 'thinkreview-ide-assist-divider';
       divider.setAttribute('role', 'separator');
@@ -162,6 +208,10 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
     item.className = 'thinkreview-ide-assist-item';
     item.dataset.ide = row.id;
     item.setAttribute('role', 'menuitem');
+    if (row.href) {
+      item.dataset.href = row.href;
+      item.classList.add('thinkreview-ide-assist-item--link');
+    }
 
     const iconWrap = document.createElement('span');
     iconWrap.className = 'thinkreview-ide-assist-item-icon';
@@ -176,6 +226,10 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
     const check = document.createElement('span');
     check.className = 'thinkreview-ide-assist-item-check';
     check.setAttribute('aria-hidden', 'true');
+    if (row.href) {
+      check.textContent = '↗';
+      check.setAttribute('aria-label', 'Opens in new tab');
+    }
 
     item.appendChild(iconWrap);
     item.appendChild(lab);
@@ -216,6 +270,15 @@ export async function mountIdeAssistPreferenceWidget(headerActionsEl) {
     if (!item) return;
     const id = item.dataset.ide;
     if (!id) return;
+
+    // Link rows open an external page (MCP setup) instead of changing the implement target
+    if (item.dataset.href) {
+      await _trackIdeAssistMenu(`ide_assist_menu_${id}_opened`, { ide: id, url: item.dataset.href });
+      dropdown.style.display = 'none';
+      btn.setAttribute('aria-expanded', 'false');
+      window.open(item.dataset.href, '_blank', 'noopener,noreferrer');
+      return;
+    }
 
     const previousIde = await getIdeAssistTarget();
     await setIdeAssistTarget(id);

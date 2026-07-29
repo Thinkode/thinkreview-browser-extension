@@ -141,3 +141,8 @@
   font-size: 12px;
   opacity: 0.9;
 }
+
+.thinkreview-ide-assist-item--link .thinkreview-ide-assist-item-check {
+  opacity: 0.55;
+  font-size: 11px;
+}

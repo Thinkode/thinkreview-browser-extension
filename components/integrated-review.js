@@ -459,18 +459,31 @@ async function createIntegratedReviewPanel(patchUrl) {
               <div id="suggested-questions" class="thinkreview-suggested-questions-list"></div>
             </div>
             <div id="initial-review-feedback-container" class="thinkreview-feedback-container gl-mb-4 gl-hidden">
-              <div class="thinkreview-feedback-label">Was this review helpful?</div>
-              <div class="thinkreview-feedback-buttons">
-                <button class="thinkreview-feedback-btn thinkreview-thumbs-up-btn" data-rating="thumbs_up" title="Helpful">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" fill="currentColor"/>
-                  </svg>
-                </button>
-                <button class="thinkreview-feedback-btn thinkreview-thumbs-down-btn" data-rating="thumbs_down" title="Not helpful">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z" fill="currentColor"/>
-                  </svg>
-                </button>
+              <a id="severity-custom-rules-btn"
+                 href="https://portal.thinkreview.dev/scoring-metrics"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 class="thinkreview-severity-custom-rules-btn gl-hidden"
+                 aria-label="Open Custom Rules">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+                <span>Custom Rules</span>
+              </a>
+              <div class="thinkreview-feedback-helpful">
+                <div class="thinkreview-feedback-label">Was this review helpful?</div>
+                <div class="thinkreview-feedback-buttons">
+                  <button class="thinkreview-feedback-btn thinkreview-thumbs-up-btn" data-rating="thumbs_up" title="Helpful">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" fill="currentColor"/>
+                    </svg>
+                  </button>
+                  <button class="thinkreview-feedback-btn thinkreview-thumbs-down-btn" data-rating="thumbs_down" title="Not helpful">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z" fill="currentColor"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
             <div id="chat-log" class="thinkreview-chat-log"></div>
@@ -2294,6 +2307,7 @@ async function displayIntegratedReview(
   // Show initial review feedback buttons
   // Use mrUrl to query the review document
   const initialFeedbackContainer = document.getElementById('initial-review-feedback-container');
+  const severityCustomRulesBtn = document.getElementById('severity-custom-rules-btn');
   if (initialFeedbackContainer) {
     // Get the full MR/PR URL
     const mrUrl = window.location.href;
@@ -2305,6 +2319,29 @@ async function displayIntegratedReview(
     } else {
       dbgWarn('Cannot get mrUrl');
       initialFeedbackContainer.classList.add('gl-hidden');
+    }
+  }
+
+  // Custom Rules sits left of "Was this review helpful?" for severity layout only
+  if (severityCustomRulesBtn) {
+    if (isSeverityFormat) {
+      severityCustomRulesBtn.classList.remove('gl-hidden');
+      initialFeedbackContainer?.classList.add('thinkreview-feedback-container--split');
+      if (!severityCustomRulesBtn.dataset.analyticsBound) {
+        severityCustomRulesBtn.dataset.analyticsBound = '1';
+        severityCustomRulesBtn.addEventListener('click', async () => {
+          try {
+            const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+            analyticsModule.trackUserAction('custom_rules_opened', {
+              context: 'severity_review_layout',
+              location: 'feedback_row'
+            }).catch(() => {});
+          } catch (_) { /* silent */ }
+        });
+      }
+    } else {
+      severityCustomRulesBtn.classList.add('gl-hidden');
+      initialFeedbackContainer?.classList.remove('thinkreview-feedback-container--split');
     }
   }
 

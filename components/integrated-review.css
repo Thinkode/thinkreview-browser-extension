@@ -4009,14 +4009,33 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   padding-top: 12px;
   border-top: 1px solid #404040;
   opacity: 1;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#initial-review-feedback-container.thinkreview-feedback-container--split {
+  width: 100%;
+  max-width: 100%;
+  justify-content: space-between;
+}
+
+#initial-review-feedback-container .thinkreview-feedback-helpful {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#initial-review-feedback-container.thinkreview-feedback-container--split .thinkreview-feedback-helpful {
+  margin-left: auto;
 }
 
 #initial-review-feedback-container .thinkreview-feedback-label {
   display: block;
   font-size: 11px;
   color: #999999;
-  margin-bottom: 6px;
+  margin-bottom: 0;
   font-weight: 400;
+  white-space: nowrap;
 }
 
 #initial-review-feedback-container .thinkreview-feedback-btn {
@@ -4401,6 +4420,37 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   color: rgba(255, 255, 255, 0.6);
   background-color: rgba(255, 255, 255, 0.02);
   border-radius: 4px;
+}
+
+/* Custom Rules button — left side; helpful feedback stays on the right */
+.thinkreview-severity-custom-rules-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 0;
+  padding: 5px 10px;
+  background: rgba(107, 79, 187, 0.18);
+  border: 1px solid rgba(155, 126, 240, 0.45);
+  border-radius: 16px;
+  color: #e8dffc;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.thinkreview-severity-custom-rules-btn:hover {
+  background: rgba(107, 79, 187, 0.32);
+  border-color: rgba(155, 126, 240, 0.7);
+  color: #ffffff;
+}
+
+.thinkreview-severity-custom-rules-btn svg {
+  flex-shrink: 0;
+  display: block;
 }
 
 /* Copy button */
