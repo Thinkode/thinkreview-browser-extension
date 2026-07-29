@@ -4,19 +4,6 @@
  */
 
 /**
- * Add paragraph breaks after sentences for PR description readability.
- * @param {string} text
- * @returns {string}
- */
-function formatPrDescriptionSpacing(text) {
-  if (!text) return '';
-  let formatted = String(text).trim();
-  formatted = formatted.replace(/([.!?])\n(?!\n)/g, '$1\n\n');
-  formatted = formatted.replace(/([.!?])\s+(?=[A-Z(])/g, '$1\n\n');
-  return formatted;
-}
-
-/**
  * @param {{ filePath?: string, startLine?: number, endLine?: number }} issue
  * @returns {string}
  */
@@ -182,7 +169,9 @@ export function renderSeverityLayout(container, review, handlers = {}) {
   prWrapper.className = 'thinkreview-item-wrapper';
   const prContent = document.createElement('div');
   prContent.className = 'thinkreview-section-content thinkreview-severity-pr-description';
-  const prText = formatPrDescriptionSpacing(review.prDescription || 'No PR description provided.');
+  // Spacing comes from the model (blank lines after sentences); markdownToHtml
+  // turns those newlines into breaks — do not regex-split on '.' / '!' / '?'.
+  const prText = review.prDescription || 'No PR description provided.';
   if (typeof markdownToHtml === 'function' && typeof preprocessAIResponse === 'function') {
     prContent.innerHTML = markdownToHtml(preprocessAIResponse(prText));
   } else {
