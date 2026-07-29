@@ -4422,12 +4422,18 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   border-radius: 4px;
 }
 
-/* Custom Rules button — left side; helpful feedback stays on the right */
-.thinkreview-severity-custom-rules-btn {
+/* Left action buttons — Custom Rules + Add an Agent; helpful feedback stays on the right */
+.thinkreview-severity-feedback-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.thinkreview-severity-action-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-right: 0;
   padding: 5px 10px;
   background: rgba(107, 79, 187, 0.18);
   border: 1px solid rgba(155, 126, 240, 0.45);
@@ -4442,13 +4448,13 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.thinkreview-severity-custom-rules-btn:hover {
+.thinkreview-severity-action-btn:hover {
   background: rgba(107, 79, 187, 0.32);
   border-color: rgba(155, 126, 240, 0.7);
   color: #ffffff;
 }
 
-.thinkreview-severity-custom-rules-btn svg {
+.thinkreview-severity-action-btn svg {
   flex-shrink: 0;
   display: block;
 }

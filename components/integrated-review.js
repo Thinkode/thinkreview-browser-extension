@@ -459,17 +459,30 @@ async function createIntegratedReviewPanel(patchUrl) {
               <div id="suggested-questions" class="thinkreview-suggested-questions-list"></div>
             </div>
             <div id="initial-review-feedback-container" class="thinkreview-feedback-container gl-mb-4 gl-hidden">
-              <a id="severity-custom-rules-btn"
-                 href="https://portal.thinkreview.dev/scoring-metrics"
-                 target="_blank"
-                 rel="noopener noreferrer"
-                 class="thinkreview-severity-custom-rules-btn gl-hidden"
-                 aria-label="Open Custom Rules">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                </svg>
-                <span>Custom Rules</span>
-              </a>
+              <div id="severity-feedback-actions" class="thinkreview-severity-feedback-actions gl-hidden">
+                <a id="severity-custom-rules-btn"
+                   href="https://portal.thinkreview.dev/scoring-metrics"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="thinkreview-severity-action-btn"
+                   aria-label="Open Custom Rules">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                  </svg>
+                  <span>Custom Rules</span>
+                </a>
+                <a id="severity-add-agent-btn"
+                   href="https://portal.thinkreview.dev/agents"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="thinkreview-severity-action-btn"
+                   aria-label="Add an Agent">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M8.4 18.2c.38.5.6 1.12.6 1.8 0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3c.44 0 .85.09 1.23.26l1.41-1.77c-.92-1.03-1.29-2.39-1.09-3.69l-2.03-.68c-.54.83-1.46 1.38-2.52 1.38-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3c0 .07 0 .14-.01.21l2.03.68c.64-1.21 1.82-2.09 3.22-2.32V5.91C9.96 5.57 9 4.4 9 3c0-1.66 1.34-3 3-3s3 1.34 3 3c0 1.4-.96 2.57-2.25 2.91v2.16c1.4.23 2.58 1.11 3.22 2.32L18 9.71V9.5c0-1.66 1.34-3 3-3s3 1.34 3 3-1.34 3-3 3c-1.06 0-1.98-.55-2.52-1.37l-2.03.68c.2 1.29-.16 2.65-1.09 3.69l1.41 1.77Q17.34 17 18 17c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3c0-.68.22-1.3.6-1.8l-1.41-1.77c-1.35.75-3.01.76-4.37 0z"/>
+                  </svg>
+                  <span>Add an Agent</span>
+                </a>
+              </div>
               <div class="thinkreview-feedback-helpful">
                 <div class="thinkreview-feedback-label">Was this review helpful?</div>
                 <div class="thinkreview-feedback-buttons">
@@ -2307,7 +2320,6 @@ async function displayIntegratedReview(
   // Show initial review feedback buttons
   // Use mrUrl to query the review document
   const initialFeedbackContainer = document.getElementById('initial-review-feedback-container');
-  const severityCustomRulesBtn = document.getElementById('severity-custom-rules-btn');
   if (initialFeedbackContainer) {
     // Get the full MR/PR URL
     const mrUrl = window.location.href;
@@ -2322,26 +2334,38 @@ async function displayIntegratedReview(
     }
   }
 
-  // Custom Rules sits left of "Was this review helpful?" for severity layout only
-  if (severityCustomRulesBtn) {
-    if (isSeverityFormat) {
-      severityCustomRulesBtn.classList.remove('gl-hidden');
-      initialFeedbackContainer?.classList.add('thinkreview-feedback-container--split');
-      if (!severityCustomRulesBtn.dataset.analyticsBound) {
-        severityCustomRulesBtn.dataset.analyticsBound = '1';
-        severityCustomRulesBtn.addEventListener('click', async () => {
-          try {
-            const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
-            analyticsModule.trackUserAction('custom_rules_opened', {
-              context: 'severity_review_layout',
-              location: 'feedback_row'
-            }).catch(() => {});
-          } catch (_) { /* silent */ }
-        });
-      }
-    } else {
-      severityCustomRulesBtn.classList.add('gl-hidden');
-      initialFeedbackContainer?.classList.remove('thinkreview-feedback-container--split');
+  // Left actions (Custom Rules + Add an Agent) for both scoring and severity layouts
+  const severityFeedbackActions = document.getElementById('severity-feedback-actions');
+  const severityCustomRulesBtn = document.getElementById('severity-custom-rules-btn');
+  const severityAddAgentBtn = document.getElementById('severity-add-agent-btn');
+  if (severityFeedbackActions) {
+    severityFeedbackActions.classList.remove('gl-hidden');
+    initialFeedbackContainer?.classList.add('thinkreview-feedback-container--split');
+
+    if (severityCustomRulesBtn && !severityCustomRulesBtn.dataset.analyticsBound) {
+      severityCustomRulesBtn.dataset.analyticsBound = '1';
+      severityCustomRulesBtn.addEventListener('click', async () => {
+        try {
+          const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+          analyticsModule.trackUserAction('custom_rules_opened', {
+            context: isSeverityFormat ? 'severity_review_layout' : 'scoring_review_layout',
+            location: 'feedback_row'
+          }).catch(() => {});
+        } catch (_) { /* silent */ }
+      });
+    }
+
+    if (severityAddAgentBtn && !severityAddAgentBtn.dataset.analyticsBound) {
+      severityAddAgentBtn.dataset.analyticsBound = '1';
+      severityAddAgentBtn.addEventListener('click', async () => {
+        try {
+          const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+          analyticsModule.trackUserAction('add_agent_opened', {
+            context: isSeverityFormat ? 'severity_review_layout' : 'scoring_review_layout',
+            location: 'feedback_row'
+          }).catch(() => {});
+        } catch (_) { /* silent */ }
+      });
     }
   }
 
