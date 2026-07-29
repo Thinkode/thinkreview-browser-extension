@@ -827,7 +827,10 @@ async function createIntegratedReviewPanel(patchUrl) {
   const headerActions = container.querySelector('.thinkreview-header-actions');
   if (headerActions) {
     const blockEvent = (e) => {
-      // Allow clicks on regenerate, copy-all, language, review format, and settings menu
+      // Allow clicks on regenerate, copy-all, language selector, review format trigger,
+      // and settings trigger to pass through. Their dropdowns/submenus are appended to
+      // document.body (not descendants of headerActions), so clicks on those never reach
+      // this capture-phase listener in the first place — no allowlist entry needed for them.
       if (e.target.id === 'regenerate-review-btn' ||
           e.target.closest('#regenerate-review-btn') ||
           e.target.id === 'copy-all-review-btn' ||
@@ -836,13 +839,8 @@ async function createIntegratedReviewPanel(patchUrl) {
           e.target.closest('#language-selector') ||
           e.target.id === 'thinkreview-review-format-btn' ||
           e.target.closest('#thinkreview-review-format-btn') ||
-          e.target.closest('#thinkreview-review-format-dropdown') ||
           e.target.id === 'thinkreview-settings-btn' ||
-          e.target.closest('#thinkreview-settings-btn') ||
-          e.target.closest('#thinkreview-settings-dropdown') ||
-          e.target.closest('#thinkreview-settings-layout-submenu') ||
-          e.target.closest('#thinkreview-settings-ide-submenu') ||
-          e.target.closest('#thinkreview-settings-credits-submenu')) {
+          e.target.closest('#thinkreview-settings-btn')) {
         return; // Don't block these events
       }
       e.stopPropagation();
