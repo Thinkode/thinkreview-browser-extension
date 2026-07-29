@@ -4458,8 +4458,3 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   flex-shrink: 0;
   display: block;
 }
-
-/* Copy button */
-.thinkreview-copy-pr-desc-btn {
-  margin-left: auto;
-}

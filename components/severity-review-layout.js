@@ -176,28 +176,6 @@ export function renderSeverityLayout(container, review, handlers = {}) {
   prTitle.className = 'gl-font-weight-bold thinkreview-section-title';
   prTitle.textContent = 'PR Description';
   prHeader.appendChild(prTitle);
-
-  const copyPrBtn = document.createElement('button');
-  copyPrBtn.type = 'button';
-  copyPrBtn.className = 'thinkreview-generate-pr-desc-btn thinkreview-copy-pr-desc-btn';
-  copyPrBtn.title = 'Copy PR description';
-  copyPrBtn.textContent = 'Copy';
-  copyPrBtn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const text = review.prDescription || '';
-    if (!text.trim()) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      const original = copyPrBtn.textContent;
-      copyPrBtn.textContent = 'Copied!';
-      setTimeout(() => {
-        copyPrBtn.textContent = original;
-      }, 2000);
-    } catch (err) {
-      console.warn('[severity-review-layout] Failed to copy PR description:', err);
-    }
-  });
-  prHeader.appendChild(copyPrBtn);
   prSection.appendChild(prHeader);
 
   const prWrapper = document.createElement('div');
