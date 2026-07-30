@@ -11,6 +11,14 @@ const AUTO_REVIEW_PATCH_SIZE_LIMIT = 30_000;
  * @returns {{ proceed: boolean, reason?: string, details?: Object }}
  */
 export function shouldProceedWithAutoReview(patchContent, context = {}) {
+  if (typeof patchContent !== 'string') {
+    return {
+      proceed: false,
+      reason: 'invalid-patch',
+      details: { patchType: patchContent == null ? 'nullish' : typeof patchContent }
+    };
+  }
+
   // Responsibility 1: patch size check
   const patchSize = patchContent.length;
   if (patchSize > AUTO_REVIEW_PATCH_SIZE_LIMIT) {
