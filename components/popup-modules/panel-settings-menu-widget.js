@@ -42,6 +42,73 @@ function _usageIconSvg() {
   return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>`;
 }
 
+function _autoStartIconSvg() {
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+}
+
+const AUTO_START_REVIEW_STORAGE_KEY = 'autoStartReview';
+
+async function _getAutoStartReviewEnabled() {
+  try {
+    const result = await chrome.storage.local.get([AUTO_START_REVIEW_STORAGE_KEY]);
+    return result[AUTO_START_REVIEW_STORAGE_KEY] !== false;
+  } catch (e) {
+    dbgWarn('Failed to read auto-start review setting:', e);
+    return true;
+  }
+}
+
+async function _setAutoStartReviewEnabled(enabled) {
+  await chrome.storage.local.set({ [AUTO_START_REVIEW_STORAGE_KEY]: !!enabled });
+}
+
+function _syncAutoStartToggleUI(row, enabled) {
+  if (!row) return;
+  const valueEl = row.querySelector('[data-menu-value="auto-start-review"]');
+  const switchEl = row.querySelector('.thinkreview-settings-toggle-switch');
+  row.setAttribute('aria-checked', enabled ? 'true' : 'false');
+  if (valueEl) valueEl.textContent = enabled ? 'On' : 'Off';
+  if (switchEl) switchEl.classList.toggle('is-on', enabled);
+}
+
+function _createAutoStartToggleRow(enabled) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'thinkreview-settings-menu-item thinkreview-settings-menu-item--toggle';
+  btn.dataset.menuAction = 'auto-start-review';
+  btn.setAttribute('role', 'menuitemcheckbox');
+  btn.setAttribute('aria-checked', enabled ? 'true' : 'false');
+
+  const icon = document.createElement('span');
+  icon.className = 'thinkreview-settings-menu-item-icon';
+  icon.innerHTML = _autoStartIconSvg();
+
+  const text = document.createElement('span');
+  text.className = 'thinkreview-settings-menu-item-text';
+  const lab = document.createElement('span');
+  lab.className = 'thinkreview-settings-menu-item-label';
+  lab.textContent = 'Auto-start review';
+  text.appendChild(lab);
+  const val = document.createElement('span');
+  val.className = 'thinkreview-settings-menu-item-value';
+  val.dataset.menuValue = 'auto-start-review';
+  val.textContent = enabled ? 'On' : 'Off';
+  text.appendChild(val);
+
+  const switchEl = document.createElement('span');
+  switchEl.className = 'thinkreview-settings-toggle-switch';
+  switchEl.classList.toggle('is-on', enabled);
+  switchEl.setAttribute('aria-hidden', 'true');
+  const knob = document.createElement('span');
+  knob.className = 'thinkreview-settings-toggle-knob';
+  switchEl.appendChild(knob);
+
+  btn.appendChild(icon);
+  btn.appendChild(text);
+  btn.appendChild(switchEl);
+  return btn;
+}
+
 const PORTAL_LINKS = {
   agents: {
     url: 'https://portal.thinkreview.dev/agents',
@@ -339,9 +406,10 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     getIdeAssistRowLabel
   } = ideMod;
 
-  const [layoutSettings, ideTarget] = await Promise.all([
+  const [layoutSettings, ideTarget, autoStartEnabled] = await Promise.all([
     getLayoutSettings(),
-    getIdeAssistTarget()
+    getIdeAssistTarget(),
+    _getAutoStartReviewEnabled()
   ]);
 
   settingsButton.setAttribute('aria-haspopup', 'true');
@@ -375,6 +443,9 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   });
   main.appendChild(layoutRow);
   main.appendChild(ideRow);
+
+  const autoStartRow = _createAutoStartToggleRow(autoStartEnabled);
+  main.appendChild(autoStartRow);
 
   const portalDivider = document.createElement('div');
   portalDivider.className = 'thinkreview-settings-menu-divider';
@@ -542,14 +613,16 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   }
 
   async function _openMain() {
-    const [currentLayout, currentIde] = await Promise.all([
+    const [currentLayout, currentIde, currentAutoStart] = await Promise.all([
       getLayoutSettings(),
-      getIdeAssistTarget()
+      getIdeAssistTarget(),
+      _getAutoStartReviewEnabled()
     ]);
     const layoutVal = layoutRow.querySelector('[data-menu-value="layout"]');
     const ideVal = ideRow.querySelector('[data-menu-value="implement"]');
     if (layoutVal) layoutVal.textContent = getLayoutComboSummary(currentLayout);
     if (ideVal) ideVal.textContent = getIdeAssistRowLabel(currentIde);
+    _syncAutoStartToggleUI(autoStartRow, currentAutoStart);
 
     _positionMainMenu(main, settingsButton);
     main.style.display = 'block';
@@ -581,6 +654,15 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     if (action === 'implement') {
       await _trackSettingsMenu('settings_menu_implement_clicked');
       await _openSubmenu('implement');
+      return;
+    }
+    if (action === 'auto-start-review') {
+      const next = autoStartRow.getAttribute('aria-checked') !== 'true';
+      await _setAutoStartReviewEnabled(next);
+      _syncAutoStartToggleUI(autoStartRow, next);
+      await _trackSettingsMenu(next ? 'auto_start_review_enabled' : 'auto_start_review_disabled', {
+        via: 'settings_header_menu'
+      });
       return;
     }
     if (action === 'buy-credits') {
@@ -643,6 +725,15 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   };
   document.addEventListener('click', onDocumentClick);
 
+  const onStorageChanged = (changes, area) => {
+    if (area !== 'local' || !changes[AUTO_START_REVIEW_STORAGE_KEY]) return;
+    _syncAutoStartToggleUI(
+      autoStartRow,
+      changes[AUTO_START_REVIEW_STORAGE_KEY].newValue === true
+    );
+  };
+  chrome.storage.onChanged.addListener(onStorageChanged);
+
   const reposition = () => {
     if (main.style.display === 'none') return;
     _positionMainMenu(main, settingsButton);
@@ -662,6 +753,7 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     if (destroyed) return;
     destroyed = true;
     document.removeEventListener('click', onDocumentClick);
+    chrome.storage.onChanged.removeListener(onStorageChanged);
     window.removeEventListener('scroll', reposition);
     window.removeEventListener('resize', reposition);
     main.remove();

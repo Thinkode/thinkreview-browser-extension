@@ -52,9 +52,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "patch-viewer.html",
-        "patch-viewer.js",
-        "patch-viewer.css",
         "icons/*",
         "images/*",
         "components/*",

@@ -1,5 +1,5 @@
 /**
- * Upgrade-prompt tip banner (HTML currently empty; styles + wire kept for reuse).
+ * Upgrade-prompt tip banner shown with daily-limit / upgrade messaging.
  */
 
 const STYLES_ID = 'helpful-tip-styles';
@@ -72,11 +72,20 @@ export function injectStyles() {
 }
 
 /**
- * Returns the HTML markup for the tip banner (empty while auto-start UI is hidden app-wide).
+ * Returns the HTML markup for the tip banner.
  * @returns {string} HTML string for the banner
  */
 export function getHTML() {
-  return '';
+  return `
+    <div class="helpful-tip-banner">
+      <span class="helpful-tip-icon">💡</span>
+      <span class="helpful-tip-text">You can switch the auto-review setting to manual mode to better manage your daily review credits.</span>
+      <div class="helpful-tip-actions">
+        <button id="${SETTINGS_BUTTON_ID}" type="button" class="helpful-tip-settings-btn">Go to Settings</button>
+        <button id="${USAGE_BUTTON_ID}" type="button" class="helpful-tip-usage-btn">View my usage</button>
+      </div>
+    </div>
+  `;
 }
 
 /**

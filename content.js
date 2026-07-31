@@ -10,9 +10,6 @@ if (typeof DEBUG === 'undefined') {
 const TIMEOUT_AUTO_REVIEW_DELAY = 500;
 const MAX_PATCH_SIZE_FALLBACK = 50_000;
 
-/** Set to false to restore automatic review on PR load (and autoReviewDecisionMaker for those runs). */
-const TEMP_FORCE_MANUAL_REVIEW_ONLY = true;
-
 // Logger functions - loaded dynamically to avoid module import issues in content scripts
 // Provide fallback functions immediately, then upgrade when logger loads
 // Check if variables already exist to avoid redeclaration errors
@@ -56,6 +53,13 @@ let isReviewInProgress = false;
 // still fetching patch or running the auto decision maker), remember it and run after the
 // current invocation finishes so REVIEW_PATCH_CODE / reviewPatchCode_1_1 is not dropped.
 let pendingManualReview = null;
+
+// Bumped on PR navigation so in-flight reviews from a previous PR abort cleanly
+// and their finally block does not clear isReviewInProgress for a newer run.
+let reviewSessionId = 0;
+
+// Delayed auto-start after SPA PR navigation (cleared when navigating again)
+let pendingAutoReviewTimeoutId = null;
 
 // Track current PR ID for detecting navigation to new PRs
 let currentPRId = null;
@@ -545,13 +549,22 @@ async function checkAndTriggerReviewForNewPR() {
       }
     }
     
+    // Invalidate any in-flight review from the previous PR and cancel a pending auto-start
+    reviewSessionId += 1;
     isReviewInProgress = false;
     pendingManualReview = null;
+    if (pendingAutoReviewTimeoutId != null) {
+      clearTimeout(pendingAutoReviewTimeoutId);
+      pendingAutoReviewTimeoutId = null;
+    }
 
     // Trigger new review only if auto-start is enabled
     const autoStart = await getAutoStartReview();
     if (autoStart && isSupportedPage()) {
-      setTimeout(() => fetchAndDisplayCodeReview(false, true), TIMEOUT_AUTO_REVIEW_DELAY);
+      pendingAutoReviewTimeoutId = setTimeout(() => {
+        pendingAutoReviewTimeoutId = null;
+        fetchAndDisplayCodeReview(false, true);
+      }, TIMEOUT_AUTO_REVIEW_DELAY);
     }
   } else if (currentPRId === null && newPRId) {
     // First time detecting a PR - just track it
@@ -566,15 +579,8 @@ async function checkAndTriggerReviewForNewPR() {
 function getAutoStartReview() {
   return new Promise((resolve) => {
     chrome.storage.local.get(['autoStartReview'], (result) => {
-      if (TEMP_FORCE_MANUAL_REVIEW_ONLY) {
-        if (result.autoStartReview === true) {
-          dbgLog('TEMP_FORCE_MANUAL_REVIEW_ONLY: ignoring autoStartReview storage (manual reviews only)');
-        }
-        resolve(false);
-        return;
-      }
-      // Respect the "Start review automatically" option for all providers (default off when unset)
-      resolve(result.autoStartReview === true);
+      // Respect the "Start review automatically" option for all providers (default on when unset)
+      resolve(result.autoStartReview !== false);
     });
   });
 }
@@ -1274,8 +1280,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     return;
   }
   
-  // Set flag to indicate review is in progress
+  // Set flag to indicate review is in progress; capture session for PR-nav invalidation
   isReviewInProgress = true;
+  const sessionAtStart = reviewSessionId;
   
   // Show loading indicator on button if panel is minimized
   try {
@@ -1303,7 +1310,6 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         // Silently fail if module not available
       }
       showLoginPrompt();
-      isReviewInProgress = false;
       return;
     }
 
@@ -1467,6 +1473,13 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     // Get platform for sending to background script
     const platform = getCurrentPlatform();
 
+    // PR changed while we were fetching — do not call the cloud or update UI for the old PR
+    if (sessionAtStart !== reviewSessionId) {
+      dbgLog('Review session invalidated after patch fetch (PR changed); aborting');
+      dismissIntegratedReviewLoadingUI();
+      return;
+    }
+
     // For auto-triggered reviews, run the decision maker before calling the cloud function
     if (isAutoTriggered) {
       const { shouldProceedWithAutoReview } = await import(chrome.runtime.getURL('services/autoReviewDecisionMaker.js'));
@@ -1496,7 +1509,6 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       if (bgResponse?.isAuthExpired) {
         dbgLog('Session expired during code review');
         showLoginPrompt({ sessionExpired: true });
-        isReviewInProgress = false;
         return;
       }
       // Check if it's a free-tier PR size limit exceeded error
@@ -1658,6 +1670,12 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     
     await showIntegratedReviewError(userFriendlyMessage);
   } finally {
+    // A stale/old-session run must not touch shared state (loading UI, isReviewInProgress,
+    // pendingManualReview) — a newer session after PR navigation owns all of that now.
+    if (sessionAtStart !== reviewSessionId) {
+      return;
+    }
+
     // Hide loading indicator when review completes
     try {
       const loadingModule = await import(chrome.runtime.getURL('components/popup-modules/button-loading-indicator.js'));
@@ -1665,6 +1683,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     } catch (error) {
       // Silently fail if module not available
     }
+
     // Reset flag when done
     isReviewInProgress = false;
 

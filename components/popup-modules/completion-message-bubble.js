@@ -1,6 +1,6 @@
 /**
  * completion-message-bubble.js
- * Shows the first best practice (or any text) in a tooltip-style bubble near the trigger for a set duration.
+ * Shows review completion text (suggestion or critical issue) in a tooltip-style bubble near the trigger.
  */
 
 const BUBBLE_ID = 'thinkreview-completion-bubble';
@@ -20,15 +20,82 @@ if (!document.querySelector(`link[href="${cssURL}"]`)) {
 let hideTimeoutId = null;
 
 /**
- * Normalize first best practice item to display string.
- * @param {string|Object} item - From review.bestPractices[0]
+ * Warning triangle icon shown before bubble text.
+ * @returns {SVGElement}
+ */
+function createWarningIconSvg() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', '16');
+  svg.setAttribute('height', '16');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.classList.add('thinkreview-completion-bubble-icon');
+
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', 'M12 3L3 20h18L12 3zm0 6v5m0 3h.01');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '2');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(path);
+
+  return svg;
+}
+
+/**
+ * Format a severity issue for the completion bubble: title plus location up to the line number
+ * (no description).
+ * @param {string|Object} issue
  * @returns {string}
  */
-function toDisplayText(item) {
-  if (item == null) return '';
-  if (typeof item === 'string') return item.trim();
-  if (typeof item === 'object' && item.description) return String(item.description).trim();
-  return String(item).trim();
+function formatSeverityIssueBubbleText(issue) {
+  if (issue == null) return '';
+  if (typeof issue === 'string') return issue.trim();
+  const title = issue.title ? String(issue.title).trim() : '';
+  let location = '';
+  if (issue.filePath) {
+    const start = typeof issue.startLine === 'number' ? issue.startLine : null;
+    const end = typeof issue.endLine === 'number' ? issue.endLine : start;
+    if (start != null && end != null && end !== start) {
+      location = `${issue.filePath}:${start}-${end}`;
+    } else if (start != null) {
+      location = `${issue.filePath}:${start}`;
+    } else {
+      location = String(issue.filePath);
+    }
+  }
+  const parts = [title, location].filter(Boolean);
+  return parts.join(' — ');
+}
+
+/**
+ * Text for the completion bubble: first suggestion (scoring) or first critical issue,
+ * falling back to the first high issue if there are no critical issues (severity).
+ * @param {Object} review
+ * @param {boolean} isSeverityFormat
+ * @returns {string}
+ */
+export function getCompletionBubbleText(review, isSeverityFormat) {
+  if (!review || typeof review !== 'object') return '';
+  if (isSeverityFormat) {
+    const criticalIssues = review.criticalIssues;
+    if (Array.isArray(criticalIssues) && criticalIssues.length > 0) {
+      return formatSeverityIssueBubbleText(criticalIssues[0]);
+    }
+    const highIssues = review.highIssues;
+    if (Array.isArray(highIssues) && highIssues.length > 0) {
+      return formatSeverityIssueBubbleText(highIssues[0]);
+    }
+    return '';
+  }
+  const suggestions = review.suggestions;
+  if (!Array.isArray(suggestions) || suggestions.length === 0) return '';
+  const first = suggestions[0];
+  if (typeof first === 'string') return first.trim();
+  if (first && typeof first === 'object' && first.description) return String(first.description).trim();
+  return String(first).trim();
 }
 
 /**
@@ -86,7 +153,16 @@ export function showBubble(triggerEl, text, durationMs = BUBBLE_DURATION_MS) {
   bubble.id = BUBBLE_ID;
   bubble.className = 'thinkreview-completion-bubble';
   bubble.setAttribute('aria-live', 'polite');
-  bubble.textContent = displayText;
+
+  const content = document.createElement('div');
+  content.className = 'thinkreview-completion-bubble-content';
+  content.appendChild(createWarningIconSvg());
+
+  const textEl = document.createElement('span');
+  textEl.className = 'thinkreview-completion-bubble-text';
+  textEl.textContent = displayText;
+  content.appendChild(textEl);
+  bubble.appendChild(content);
 
   positionBubble(bubble, triggerEl);
   document.body.appendChild(bubble);
