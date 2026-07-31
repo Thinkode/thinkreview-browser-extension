@@ -1709,52 +1709,6 @@ async function refreshThinkReviewNewsBanner() {
 }
 
 /**
- * Format a severity issue for the completion bubble: title plus location up to the line number
- * (no description).
- * @param {string|Object} issue
- * @returns {string}
- */
-function formatSeverityIssueBubbleText(issue) {
-  if (issue == null) return '';
-  if (typeof issue === 'string') return issue.trim();
-  const title = issue.title ? String(issue.title).trim() : '';
-  let location = '';
-  if (issue.filePath) {
-    const start = typeof issue.startLine === 'number' ? issue.startLine : null;
-    const end = typeof issue.endLine === 'number' ? issue.endLine : start;
-    if (start != null && end != null && end !== start) {
-      location = `${issue.filePath}:${start}-${end}`;
-    } else if (start != null) {
-      location = `${issue.filePath}:${start}`;
-    } else {
-      location = String(issue.filePath);
-    }
-  }
-  const parts = [title, location].filter(Boolean);
-  return parts.join(' — ');
-}
-
-/**
- * Text for the completion bubble: first suggestion (scoring) or first critical issue (severity).
- * @param {Object} review
- * @param {boolean} isSeverityFormat
- * @returns {string}
- */
-function getCompletionBubbleText(review, isSeverityFormat) {
-  if (isSeverityFormat) {
-    const issues = review.criticalIssues;
-    if (!Array.isArray(issues) || issues.length === 0) return '';
-    return formatSeverityIssueBubbleText(issues[0]);
-  }
-  const suggestions = review.suggestions;
-  if (!Array.isArray(suggestions) || suggestions.length === 0) return '';
-  const first = suggestions[0];
-  if (typeof first === 'string') return first.trim();
-  if (first && typeof first === 'object' && first.description) return String(first.description).trim();
-  return String(first).trim();
-}
-
-/**
  * Score popup, notification dot, shake, and completion bubble when panel is minimized.
  * @param {Object} review
  * @param {boolean} isSeverityFormat
@@ -1788,9 +1742,9 @@ async function runReviewCompletionEffects(review, isSeverityFormat) {
       const effectsModule = await import(chrome.runtime.getURL('components/popup-modules/completion-effects.js'));
       effectsModule.runTriggerShake(triggerEl);
     }
-    const text = getCompletionBubbleText(review, isSeverityFormat);
+    const bubbleModule = await import(chrome.runtime.getURL('components/popup-modules/completion-message-bubble.js'));
+    const text = bubbleModule.getCompletionBubbleText(review, isSeverityFormat);
     if (text && triggerEl) {
-      const bubbleModule = await import(chrome.runtime.getURL('components/popup-modules/completion-message-bubble.js'));
       bubbleModule.showBubble(triggerEl, text, 5000);
     }
   } catch (error) {
