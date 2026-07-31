@@ -1709,6 +1709,96 @@ async function refreshThinkReviewNewsBanner() {
 }
 
 /**
+ * Format a severity issue for the completion bubble: title plus location up to the line number
+ * (no description).
+ * @param {string|Object} issue
+ * @returns {string}
+ */
+function formatSeverityIssueBubbleText(issue) {
+  if (issue == null) return '';
+  if (typeof issue === 'string') return issue.trim();
+  const title = issue.title ? String(issue.title).trim() : '';
+  let location = '';
+  if (issue.filePath) {
+    const start = typeof issue.startLine === 'number' ? issue.startLine : null;
+    const end = typeof issue.endLine === 'number' ? issue.endLine : start;
+    if (start != null && end != null && end !== start) {
+      location = `${issue.filePath}:${start}-${end}`;
+    } else if (start != null) {
+      location = `${issue.filePath}:${start}`;
+    } else {
+      location = String(issue.filePath);
+    }
+  }
+  const parts = [title, location].filter(Boolean);
+  return parts.join(' — ');
+}
+
+/**
+ * Text for the completion bubble: first suggestion (scoring) or first critical issue (severity).
+ * @param {Object} review
+ * @param {boolean} isSeverityFormat
+ * @returns {string}
+ */
+function getCompletionBubbleText(review, isSeverityFormat) {
+  if (isSeverityFormat) {
+    const issues = review.criticalIssues;
+    if (!Array.isArray(issues) || issues.length === 0) return '';
+    return formatSeverityIssueBubbleText(issues[0]);
+  }
+  const suggestions = review.suggestions;
+  if (!Array.isArray(suggestions) || suggestions.length === 0) return '';
+  const first = suggestions[0];
+  if (typeof first === 'string') return first.trim();
+  if (first && typeof first === 'object' && first.description) return String(first.description).trim();
+  return String(first).trim();
+}
+
+/**
+ * Score popup, notification dot, shake, and completion bubble when panel is minimized.
+ * @param {Object} review
+ * @param {boolean} isSeverityFormat
+ */
+async function runReviewCompletionEffects(review, isSeverityFormat) {
+  const panel = document.getElementById('gitlab-mr-integrated-review');
+  if (!panel || !panel.classList.contains('thinkreview-panel-minimized-to-button')) {
+    return;
+  }
+
+  if (!isSeverityFormat && review.metrics) {
+    try {
+      const scorePopupModule = await import(chrome.runtime.getURL('components/popup-modules/score-popup.js'));
+      scorePopupModule.showScorePopupOnButton(review.metrics.overallScore);
+    } catch (error) {
+      dbgWarn('Failed to load score popup module:', error);
+    }
+  }
+
+  try {
+    const notificationModule = await import(chrome.runtime.getURL('components/popup-modules/button-notification.js'));
+    notificationModule.showButtonNotification();
+  } catch (error) {
+    dbgWarn('Failed to load button notification module:', error);
+  }
+
+  try {
+    const triggerResolver = await import(chrome.runtime.getURL('components/popup-modules/trigger-resolver.js'));
+    const triggerEl = triggerResolver.getActiveTriggerElement();
+    if (triggerEl) {
+      const effectsModule = await import(chrome.runtime.getURL('components/popup-modules/completion-effects.js'));
+      effectsModule.runTriggerShake(triggerEl);
+    }
+    const text = getCompletionBubbleText(review, isSeverityFormat);
+    if (text && triggerEl) {
+      const bubbleModule = await import(chrome.runtime.getURL('components/popup-modules/completion-message-bubble.js'));
+      bubbleModule.showBubble(triggerEl, text, 5000);
+    }
+  } catch (error) {
+    dbgWarn('Failed to run completion effects (shake/bubble):', error);
+  }
+}
+
+/**
  * Render severity-layout review sections (PR description + issues).
  * Hides scoring-layout containers.
  * @param {Object} review
@@ -1911,48 +2001,6 @@ async function renderScoringReviewLayout(review, containers, integrationOpts = n
         }, 2000);
       }
     });
-  }
-
-  // Show score popup and notification indicator on ThinkReview button if panel is minimized
-  const panel = document.getElementById('gitlab-mr-integrated-review');
-  if (panel && panel.classList.contains('thinkreview-panel-minimized-to-button')) {
-    // Show score popup if metrics are available
-    if (review.metrics) {
-      try {
-        const scorePopupModule = await import(chrome.runtime.getURL('components/popup-modules/score-popup.js'));
-        scorePopupModule.showScorePopupOnButton(review.metrics.overallScore);
-      } catch (error) {
-        dbgWarn('Failed to load score popup module:', error);
-      }
-    }
-    
-    // Show notification indicator
-    try {
-      const notificationModule = await import(chrome.runtime.getURL('components/popup-modules/button-notification.js'));
-      notificationModule.showButtonNotification();
-    } catch (error) {
-      dbgWarn('Failed to load button notification module:', error);
-    }
-
-    // Phase 1: Shake trigger for 5s and show first best practice bubble for 5s (if any)
-    try {
-      const triggerResolver = await import(chrome.runtime.getURL('components/popup-modules/trigger-resolver.js'));
-      const triggerEl = triggerResolver.getActiveTriggerElement();
-      if (triggerEl) {
-        const effectsModule = await import(chrome.runtime.getURL('components/popup-modules/completion-effects.js'));
-        effectsModule.runTriggerShake(triggerEl);
-      }
-      if (review.bestPractices && review.bestPractices.length > 0) {
-        const first = review.bestPractices[0];
-        const text = typeof first === 'string' ? first.trim() : (first && typeof first === 'object' && first.description ? String(first.description).trim() : String(first).trim());
-        if (text && triggerEl) {
-          const bubbleModule = await import(chrome.runtime.getURL('components/popup-modules/completion-message-bubble.js'));
-          bubbleModule.showBubble(triggerEl, text, 5000); /* 5 seconds */
-        }
-      }
-    } catch (error) {
-      dbgWarn('Failed to run completion effects (shake/bubble):', error);
-    }
   }
 
   /**
@@ -2368,6 +2416,7 @@ async function displayIntegratedReview(
     }, integrationOpts);
   }
 
+  await runReviewCompletionEffects(review, isSeverityFormat);
 
   // Show initial review feedback buttons
   // Use mrUrl to query the review document

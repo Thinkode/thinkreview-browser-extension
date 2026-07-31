@@ -1,6 +1,6 @@
 /**
  * completion-message-bubble.js
- * Shows the first best practice (or any text) in a tooltip-style bubble near the trigger for a set duration.
+ * Shows review completion text (suggestion or critical issue) in a tooltip-style bubble near the trigger.
  */
 
 const BUBBLE_ID = 'thinkreview-completion-bubble';
@@ -18,18 +18,6 @@ if (!document.querySelector(`link[href="${cssURL}"]`)) {
 }
 
 let hideTimeoutId = null;
-
-/**
- * Normalize first best practice item to display string.
- * @param {string|Object} item - From review.bestPractices[0]
- * @returns {string}
- */
-function toDisplayText(item) {
-  if (item == null) return '';
-  if (typeof item === 'string') return item.trim();
-  if (typeof item === 'object' && item.description) return String(item.description).trim();
-  return String(item).trim();
-}
 
 /**
  * Position bubble relative to trigger (above floating button, or beside sidebar tab).
