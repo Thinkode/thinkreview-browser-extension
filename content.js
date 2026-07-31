@@ -1670,18 +1670,18 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     
     await showIntegratedReviewError(userFriendlyMessage);
   } finally {
+    // A stale/old-session run must not touch shared state (loading UI, isReviewInProgress,
+    // pendingManualReview) — a newer session after PR navigation owns all of that now.
+    if (sessionAtStart !== reviewSessionId) {
+      return;
+    }
+
     // Hide loading indicator when review completes
     try {
       const loadingModule = await import(chrome.runtime.getURL('components/popup-modules/button-loading-indicator.js'));
       loadingModule.hideButtonLoadingIndicator();
     } catch (error) {
       // Silently fail if module not available
-    }
-
-    // Only the active session may clear progress / drain the manual queue.
-    // A newer run after PR navigation owns isReviewInProgress separately.
-    if (sessionAtStart !== reviewSessionId) {
-      return;
     }
 
     // Reset flag when done
