@@ -419,7 +419,7 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     refreshTextSizeActiveItems
   } = textSizeMod;
 
-  const [layoutSettings, ideTarget, autoStartEnabled] = await Promise.all([
+  const [layoutSettings, ideTarget, autoStartEnabled, textSize] = await Promise.all([
     getLayoutSettings(),
     getIdeAssistTarget(),
     _getAutoStartReviewEnabled(),
@@ -660,7 +660,7 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   }
 
   async function _openMain() {
-    const [currentLayout, currentIde, currentAutoStart] = await Promise.all([
+    const [currentLayout, currentIde, currentAutoStart, currentTextSize] = await Promise.all([
       getLayoutSettings(),
       getIdeAssistTarget(),
       _getAutoStartReviewEnabled(),
@@ -713,6 +713,8 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
       await _trackSettingsMenu(next ? 'auto_start_review_enabled' : 'auto_start_review_disabled', {
         via: 'settings_header_menu'
       });
+      return;
+    }
     if (action === 'text-size') {
       await _trackSettingsMenu('settings_menu_text_size_clicked');
       await _openSubmenu('text-size');
