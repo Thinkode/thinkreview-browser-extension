@@ -112,6 +112,40 @@
   opacity: 0.5;
 }
 
+.thinkreview-settings-menu-item--toggle {
+  cursor: pointer;
+}
+
+.thinkreview-settings-toggle-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 34px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  transition: background 0.15s ease;
+}
+
+.thinkreview-settings-toggle-switch.is-on {
+  background: #6b4fbb;
+}
+
+.thinkreview-settings-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease;
+}
+
+.thinkreview-settings-toggle-switch.is-on .thinkreview-settings-toggle-knob {
+  transform: translateX(16px);
+}
+
 .thinkreview-settings-submenu {
   position: fixed;
   z-index: 2147483647;
