@@ -228,6 +228,46 @@
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
 }
 
+#gitlab-mr-integrated-review .thinkreview-text-size-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-text-size-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: white;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 4px;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-sizing: border-box;
+  height: 28px;
+  width: 28px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+#gitlab-mr-integrated-review .thinkreview-text-size-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+#gitlab-mr-integrated-review .thinkreview-text-size-btn:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22);
+  transform: scale(0.95);
+}
+
+#gitlab-mr-integrated-review .thinkreview-text-size-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 #gitlab-mr-integrated-review .thinkreview-card-body {
   padding: 0;
   display: flex;

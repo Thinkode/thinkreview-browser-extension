@@ -338,6 +338,10 @@ async function createIntegratedReviewPanel(patchUrl) {
             </button>
             <span class="thinkreview-regenerate-tooltip" aria-hidden="true">Regenerate review</span>
           </span>
+          <span class="thinkreview-text-size-controls" aria-label="Text size">
+            <button type="button" id="thinkreview-text-size-decrease" class="thinkreview-text-size-btn" aria-label="Decrease text size" title="Decrease text size">−</button>
+            <button type="button" id="thinkreview-text-size-increase" class="thinkreview-text-size-btn" aria-label="Increase text size" title="Increase text size">+</button>
+          </span>
           <select id="language-selector" class="thinkreview-language-dropdown" title="Select review language">
             <option value="English">English</option>
             <option value="Spanish">Español</option>
@@ -839,6 +843,10 @@ async function createIntegratedReviewPanel(patchUrl) {
           e.target.closest('#language-selector') ||
           e.target.id === 'thinkreview-review-format-btn' ||
           e.target.closest('#thinkreview-review-format-btn') ||
+          e.target.id === 'thinkreview-text-size-decrease' ||
+          e.target.closest('#thinkreview-text-size-decrease') ||
+          e.target.id === 'thinkreview-text-size-increase' ||
+          e.target.closest('#thinkreview-text-size-increase') ||
           e.target.id === 'thinkreview-settings-btn' ||
           e.target.closest('#thinkreview-settings-btn')) {
         return; // Don't block these events
@@ -937,9 +945,10 @@ async function createIntegratedReviewPanel(patchUrl) {
 
   try {
     const textSizeUrl = chrome.runtime.getURL('components/popup-modules/panel-text-size-widget.js');
-    const { getPanelTextSize, applyPanelTextSize } = await import(textSizeUrl);
+    const { getPanelTextSize, applyPanelTextSize, mountTextSizeStepControls } = await import(textSizeUrl);
     const textSize = await getPanelTextSize();
     applyPanelTextSize(container, textSize);
+    mountTextSizeStepControls(container);
   } catch (error) {
     dbgWarn('Failed to apply panel text size preference:', error);
   }

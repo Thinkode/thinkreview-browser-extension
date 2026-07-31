@@ -64,6 +64,78 @@ export function applyPanelTextSize(panelEl, sizeId) {
   panelEl.style.setProperty('--thinkreview-text-zoom', String(option.zoom));
 }
 
+export async function applyAndPersistPanelTextSize(sizeId) {
+  const option = TEXT_SIZE_OPTIONS.find((o) => o.id === sizeId);
+  if (!option) return null;
+  await savePanelTextSize(option.id);
+  const panelEl = document.getElementById('gitlab-mr-integrated-review');
+  applyPanelTextSize(panelEl, option.id);
+  document.dispatchEvent(new CustomEvent('thinkreview:textsizechanged', { detail: { sizeId: option.id } }));
+  return option.id;
+}
+
+/**
+ * Step text size up (+1) or down (-1). Returns the new size id, or null if at a bound.
+ * @param {number} direction
+ */
+export async function changePanelTextSize(direction) {
+  const current = await getPanelTextSize();
+  const idx = TEXT_SIZE_OPTIONS.findIndex((o) => o.id === current);
+  const nextIdx = idx + direction;
+  if (nextIdx < 0 || nextIdx >= TEXT_SIZE_OPTIONS.length) return null;
+  return applyAndPersistPanelTextSize(TEXT_SIZE_OPTIONS[nextIdx].id);
+}
+
+export function syncTextSizeStepButtons(decreaseBtn, increaseBtn, sizeId) {
+  const idx = TEXT_SIZE_OPTIONS.findIndex((o) => o.id === sizeId);
+  if (decreaseBtn) {
+    const atMin = idx <= 0;
+    decreaseBtn.disabled = atMin;
+    decreaseBtn.setAttribute('aria-disabled', atMin ? 'true' : 'false');
+  }
+  if (increaseBtn) {
+    const atMax = idx >= TEXT_SIZE_OPTIONS.length - 1;
+    increaseBtn.disabled = atMax;
+    increaseBtn.setAttribute('aria-disabled', atMax ? 'true' : 'false');
+  }
+}
+
+/**
+ * Wire +/- header controls to step panel text size.
+ * @param {HTMLElement} panelEl
+ */
+export function mountTextSizeStepControls(panelEl) {
+  const decreaseBtn = panelEl?.querySelector('#thinkreview-text-size-decrease');
+  const increaseBtn = panelEl?.querySelector('#thinkreview-text-size-increase');
+  if (!decreaseBtn || !increaseBtn) return;
+
+  const refresh = async () => {
+    const sizeId = await getPanelTextSize();
+    syncTextSizeStepButtons(decreaseBtn, increaseBtn, sizeId);
+  };
+
+  decreaseBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    await changePanelTextSize(-1);
+    await refresh();
+  });
+
+  increaseBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    await changePanelTextSize(1);
+    await refresh();
+  });
+
+  document.addEventListener('thinkreview:textsizechanged', refresh);
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes[PANEL_TEXT_SIZE_STORAGE_KEY]) refresh();
+  });
+
+  refresh();
+}
+
 /**
  * Fill a container with text size options (settings submenu).
  * @param {HTMLElement} container
@@ -116,12 +188,8 @@ export function populateTextSizeOptions(container, options = {}) {
     const sizeId = item.dataset.textSize;
     if (!sizeId || item.classList.contains('active')) return;
 
-    await savePanelTextSize(sizeId);
+    await applyAndPersistPanelTextSize(sizeId);
     refreshTextSizeActiveItems(container, sizeId);
-
-    const panelEl = document.getElementById('gitlab-mr-integrated-review');
-    applyPanelTextSize(panelEl, sizeId);
-    document.dispatchEvent(new CustomEvent('thinkreview:textsizechanged', { detail: { sizeId } }));
 
     if (typeof onSelect === 'function') {
       await onSelect(sizeId);
