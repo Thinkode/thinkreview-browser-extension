@@ -78,6 +78,7 @@ function formatSeverityIssueBubbleText(issue) {
  * @returns {string}
  */
 export function getCompletionBubbleText(review, isSeverityFormat) {
+  if (!review || typeof review !== 'object') return '';
   if (isSeverityFormat) {
     const criticalIssues = review.criticalIssues;
     if (Array.isArray(criticalIssues) && criticalIssues.length > 0) {
