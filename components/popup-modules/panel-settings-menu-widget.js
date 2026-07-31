@@ -51,10 +51,10 @@ const AUTO_START_REVIEW_STORAGE_KEY = 'autoStartReview';
 async function _getAutoStartReviewEnabled() {
   try {
     const result = await chrome.storage.local.get([AUTO_START_REVIEW_STORAGE_KEY]);
-    return result[AUTO_START_REVIEW_STORAGE_KEY] === true;
+    return result[AUTO_START_REVIEW_STORAGE_KEY] !== false;
   } catch (e) {
     dbgWarn('Failed to read auto-start review setting:', e);
-    return false;
+    return true;
   }
 }
 

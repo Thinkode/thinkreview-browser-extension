@@ -941,7 +941,7 @@ function setupAutoStartInfoTooltips() {
 async function loadAutoStartReview() {
   try {
     const result = await chrome.storage.local.get(['autoStartReview']);
-    const enabled = result.autoStartReview === true;
+    const enabled = result.autoStartReview !== false;
     const onRadio = document.getElementById('auto-start-review-on');
     const offRadio = document.getElementById('auto-start-review-off');
     if (onRadio) onRadio.checked = enabled;
