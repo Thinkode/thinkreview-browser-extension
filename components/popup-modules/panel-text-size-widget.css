@@ -1,0 +1,59 @@
+/* panel-text-size-widget.css — text size submenu in panel settings */
+
+.thinkreview-text-size-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(155, 126, 240, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 6px 14px 3px;
+}
+
+.thinkreview-text-size-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.88);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.thinkreview-text-size-item:hover,
+.thinkreview-text-size-item.active {
+  background: rgba(107, 79, 187, 0.22);
+  color: white;
+}
+
+.thinkreview-text-size-preview {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  border-radius: 4px;
+  background: rgba(107, 79, 187, 0.2);
+  color: #c9b4ff;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.thinkreview-text-size-item-label {
+  flex: 1;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.thinkreview-text-size-item-check {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #c9b4ff;
+  line-height: 1;
+}

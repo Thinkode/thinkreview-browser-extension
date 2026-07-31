@@ -27,6 +27,9 @@
   --thinkreview-z-tooltip: 1100;
   --thinkreview-z-modal-overlay: 1200;
   --thinkreview-z-toast: 1250;
+
+  /* Panel body text zoom (1 = medium); set via panel-text-size-widget */
+  --thinkreview-text-zoom: 1;
 }
 
 /* Defensive reset: prevent host-page (e.g. GitLab) bare pre/code rules from
@@ -235,6 +238,7 @@
   /* Default to dark theme for better readability */
   background-color: #1e1e1e;
   color: #ffffff;
+  zoom: var(--thinkreview-text-zoom, 1);
 }
 
 #review-content {

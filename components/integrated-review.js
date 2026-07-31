@@ -935,6 +935,15 @@ async function createIntegratedReviewPanel(patchUrl) {
 
   getOllamaBrowserExtensionCorsMessageModule().catch(() => {});
 
+  try {
+    const textSizeUrl = chrome.runtime.getURL('components/popup-modules/panel-text-size-widget.js');
+    const { getPanelTextSize, applyPanelTextSize } = await import(textSizeUrl);
+    const textSize = await getPanelTextSize();
+    applyPanelTextSize(container, textSize);
+  } catch (error) {
+    dbgWarn('Failed to apply panel text size preference:', error);
+  }
+
   return container;
 }
 

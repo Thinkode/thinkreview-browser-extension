@@ -2101,3 +2101,16 @@ document.addEventListener('thinkreview:panelminimized', () => {
     panel.classList.remove('thinkreview-panel-docked', 'thinkreview-panel-docked-left');
   }
 });
+
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area !== 'local' || !changes.panelTextSize) return;
+  const panel = document.getElementById('gitlab-mr-integrated-review');
+  if (!panel) return;
+  try {
+    const textSizeUrl = chrome.runtime.getURL('components/popup-modules/panel-text-size-widget.js');
+    const { applyPanelTextSize } = await import(textSizeUrl);
+    applyPanelTextSize(panel, changes.panelTextSize.newValue || 'medium');
+  } catch (e) {
+    dbgWarn('Failed to apply panel text size from storage:', e);
+  }
+});
