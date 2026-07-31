@@ -1,4 +1,4 @@
-const AUTO_REVIEW_PATCH_SIZE_LIMIT = 30_000;
+const AUTO_REVIEW_PATCH_SIZE_LIMIT = 40_000;
 
 /**
  * Determines whether an auto-triggered review should proceed.
