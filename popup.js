@@ -881,7 +881,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Domain Management Functionality
 const DEFAULT_DOMAINS = ['https://gitlab.com'];
 
-// Auto-start review option (default off when unset in storage)
+// Auto-start review option (default on when unset in storage)
 function initializeAutoStartReviewSettings() {
   loadAutoStartReview();
   const onRadio = document.getElementById('auto-start-review-on');
