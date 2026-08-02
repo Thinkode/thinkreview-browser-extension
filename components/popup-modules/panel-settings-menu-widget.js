@@ -1,6 +1,6 @@
 /**
  * panel-settings-menu-widget.js
- * Settings gear opens a body-appended menu with nested Layout and Implement via flyouts,
+ * Settings gear opens a body-appended menu with nested Layout, Implement via, and Text size flyouts,
  * plus a link to the full extension settings popup.
  */
 
@@ -16,6 +16,10 @@ if (!document.querySelector(`link[href="${_cssURL}"]`)) {
 
 function _layoutIconSvg() {
   return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`;
+}
+
+function _textSizeIconSvg() {
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>`;
 }
 
 function _implementIconSvg() {
@@ -378,15 +382,18 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
 
   const layoutUrl = chrome.runtime.getURL('components/popup-modules/layout-settings-widget.js');
   const ideUrl = chrome.runtime.getURL('components/popup-modules/ide-assist-preference-widget.js');
+  const textSizeUrl = chrome.runtime.getURL('components/popup-modules/panel-text-size-widget.js');
   const idePrefUrl = chrome.runtime.getURL('utils/ide-integration/ide-assist-preference.js');
 
   let layoutMod;
   let ideMod;
+  let textSizeMod;
   let getIdeAssistTarget;
   try {
-    [layoutMod, ideMod, { getIdeAssistTarget }] = await Promise.all([
+    [layoutMod, ideMod, textSizeMod, { getIdeAssistTarget }] = await Promise.all([
       import(layoutUrl),
       import(ideUrl),
+      import(textSizeUrl),
       import(idePrefUrl)
     ]);
   } catch (e) {
@@ -405,11 +412,18 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     refreshIdeAssistActiveItems,
     getIdeAssistRowLabel
   } = ideMod;
+  const {
+    getPanelTextSize,
+    getPanelTextSizeLabel,
+    populateTextSizeOptions,
+    refreshTextSizeActiveItems
+  } = textSizeMod;
 
-  const [layoutSettings, ideTarget, autoStartEnabled] = await Promise.all([
+  const [layoutSettings, ideTarget, autoStartEnabled, textSize] = await Promise.all([
     getLayoutSettings(),
     getIdeAssistTarget(),
-    _getAutoStartReviewEnabled()
+    _getAutoStartReviewEnabled(),
+    getPanelTextSize()
   ]);
 
   settingsButton.setAttribute('aria-haspopup', 'true');
@@ -441,8 +455,16 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     iconHtml: _implementIconSvg(),
     hasSubmenu: true
   });
+  const textSizeRow = _createMenuRow({
+    id: 'text-size',
+    label: 'Text size',
+    value: getPanelTextSizeLabel(textSize),
+    iconHtml: _textSizeIconSvg(),
+    hasSubmenu: true
+  });
   main.appendChild(layoutRow);
   main.appendChild(ideRow);
+  main.appendChild(textSizeRow);
 
   const autoStartRow = _createAutoStartToggleRow(autoStartEnabled);
   main.appendChild(autoStartRow);
@@ -532,6 +554,21 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   });
   document.body.appendChild(ideSub);
 
+  const textSizeSub = document.createElement('div');
+  textSizeSub.id = 'thinkreview-settings-text-size-submenu';
+  textSizeSub.className = 'thinkreview-settings-submenu';
+  textSizeSub.setAttribute('role', 'menu');
+  textSizeSub.style.display = 'none';
+  populateTextSizeOptions(textSizeSub, {
+    activeId: textSize,
+    onSelect: async (sizeId) => {
+      const valueEl = textSizeRow.querySelector('[data-menu-value="text-size"]');
+      if (valueEl) valueEl.textContent = getPanelTextSizeLabel(sizeId);
+      _closeAll();
+    }
+  });
+  document.body.appendChild(textSizeSub);
+
   const creditsSub = document.createElement('div');
   creditsSub.id = 'thinkreview-settings-credits-submenu';
   creditsSub.className = 'thinkreview-settings-submenu';
@@ -539,16 +576,18 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   creditsSub.style.display = 'none';
   document.body.appendChild(creditsSub);
 
-  let openSubmenu = null; // 'layout' | 'implement' | 'buy-credits' | null
+  let openSubmenu = null; // 'layout' | 'implement' | 'text-size' | 'buy-credits' | null
   let creditsLoadPromise = null;
   let creditsPacksCached = false;
 
   function _closeSubmenus() {
     layoutSub.style.display = 'none';
     ideSub.style.display = 'none';
+    textSizeSub.style.display = 'none';
     creditsSub.style.display = 'none';
     layoutRow.setAttribute('aria-expanded', 'false');
     ideRow.setAttribute('aria-expanded', 'false');
+    textSizeRow.setAttribute('aria-expanded', 'false');
     buyCreditsRow.setAttribute('aria-expanded', 'false');
     openSubmenu = null;
   }
@@ -601,6 +640,14 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
       _positionSubmenu(ideSub, ideRow, 280);
       ideSub.style.display = 'block';
       ideRow.setAttribute('aria-expanded', 'true');
+    } else if (kind === 'text-size') {
+      const active = await getPanelTextSize();
+      refreshTextSizeActiveItems(textSizeSub, active);
+      const valueEl = textSizeRow.querySelector('[data-menu-value="text-size"]');
+      if (valueEl) valueEl.textContent = getPanelTextSizeLabel(active);
+      _positionSubmenu(textSizeSub, textSizeRow, 220);
+      textSizeSub.style.display = 'block';
+      textSizeRow.setAttribute('aria-expanded', 'true');
     } else if (kind === 'buy-credits') {
       _positionSubmenu(creditsSub, buyCreditsRow, 280);
       creditsSub.style.display = 'block';
@@ -613,16 +660,19 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   }
 
   async function _openMain() {
-    const [currentLayout, currentIde, currentAutoStart] = await Promise.all([
+    const [currentLayout, currentIde, currentAutoStart, currentTextSize] = await Promise.all([
       getLayoutSettings(),
       getIdeAssistTarget(),
-      _getAutoStartReviewEnabled()
+      _getAutoStartReviewEnabled(),
+      getPanelTextSize()
     ]);
     const layoutVal = layoutRow.querySelector('[data-menu-value="layout"]');
     const ideVal = ideRow.querySelector('[data-menu-value="implement"]');
+    const textSizeVal = textSizeRow.querySelector('[data-menu-value="text-size"]');
     if (layoutVal) layoutVal.textContent = getLayoutComboSummary(currentLayout);
     if (ideVal) ideVal.textContent = getIdeAssistRowLabel(currentIde);
     _syncAutoStartToggleUI(autoStartRow, currentAutoStart);
+    if (textSizeVal) textSizeVal.textContent = getPanelTextSizeLabel(currentTextSize);
 
     _positionMainMenu(main, settingsButton);
     main.style.display = 'block';
@@ -663,6 +713,11 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
       await _trackSettingsMenu(next ? 'auto_start_review_enabled' : 'auto_start_review_disabled', {
         via: 'settings_header_menu'
       });
+      return;
+    }
+    if (action === 'text-size') {
+      await _trackSettingsMenu('settings_menu_text_size_clicked');
+      await _openSubmenu('text-size');
       return;
     }
     if (action === 'buy-credits') {
@@ -717,6 +772,7 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
       main.contains(t) ||
       layoutSub.contains(t) ||
       ideSub.contains(t) ||
+      textSizeSub.contains(t) ||
       creditsSub.contains(t)
     ) {
       return;
@@ -739,6 +795,7 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     _positionMainMenu(main, settingsButton);
     if (openSubmenu === 'layout') _positionSubmenu(layoutSub, layoutRow, 232);
     if (openSubmenu === 'implement') _positionSubmenu(ideSub, ideRow, 280);
+    if (openSubmenu === 'text-size') _positionSubmenu(textSizeSub, textSizeRow, 220);
     if (openSubmenu === 'buy-credits') _positionSubmenu(creditsSub, buyCreditsRow, 280);
   };
   window.addEventListener('scroll', reposition, { passive: true });
@@ -759,6 +816,7 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     main.remove();
     layoutSub.remove();
     ideSub.remove();
+    textSizeSub.remove();
     creditsSub.remove();
     creditsLoadPromise = null;
   }

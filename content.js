@@ -1476,7 +1476,11 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     // PR changed while we were fetching — do not call the cloud or update UI for the old PR
     if (sessionAtStart !== reviewSessionId) {
       dbgLog('Review session invalidated after patch fetch (PR changed); aborting');
-      dismissIntegratedReviewLoadingUI();
+      try {
+        dismissIntegratedReviewLoadingUI();
+      } catch (error) {
+        dbgLog('Failed to dismiss loading UI after session invalidation:', error);
+      }
       return;
     }
 
@@ -1486,7 +1490,11 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       const decision = shouldProceedWithAutoReview(filteredCodeContent, { platform, mrId: reviewId });
       if (!decision.proceed) {
         dbgLog('Auto review skipped by autoReviewDecisionMaker:', decision.reason, decision.details);
-        dismissIntegratedReviewLoadingUI();
+        try {
+          dismissIntegratedReviewLoadingUI();
+        } catch (error) {
+          dbgLog('Failed to dismiss loading UI after auto review skip:', error);
+        }
         return;
       }
     }
@@ -2099,5 +2107,18 @@ document.addEventListener('thinkreview:panelminimized', () => {
   const panel = document.getElementById('gitlab-mr-integrated-review');
   if (panel) {
     panel.classList.remove('thinkreview-panel-docked', 'thinkreview-panel-docked-left');
+  }
+});
+
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area !== 'local' || !changes.panelTextSize) return;
+  const panel = document.getElementById('gitlab-mr-integrated-review');
+  if (!panel) return;
+  try {
+    const textSizeUrl = chrome.runtime.getURL('components/popup-modules/panel-text-size-widget.js');
+    const { applyPanelTextSize } = await import(textSizeUrl);
+    applyPanelTextSize(panel, changes.panelTextSize.newValue || 'medium');
+  } catch (e) {
+    dbgWarn('Failed to apply panel text size from storage:', e);
   }
 });
