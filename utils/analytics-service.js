@@ -3,9 +3,7 @@
 
 import { GA_MEASUREMENT_ID, GA_API_SECRET } from './env-config.js';
 
-const GA_ENDPOINT = (GA_MEASUREMENT_ID && GA_API_SECRET)
-  ? `https://www.google-analytics.com/mp/collect?measurement_id=${GA_MEASUREMENT_ID}&api_secret=${GA_API_SECRET}`
-  : null;
+const GA_ENABLED = !!(GA_MEASUREMENT_ID && GA_API_SECRET);
 
 let cachedClientId = null;
 
