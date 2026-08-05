@@ -507,6 +507,12 @@ async function checkAndTriggerReviewForNewPR() {
     } catch (error) {
       // Silently fail if module not available
     }
+    try {
+      const toastModule = await import(chrome.runtime.getURL('components/popup-modules/user-toast.js'));
+      toastModule.hideUserToast();
+    } catch (error) {
+      // Silently fail if module not available
+    }
     
     return;
   }
@@ -1726,8 +1732,16 @@ async function toggleReviewPanel() {
   // Check if we're on a supported page first (before creating/opening panel)
   // For Azure DevOps and GitHub (SPAs), this ensures we're on a PR page
   if (!isSupportedPage()) {
-    dbgLog('Not on a supported page, showing alert');
-    alert('Please navigate to a Pull Request page to generate an AI code review.');
+    dbgLog('Not on a supported page, showing toast');
+    try {
+      const toastModule = await import(chrome.runtime.getURL('components/popup-modules/user-toast.js'));
+      await toastModule.showUserToast({
+        title: 'Open a pull request',
+        message: 'Navigate to a PR page to generate an AI code review with ThinkReview.',
+      });
+    } catch (error) {
+      dbgWarn('Failed to show user toast:', error);
+    }
     return;
   }
   

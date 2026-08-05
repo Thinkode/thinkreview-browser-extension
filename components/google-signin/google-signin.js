@@ -16,6 +16,108 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * Friendly toast in the popup (avoids native alert).
+ * @param {string} text
+ * @param {'info'|'error'|'success'} [type]
+ */
+function showSignInToast(text, type = 'error') {
+  const existing = document.getElementById('thinkreview-signin-toast');
+  if (existing) existing.remove();
+
+  const colors = {
+    success: { bg: '#166534', border: '#22c55e' },
+    error: { bg: '#7f1d1d', border: '#ef4444' },
+    info: { bg: '#1a1628', border: '#6b4fbb' },
+  };
+  const palette = colors[type] || colors.info;
+
+  const toast = document.createElement('div');
+  toast.id = 'thinkreview-signin-toast';
+  toast.setAttribute('role', 'status');
+  toast.style.cssText = `
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    background: ${palette.bg}; border: 1px solid ${palette.border}; color: #fff;
+    padding: 10px 14px; border-radius: 8px; font-size: 12px; line-height: 1.4;
+    z-index: 10000; max-width: calc(100% - 24px); text-align: center;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  `;
+  toast.textContent = text;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.style.transition = 'opacity 0.2s ease-out';
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 200);
+    }
+  }, 4000);
+}
+
+/**
+ * Friendly confirm overlay (avoids native confirm).
+ * @param {string} text
+ * @param {{ confirmLabel?: string, cancelLabel?: string }} [options]
+ * @returns {Promise<boolean>}
+ */
+function showSignInConfirm(text, options = {}) {
+  const confirmLabel = options.confirmLabel || 'OK';
+  const cancelLabel = options.cancelLabel || 'Cancel';
+  return new Promise((resolve) => {
+    const existing = document.getElementById('thinkreview-signin-confirm');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'thinkreview-signin-confirm';
+    overlay.style.cssText = `
+      position: fixed; inset: 0; z-index: 10001; background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+    `;
+
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.style.cssText = `
+      background: #1a1628; border: 1px solid #3d2d6e; border-radius: 10px;
+      padding: 16px; max-width: 300px; width: 100%; color: #fff;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    `;
+
+    const msg = document.createElement('p');
+    msg.style.cssText = 'margin: 0 0 14px; font-size: 13px; line-height: 1.45; color: rgba(255,255,255,0.9); white-space: pre-line;';
+    msg.textContent = text;
+    dialog.appendChild(msg);
+
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = cancelLabel;
+    cancelBtn.style.cssText = 'padding: 6px 12px; border-radius: 6px; border: 1px solid #3d2d6e; background: transparent; color: rgba(255,255,255,0.85); cursor: pointer; font-size: 12px;';
+
+    const okBtn = document.createElement('button');
+    okBtn.type = 'button';
+    okBtn.textContent = confirmLabel;
+    okBtn.style.cssText = 'padding: 6px 12px; border-radius: 6px; border: none; background: #6b4fbb; color: #fff; cursor: pointer; font-size: 12px; font-weight: 500;';
+
+    const finish = (value) => {
+      overlay.remove();
+      resolve(value);
+    };
+    cancelBtn.addEventListener('click', () => finish(false));
+    okBtn.addEventListener('click', () => finish(true));
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) finish(false);
+    });
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(okBtn);
+    dialog.appendChild(actions);
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    okBtn.focus();
+  });
+}
+
 async function loadCloudService() {
   try {
     const module = await import('../../services/cloud-service.js');
@@ -406,7 +508,7 @@ class GoogleSignIn extends HTMLElement {
       this.render();
       
       // Show user-friendly error
-      alert('Login failed: ' + (error.message || 'Unknown error'));
+      showSignInToast('Sign-in failed: ' + (error.message || 'Unknown error'), 'error');
       
       // Dispatch error event
       this.dispatchEvent(new CustomEvent('signin-error', {
@@ -459,10 +561,9 @@ class GoogleSignIn extends HTMLElement {
         this.render();
         
         // Show user-friendly error asking to report bug
-        const userConfirmed = confirm(
-          'Sign-in failed: Both portal sign-in and fallback authentication failed.\n\n' +
-          'Please help us fix this by reporting the issue.\n\n' +
-          'Click OK to open the bug report page, or Cancel to dismiss.'
+        const userConfirmed = await showSignInConfirm(
+          'Sign-in failed. Please help us fix this by reporting the issue.',
+          { confirmLabel: 'Report issue', cancelLabel: 'Dismiss' }
         );
         
         if (userConfirmed) {

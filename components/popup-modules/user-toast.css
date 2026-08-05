@@ -1,0 +1,134 @@
+/* User-facing toast near the ThinkReview trigger (replaces native alert) */
+.thinkreview-user-toast,
+#thinkreview-user-toast {
+  width: 320px;
+  max-width: min(320px, calc(100vw - 48px));
+  padding: 12px 14px;
+  background: #1a1628;
+  border: 1px solid #3d2d6e;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  box-sizing: border-box;
+  pointer-events: auto;
+  animation: thinkreview-user-toast-in 0.22s ease-out;
+}
+
+.thinkreview-user-toast-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.thinkreview-user-toast-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #a78bfa;
+}
+
+.thinkreview-user-toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.thinkreview-user-toast-title {
+  display: block;
+  font-weight: 600;
+  font-size: 13px;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.thinkreview-user-toast-message {
+  display: block;
+  color: rgba(255, 255, 255, 0.78);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.thinkreview-user-toast-close {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: -2px -4px 0 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thinkreview-user-toast-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.thinkreview-user-toast-float-left {
+  animation-name: thinkreview-user-toast-in-float-left;
+}
+
+.thinkreview-user-toast-sidebar {
+  animation-name: thinkreview-user-toast-in-sidebar;
+}
+
+.thinkreview-user-toast-center {
+  animation-name: thinkreview-user-toast-in-center;
+}
+
+.thinkreview-user-toast-out {
+  opacity: 0;
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+@keyframes thinkreview-user-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes thinkreview-user-toast-in-float-left {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+@keyframes thinkreview-user-toast-in-sidebar {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@keyframes thinkreview-user-toast-in-center {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}

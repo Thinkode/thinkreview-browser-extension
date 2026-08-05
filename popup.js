@@ -1084,7 +1084,7 @@ async function addDomain() {
   const inputValue = domainInput.value.trim().toLowerCase();
   
   if (!validateDomainInput(inputValue)) {
-    alert('Please enter a valid domain (e.g., gitlab.example.com, localhost:8083, http://localhost:8083)');
+    showMessage('Enter a valid domain (e.g. gitlab.example.com or http://localhost:8083)', 'error');
     return;
   }
   
@@ -1116,7 +1116,7 @@ async function addDomain() {
     });
 
     if (!granted) {
-      alert('Permission not granted. The extension needs permission to access this domain.');
+      showMessage('Permission needed — allow access to this domain to continue.', 'error');
       return;
     }
 
@@ -1124,7 +1124,7 @@ async function addDomain() {
     const domains = result.gitlabDomains || DEFAULT_DOMAINS;
 
     if (domains.includes(domain)) {
-      alert('Domain already exists');
+      showMessage('That domain is already added.', 'error');
       return;
     }
 
@@ -1161,7 +1161,7 @@ async function addDomain() {
     
   } catch (error) {
     dbgWarn('Error adding domain:', error);
-    alert(`Error adding domain: ${error.message}. Please try again.`);
+    showMessage(`Couldn't add domain: ${error.message}`, 'error');
   } finally {
     isAddingDomain = false;
     if (addButton) {
@@ -1260,7 +1260,7 @@ async function addGitHubEnterpriseDomain() {
   const inputValue = domainInput?.value?.trim()?.toLowerCase() ?? '';
 
   if (!validateDomainInput(inputValue)) {
-    alert('Please enter a valid domain (e.g., github.mycompany.com, https://github.mycompany.com)');
+    showMessage('Enter a valid domain (e.g. github.mycompany.com)', 'error');
     return;
   }
 
@@ -1286,7 +1286,7 @@ async function addGitHubEnterpriseDomain() {
     // Firefox: permissions.request must run before any other await (user-gesture stack).
     const granted = await chrome.permissions.request({ origins: [originPattern] });
     if (!granted) {
-      alert('Permission not granted. The extension needs permission to access this domain.');
+      showMessage('Permission needed — allow access to this domain to continue.', 'error');
       return;
     }
 
@@ -1294,7 +1294,7 @@ async function addGitHubEnterpriseDomain() {
     const domains = result.githubEnterpriseDomains || GITHUB_ENTERPRISE_DEFAULT_DOMAINS;
 
     if (domains.includes(domain)) {
-      alert('Domain already exists');
+      showMessage('That domain is already added.', 'error');
       return;
     }
 
@@ -1321,7 +1321,7 @@ async function addGitHubEnterpriseDomain() {
     showMessage('Domain added successfully! You may need to reload GitHub Enterprise pages for changes to take effect.', 'success');
   } catch (error) {
     dbgWarn('Error adding GitHub Enterprise domain:', error);
-    alert(`Error adding domain: ${error.message}. Please try again.`);
+    showMessage(`Couldn't add domain: ${error.message}`, 'error');
   } finally {
     isAddingGitHubEnterpriseDomain = false;
     if (addButton) {
@@ -1332,7 +1332,7 @@ async function addGitHubEnterpriseDomain() {
 }
 
 async function removeGitHubEnterpriseDomain(domain) {
-  if (!confirm(`Remove domain "${domain}"?`)) return;
+  if (!(await showConfirm(`Remove domain "${domain}"?`, { confirmLabel: 'Remove' }))) return;
 
   try {
     const result = await chrome.storage.local.get(['githubEnterpriseDomains']);
@@ -1356,17 +1356,17 @@ async function removeGitHubEnterpriseDomain(domain) {
     showMessage('Domain removed successfully!', 'success');
   } catch (error) {
     dbgWarn('Error removing GitHub Enterprise domain:', error);
-    alert('Error removing domain. Please try again.');
+    showMessage('Couldn't remove domain. Please try again.', 'error');
   }
 }
 
 async function removeDomain(domain) {
   if (DEFAULT_DOMAINS.includes(domain)) {
-    alert('Cannot remove default domain');
+    showMessage('Default domains can’t be removed.', 'error');
     return;
   }
   
-  if (!confirm(`Remove domain "${domain}"?`)) {
+  if (!(await showConfirm(`Remove domain "${domain}"?`, { confirmLabel: 'Remove' }))) {
     return;
   }
   
@@ -1397,7 +1397,7 @@ async function removeDomain(domain) {
     
   } catch (error) {
     dbgWarn('Error removing domain:', error);
-    alert('Error removing domain. Please try again.');
+    showMessage('Couldn't remove domain. Please try again.', 'error');
   }
 }
 
@@ -1516,7 +1516,7 @@ async function addAzureDevOpsDomain() {
   const inputValue = domainInput?.value?.trim()?.toLowerCase() ?? '';
 
   if (!validateDomainInput(inputValue)) {
-    alert('Please enter a valid domain (e.g., devops.companyname.com, https://devops.companyname.com)');
+    showMessage('Enter a valid domain (e.g. devops.companyname.com)', 'error');
     return;
   }
 
@@ -1540,7 +1540,7 @@ async function addAzureDevOpsDomain() {
     // Firefox: permissions.request must run before any other await (user-gesture stack).
     const granted = await chrome.permissions.request({ origins: [originPattern] });
     if (!granted) {
-      alert('Permission not granted. The extension needs permission to access this domain.');
+      showMessage('Permission needed — allow access to this domain to continue.', 'error');
       return;
     }
 
@@ -1548,7 +1548,7 @@ async function addAzureDevOpsDomain() {
     const domains = result.azureDevOpsDomains || [];
 
     if (domains.includes(domain)) {
-      alert('Domain already exists');
+      showMessage('That domain is already added.', 'error');
       return;
     }
 
@@ -1564,7 +1564,7 @@ async function addAzureDevOpsDomain() {
     showMessage('Domain added. You may need to reload Azure DevOps pages for changes to take effect.', 'success');
   } catch (error) {
     dbgWarn('Error adding Azure DevOps domain:', error);
-    alert(`Error adding domain: ${error.message}. Please try again.`);
+    showMessage(`Couldn't add domain: ${error.message}`, 'error');
   } finally {
     isAddingAzureDomain = false;
     if (addButton) {
@@ -1575,7 +1575,7 @@ async function addAzureDevOpsDomain() {
 }
 
 async function removeAzureDevOpsDomain(domain) {
-  if (!confirm(`Remove domain "${domain}"?`)) return;
+  if (!(await showConfirm(`Remove domain "${domain}"?`, { confirmLabel: 'Remove' }))) return;
 
   try {
     const result = await chrome.storage.local.get(['azureDevOpsDomains']);
@@ -1590,7 +1590,7 @@ async function removeAzureDevOpsDomain(domain) {
     showMessage('Domain removed successfully!', 'success');
   } catch (error) {
     dbgWarn('Error removing Azure DevOps domain:', error);
-    alert('Error removing domain. Please try again.');
+    showMessage('Couldn't remove domain. Please try again.', 'error');
   }
 }
 
@@ -1852,7 +1852,7 @@ async function addBitbucketDataCenterDomain() {
   const inputValue = domainInput?.value?.trim()?.toLowerCase() ?? '';
 
   if (!validateDomainInput(inputValue)) {
-    alert('Please enter a valid domain (e.g., bitbucket.mycompany.com, https://bitbucket.mycompany.com)');
+    showMessage('Enter a valid domain (e.g. bitbucket.mycompany.com)', 'error');
     return;
   }
 
@@ -1878,7 +1878,7 @@ async function addBitbucketDataCenterDomain() {
     // Firefox: permissions.request must run before any other await (user-gesture stack).
     const granted = await chrome.permissions.request({ origins: [originPattern] });
     if (!granted) {
-      alert('Permission not granted. The extension needs permission to access this domain.');
+      showMessage('Permission needed — allow access to this domain to continue.', 'error');
       return;
     }
 
@@ -1886,7 +1886,7 @@ async function addBitbucketDataCenterDomain() {
     const domains = result.bitbucketDataCenterDomains || [];
 
     if (domains.includes(domain)) {
-      alert('Domain already exists');
+      showMessage('That domain is already added.', 'error');
       return;
     }
 
@@ -1908,7 +1908,7 @@ async function addBitbucketDataCenterDomain() {
     showMessage('Domain added. Reload your Bitbucket Data Center pages to use AI reviews.', 'success');
   } catch (error) {
     dbgWarn('Error adding Bitbucket Data Center domain:', error);
-    alert(`Error adding domain: ${error.message}. Please try again.`);
+    showMessage(`Couldn't add domain: ${error.message}`, 'error');
   } finally {
     isAddingBitbucketDCDomain = false;
     if (addButton) {
@@ -1919,7 +1919,7 @@ async function addBitbucketDataCenterDomain() {
 }
 
 async function removeBitbucketDataCenterDomain(domain) {
-  if (!confirm(`Remove domain "${domain}"?`)) return;
+  if (!(await showConfirm(`Remove domain "${domain}"?`, { confirmLabel: 'Remove' }))) return;
 
   try {
     const result = await chrome.storage.local.get(['bitbucketDataCenterDomains']);
@@ -1939,7 +1939,7 @@ async function removeBitbucketDataCenterDomain(domain) {
     showMessage('Domain removed successfully!', 'success');
   } catch (error) {
     dbgWarn('Error removing Bitbucket Data Center domain:', error);
-    alert('Error removing domain. Please try again.');
+    showMessage('Couldn't remove domain. Please try again.', 'error');
   }
 }
 
@@ -2018,31 +2018,122 @@ async function saveBitbucketDataCenterToken() {
 }
 
 function showMessage(text, type = 'info') {
-  // Create a temporary message element
+  const existing = document.getElementById('thinkreview-popup-toast');
+  if (existing) existing.remove();
+
+  const colors = {
+    success: { bg: '#166534', border: '#22c55e' },
+    error: { bg: '#7f1d1d', border: '#ef4444' },
+    info: { bg: '#1a1628', border: '#6b4fbb' },
+  };
+  const palette = colors[type] || colors.info;
+
   const message = document.createElement('div');
+  message.id = 'thinkreview-popup-toast';
+  message.setAttribute('role', 'status');
+  message.setAttribute('aria-live', 'polite');
   message.style.cssText = `
     position: fixed;
-    top: 10px;
+    top: 12px;
     left: 50%;
     transform: translateX(-50%);
-    background: ${type === 'success' ? '#4caf50' : type === 'error' ? '#f44336' : '#2196f3'};
-    color: white;
-    padding: 8px 16px;
-    border-radius: 4px;
+    background: ${palette.bg};
+    border: 1px solid ${palette.border};
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 8px;
     font-size: 12px;
+    line-height: 1.4;
     z-index: 10000;
-    max-width: 300px;
+    max-width: calc(100% - 24px);
+    width: max-content;
     text-align: center;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    animation: thinkreview-popup-toast-in 0.2s ease-out;
   `;
   message.textContent = text;
-  
   document.body.appendChild(message);
-  
+
   setTimeout(() => {
     if (document.body.contains(message)) {
-      document.body.removeChild(message);
+      message.style.transition = 'opacity 0.2s ease-out';
+      message.style.opacity = '0';
+      setTimeout(() => message.remove(), 200);
     }
-  }, 3000);
+  }, type === 'error' ? 4000 : 3000);
+}
+
+/**
+ * Non-blocking confirm dialog for the popup (replaces native confirm()).
+ * @param {string} text
+ * @param {{ confirmLabel?: string }} [options]
+ * @returns {Promise<boolean>}
+ */
+function showConfirm(text, options = {}) {
+  const confirmLabel = options.confirmLabel || 'Confirm';
+  return new Promise((resolve) => {
+    const existing = document.getElementById('thinkreview-popup-confirm');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'thinkreview-popup-confirm';
+    overlay.style.cssText = `
+      position: fixed; inset: 0; z-index: 10001;
+      background: rgba(0, 0, 0, 0.45);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    `;
+
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.style.cssText = `
+      background: #1a1628; border: 1px solid #3d2d6e; border-radius: 10px;
+      padding: 16px; max-width: 280px; width: 100%;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); color: #fff;
+    `;
+
+    const msg = document.createElement('p');
+    msg.style.cssText = 'margin: 0 0 14px; font-size: 13px; line-height: 1.45; color: rgba(255,255,255,0.9);';
+    msg.textContent = text;
+    dialog.appendChild(msg);
+
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display: flex; gap: 8px; justify-content: flex-end;';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = `
+      padding: 6px 12px; border-radius: 6px; border: 1px solid #3d2d6e;
+      background: transparent; color: rgba(255,255,255,0.85); cursor: pointer; font-size: 12px;
+    `;
+
+    const okBtn = document.createElement('button');
+    okBtn.type = 'button';
+    okBtn.textContent = confirmLabel;
+    okBtn.style.cssText = `
+      padding: 6px 12px; border-radius: 6px; border: none;
+      background: #6b4fbb; color: #fff; cursor: pointer; font-size: 12px; font-weight: 500;
+    `;
+
+    const finish = (value) => {
+      overlay.remove();
+      resolve(value);
+    };
+    cancelBtn.addEventListener('click', () => finish(false));
+    okBtn.addEventListener('click', () => finish(true));
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) finish(false);
+    });
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(okBtn);
+    dialog.appendChild(actions);
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    okBtn.focus();
+  });
 }
 
 // Azure DevOps Settings Functionality
