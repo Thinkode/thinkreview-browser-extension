@@ -409,6 +409,7 @@ function _runTour(panelEl) {
     document.documentElement.removeAttribute(PANEL_SETTINGS_TOUR_ACTIVE_ATTR);
     window.removeEventListener('resize', onReposition);
     window.removeEventListener('scroll', onReposition, true);
+    document.removeEventListener('thinkreview:layoutchanged', onLayoutChanged);
     root.remove();
     card.remove();
     await _markSeen();
@@ -425,6 +426,71 @@ function _runTour(panelEl) {
     }
     const target = await step.getTarget();
     return target instanceof Element ? target : null;
+  };
+
+  const applyHighlight = (step, target) => {
+    const formatDropdown = document.getElementById('thinkreview-review-format-dropdown');
+    const settingsDropdown = document.getElementById('thinkreview-settings-dropdown');
+    const layoutSubmenu = document.getElementById('thinkreview-settings-layout-submenu');
+
+    const extraRaise = [];
+    if (step.id === 'review-format' && formatDropdown?.style.display !== 'none') {
+      extraRaise.push(formatDropdown);
+    }
+    if (
+      (step.id === 'settings-menu' || step.id === 'layout' || step.id === 'auto-start') &&
+      settingsDropdown?.style.display !== 'none'
+    ) {
+      extraRaise.push(settingsDropdown);
+    }
+    if (step.id === 'layout' && layoutSubmenu?.style.display !== 'none') {
+      extraRaise.push(layoutSubmenu);
+    }
+
+    clearHighlight();
+    if (target) {
+      highlightedEl = target;
+      target.classList.add('thinkreview-tour-target-pulse');
+      raiseEls(target, ...extraRaise);
+      const rect =
+        unionRect(target, ...extraRaise) || target.getBoundingClientRect();
+      _positionSpotlight(spotlight, rect);
+      _positionCard(card, rect);
+      spotlight.style.display = 'block';
+    } else {
+      spotlight.style.display = 'none';
+      card.style.top = '72px';
+      card.style.left = `${Math.max(8, window.innerWidth - 340)}px`;
+    }
+  };
+
+  const onReposition = () => {
+    if (!highlightedEl || !document.body.contains(highlightedEl)) return;
+    const api = _getSettingsMenuApi();
+    api?.reposition?.();
+    const rect = unionRect(highlightedEl, ...raisedEls) || highlightedEl.getBoundingClientRect();
+    _positionSpotlight(spotlight, rect);
+    _positionCard(card, rect);
+  };
+
+  /** Follow panel/menu movement after a live layout change (incl. CSS left transition). */
+  const refreshHighlightAfterLayoutChange = async () => {
+    const step = steps[stepIndex];
+    if (!step || !document.getElementById(TOUR_ROOT_ID)) return;
+
+    if (step.id === 'layout') {
+      const target = await _openLayoutSubmenu();
+      applyHighlight(step, target || document.getElementById('thinkreview-settings-layout-submenu'));
+    }
+
+    const bump = () => onReposition();
+    requestAnimationFrame(bump);
+    setTimeout(bump, 50);
+    setTimeout(bump, 320);
+  };
+
+  const onLayoutChanged = () => {
+    refreshHighlightAfterLayoutChange().catch(() => {});
   };
 
   const renderStep = async () => {
@@ -446,54 +512,15 @@ function _runTour(panelEl) {
       dot.classList.toggle('is-done', i < stepIndex);
     });
 
-    clearHighlight();
     const target = await resolveTarget(step);
     if (!document.getElementById(TOUR_ROOT_ID)) return;
 
-    const formatDropdown = document.getElementById('thinkreview-review-format-dropdown');
-    const settingsDropdown = document.getElementById('thinkreview-settings-dropdown');
-    const layoutSubmenu = document.getElementById('thinkreview-settings-layout-submenu');
-
-    const extraRaise = [];
-    if (step.id === 'review-format' && formatDropdown?.style.display !== 'none') {
-      extraRaise.push(formatDropdown);
-    }
-    if (
-      (step.id === 'settings-menu' || step.id === 'layout' || step.id === 'auto-start') &&
-      settingsDropdown?.style.display !== 'none'
-    ) {
-      extraRaise.push(settingsDropdown);
-    }
-    if (step.id === 'layout' && layoutSubmenu?.style.display !== 'none') {
-      extraRaise.push(layoutSubmenu);
-    }
-
-    if (target) {
-      highlightedEl = target;
-      target.classList.add('thinkreview-tour-target-pulse');
-      raiseEls(target, ...extraRaise);
-      const rect =
-        unionRect(target, ...extraRaise) || target.getBoundingClientRect();
-      _positionSpotlight(spotlight, rect);
-      _positionCard(card, rect);
-      spotlight.style.display = 'block';
-    } else {
-      spotlight.style.display = 'none';
-      card.style.top = '72px';
-      card.style.left = `${Math.max(8, window.innerWidth - 340)}px`;
-    }
+    applyHighlight(step, target);
 
     await _track('panel_settings_tour_step_viewed', {
       step_id: step.id,
       step_index: stepIndex
     });
-  };
-
-  const onReposition = () => {
-    if (!highlightedEl || !document.body.contains(highlightedEl)) return;
-    const rect = unionRect(highlightedEl, ...raisedEls) || highlightedEl.getBoundingClientRect();
-    _positionSpotlight(spotlight, rect);
-    _positionCard(card, rect);
   };
 
   skipBtn.addEventListener('click', (e) => {
@@ -525,6 +552,7 @@ function _runTour(panelEl) {
 
   window.addEventListener('resize', onReposition, { passive: true });
   window.addEventListener('scroll', onReposition, true);
+  document.addEventListener('thinkreview:layoutchanged', onLayoutChanged);
 
   _track('panel_settings_tour_started', { step_count: steps.length });
   renderStep();

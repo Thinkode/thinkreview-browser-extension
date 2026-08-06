@@ -532,6 +532,15 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     onSelect: async (settings) => {
       const valueEl = layoutRow.querySelector('[data-menu-value="layout"]');
       if (valueEl) valueEl.textContent = getLayoutComboSummary(settings);
+      // Keep the layout picker open during the first-open tour so the spotlight can follow
+      if (document.documentElement.hasAttribute('data-thinkreview-tour-active')) {
+        requestAnimationFrame(() => {
+          reposition();
+          setTimeout(reposition, 50);
+          setTimeout(reposition, 320);
+        });
+        return;
+      }
       _closeAll();
     }
   });
@@ -807,6 +816,16 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   window.addEventListener('scroll', reposition, { passive: true });
   window.addEventListener('resize', reposition, { passive: true });
 
+  const onLayoutChanged = () => {
+    if (main.style.display === 'none') return;
+    requestAnimationFrame(() => {
+      reposition();
+      setTimeout(reposition, 50);
+      setTimeout(reposition, 320);
+    });
+  };
+  document.addEventListener('thinkreview:layoutchanged', onLayoutChanged);
+
   // Keep tooltip text in sync with inclusive menu
   const tooltip = options.settingsWrapper?.querySelector('.thinkreview-settings-tooltip');
   if (tooltip) tooltip.textContent = 'Settings';
@@ -815,7 +834,8 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     openMain: _openMain,
     openSubmenu: _openSubmenu,
     closeSubmenus: _closeSubmenus,
-    closeAll: _closeAll
+    closeAll: _closeAll,
+    reposition
   };
   // Used by the first-open panel settings tour
   settingsButton.__thinkreviewSettingsMenuApi = menuApi;
@@ -825,6 +845,7 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     if (destroyed) return;
     destroyed = true;
     document.removeEventListener('click', onDocumentClick);
+    document.removeEventListener('thinkreview:layoutchanged', onLayoutChanged);
     chrome.storage.onChanged.removeListener(onStorageChanged);
     window.removeEventListener('scroll', reposition);
     window.removeEventListener('resize', reposition);
