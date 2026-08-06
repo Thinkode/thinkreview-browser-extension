@@ -1471,7 +1471,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     // Get the user's language preference from extension storage
     const result = await chrome.storage.local.get(['code-review-language', 'code-review-format']);
     const language = result['code-review-language'] || 'English';
-    const reviewFormat = result['code-review-format'] === 'severity' ? 'severity' : 'scoring';
+    const reviewFormat = result['code-review-format'] === 'scoring' ? 'scoring' : 'severity';
     
     // Get the full MR/PR URL
     const mrUrl = window.location.href;
@@ -1595,7 +1595,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     // Display the review results (use filtered patch — same string as reviewPatchCode_1_1 for agent checksums).
     // Ensure reviewFormat is on the review object for conditional rendering (API may also set top-level reviewFormat).
     if (!data.review.reviewFormat) {
-      data.review.reviewFormat = data.reviewFormat || reviewFormat || 'scoring';
+      data.review.reviewFormat = data.reviewFormat || reviewFormat || 'severity';
     }
     displayIntegratedReview(
       data.review,

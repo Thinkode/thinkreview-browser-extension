@@ -285,10 +285,10 @@ export class CloudService {
    * @param {string} [mrUrl] - Optional merge request URL for tracking
    * @param {boolean} [forceRegenerate] - Optional flag to force regenerate review even if cached
    * @param {string} [platform] - Optional platform information ('gitlab' or 'azure-devops')
-   * @param {string} [reviewFormat='scoring'] - Optional review layout: 'scoring' (default) or 'severity'
+   * @param {string} [reviewFormat='severity'] - Optional review layout: 'severity' (default) or 'scoring'
    * @returns {Promise<Object>} - Code review results from Gemini API
    */
-  static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null, forceRegenerate = false, platform = null, reviewFormat = 'scoring') {
+  static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null, forceRegenerate = false, platform = null, reviewFormat = 'severity') {
     dbgLog('Sending patch for code review');
     
     if (!patchContent) {
@@ -366,8 +366,9 @@ export class CloudService {
         requestBody.platform = platform;
       }
 
-      // Include reviewFormat when not the default scoring layout
-      if (reviewFormat && reviewFormat !== 'scoring') {
+      // Always send reviewFormat so the API gets the extension preference
+      // (backend still defaults to scoring if omitted)
+      if (reviewFormat) {
         requestBody.reviewFormat = reviewFormat;
       }
       

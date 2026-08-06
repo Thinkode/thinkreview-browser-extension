@@ -57,31 +57,31 @@ function createSeverityIconSvg() {
 
 const ROWS = [
   {
-    id: 'scoring',
-    label: 'scoring',
-    description: 'Scorecard with strengths & suggestions',
-    icon: createScoringIconSvg
-  },
-  {
     id: 'severity',
     label: 'severity',
     description: 'PR description with critical / high / low issues',
     icon: createSeverityIconSvg
+  },
+  {
+    id: 'scoring',
+    label: 'scoring',
+    description: 'Scorecard with strengths & suggestions',
+    icon: createScoringIconSvg
   }
 ];
 
 async function _getFormat() {
   try {
     const result = await chrome.storage.local.get(['code-review-format']);
-    return result['code-review-format'] === 'severity' ? 'severity' : 'scoring';
+    return result['code-review-format'] === 'scoring' ? 'scoring' : 'severity';
   } catch (e) {
     dbgWarn('Failed to load review format preference:', e);
-    return 'scoring';
+    return 'severity';
   }
 }
 
 async function _setFormat(format) {
-  const normalized = format === 'severity' ? 'severity' : 'scoring';
+  const normalized = format === 'scoring' ? 'scoring' : 'severity';
   await chrome.storage.local.set({ 'code-review-format': normalized });
   return normalized;
 }
