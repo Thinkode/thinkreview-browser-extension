@@ -240,10 +240,20 @@ export async function mountReviewFormatPreferenceWidget(headerActionsEl, options
   });
 
   document.addEventListener('click', (e) => {
-    if (e.target !== btn && !dropdown.contains(/** @type {Node} */ (e.target))) {
-      dropdown.style.display = 'none';
-      btn.setAttribute('aria-expanded', 'false');
+    if (document.documentElement.hasAttribute('data-thinkreview-tour-active')) {
+      return;
     }
+    const t = /** @type {Node} */ (e.target);
+    if (
+      t === btn ||
+      dropdown.contains(t) ||
+      (t instanceof Element && t.closest('#thinkreview-panel-settings-tour')) ||
+      (t instanceof Element && t.closest('#thinkreview-panel-settings-tour-card'))
+    ) {
+      return;
+    }
+    dropdown.style.display = 'none';
+    btn.setAttribute('aria-expanded', 'false');
   });
 
   dropdown.addEventListener('click', async (e) => {

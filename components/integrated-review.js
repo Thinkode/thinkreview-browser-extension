@@ -953,6 +953,15 @@ async function createIntegratedReviewPanel(patchUrl) {
     dbgWarn('Failed to apply panel text size preference:', error);
   }
 
+  // First-open interactive tour of panel settings (runs once when the panel is expanded)
+  try {
+    const tourUrl = chrome.runtime.getURL('components/popup-modules/panel-settings-tour.js');
+    const { maybeStartPanelSettingsTour } = await import(tourUrl);
+    maybeStartPanelSettingsTour(container).catch(() => {});
+  } catch (error) {
+    dbgWarn('Failed to start panel settings tour:', error);
+  }
+
   return container;
 }
 

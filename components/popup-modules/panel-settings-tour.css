@@ -1,0 +1,169 @@
+/* First-open interactive tour for panel settings */
+
+#thinkreview-panel-settings-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483645;
+  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.thinkreview-tour-blocker {
+  position: fixed;
+  inset: 0;
+  pointer-events: auto;
+  background: transparent;
+  z-index: 0;
+}
+
+.thinkreview-tour-spotlight {
+  position: fixed;
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 2px #9b7ef0,
+    0 0 0 6px rgba(155, 126, 240, 0.28),
+    0 0 0 9999px rgba(10, 8, 20, 0.55);
+  pointer-events: none;
+  transition: top 0.22s ease, left 0.22s ease, width 0.22s ease, height 0.22s ease;
+  z-index: 1;
+}
+
+.thinkreview-tour-card {
+  position: fixed;
+  width: min(320px, calc(100vw - 24px));
+  background: #1a1628;
+  border: 1px solid #3d2d6e;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.35);
+  color: #fff;
+  padding: 16px 16px 14px;
+  pointer-events: auto;
+  z-index: 2147483647;
+  animation: thinkreview-tour-card-in 0.18s ease;
+}
+
+/* Keep highlighted controls / open menus above the tour dim */
+.thinkreview-tour-raised {
+  z-index: 2147483646 !important;
+}
+
+.thinkreview-tour-target-pulse {
+  outline: 2px solid #9b7ef0 !important;
+  outline-offset: 2px;
+}
+
+@keyframes thinkreview-tour-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.thinkreview-tour-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: rgba(155, 126, 240, 0.85);
+  margin-bottom: 6px;
+}
+
+.thinkreview-tour-title {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 6px;
+  color: #fff;
+}
+
+.thinkreview-tour-body {
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.78);
+  margin: 0 0 14px;
+}
+
+.thinkreview-tour-progress {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.thinkreview-tour-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.thinkreview-tour-dot.is-active {
+  background: #9b7ef0;
+  transform: scale(1.2);
+}
+
+.thinkreview-tour-dot.is-done {
+  background: rgba(155, 126, 240, 0.55);
+}
+
+.thinkreview-tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.thinkreview-tour-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.thinkreview-tour-btn {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  line-height: 1.2;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.thinkreview-tour-btn-skip {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.thinkreview-tour-btn-skip:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.thinkreview-tour-btn-secondary {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.thinkreview-tour-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.thinkreview-tour-btn-primary {
+  background: #6b4fbb;
+  color: #fff;
+  border: 1px solid #6b4fbb;
+}
+
+.thinkreview-tour-btn-primary:hover {
+  background: #7d61d0;
+  border-color: #7d61d0;
+}

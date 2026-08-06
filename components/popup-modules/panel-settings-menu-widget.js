@@ -765,6 +765,10 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   });
 
   const onDocumentClick = (e) => {
+    // Keep menus open while the first-open settings tour is driving them
+    if (document.documentElement.hasAttribute('data-thinkreview-tour-active')) {
+      return;
+    }
     const t = /** @type {Node} */ (e.target);
     if (
       t === settingsButton ||
@@ -773,7 +777,9 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
       layoutSub.contains(t) ||
       ideSub.contains(t) ||
       textSizeSub.contains(t) ||
-      creditsSub.contains(t)
+      creditsSub.contains(t) ||
+      (t instanceof Element && t.closest('#thinkreview-panel-settings-tour')) ||
+      (t instanceof Element && t.closest('#thinkreview-panel-settings-tour-card'))
     ) {
       return;
     }
@@ -805,6 +811,15 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   const tooltip = options.settingsWrapper?.querySelector('.thinkreview-settings-tooltip');
   if (tooltip) tooltip.textContent = 'Settings';
 
+  const menuApi = {
+    openMain: _openMain,
+    openSubmenu: _openSubmenu,
+    closeSubmenus: _closeSubmenus,
+    closeAll: _closeAll
+  };
+  // Used by the first-open panel settings tour
+  settingsButton.__thinkreviewSettingsMenuApi = menuApi;
+
   let destroyed = false;
   function _destroy() {
     if (destroyed) return;
@@ -813,6 +828,9 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     chrome.storage.onChanged.removeListener(onStorageChanged);
     window.removeEventListener('scroll', reposition);
     window.removeEventListener('resize', reposition);
+    if (settingsButton.__thinkreviewSettingsMenuApi === menuApi) {
+      delete settingsButton.__thinkreviewSettingsMenuApi;
+    }
     main.remove();
     layoutSub.remove();
     ideSub.remove();
@@ -835,5 +853,5 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     panelObserver.observe(panelEl.parentNode, { childList: true });
   }
 
-  return { destroy: _destroy };
+  return { destroy: _destroy, ...menuApi };
 }
