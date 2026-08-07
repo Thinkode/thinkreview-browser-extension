@@ -1076,7 +1076,8 @@ function detectAzureDevOpsTheme() {
   return 'light';
 }
 
-const INTEGRATED_REVIEW_PANEL_RESIZE_MIN_WIDTH_PX = 400;
+// Wide enough for regenerate + text size + language + review format + settings in the header
+const INTEGRATED_REVIEW_PANEL_RESIZE_MIN_WIDTH_PX = 560;
 const INTEGRATED_REVIEW_PANEL_RESIZE_MAX_WIDTH_PX = 800;
 
 /**
@@ -1095,11 +1096,20 @@ function initializeResizeHandle(container) {
   chrome.storage.local.get(['gitlab-mr-review-width'], (result) => {
     const savedWidth = result['gitlab-mr-review-width'];
     if (savedWidth != null && savedWidth !== '' && !container.classList.contains('minimized')) {
-      const widthPx = (typeof savedWidth === 'number' ? savedWidth : parseInt(savedWidth, 10)) + 'px';
-      if (!isNaN(parseInt(savedWidth, 10))) {
+      const parsed = typeof savedWidth === 'number' ? savedWidth : parseInt(savedWidth, 10);
+      if (!isNaN(parsed)) {
+        const clamped = Math.max(
+          INTEGRATED_REVIEW_PANEL_RESIZE_MIN_WIDTH_PX,
+          Math.min(INTEGRATED_REVIEW_PANEL_RESIZE_MAX_WIDTH_PX, parsed)
+        );
+        const widthPx = `${clamped}px`;
         container.style.width = widthPx;
         if (container.classList.contains('thinkreview-panel-docked')) {
           document.documentElement.style.setProperty('--thinkreview-panel-width', widthPx);
+        }
+        // Persist if an older narrow width was upgraded to the new minimum
+        if (clamped !== parsed) {
+          chrome.storage.local.set({ 'gitlab-mr-review-width': clamped });
         }
       }
     }
