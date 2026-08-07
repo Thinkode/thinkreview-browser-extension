@@ -1436,11 +1436,13 @@ async function updateContentScripts() {
         }
         
         // Prepare script configuration
+        // content.js first so the ThinkReview trigger can inject before the heavy panel bundle parses.
+        // document_end: don't wait for full page idle (images/network) before showing the button.
         const scriptConfig = {
           id: scriptId,
           matches: [matchPattern],
-          js: ['vendor/honeybadger.ext.min.js', 'vendor/diff.min.js', 'components/integrated-review.js', 'content.js'],
-          runAt: 'document_idle'
+          js: ['vendor/honeybadger.ext.min.js', 'content.js', 'vendor/diff.min.js', 'components/integrated-review.js'],
+          runAt: 'document_end'
         };
         
         if (scriptExists) {

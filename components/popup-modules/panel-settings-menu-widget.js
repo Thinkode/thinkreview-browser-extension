@@ -532,6 +532,11 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     onSelect: async (settings) => {
       const valueEl = layoutRow.querySelector('[data-menu-value="layout"]');
       if (valueEl) valueEl.textContent = getLayoutComboSummary(settings);
+      // Keep the layout picker open during the first-open tour so the spotlight can follow
+      if (document.documentElement.hasAttribute('data-thinkreview-tour-active')) {
+        scheduleRepositionAfterLayoutChange();
+        return;
+      }
       _closeAll();
     }
   });
@@ -765,6 +770,10 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   });
 
   const onDocumentClick = (e) => {
+    // Keep menus open while the first-open settings tour is driving them
+    if (document.documentElement.hasAttribute('data-thinkreview-tour-active')) {
+      return;
+    }
     const t = /** @type {Node} */ (e.target);
     if (
       t === settingsButton ||
@@ -773,7 +782,9 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
       layoutSub.contains(t) ||
       ideSub.contains(t) ||
       textSizeSub.contains(t) ||
-      creditsSub.contains(t)
+      creditsSub.contains(t) ||
+      (t instanceof Element && t.closest('#thinkreview-panel-settings-tour')) ||
+      (t instanceof Element && t.closest('#thinkreview-panel-settings-tour-card'))
     ) {
       return;
     }
@@ -798,21 +809,105 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     if (openSubmenu === 'text-size') _positionSubmenu(textSizeSub, textSizeRow, 220);
     if (openSubmenu === 'buy-credits') _positionSubmenu(creditsSub, buyCreditsRow, 280);
   };
-  window.addEventListener('scroll', reposition, { passive: true });
-  window.addEventListener('resize', reposition, { passive: true });
+
+  // Coalesce layout reads/writes to at most once per animation frame
+  let repositionRaf = 0;
+  let layoutFollowUpTimer = 0;
+  /** @type {((e: TransitionEvent) => void) | null} */
+  let layoutTransitionHandler = null;
+
+  const scheduleReposition = () => {
+    if (repositionRaf) return;
+    repositionRaf = requestAnimationFrame(() => {
+      repositionRaf = 0;
+      reposition();
+    });
+  };
+
+  const clearLayoutFollowUp = () => {
+    clearTimeout(layoutFollowUpTimer);
+    layoutFollowUpTimer = 0;
+    if (layoutTransitionHandler) {
+      document
+        .getElementById('gitlab-mr-integrated-review')
+        ?.removeEventListener('transitionend', layoutTransitionHandler);
+      layoutTransitionHandler = null;
+    }
+  };
+
+  /**
+   * After a layout change: one rAF pass now, then one follow-up when the panel's
+   * CSS transition ends (fallback timeout matches the 0.5s right/width transition).
+   */
+  const scheduleRepositionAfterLayoutChange = () => {
+    if (main.style.display === 'none') return;
+    scheduleReposition();
+
+    clearLayoutFollowUp();
+    const panel = document.getElementById('gitlab-mr-integrated-review');
+    if (panel) {
+      layoutTransitionHandler = (e) => {
+        if (e.target !== panel) return;
+        if (e.propertyName !== 'right' && e.propertyName !== 'left' && e.propertyName !== 'width') {
+          return;
+        }
+        clearLayoutFollowUp();
+        scheduleReposition();
+      };
+      panel.addEventListener('transitionend', layoutTransitionHandler);
+    }
+
+    layoutFollowUpTimer = setTimeout(() => {
+      layoutFollowUpTimer = 0;
+      if (layoutTransitionHandler) {
+        panel?.removeEventListener('transitionend', layoutTransitionHandler);
+        layoutTransitionHandler = null;
+      }
+      scheduleReposition();
+    }, 520);
+  };
+
+  window.addEventListener('scroll', scheduleReposition, { passive: true });
+  window.addEventListener('resize', scheduleReposition, { passive: true });
+
+  const onLayoutChanged = () => {
+    scheduleRepositionAfterLayoutChange();
+  };
+  document.addEventListener('thinkreview:layoutchanged', onLayoutChanged);
 
   // Keep tooltip text in sync with inclusive menu
   const tooltip = options.settingsWrapper?.querySelector('.thinkreview-settings-tooltip');
   if (tooltip) tooltip.textContent = 'Settings';
+
+  const menuApi = {
+    openMain: _openMain,
+    openSubmenu: _openSubmenu,
+    closeSubmenus: _closeSubmenus,
+    closeAll: _closeAll,
+    reposition,
+    scheduleReposition,
+    scheduleRepositionAfterLayoutChange
+  };
+  // Used by the first-open panel settings tour
+  settingsButton.__thinkreviewSettingsMenuApi = menuApi;
 
   let destroyed = false;
   function _destroy() {
     if (destroyed) return;
     destroyed = true;
     document.removeEventListener('click', onDocumentClick);
+    document.removeEventListener('thinkreview:layoutchanged', onLayoutChanged);
     chrome.storage.onChanged.removeListener(onStorageChanged);
-    window.removeEventListener('scroll', reposition);
-    window.removeEventListener('resize', reposition);
+    window.removeEventListener('scroll', scheduleReposition);
+    window.removeEventListener('resize', scheduleReposition);
+    if (repositionRaf) {
+      cancelAnimationFrame(repositionRaf);
+      repositionRaf = 0;
+    }
+    clearLayoutFollowUp();
+    if (settingsButton.__thinkreviewSettingsMenuApi === menuApi) {
+      delete settingsButton.__thinkreviewSettingsMenuApi;
+    }
     main.remove();
     layoutSub.remove();
     ideSub.remove();
@@ -835,5 +930,5 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     panelObserver.observe(panelEl.parentNode, { childList: true });
   }
 
-  return { destroy: _destroy };
+  return { destroy: _destroy, ...menuApi };
 }

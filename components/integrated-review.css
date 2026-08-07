@@ -8,7 +8,7 @@
   --thinkreview-border-light: rgba(255, 255, 255, 0.1);
 
   /* Panel width for body margin when docked (synced with resize) */
-  --thinkreview-panel-width: 520px;
+  --thinkreview-panel-width: 580px;
 
   /* Panel vertical positioning: top offset and bottom gap define max-height.
      Bottom gap keeps a small buffer above the floating ThinkReview button. */
@@ -46,7 +46,8 @@
   position: fixed;
   right: 20px;
   top: var(--thinkreview-panel-top);
-  width: 500px;
+  width: 580px;
+  min-width: 560px;
   max-width: 90vw;
   /* Use a fixed height so the panel doesn't resize vertically
      when switching between tabs or when content height changes */
@@ -67,7 +68,8 @@
   position: fixed;
   right: 20px;
   top: var(--thinkreview-panel-top);
-  width: 500px;
+  width: 580px;
+  min-width: 560px;
   max-width: 90vw;
   /* Legacy selector: keep height in sync with main container rule above */
   height: var(--thinkreview-panel-max-height);
@@ -200,6 +202,7 @@
   align-items: center;
   gap: 8px;
   margin-top: -8px;
+  flex-shrink: 0;
 }
 
 #gitlab-mr-integrated-review .thinkreview-language-dropdown {
@@ -1032,6 +1035,7 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   position: relative;
   display: inline-flex;
   margin-right: 4px;
+  flex-shrink: 0;
 }
 
 #gitlab-mr-integrated-review .thinkreview-settings-tooltip {

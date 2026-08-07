@@ -109,29 +109,19 @@ let platformDetector = null;
 // Import Azure DevOps token error module
 let azureDevOpsTokenError = null;
 
-// Initialize platform detection
-async function initializePlatformDetection() {
+/**
+ * Azure-only extras (API helpers, token UI, on-prem version probe).
+ * Kept off the critical path so the ThinkReview button can appear sooner.
+ */
+async function initializeAzurePlatformExtras() {
   try {
-    // Dynamically import platform detector
-    const platformModule = await import(chrome.runtime.getURL('services/platform-detector.js'));
-    platformDetector = platformModule.platformDetector;
-    platformDetector.init();
-
-    // Load custom Azure DevOps domains so on-prem URLs are detected
-    const storage = await chrome.storage.local.get(['azureDevOpsDomains', 'bitbucketDataCenterDomains']);
-    platformDetector.setAzureDevOpsCustomDomains(storage.azureDevOpsDomains || []);
-
-    // Load custom Bitbucket Data Center domains
-    platformDetector.setBitbucketCustomDomains(storage.bitbucketDataCenterDomains || []);
-    
-    // Dynamically import Azure DevOps API module for error handling
     const apiModule = await import(chrome.runtime.getURL('services/azure-devops-api.js'));
 
-    // Run server version detection only for on-prem/custom domains (skip dev.azure.com and visualstudio.com)
     const hostname = window.location.hostname || '';
     const isAzureCloud = hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
     if (
       !isAzureCloud &&
+      platformDetector &&
       platformDetector.isAzureDevOpsSite() &&
       typeof apiModule.detectAndCacheServerVersion === 'function'
     ) {
@@ -141,7 +131,6 @@ async function initializePlatformDetection() {
       apiModule.detectAndCacheServerVersion(origin, collection)
         .then((result) => {
           if (!result || result.fromCache !== false) return;
-          // Send to cloud via background script (avoids content script fetch to external API / CSP)
           chrome.runtime.sendMessage({
             type: 'LOG_AZURE_DEVOPS_VERSION',
             origin,
@@ -149,7 +138,7 @@ async function initializePlatformDetection() {
             collection,
             azureOnPremiseApiVersion: result.azureOnPremiseApiVersion ?? null,
             azureOnPremiseVersion: result.azureOnPremiseVersion ?? null
-          }, (response) => {
+          }, () => {
             if (chrome.runtime.lastError) dbgWarn('Azure DevOps version cloud log failed (non-critical):', chrome.runtime.lastError);
           });
         })
@@ -157,11 +146,28 @@ async function initializePlatformDetection() {
           dbgWarn('Azure DevOps server version detection failed (non-critical):', err);
         });
     }
-    
-    // Dynamically import Azure DevOps token error module
+
     const tokenErrorModule = await import(chrome.runtime.getURL('components/azure-devops-token-error.js'));
     azureDevOpsTokenError = tokenErrorModule;
-    
+  } catch (error) {
+    dbgWarn('Error initializing Azure platform extras:', error);
+  }
+}
+
+// Initialize platform detection (lightweight — enough to decide whether to show the button)
+async function initializePlatformDetection() {
+  try {
+    const platformModule = await import(chrome.runtime.getURL('services/platform-detector.js'));
+    platformDetector = platformModule.platformDetector;
+    platformDetector.init();
+
+    const storage = await chrome.storage.local.get(['azureDevOpsDomains', 'bitbucketDataCenterDomains']);
+    platformDetector.setAzureDevOpsCustomDomains(storage.azureDevOpsDomains || []);
+    platformDetector.setBitbucketCustomDomains(storage.bitbucketDataCenterDomains || []);
+
+    // Do not block button injection on Azure API / token-error modules
+    initializeAzurePlatformExtras().catch(() => {});
+
     dbgLog('Platform detection initialized');
   } catch (error) {
     dbgWarn('Error initializing platform detection:', error);
@@ -353,7 +359,7 @@ function applyDockedBodyMargin(isExpanded, panelMode, sidebarSide) {
 const areButtonsInjected = () =>
   !!(document.getElementById('code-review-btns') || document.getElementById('thinkreview-sidebar-tab'));
 
-async function injectButtons() {
+async function injectButtons(preloaded = null) {
   if (areButtonsInjected()) {
     dbgLog('Buttons already injected');
     return;
@@ -361,9 +367,16 @@ async function injectButtons() {
 
   dbgLog('Injecting trigger UI');
   try {
-    const settings = await getLayoutSettings();
-    const { injectTrigger } = await import(chrome.runtime.getURL('components/layout-trigger.js'));
-    injectTrigger(settings, toggleReviewPanel);
+    const settingsPromise = preloaded?.settingsPromise || getLayoutSettings();
+    let triggerModulePromise = preloaded?.triggerModulePromise;
+    if (!triggerModulePromise) {
+      triggerModulePromise = import(chrome.runtime.getURL('components/layout-trigger.js'));
+    }
+    const [settings, triggerModule] = await Promise.all([settingsPromise, triggerModulePromise]);
+    if (!triggerModule?.injectTrigger) {
+      throw new Error('layout-trigger module unavailable');
+    }
+    triggerModule.injectTrigger(settings, toggleReviewPanel);
     dbgLog('Trigger injected via layout-trigger.js, mode:', settings.triggerMode);
   } catch (error) {
     dbgError('Failed to load layout-trigger.js, falling back to inline button:', error);
@@ -504,6 +517,12 @@ async function checkAndTriggerReviewForNewPR() {
     try {
       const bubbleModule = await import(chrome.runtime.getURL('components/popup-modules/completion-message-bubble.js'));
       bubbleModule.hideBubble();
+    } catch (error) {
+      // Silently fail if module not available
+    }
+    try {
+      const toastModule = await import(chrome.runtime.getURL('components/popup-modules/user-toast.js'));
+      toastModule.hideUserToast();
     } catch (error) {
       // Silently fail if module not available
     }
@@ -1465,7 +1484,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     // Get the user's language preference from extension storage
     const result = await chrome.storage.local.get(['code-review-language', 'code-review-format']);
     const language = result['code-review-language'] || 'English';
-    const reviewFormat = result['code-review-format'] === 'severity' ? 'severity' : 'scoring';
+    const reviewFormat = result['code-review-format'] === 'scoring' ? 'scoring' : 'severity';
     
     // Get the full MR/PR URL
     const mrUrl = window.location.href;
@@ -1589,7 +1608,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     // Display the review results (use filtered patch — same string as reviewPatchCode_1_1 for agent checksums).
     // Ensure reviewFormat is on the review object for conditional rendering (API may also set top-level reviewFormat).
     if (!data.review.reviewFormat) {
-      data.review.reviewFormat = data.reviewFormat || reviewFormat || 'scoring';
+      data.review.reviewFormat = data.reviewFormat || reviewFormat || 'severity';
     }
     displayIntegratedReview(
       data.review,
@@ -1726,8 +1745,16 @@ async function toggleReviewPanel() {
   // Check if we're on a supported page first (before creating/opening panel)
   // For Azure DevOps and GitHub (SPAs), this ensures we're on a PR page
   if (!isSupportedPage()) {
-    dbgLog('Not on a supported page, showing alert');
-    alert('Please navigate to a Pull Request page to generate an AI code review.');
+    dbgLog('Not on a supported page, showing toast');
+    try {
+      const toastModule = await import(chrome.runtime.getURL('components/popup-modules/user-toast.js'));
+      await toastModule.showUserToast({
+        title: 'Open a pull request',
+        message: 'Navigate to a PR page to generate an AI code review with ThinkReview.',
+      });
+    } catch (error) {
+      dbgWarn('Failed to show user toast:', error);
+    }
     return;
   }
   
@@ -1975,19 +2002,26 @@ function startSPANavigationMonitoring() {
 
 // Initialize when the page is loaded
 async function initializeExtension() {
-  // Initialize platform detection first
+  // Prefetch trigger deps in parallel with platform detection so the button isn't
+  // blocked on a second round-trip after shouldShowButton() returns.
+  const settingsPromise = getLayoutSettings();
+  const triggerModulePromise = import(chrome.runtime.getURL('components/layout-trigger.js')).catch((error) => {
+    dbgWarn('Early layout-trigger prefetch failed:', error);
+    return null;
+  });
+
   await initializePlatformDetection();
-  
+
   // Check if we should show the button (always true for Azure DevOps and GitHub, only on MR pages for GitLab)
   if (shouldShowButton()) {
     const platform = getCurrentPlatform();
     dbgLog('Initializing for platform:', platform);
-    
-    await injectButtons();
+
+    await injectButtons({ settingsPromise, triggerModulePromise });
 
     // If the trigger still didn't land (e.g. extension context warming up right after install/update),
     // watch for DOM changes and inject as soon as the body is mutated instead of guessing a delay.
-      if (!areButtonsInjected()) {
+    if (!areButtonsInjected()) {
       dbgWarn('Trigger not found after injectButtons(), observing DOM for retry...');
 
       retryState.observer = new MutationObserver(() => {
@@ -2016,18 +2050,20 @@ async function initializeExtension() {
         }, 150);
       });
 
-      retryState.observer.observe(document.body, { childList: true, subtree: true });
+      if (document.body) {
+        retryState.observer.observe(document.body, { childList: true, subtree: true });
+      }
 
       // Hard-stop: clear everything after 10 s if the page never settles.
       retryState.timeoutId = setTimeout(_teardownRetryObserver, 10_000);
     }
-    
+
     // Start SPA navigation monitoring for GitHub, Azure DevOps, and Bitbucket (SPAs)
     // Check by site (domain) rather than platform, because platform is null on non-PR pages
     if (platformDetector && (platformDetector.isGitHubSite() || platformDetector.isAzureDevOpsSite() || platformDetector.isBitbucketSite())) {
       startSPANavigationMonitoring();
     }
-    
+
     // Wait for the page to fully load before injecting the integrated review panel
     setTimeout(() => {
       injectIntegratedReviewPanel();
@@ -2040,7 +2076,7 @@ async function initializeExtension() {
           arrowSpan.textContent = '▲';
         }
       }
-      
+
       // Save the minimized state to extension storage
       chrome.storage.local.set({ 'code-review-minimized-to-button': 'true' });
     }, 1000);
