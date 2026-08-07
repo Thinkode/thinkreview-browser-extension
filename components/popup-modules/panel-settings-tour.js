@@ -403,13 +403,34 @@ function _runTour(panelEl) {
     return { top, left, width: right - left, height: bottom - top, right, bottom };
   };
 
+  let repositionRaf = 0;
+  let layoutFollowUpTimer = 0;
+  /** @type {((e: TransitionEvent) => void) | null} */
+  let layoutTransitionHandler = null;
+
+  const clearLayoutFollowUp = () => {
+    clearTimeout(layoutFollowUpTimer);
+    layoutFollowUpTimer = 0;
+    if (layoutTransitionHandler) {
+      document
+        .getElementById('gitlab-mr-integrated-review')
+        ?.removeEventListener('transitionend', layoutTransitionHandler);
+      layoutTransitionHandler = null;
+    }
+  };
+
   const endTour = async (reason) => {
     clearHighlight();
     _closeMenusQuietly();
     document.documentElement.removeAttribute(PANEL_SETTINGS_TOUR_ACTIVE_ATTR);
-    window.removeEventListener('resize', onReposition);
-    window.removeEventListener('scroll', onReposition, true);
+    window.removeEventListener('resize', scheduleReposition);
+    window.removeEventListener('scroll', scheduleReposition, true);
     document.removeEventListener('thinkreview:layoutchanged', onLayoutChanged);
+    if (repositionRaf) {
+      cancelAnimationFrame(repositionRaf);
+      repositionRaf = 0;
+    }
+    clearLayoutFollowUp();
     root.remove();
     card.remove();
     await _markSeen();
@@ -466,14 +487,25 @@ function _runTour(panelEl) {
 
   const onReposition = () => {
     if (!highlightedEl || !document.body.contains(highlightedEl)) return;
-    const api = _getSettingsMenuApi();
-    api?.reposition?.();
+    // Sync menu reposition so spotlight reads up-to-date menu geometry this frame
+    _getSettingsMenuApi()?.reposition?.();
     const rect = unionRect(highlightedEl, ...raisedEls) || highlightedEl.getBoundingClientRect();
     _positionSpotlight(spotlight, rect);
     _positionCard(card, rect);
   };
 
-  /** Follow panel/menu movement after a live layout change (incl. CSS left transition). */
+  const scheduleReposition = () => {
+    if (repositionRaf) return;
+    repositionRaf = requestAnimationFrame(() => {
+      repositionRaf = 0;
+      onReposition();
+    });
+  };
+
+  /**
+   * Follow panel/menu movement after a live layout change.
+   * One rAF now + one follow-up on panel transitionend (0.5s fallback).
+   */
   const refreshHighlightAfterLayoutChange = async () => {
     const step = steps[stepIndex];
     if (!step || !document.getElementById(TOUR_ROOT_ID)) return;
@@ -483,10 +515,30 @@ function _runTour(panelEl) {
       applyHighlight(step, target || document.getElementById('thinkreview-settings-layout-submenu'));
     }
 
-    const bump = () => onReposition();
-    requestAnimationFrame(bump);
-    setTimeout(bump, 50);
-    setTimeout(bump, 320);
+    scheduleReposition();
+    clearLayoutFollowUp();
+
+    const panel = document.getElementById('gitlab-mr-integrated-review');
+    if (panel) {
+      layoutTransitionHandler = (e) => {
+        if (e.target !== panel) return;
+        if (e.propertyName !== 'right' && e.propertyName !== 'left' && e.propertyName !== 'width') {
+          return;
+        }
+        clearLayoutFollowUp();
+        scheduleReposition();
+      };
+      panel.addEventListener('transitionend', layoutTransitionHandler);
+    }
+
+    layoutFollowUpTimer = setTimeout(() => {
+      layoutFollowUpTimer = 0;
+      if (layoutTransitionHandler) {
+        panel?.removeEventListener('transitionend', layoutTransitionHandler);
+        layoutTransitionHandler = null;
+      }
+      scheduleReposition();
+    }, 520);
   };
 
   const onLayoutChanged = () => {
@@ -550,8 +602,8 @@ function _runTour(panelEl) {
   card.addEventListener('click', (e) => e.stopPropagation());
   card.addEventListener('mousedown', (e) => e.stopPropagation());
 
-  window.addEventListener('resize', onReposition, { passive: true });
-  window.addEventListener('scroll', onReposition, true);
+  window.addEventListener('resize', scheduleReposition, { passive: true });
+  window.addEventListener('scroll', scheduleReposition, true);
   document.addEventListener('thinkreview:layoutchanged', onLayoutChanged);
 
   _track('panel_settings_tour_started', { step_count: steps.length });

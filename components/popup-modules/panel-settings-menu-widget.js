@@ -534,11 +534,7 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
       if (valueEl) valueEl.textContent = getLayoutComboSummary(settings);
       // Keep the layout picker open during the first-open tour so the spotlight can follow
       if (document.documentElement.hasAttribute('data-thinkreview-tour-active')) {
-        requestAnimationFrame(() => {
-          reposition();
-          setTimeout(reposition, 50);
-          setTimeout(reposition, 320);
-        });
+        scheduleRepositionAfterLayoutChange();
         return;
       }
       _closeAll();
@@ -813,16 +809,69 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     if (openSubmenu === 'text-size') _positionSubmenu(textSizeSub, textSizeRow, 220);
     if (openSubmenu === 'buy-credits') _positionSubmenu(creditsSub, buyCreditsRow, 280);
   };
-  window.addEventListener('scroll', reposition, { passive: true });
-  window.addEventListener('resize', reposition, { passive: true });
+
+  // Coalesce layout reads/writes to at most once per animation frame
+  let repositionRaf = 0;
+  let layoutFollowUpTimer = 0;
+  /** @type {((e: TransitionEvent) => void) | null} */
+  let layoutTransitionHandler = null;
+
+  const scheduleReposition = () => {
+    if (repositionRaf) return;
+    repositionRaf = requestAnimationFrame(() => {
+      repositionRaf = 0;
+      reposition();
+    });
+  };
+
+  const clearLayoutFollowUp = () => {
+    clearTimeout(layoutFollowUpTimer);
+    layoutFollowUpTimer = 0;
+    if (layoutTransitionHandler) {
+      document
+        .getElementById('gitlab-mr-integrated-review')
+        ?.removeEventListener('transitionend', layoutTransitionHandler);
+      layoutTransitionHandler = null;
+    }
+  };
+
+  /**
+   * After a layout change: one rAF pass now, then one follow-up when the panel's
+   * CSS transition ends (fallback timeout matches the 0.5s right/width transition).
+   */
+  const scheduleRepositionAfterLayoutChange = () => {
+    if (main.style.display === 'none') return;
+    scheduleReposition();
+
+    clearLayoutFollowUp();
+    const panel = document.getElementById('gitlab-mr-integrated-review');
+    if (panel) {
+      layoutTransitionHandler = (e) => {
+        if (e.target !== panel) return;
+        if (e.propertyName !== 'right' && e.propertyName !== 'left' && e.propertyName !== 'width') {
+          return;
+        }
+        clearLayoutFollowUp();
+        scheduleReposition();
+      };
+      panel.addEventListener('transitionend', layoutTransitionHandler);
+    }
+
+    layoutFollowUpTimer = setTimeout(() => {
+      layoutFollowUpTimer = 0;
+      if (layoutTransitionHandler) {
+        panel?.removeEventListener('transitionend', layoutTransitionHandler);
+        layoutTransitionHandler = null;
+      }
+      scheduleReposition();
+    }, 520);
+  };
+
+  window.addEventListener('scroll', scheduleReposition, { passive: true });
+  window.addEventListener('resize', scheduleReposition, { passive: true });
 
   const onLayoutChanged = () => {
-    if (main.style.display === 'none') return;
-    requestAnimationFrame(() => {
-      reposition();
-      setTimeout(reposition, 50);
-      setTimeout(reposition, 320);
-    });
+    scheduleRepositionAfterLayoutChange();
   };
   document.addEventListener('thinkreview:layoutchanged', onLayoutChanged);
 
@@ -835,7 +884,9 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     openSubmenu: _openSubmenu,
     closeSubmenus: _closeSubmenus,
     closeAll: _closeAll,
-    reposition
+    reposition,
+    scheduleReposition,
+    scheduleRepositionAfterLayoutChange
   };
   // Used by the first-open panel settings tour
   settingsButton.__thinkreviewSettingsMenuApi = menuApi;
@@ -847,8 +898,13 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     document.removeEventListener('click', onDocumentClick);
     document.removeEventListener('thinkreview:layoutchanged', onLayoutChanged);
     chrome.storage.onChanged.removeListener(onStorageChanged);
-    window.removeEventListener('scroll', reposition);
-    window.removeEventListener('resize', reposition);
+    window.removeEventListener('scroll', scheduleReposition);
+    window.removeEventListener('resize', scheduleReposition);
+    if (repositionRaf) {
+      cancelAnimationFrame(repositionRaf);
+      repositionRaf = 0;
+    }
+    clearLayoutFollowUp();
     if (settingsButton.__thinkreviewSettingsMenuApi === menuApi) {
       delete settingsButton.__thinkreviewSettingsMenuApi;
     }
