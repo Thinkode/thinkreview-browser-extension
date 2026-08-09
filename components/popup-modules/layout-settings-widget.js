@@ -32,17 +32,17 @@ const LAYOUT_GROUPS = [
     ],
   },
   {
-    label: 'Sidebar Tab',
-    combos: [
-      { id: 'tab-right', label: 'Right side', settings: { triggerMode: 'sidebar-tab', buttonPosition: 'bottom-right', panelMode: 'overlay', sidebarSide: 'right' } },
-      { id: 'tab-left',  label: 'Left side',  settings: { triggerMode: 'sidebar-tab', buttonPosition: 'bottom-right', panelMode: 'overlay', sidebarSide: 'left'  } },
-    ],
-  },
-  {
     label: 'Full Sidebar',
     combos: [
       { id: 'docked-right', label: 'Right side', settings: { triggerMode: 'sidebar-tab', buttonPosition: 'bottom-right', panelMode: 'docked', sidebarSide: 'right' } },
       { id: 'docked-left',  label: 'Left side',  settings: { triggerMode: 'sidebar-tab', buttonPosition: 'bottom-right', panelMode: 'docked', sidebarSide: 'left'  } },
+    ],
+  },
+  {
+    label: 'Sidebar Tab',
+    combos: [
+      { id: 'tab-right', label: 'Right side', settings: { triggerMode: 'sidebar-tab', buttonPosition: 'bottom-right', panelMode: 'overlay', sidebarSide: 'right' } },
+      { id: 'tab-left',  label: 'Left side',  settings: { triggerMode: 'sidebar-tab', buttonPosition: 'bottom-right', panelMode: 'overlay', sidebarSide: 'left'  } },
     ],
   },
 ];
