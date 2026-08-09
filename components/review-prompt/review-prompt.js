@@ -582,7 +582,7 @@ class ReviewPrompt {
     return `
       <div class="thinkreview-store-feedback-popup" role="dialog" aria-modal="true">
         <div class="thinkreview-store-feedback-header">
-          <h3>Share your feedback</h3>
+          <h3>What do you think of ThinkReview so far?</h3>
           <button type="button" class="thinkreview-store-feedback-close" title="Close" aria-label="Close">×</button>
         </div>
         <div class="thinkreview-store-feedback-body">
