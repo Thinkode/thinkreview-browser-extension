@@ -10,6 +10,7 @@ node_modules/
 dist/
 build/
 build-firefox/
+build-edge/
 *.crx
 *.pem
 *.zip
