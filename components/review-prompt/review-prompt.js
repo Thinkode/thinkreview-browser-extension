@@ -8,8 +8,8 @@ const REVIEW_PROMPT_CONFIG = {
   chromeStoreUrl: 'https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn/reviews',
   firefoxStoreUrl: 'https://addons.mozilla.org/firefox/addon/thinkreview-code-review/reviews/',
   feedbackUrl: 'https://thinkreview.dev/extension-feedback.html',
-  // Only suppress the prompt for submits on/after this date (older submits are ignored)
-  submitSuppressCutoffDate: '2026-06-07',
+  // Re-ask after a prior submit/feedback once this many months have passed
+  submitSuppressMonths: 3,
   maxFeedbackLength: 2000,
   storageKeys: {
     reviewCount: 'reviewCount',
@@ -99,28 +99,54 @@ class ReviewPrompt {
   }
 
   /**
-   * Whether a prior submit should permanently hide the feedback prompt.
+   * Whether a prior feedback/submit interaction should still hide the prompt.
+   * Suppresses for submitSuppressMonths (default 3), then allows showing again.
    * @param {Object} lastFeedbackPromptInteraction
    * @returns {boolean}
    */
   shouldSuppressForSubmit(lastFeedbackPromptInteraction) {
-    if (!lastFeedbackPromptInteraction || lastFeedbackPromptInteraction.action !== 'submit') {
+    if (!lastFeedbackPromptInteraction) {
+      return false;
+    }
+
+    const action = lastFeedbackPromptInteraction.action;
+    if (action !== 'submit' && action !== 'feedback') {
       return false;
     }
 
     if (!lastFeedbackPromptInteraction.date) {
-      dbgLog('Submit has no date; treating as pre-cutoff and showing prompt');
+      dbgLog('Prior', action, 'has no date; treating as expired and allowing prompt');
       return false;
     }
 
-    const submitDate = new Date(lastFeedbackPromptInteraction.date);
-    const cutoffDate = new Date(`${this.config.submitSuppressCutoffDate}T00:00:00`);
-    const suppress = submitDate >= cutoffDate;
+    const interactionDate = new Date(lastFeedbackPromptInteraction.date);
+    if (Number.isNaN(interactionDate.getTime())) {
+      dbgLog('Prior', action, 'has invalid date; allowing prompt');
+      return false;
+    }
+
+    const suppressUntil = new Date(interactionDate);
+    suppressUntil.setMonth(suppressUntil.getMonth() + this.config.submitSuppressMonths);
+    const suppress = new Date() < suppressUntil;
 
     if (suppress) {
-      dbgLog('Not showing prompt: User submitted feedback on or after', this.config.submitSuppressCutoffDate);
+      dbgLog(
+        'Not showing prompt: prior',
+        action,
+        'within last',
+        this.config.submitSuppressMonths,
+        'months (until',
+        suppressUntil.toISOString(),
+        ')'
+      );
     } else {
-      dbgLog('Ignoring submit before', this.config.submitSuppressCutoffDate, '- will check other conditions');
+      dbgLog(
+        'Prior',
+        action,
+        'is older than',
+        this.config.submitSuppressMonths,
+        'months - will check other conditions'
+      );
     }
 
     return suppress;
@@ -448,7 +474,17 @@ class ReviewPrompt {
       const rewardEnabled = this.isRewardEnabled();
       const rewardMessage = this.escapeHtml(this.getRewardMessage());
       const rewardBlock = rewardEnabled && rewardMessage
-        ? `<div class="thinkreview-store-feedback-reward">${rewardMessage}</div>`
+        ? `<div class="thinkreview-store-feedback-reward" role="status">
+            <div class="thinkreview-store-feedback-reward-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3l2.4 4.86L20 8.7l-4 3.9.94 5.5L12 15.9 7.06 18.1 8 12.6 4 8.7l5.6-.84L12 3z" fill="currentColor"/>
+              </svg>
+            </div>
+            <div class="thinkreview-store-feedback-reward-copy">
+              <span class="thinkreview-store-feedback-reward-label">Reward unlocked</span>
+              <p class="thinkreview-store-feedback-reward-message">${rewardMessage}</p>
+            </div>
+          </div>`
         : '';
 
       return `
@@ -634,10 +670,10 @@ class ReviewPrompt {
       this.pendingFeedbackText = text;
 
       // Keep local dismiss cache in sync with backend action: 'feedback'
+      // (feedback body is stored only in the backend feedback subcollection)
       chrome.storage.local.set({
         lastFeedbackPromptInteraction: {
           action: 'feedback',
-          feedbackText: text,
           date: new Date().toISOString()
         }
       });
@@ -687,7 +723,6 @@ class ReviewPrompt {
     chrome.storage.local.set({
       lastFeedbackPromptInteraction: {
         action: 'submit',
-        feedbackText: this.pendingFeedbackText || null,
         date: new Date().toISOString()
       }
     });
