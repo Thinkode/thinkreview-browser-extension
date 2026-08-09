@@ -39,7 +39,7 @@ const LAYOUT_GROUPS = [
     ],
   },
   {
-    label: 'Docked Sidebar',
+    label: 'Full Sidebar',
     combos: [
       { id: 'docked-right', label: 'Right side', settings: { triggerMode: 'sidebar-tab', buttonPosition: 'bottom-right', panelMode: 'docked', sidebarSide: 'right' } },
       { id: 'docked-left',  label: 'Left side',  settings: { triggerMode: 'sidebar-tab', buttonPosition: 'bottom-right', panelMode: 'docked', sidebarSide: 'left'  } },
@@ -95,7 +95,7 @@ function _getActiveComboId(settings) {
   return getActiveLayoutComboId(settings);
 }
 
-/** Human-readable label for the current layout combo (e.g. "Docked Sidebar · Right side"). */
+/** Human-readable label for the current layout combo (e.g. "Full Sidebar · Right side"). */
 export function getLayoutComboSummary(settings) {
   const activeId = getActiveLayoutComboId(settings);
   for (const group of LAYOUT_GROUPS) {

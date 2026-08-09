@@ -211,7 +211,7 @@ function _buildSteps(panelEl) {
     {
       id: 'layout',
       title: 'Choose a layout',
-      body: 'Floating, sidebar tab, or docked — left or right. Try a layout that keeps the PR readable while you review.',
+      body: 'Floating, sidebar tab, or full sidebar — left or right. Try a layout that keeps the PR readable while you review.',
       getTarget: async () => {
         const row = await _openLayoutSubmenu();
         return row || document.getElementById('thinkreview-settings-layout-submenu');
