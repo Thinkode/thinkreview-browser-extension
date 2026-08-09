@@ -170,6 +170,48 @@ async function initReviewPromptComponent() {
 // Initialize the review prompt component
 initReviewPromptComponent();
 
+/**
+ * Refresh user data and show the store feedback prompt only when the
+ * integrated panel is open and eligibility conditions are met.
+ */
+async function maybeShowReviewPrompt() {
+  if (!reviewPrompt) return;
+
+  const panel = document.getElementById('gitlab-mr-integrated-review');
+  if (!panel || panel.classList.contains('thinkreview-panel-minimized-to-button')) {
+    return;
+  }
+
+  try {
+    const refreshResponse = await chrome.runtime.sendMessage({
+      type: 'REFRESH_USER_DATA_STORAGE'
+    });
+
+    if (refreshResponse.status === 'success') {
+      dbgLog('User data refreshed before feedback check:', {
+        hasEmail: !!refreshResponse.data?.email,
+        todayReviewCount: refreshResponse.data?.todayReviewCount
+      });
+    } else {
+      dbgWarn('Failed to refresh user data:', refreshResponse.error);
+    }
+
+    await reviewPrompt.checkAndShow();
+  } catch (error) {
+    dbgWarn('Error checking review prompt:', error);
+  }
+}
+
+window.maybeShowReviewPrompt = maybeShowReviewPrompt;
+
+function hideReviewPromptWhilePanelClosed() {
+  if (reviewPrompt) {
+    reviewPrompt.hideWhilePanelClosed();
+  } else if (window.reviewPrompt) {
+    window.reviewPrompt.hideWhilePanelClosed();
+  }
+}
+
 // Conversation history
 let conversationHistory = [];
 let currentPatchContent = '';
@@ -601,6 +643,9 @@ async function createIntegratedReviewPanel(patchUrl) {
       // Only minimize to the button, don't toggle
       container.classList.remove('thinkreview-panel-minimized', 'thinkreview-panel-hidden');
       container.classList.add('thinkreview-panel-minimized-to-button');
+
+      // Feedback prompt must not linger while the panel is closed
+      hideReviewPromptWhilePanelClosed();
 
       // Notify content.js to remove docked body margin
       document.dispatchEvent(new CustomEvent('thinkreview:panelminimized'));
@@ -2587,32 +2632,9 @@ async function displayIntegratedReview(
     });
   });
 
-  // Check if we should show the review prompt
-  setTimeout(async () => {
-    if (reviewPrompt) {
-      try {
-        // Refresh user data from server before checking feedback prompt
-        // This ensures we have the latest todayReviewCount and lastFeedbackPromptInteraction
-        const refreshResponse = await chrome.runtime.sendMessage({ 
-          type: 'REFRESH_USER_DATA_STORAGE' 
-        });
-        
-        if (refreshResponse.status === 'success') {
-          // Log only metadata, not full user data which may contain email
-          dbgLog('User data refreshed before feedback check:', {
-            hasEmail: !!refreshResponse.data?.email,
-            todayReviewCount: refreshResponse.data?.todayReviewCount
-          });
-        } else {
-          dbgWarn('Failed to refresh user data:', refreshResponse.error);
-        }
-        
-        // Now check if we should show the prompt (with fresh data in storage)
-        await reviewPrompt.checkAndShow();
-      } catch (error) {
-        // console.warn('Error checking review prompt:', error);
-      }
-    }
+  // Check if we should show the review prompt (only while the panel is open)
+  setTimeout(() => {
+    maybeShowReviewPrompt();
   }, 1000);
 
   // Handle code suggestions tab (modularized)

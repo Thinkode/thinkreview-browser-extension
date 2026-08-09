@@ -179,11 +179,25 @@ class ReviewPrompt {
   }
 
   /**
+   * Whether the integrated review panel is currently open (not minimized to the button).
+   * @returns {boolean}
+   */
+  isIntegratedPanelOpen() {
+    const panel = document.getElementById('gitlab-mr-integrated-review');
+    return !!(panel && !panel.classList.contains('thinkreview-panel-minimized-to-button'));
+  }
+
+  /**
    * Check and show the review prompt if conditions are met
    * @returns {Promise<boolean>}
    */
   async checkAndShow() {
     try {
+      if (!this.isIntegratedPanelOpen()) {
+        dbgLog('Not showing prompt: integrated panel is closed/minimized');
+        return false;
+      }
+
       const reviewCount = await this.getCurrentReviewCount();
       dbgLog('Total review count:', reviewCount, '| Threshold:', this.config.threshold);
 
@@ -213,6 +227,11 @@ class ReviewPrompt {
    * @param {number} reviewCount
    */
   async show(reviewCount = this.config.threshold) {
+    if (!this.isIntegratedPanelOpen()) {
+      dbgLog('Skipping show: integrated panel is closed/minimized');
+      return;
+    }
+
     const container = document.getElementById(this.containerId);
     if (!container) {
       dbgWarn('Container not found:', this.containerId);
@@ -223,6 +242,12 @@ class ReviewPrompt {
       await this.fetchMessages();
     } catch (error) {
       dbgWarn('Failed to fetch messages, using fallbacks:', error);
+    }
+
+    // Panel may have been closed while messages were loading
+    if (!this.isIntegratedPanelOpen()) {
+      dbgLog('Skipping show after fetch: integrated panel closed');
+      return;
     }
 
     let promptElement = container.querySelector('#review-prompt');
@@ -252,6 +277,15 @@ class ReviewPrompt {
     if (promptElement) {
       promptElement.classList.add('gl-hidden');
     }
+  }
+
+  /**
+   * Hide CTA and close the body overlay when the integrated panel closes.
+   * Does not track a "later" dismissal.
+   */
+  hideWhilePanelClosed() {
+    this.hide();
+    this.closePopup({ trackLater: false });
   }
 
   /**
