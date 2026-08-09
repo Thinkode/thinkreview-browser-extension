@@ -32,6 +32,8 @@ class ReviewPrompt {
     this.popupOverlay = null;
     this.popupStep = 1;
     this.popupEventsAbort = null;
+    /** @type {symbol|null} Invalidated when popup closes so stale submits cannot reopen UI */
+    this.activeSubmitRequest = null;
   }
 
   /**
@@ -706,10 +708,24 @@ class ReviewPrompt {
   }
 
   /**
+   * Whether a submit request may still mutate UI (popup still open + panel visible).
+   * @param {symbol} requestId
+   * @returns {boolean}
+   */
+  isSubmitRequestActive(requestId) {
+    return (
+      this.activeSubmitRequest === requestId &&
+      this.isIntegratedPanelOpen() &&
+      !!(this.popupOverlay && this.popupOverlay.isConnected)
+    );
+  }
+
+  /**
    * Close popup without dismissing the CTA unless requested.
    * @param {{ trackLater?: boolean }} options
    */
   closePopup(options = {}) {
+    this.activeSubmitRequest = null;
     this.clearPopupEvents();
 
     if (this.popupOverlay) {
@@ -733,6 +749,9 @@ class ReviewPrompt {
     const text = (feedbackText || '').trim();
     if (!text) return;
 
+    const requestId = Symbol('feedbackSubmit');
+    this.activeSubmitRequest = requestId;
+
     const overlay = this.popupOverlay;
     const submitBtn = overlay && overlay.querySelector('.thinkreview-store-feedback-primary-btn');
     if (submitBtn) {
@@ -742,7 +761,16 @@ class ReviewPrompt {
 
     try {
       await this.ensureCloudService();
+      if (!this.isSubmitRequestActive(requestId)) {
+        dbgLog('Ignoring feedback submit result: popup closed or panel minimized during request');
+        return;
+      }
+
       const email = await this.getUserEmail();
+      if (!this.isSubmitRequestActive(requestId)) {
+        dbgLog('Ignoring feedback submit result: popup closed or panel minimized during request');
+        return;
+      }
       if (!email) {
         throw new Error('No user email available');
       }
@@ -751,6 +779,11 @@ class ReviewPrompt {
         source: 'extension_review_prompt',
         browser: this.getBrowserLabel()
       });
+
+      if (!this.isSubmitRequestActive(requestId)) {
+        dbgLog('Ignoring feedback submit result: popup closed or panel minimized during request');
+        return;
+      }
 
       this.pendingFeedbackText = text;
 
@@ -767,6 +800,7 @@ class ReviewPrompt {
       this.emit('feedback-submitted', { reviewCount: await this.getCurrentReviewCount() });
     } catch (error) {
       dbgWarn('Failed to submit extension feedback:', error);
+      if (!this.isSubmitRequestActive(requestId)) return;
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Submit feedback';
