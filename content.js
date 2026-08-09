@@ -257,14 +257,6 @@ function getCurrentPlatform() {
 }
 
 /**
- * Check if the current page is a GitLab merge request page (legacy function)
- * @returns {boolean} True if the current page is a GitLab MR page
- */
-function isGitLabMRPage() {
-  return /\/merge_requests\//.test(window.location.pathname);
-}
-
-/**
  * Get patch URL for GitLab or GitHub (legacy function)
  * @returns {string} Patch URL
  */

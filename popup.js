@@ -1356,7 +1356,7 @@ async function removeGitHubEnterpriseDomain(domain) {
     showMessage('Domain removed successfully!', 'success');
   } catch (error) {
     dbgWarn('Error removing GitHub Enterprise domain:', error);
-    showMessage('Couldn't remove domain. Please try again.', 'error');
+    showMessage("Couldn't remove domain. Please try again.", 'error');
   }
 }
 
@@ -1397,7 +1397,7 @@ async function removeDomain(domain) {
     
   } catch (error) {
     dbgWarn('Error removing domain:', error);
-    showMessage('Couldn't remove domain. Please try again.', 'error');
+    showMessage("Couldn't remove domain. Please try again.", 'error');
   }
 }
 
@@ -1590,7 +1590,7 @@ async function removeAzureDevOpsDomain(domain) {
     showMessage('Domain removed successfully!', 'success');
   } catch (error) {
     dbgWarn('Error removing Azure DevOps domain:', error);
-    showMessage('Couldn't remove domain. Please try again.', 'error');
+    showMessage("Couldn't remove domain. Please try again.", 'error');
   }
 }
 
@@ -1939,7 +1939,7 @@ async function removeBitbucketDataCenterDomain(domain) {
     showMessage('Domain removed successfully!', 'success');
   } catch (error) {
     dbgWarn('Error removing Bitbucket Data Center domain:', error);
-    showMessage('Couldn't remove domain. Please try again.', 'error');
+    showMessage("Couldn't remove domain. Please try again.", 'error');
   }
 }
 
