@@ -1,6 +1,6 @@
 /**
  * Review Prompt Component Styles
- * Modular CSS for the review prompt functionality
+ * Compact inline CTA + two-step store feedback popup
  */
 
 /* Review Prompt Container */
@@ -8,7 +8,6 @@
   margin-top: 8px;
 }
 
-/* Alert Styles */
 #review-prompt .gl-alert {
   padding: 10px 12px;
   border-radius: 8px;
@@ -32,86 +31,52 @@
   margin-bottom: 4px;
 }
 
-/* Modern Review Prompt */
-#review-prompt .review-prompt-modern {
+/* Compact inline CTA */
+#review-prompt .review-prompt-compact {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
   border-radius: 8px;
   color: white;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  padding: 10px 12px;
 }
 
-#review-prompt .review-prompt-header {
+#review-prompt .review-prompt-compact-inner {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-#review-prompt .review-prompt-icon {
-  font-size: 22px;
-  line-height: 1;
+#review-prompt .review-prompt-compact-copy {
+  flex: 1 1 180px;
+  min-width: 0;
 }
 
-#review-prompt .review-prompt-subtitle {
+#review-prompt .review-prompt-compact-subtitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+#review-prompt .review-prompt-compact-question {
   margin: 2px 0 0 0;
+  font-size: 11px;
   opacity: 0.9;
-  font-size: 12px;
+  line-height: 1.35;
 }
 
-#review-prompt .review-prompt-content {
-  padding-top: 4px;
-}
-
-#review-prompt .review-prompt-question {
-  font-size: 13px;
-  font-weight: 500;
-  margin-bottom: 10px;
-  text-align: center;
-}
-
-/* GitHub Link */
-#review-prompt .review-prompt-github-link {
-  margin: 8px 0 8px 0;
-  text-align: center;
-}
-
-#review-prompt .review-prompt-github-link a {
-  color: rgba(255, 255, 255, 0.9);
-  text-decoration: none;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 4px;
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-#review-prompt .review-prompt-github-link a:hover {
-  color: white;
-  background-color: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.4);
-  transform: translateY(-1px);
-}
-
-#review-prompt .review-prompt-github-link a:active {
-  transform: translateY(0);
-}
-
-/* Modern Button Styles */
-#review-prompt .review-prompt-actions {
+#review-prompt .review-prompt-compact-actions {
   display: flex;
-  justify-content: center;
+  align-items: center;
   gap: 8px;
-  margin-top: 10px;
+  flex-shrink: 0;
 }
 
 #review-prompt .review-prompt-btn {
-  padding: 6px 14px;
+  padding: 6px 12px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 6px;
   font-size: 12px;
@@ -125,108 +90,33 @@
   background-color: transparent;
   color: white;
   user-select: none;
+  white-space: nowrap;
 }
 
 #review-prompt .review-prompt-btn-secondary {
   background-color: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.3);
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
 }
 
 #review-prompt .review-prompt-btn-secondary:hover {
   background-color: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.5);
   color: white;
-  transform: translateY(-1px);
-}
-
-#review-prompt .review-prompt-btn-secondary:active {
-  transform: translateY(0);
 }
 
 #review-prompt .review-prompt-btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: rgba(255, 255, 255, 0.5);
-  border-width: 1px;
-  color: white;
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(255, 255, 255, 0.95);
+  color: #5a45b0;
   font-weight: 600;
 }
 
-#review-prompt .review-prompt-btn-primary:disabled {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.5);
-  cursor: not-allowed;
-  transform: none;
+#review-prompt .review-prompt-btn-primary:hover {
+  background: #ffffff;
+  color: #4a3799;
 }
 
-#review-prompt .review-prompt-btn-primary:enabled:hover,
-#review-prompt .review-prompt-btn-primary.enabled:hover {
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-  border-color: rgba(255, 255, 255, 0.7);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
-}
-
-#review-prompt .review-prompt-btn-primary:enabled:active,
-#review-prompt .review-prompt-btn-primary.enabled:active {
-  transform: translateY(0);
-}
-
-/* Legacy button styles for compatibility */
-#review-prompt .gl-btn {
-  padding: 6px 12px;
-  border: 1px solid #e1e4e8;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-block;
-  transition: all 0.2s ease;
-  background-color: #f6f8fa;
-  color: #24292e;
-  user-select: none;
-}
-
-#review-prompt .gl-btn-default {
-  background-color: #f6f8fa;
-  border-color: #e1e4e8;
-  color: #24292e;
-}
-
-#review-prompt .gl-btn-default:hover {
-  background-color: #e1e4e8;
-  border-color: #d1d5da;
-}
-
-#review-prompt .gl-btn-sm {
-  padding: 4px 8px;
-  font-size: 11px;
-}
-
-/* Layout Utilities */
-#review-prompt .gl-display-flex {
-  display: flex;
-}
-
-#review-prompt .gl-align-items-center {
-  align-items: center;
-}
-
-#review-prompt .gl-justify-content-center {
-  justify-content: center;
-}
-
-#review-prompt .gl-gap-2 {
-  gap: 8px;
-}
-
-#review-prompt .gl-gap-3 {
-  gap: 12px;
-}
-
-/* Spacing Utilities */
 #review-prompt .gl-mt-3 {
   margin-top: 12px;
 }
@@ -235,32 +125,12 @@
   margin-top: 16px;
 }
 
-#review-prompt .gl-mb-3 {
-  margin-bottom: 12px;
-}
-
-#review-prompt .gl-mr-3 {
-  margin-right: 12px;
-}
-
-#review-prompt .gl-p-3 {
-  padding: 12px;
-}
-
-#review-prompt .gl-mt-2 {
-  margin-top: 8px;
-}
-
-#review-prompt .gl-mb-2 {
-  margin-bottom: 8px;
-}
-
 /* Thank You Message */
 .review-thank-you-message {
-  animation: fadeIn 0.3s ease-in-out;
+  animation: reviewPromptFadeIn 0.3s ease-in-out;
 }
 
-@keyframes fadeIn {
+@keyframes reviewPromptFadeIn {
   from {
     opacity: 0;
     transform: translateY(-10px);
@@ -271,35 +141,235 @@
   }
 }
 
-/* Responsive Design */
+/* Two-step store feedback popup */
+.thinkreview-store-feedback-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--thinkreview-z-modal-overlay, 100000);
+  animation: reviewPromptFadeIn 0.2s ease;
+}
+
+.thinkreview-store-feedback-popup {
+  background-color: #2d2d2d;
+  border: 2px solid #6b4fbb;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: reviewPromptSlideUp 0.25s ease;
+}
+
+@keyframes reviewPromptSlideUp {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.thinkreview-store-feedback-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #404040;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.thinkreview-store-feedback-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.thinkreview-store-feedback-close {
+  background: none;
+  border: none;
+  color: #cccccc;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.thinkreview-store-feedback-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.thinkreview-store-feedback-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  color: #e6e6e6;
+}
+
+.thinkreview-store-feedback-body p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.thinkreview-store-feedback-label {
+  display: block;
+  font-size: 12px;
+  color: #bdbdbd;
+  margin-bottom: 6px;
+}
+
+.thinkreview-store-feedback-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 110px;
+  resize: vertical;
+  border-radius: 8px;
+  border: 1px solid #555;
+  background: #1f1f1f;
+  color: #ffffff;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  font-family: inherit;
+}
+
+.thinkreview-store-feedback-textarea:focus {
+  outline: none;
+  border-color: #6b4fbb;
+}
+
+.thinkreview-store-feedback-char-count {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #9e9e9e;
+  text-align: right;
+}
+
+.thinkreview-store-feedback-char-count--warn {
+  color: #ffb74d;
+}
+
+.thinkreview-store-feedback-reward {
+  margin: 0 0 12px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(107, 79, 187, 0.25);
+  border: 1px solid rgba(107, 79, 187, 0.55);
+  color: #f3eefc;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.thinkreview-store-feedback-copy-btn {
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid #666;
+  color: #ddd;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.thinkreview-store-feedback-copy-btn:hover {
+  border-color: #999;
+  color: #fff;
+}
+
+.thinkreview-store-feedback-error {
+  margin-top: 10px;
+  color: #ff8a80;
+  font-size: 12px;
+}
+
+.thinkreview-store-feedback-footer {
+  padding: 12px 20px 16px;
+  border-top: 1px solid #404040;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.thinkreview-store-feedback-later-btn,
+.thinkreview-store-feedback-primary-btn {
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.thinkreview-store-feedback-later-btn {
+  background: transparent;
+  border-color: #666;
+  color: #ddd;
+}
+
+.thinkreview-store-feedback-later-btn:hover {
+  border-color: #999;
+  color: #fff;
+}
+
+.thinkreview-store-feedback-primary-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+  font-weight: 600;
+}
+
+.thinkreview-store-feedback-primary-btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.thinkreview-store-feedback-primary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 @media (max-width: 480px) {
-  #review-prompt .gl-btn-sm {
-    padding: 3px 6px;
-    font-size: 10px;
+  #review-prompt .review-prompt-compact-inner {
+    flex-direction: column;
+    align-items: stretch;
   }
-  
-  #review-prompt .gl-gap-3 {
-    gap: 8px;
+
+  #review-prompt .review-prompt-compact-actions {
+    width: 100%;
+  }
+
+  #review-prompt .review-prompt-btn {
+    flex: 1;
   }
 }
 
-/* High Contrast Mode Support */
-@media (prefers-contrast: high) {
-  #review-prompt .gl-btn {
-    border-width: 2px;
-  }
-}
-
-/* Reduced Motion Support */
 @media (prefers-reduced-motion: reduce) {
-  .review-thank-you-message {
+  .review-thank-you-message,
+  .thinkreview-store-feedback-overlay,
+  .thinkreview-store-feedback-popup {
     animation: none;
   }
 }
 
-/* Print Styles */
 @media print {
-  #review-prompt {
+  #review-prompt,
+  .thinkreview-store-feedback-overlay {
     display: none !important;
   }
 }

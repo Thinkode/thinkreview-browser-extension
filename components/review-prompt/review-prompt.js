@@ -1,32 +1,38 @@
-import { dbgLog, dbgWarn, dbgError } from '../../utils/logger.js';
+import { dbgLog, dbgWarn } from '../../utils/logger.js';
 /**
  * Review Prompt Component
- * Modular component for handling user feedback prompts after generating reviews
+ * Compact inline CTA + two-step popup for store feedback
  */
-// Configuration
 const REVIEW_PROMPT_CONFIG = {
   threshold: 5, // Show prompt after 5 total reviews
   chromeStoreUrl: 'https://chromewebstore.google.com/detail/thinkreview-ai-code-revie/bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn/reviews',
   firefoxStoreUrl: 'https://addons.mozilla.org/firefox/addon/thinkreview-code-review/reviews/',
-  feedbackUrl: 'https://thinkreview.dev/extension-feedback.html', // Updated to new extension-specific feedback form
+  feedbackUrl: 'https://thinkreview.dev/extension-feedback.html',
   // Only suppress the prompt for submits on/after this date (older submits are ignored)
   submitSuppressCutoffDate: '2026-06-07',
+  maxFeedbackLength: 2000,
   storageKeys: {
     reviewCount: 'reviewCount',
     todayReviewCount: 'todayReviewCount'
-    // Note: We no longer use localStorage/sessionStorage flags
-    // The source of truth is Firestore's lastFeedbackPromptInteraction
-    // which is cached in chrome.storage.local
   }
 };
+
+const DEFAULT_SUBTITLE = "We'd love to hear your feedback about ThinkReview";
+const DEFAULT_QUESTION = 'Would you mind leaving us a quick review?';
+const DEFAULT_REWARD_MESSAGE =
+  'Post your review on the Chrome Web Store or Firefox Add-ons and get 1 month of ThinkReview Lite free.';
 
 class ReviewPrompt {
   constructor(config = {}) {
     this.config = { ...REVIEW_PROMPT_CONFIG, ...config };
     this.isInitialized = false;
     this.eventListeners = new Map();
-    this.messages = null; // Cache for fetched messages
-    this.messagesFetchPromise = null; // Promise to prevent concurrent fetches
+    this.messages = null;
+    this.messagesFetchPromise = null;
+    this.popupAutoOpenedForShow = false;
+    this.pendingFeedbackText = '';
+    this.popupOverlay = null;
+    this.popupStep = 1;
   }
 
   /**
@@ -41,7 +47,7 @@ class ReviewPrompt {
 
     this.containerId = containerId;
     this.isInitialized = true;
-    
+
     dbgLog('Initialized with config:', this.config);
   }
 
@@ -58,6 +64,13 @@ class ReviewPrompt {
   }
 
   /**
+   * @returns {'chrome'|'firefox'}
+   */
+  getBrowserLabel() {
+    return this.isFirefoxBrowser() ? 'firefox' : 'chrome';
+  }
+
+  /**
    * Store review URL for the current browser.
    * @returns {string}
    */
@@ -65,6 +78,14 @@ class ReviewPrompt {
     return this.isFirefoxBrowser()
       ? this.config.firefoxStoreUrl
       : this.config.chromeStoreUrl;
+  }
+
+  /**
+   * Human-readable store name for copy.
+   * @returns {string}
+   */
+  getStoreDisplayName() {
+    return this.isFirefoxBrowser() ? 'Firefox Add-ons' : 'the Chrome Web Store';
   }
 
   /**
@@ -79,7 +100,6 @@ class ReviewPrompt {
 
   /**
    * Whether a prior submit should permanently hide the feedback prompt.
-   * Submissions before submitSuppressCutoffDate are ignored so users see the updated prompt.
    * @param {Object} lastFeedbackPromptInteraction
    * @returns {boolean}
    */
@@ -108,57 +128,48 @@ class ReviewPrompt {
 
   /**
    * Check if the review prompt should be shown
-   * @param {number} reviewCount - Current number of reviews generated
-   * @param {Object} lastFeedbackPromptInteraction - Last feedback prompt interaction data from Firestore
-   * @returns {boolean} - True if prompt should be shown
+   * @param {number} reviewCount
+   * @param {Object} lastFeedbackPromptInteraction
+   * @returns {boolean}
    */
   shouldShow(reviewCount, lastFeedbackPromptInteraction = null) {
-    // Check lastFeedbackPromptInteraction from Firestore (source of truth)
     if (lastFeedbackPromptInteraction && lastFeedbackPromptInteraction.action) {
       dbgLog('Last feedback prompt interaction from Firestore:', lastFeedbackPromptInteraction);
-      
-      // If action was "submit", only hide for submissions on/after the cutoff date
+
       if (this.shouldSuppressForSubmit(lastFeedbackPromptInteraction)) {
         return false;
       }
-      
-      // If action was "later", only show if more than 7 days have passed
+
       if (lastFeedbackPromptInteraction.action === 'later' && lastFeedbackPromptInteraction.date) {
         const lastInteractionDate = new Date(lastFeedbackPromptInteraction.date);
         const today = new Date();
         const daysSinceLastInteraction = Math.floor((today - lastInteractionDate) / (1000 * 60 * 60 * 24));
-        
+
         dbgLog('Days since last "later" interaction:', daysSinceLastInteraction);
-        
+
         if (daysSinceLastInteraction <= 7) {
           dbgLog('Not showing prompt: Less than 7 days since "later" (', daysSinceLastInteraction, 'days)');
           return false;
-        } else {
-          dbgLog('More than 7 days since "later", will check other conditions');
         }
+        dbgLog('More than 7 days since "later", will check other conditions');
       }
-      
-      // If action was "never", never show the prompt
+
       if (lastFeedbackPromptInteraction.action === 'never') {
         dbgLog('Not showing prompt: User selected "never ask again" in Firestore');
         return false;
       }
     }
-    
-    // Show prompt when review count reaches the threshold
+
     const shouldShow = reviewCount >= this.config.threshold;
     dbgLog('Should show prompt:', shouldShow, '(count:', reviewCount, '>=', this.config.threshold, ')');
     return shouldShow;
   }
 
   /**
-   * Get the total review count from storage
-   * @returns {Promise<number>} - Total review count across all time
+   * @returns {Promise<number>}
    */
   async getCurrentReviewCount() {
     return new Promise((resolve) => {
-      // Get total reviewCount from storage (not daily count)
-      // This is kept up-to-date by the background service and incremented after each review
       chrome.storage.local.get([this.config.storageKeys.reviewCount], (result) => {
         const count = result[this.config.storageKeys.reviewCount] || 0;
         dbgLog('Got total reviewCount from storage:', count);
@@ -169,29 +180,27 @@ class ReviewPrompt {
 
   /**
    * Check and show the review prompt if conditions are met
-   * @returns {Promise<boolean>} - True if prompt was shown
+   * @returns {Promise<boolean>}
    */
   async checkAndShow() {
     try {
       const reviewCount = await this.getCurrentReviewCount();
       dbgLog('Total review count:', reviewCount, '| Threshold:', this.config.threshold);
-      
-      // Get lastFeedbackPromptInteraction from storage
+
       const lastFeedbackPromptInteraction = await new Promise((resolve) => {
         chrome.storage.local.get(['lastFeedbackPromptInteraction'], (result) => {
           resolve(result.lastFeedbackPromptInteraction || null);
         });
       });
       dbgLog('Last feedback prompt interaction from storage:', lastFeedbackPromptInteraction);
-      
+
       if (this.shouldShow(reviewCount, lastFeedbackPromptInteraction)) {
         dbgLog('Conditions met, showing prompt');
         await this.show(reviewCount);
         return true;
-      } else {
-        dbgLog('Conditions not met, not showing prompt');
       }
-      
+
+      dbgLog('Conditions not met, not showing prompt');
       return false;
     } catch (error) {
       dbgWarn('Error checking review prompt:', error);
@@ -200,8 +209,8 @@ class ReviewPrompt {
   }
 
   /**
-   * Show the review prompt
-   * @param {number} reviewCount - The current review count to display
+   * Show compact CTA and auto-open the two-step popup once per show cycle.
+   * @param {number} reviewCount
    */
   async show(reviewCount = this.config.threshold) {
     const container = document.getElementById(this.containerId);
@@ -210,35 +219,33 @@ class ReviewPrompt {
       return;
     }
 
-    // Fetch messages asynchronously (will use cache if already fetched)
-    // This is non-blocking - if fetch fails, will use fallback messages
     try {
       await this.fetchMessages();
     } catch (error) {
       dbgWarn('Failed to fetch messages, using fallbacks:', error);
-      // Continue with fallback messages
     }
 
-    // Create the prompt HTML if it doesn't exist
     let promptElement = container.querySelector('#review-prompt');
     if (!promptElement) {
       promptElement = this.createPromptElement(reviewCount);
-      
-      // Add to the end of the container (original working approach)
       container.appendChild(promptElement);
+    } else {
+      this.refreshInlineCtaCopy(promptElement);
     }
 
-    // Show the prompt
     promptElement.classList.remove('gl-hidden');
-    
-    // Add event listeners
     this.addEventListeners(promptElement);
-    
+
+    if (!this.popupAutoOpenedForShow) {
+      this.popupAutoOpenedForShow = true;
+      this.openPopup(1);
+    }
+
     dbgLog('Prompt shown');
   }
 
   /**
-   * Hide the review prompt
+   * Hide the compact inline CTA
    */
   hide() {
     const promptElement = document.getElementById('review-prompt');
@@ -249,8 +256,8 @@ class ReviewPrompt {
 
   /**
    * Escape HTML to prevent XSS
-   * @param {string} text - Text to escape
-   * @returns {string} - Escaped HTML
+   * @param {string} text
+   * @returns {string}
    */
   escapeHtml(text) {
     const div = document.createElement('div');
@@ -258,102 +265,101 @@ class ReviewPrompt {
     return div.innerHTML;
   }
 
+  getSubtitle() {
+    return (this.messages && this.messages.subtitle) ? this.messages.subtitle : DEFAULT_SUBTITLE;
+  }
+
+  getQuestion() {
+    return (this.messages && this.messages.question) ? this.messages.question : DEFAULT_QUESTION;
+  }
+
+  isRewardEnabled() {
+    return !!(this.messages && this.messages.rewardEnabled === true);
+  }
+
+  getRewardMessage() {
+    if (!this.isRewardEnabled()) return '';
+    if (this.messages && typeof this.messages.rewardMessage === 'string' && this.messages.rewardMessage.trim()) {
+      return this.messages.rewardMessage.trim();
+    }
+    return DEFAULT_REWARD_MESSAGE;
+  }
+
   /**
-   * Create the review prompt HTML element
-   * @param {number} reviewCount - The current review count to display
-   * @returns {HTMLElement} - The prompt element
+   * Compact inline CTA
+   * @returns {HTMLElement}
    */
-  createPromptElement(reviewCount = this.config.threshold) {
-    // Fallback messages (hardcoded defaults)
-    const DEFAULT_SUBTITLE = "We'd love to hear your feedback about ThinkReview";
-    const DEFAULT_QUESTION = "Would you mind leaving us a quick review?";
-    
-    // Use fetched messages if available, otherwise use fallbacks
-    const subtitle = (this.messages && this.messages.subtitle) ? this.messages.subtitle : DEFAULT_SUBTITLE;
-    const question = (this.messages && this.messages.question) ? this.messages.question : DEFAULT_QUESTION;
-    
-    // Escape HTML to prevent XSS
-    const escapedSubtitle = this.escapeHtml(subtitle);
-    const escapedQuestion = this.escapeHtml(question);
-    
+  createPromptElement() {
+    const subtitle = this.escapeHtml(this.getSubtitle());
+    const question = this.escapeHtml(this.getQuestion());
+
     const promptDiv = document.createElement('div');
     promptDiv.id = 'review-prompt';
     promptDiv.className = 'gl-hidden';
     promptDiv.innerHTML = `
-      <div class="gl-alert gl-alert-info gl-mt-4 review-prompt-modern">
-        <div class="gl-alert-content">
-          <div class="review-prompt-header">
-            <div class="review-prompt-icon">🎉</div>
-            <div>
-              <p class="review-prompt-subtitle">${escapedSubtitle}</p>
-            </div>
+      <div class="gl-alert gl-alert-info gl-mt-4 review-prompt-compact">
+        <div class="gl-alert-content review-prompt-compact-inner">
+          <div class="review-prompt-compact-copy">
+            <p class="review-prompt-compact-subtitle">${subtitle}</p>
+            <p class="review-prompt-compact-question">${question}</p>
           </div>
-          
-          <div class="review-prompt-content">
-            <p class="review-prompt-question">${escapedQuestion}</p>
-            
-            <div class="review-prompt-github-link">
-              <a href="https://github.com/Thinkode/thinkreview-browser-extension" target="_blank" rel="noopener noreferrer">
-                Star our Repo on Github
-              </a>
-            </div>
-            
-            <div class="review-prompt-actions">
-              <button id="review-prompt-dismiss" class="review-prompt-btn review-prompt-btn-secondary">Maybe Later</button>
-              <button id="review-prompt-submit" class="review-prompt-btn review-prompt-btn-primary">Leave a Review</button>
-            </div>
+          <div class="review-prompt-compact-actions">
+            <button type="button" id="review-prompt-open" class="review-prompt-btn review-prompt-btn-primary">
+              Share feedback
+            </button>
+            <button type="button" id="review-prompt-dismiss" class="review-prompt-btn review-prompt-btn-secondary">
+              Maybe Later
+            </button>
           </div>
         </div>
       </div>
     `;
-    
+
     return promptDiv;
   }
 
+  refreshInlineCtaCopy(promptElement) {
+    const subtitleEl = promptElement.querySelector('.review-prompt-compact-subtitle');
+    const questionEl = promptElement.querySelector('.review-prompt-compact-question');
+    if (subtitleEl) subtitleEl.textContent = this.getSubtitle();
+    if (questionEl) questionEl.textContent = this.getQuestion();
+  }
+
   /**
-   * Add event listeners to the prompt
-   * @param {HTMLElement} promptElement - The prompt element
+   * @param {HTMLElement} promptElement
    */
   addEventListeners(promptElement) {
-    // Remove existing listeners to prevent duplicates
     this.removeEventListeners(promptElement);
 
-    // Dismiss button
     const dismissBtn = promptElement.querySelector('#review-prompt-dismiss');
     if (dismissBtn) {
       const listener = (e) => {
         e.preventDefault();
         this.dismiss();
       };
-      
       dismissBtn.addEventListener('click', listener);
       this.eventListeners.set(dismissBtn, listener);
     }
 
-    // Submit button
-    const submitBtn = promptElement.querySelector('#review-prompt-submit');
-    if (submitBtn) {
+    const openBtn = promptElement.querySelector('#review-prompt-open');
+    if (openBtn) {
       const listener = (e) => {
         e.preventDefault();
-        this.handleSubmit();
+        this.openPopup(1);
       };
-      
-      submitBtn.addEventListener('click', listener);
-      this.eventListeners.set(submitBtn, listener);
+      openBtn.addEventListener('click', listener);
+      this.eventListeners.set(openBtn, listener);
     }
   }
 
   /**
-   * Remove event listeners from the prompt
-   * @param {HTMLElement} promptElement - The prompt element
+   * @param {HTMLElement} promptElement
    */
   removeEventListeners(promptElement) {
     this.eventListeners.forEach((listeners, element) => {
       if (typeof listeners === 'function') {
-        // Old style single listener
         element.removeEventListener('click', listeners);
       } else if (typeof listeners === 'object') {
-        // New style multiple listeners
         if (listeners.mouseEnterListener) {
           element.removeEventListener('mouseenter', listeners.mouseEnterListener);
         }
@@ -369,95 +375,371 @@ class ReviewPrompt {
   }
 
   /**
-   * Handle user choosing to leave a review
+   * Open the two-step feedback popup
+   * @param {1|2} step
    */
-  async handleSubmit() {
-    dbgLog('User chose to leave a review');
-    
-    this.hide();
-    
+  openPopup(step = 1) {
+    this.closePopup({ trackLater: false });
+    this.popupStep = step;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'thinkreview-store-feedback-overlay';
+    overlay.className = 'thinkreview-store-feedback-overlay';
+    overlay.innerHTML = this.buildPopupHtml(step);
+    document.body.appendChild(overlay);
+    this.popupOverlay = overlay;
+
+    this.bindPopupEvents(overlay, step);
+
+    if (step === 1) {
+      const textarea = overlay.querySelector('#thinkreview-store-feedback-textarea');
+      if (textarea) {
+        if (this.pendingFeedbackText) {
+          textarea.value = this.pendingFeedbackText;
+          this.updateCharCount(overlay);
+        }
+        setTimeout(() => textarea.focus(), 100);
+      }
+    }
+  }
+
+  /**
+   * @param {1|2} step
+   * @returns {string}
+   */
+  buildPopupHtml(step) {
+    const storeName = this.escapeHtml(this.getStoreDisplayName());
+    if (step === 2) {
+      const feedbackPreview = this.escapeHtml(this.pendingFeedbackText || '');
+      const rewardEnabled = this.isRewardEnabled();
+      const rewardMessage = this.escapeHtml(this.getRewardMessage());
+      const rewardBlock = rewardEnabled && rewardMessage
+        ? `<div class="thinkreview-store-feedback-reward">${rewardMessage}</div>`
+        : '';
+
+      return `
+        <div class="thinkreview-store-feedback-popup" role="dialog" aria-modal="true">
+          <div class="thinkreview-store-feedback-header">
+            <h3>One last step</h3>
+            <button type="button" class="thinkreview-store-feedback-close" title="Close" aria-label="Close">×</button>
+          </div>
+          <div class="thinkreview-store-feedback-body">
+            <p>Spend about 10 seconds posting this feedback on ${storeName}.</p>
+            ${rewardBlock}
+            <label class="thinkreview-store-feedback-label" for="thinkreview-store-feedback-preview">Your feedback (copy &amp; paste)</label>
+            <textarea
+              id="thinkreview-store-feedback-preview"
+              class="thinkreview-store-feedback-textarea"
+              readonly
+              rows="5"
+            >${feedbackPreview}</textarea>
+            <button type="button" class="thinkreview-store-feedback-copy-btn">Copy feedback</button>
+          </div>
+          <div class="thinkreview-store-feedback-footer">
+            <button type="button" class="thinkreview-store-feedback-later-btn">Maybe Later</button>
+            <button type="button" class="thinkreview-store-feedback-primary-btn">Post on ${storeName}</button>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="thinkreview-store-feedback-popup" role="dialog" aria-modal="true">
+        <div class="thinkreview-store-feedback-header">
+          <h3>Share your feedback</h3>
+          <button type="button" class="thinkreview-store-feedback-close" title="Close" aria-label="Close">×</button>
+        </div>
+        <div class="thinkreview-store-feedback-body">
+          <p>What did you like, or what should we improve? Your note helps us keep ThinkReview free and open source.</p>
+          <textarea
+            id="thinkreview-store-feedback-textarea"
+            class="thinkreview-store-feedback-textarea"
+            placeholder="Write a short review of your experience..."
+            maxlength="${this.config.maxFeedbackLength}"
+            rows="5"
+          ></textarea>
+          <div class="thinkreview-store-feedback-char-count">0/${this.config.maxFeedbackLength}</div>
+        </div>
+        <div class="thinkreview-store-feedback-footer">
+          <button type="button" class="thinkreview-store-feedback-later-btn">Maybe Later</button>
+          <button type="button" class="thinkreview-store-feedback-primary-btn" disabled>Submit feedback</button>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * @param {HTMLElement} overlay
+   * @param {1|2} step
+   */
+  bindPopupEvents(overlay, step) {
+    const closeBtn = overlay.querySelector('.thinkreview-store-feedback-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.closePopup({ trackLater: false }));
+    }
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        this.closePopup({ trackLater: false });
+      }
+    });
+
+    const laterBtn = overlay.querySelector('.thinkreview-store-feedback-later-btn');
+    if (laterBtn) {
+      laterBtn.addEventListener('click', () => this.dismiss());
+    }
+
+    if (step === 1) {
+      const textarea = overlay.querySelector('#thinkreview-store-feedback-textarea');
+      const submitBtn = overlay.querySelector('.thinkreview-store-feedback-primary-btn');
+
+      if (textarea && submitBtn) {
+        const onInput = () => {
+          this.updateCharCount(overlay);
+          submitBtn.disabled = textarea.value.trim().length === 0;
+        };
+        textarea.addEventListener('input', onInput);
+        onInput();
+
+        submitBtn.addEventListener('click', () => {
+          this.handleFeedbackSubmit(textarea.value);
+        });
+      }
+      return;
+    }
+
+    const copyBtn = overlay.querySelector('.thinkreview-store-feedback-copy-btn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(this.pendingFeedbackText || '');
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => {
+            copyBtn.textContent = 'Copy feedback';
+          }, 1500);
+        } catch (err) {
+          dbgWarn('Clipboard copy failed:', err);
+          const preview = overlay.querySelector('#thinkreview-store-feedback-preview');
+          if (preview) {
+            preview.focus();
+            preview.select();
+          }
+        }
+      });
+    }
+
+    const storeBtn = overlay.querySelector('.thinkreview-store-feedback-primary-btn');
+    if (storeBtn) {
+      storeBtn.addEventListener('click', () => this.handleStoreRedirect());
+    }
+  }
+
+  /**
+   * @param {HTMLElement} overlay
+   */
+  updateCharCount(overlay) {
+    const textarea = overlay.querySelector('#thinkreview-store-feedback-textarea');
+    const charCount = overlay.querySelector('.thinkreview-store-feedback-char-count');
+    if (!textarea || !charCount) return;
+
+    const length = textarea.value.length;
+    const max = this.config.maxFeedbackLength;
+    charCount.textContent = `${length}/${max}`;
+    if (length > max * 0.9) {
+      charCount.classList.add('thinkreview-store-feedback-char-count--warn');
+    } else {
+      charCount.classList.remove('thinkreview-store-feedback-char-count--warn');
+    }
+  }
+
+  /**
+   * Close popup without dismissing the CTA unless requested.
+   * @param {{ trackLater?: boolean }} options
+   */
+  closePopup(options = {}) {
+    if (this.popupOverlay) {
+      this.popupOverlay.remove();
+      this.popupOverlay = null;
+    } else {
+      const existing = document.getElementById('thinkreview-store-feedback-overlay');
+      if (existing) existing.remove();
+    }
+
+    if (options.trackLater) {
+      this.dismiss();
+    }
+  }
+
+  /**
+   * Step 1: send feedback to backend, then advance to step 2.
+   * @param {string} feedbackText
+   */
+  async handleFeedbackSubmit(feedbackText) {
+    const text = (feedbackText || '').trim();
+    if (!text) return;
+
+    const overlay = this.popupOverlay;
+    const submitBtn = overlay && overlay.querySelector('.thinkreview-store-feedback-primary-btn');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+    }
+
+    try {
+      await this.ensureCloudService();
+      const email = await this.getUserEmail();
+      if (!email) {
+        throw new Error('No user email available');
+      }
+
+      await window.CloudService.submitExtensionFeedback(email, text, {
+        source: 'extension_review_prompt',
+        browser: this.getBrowserLabel()
+      });
+
+      this.pendingFeedbackText = text;
+
+      // Keep local dismiss cache in sync with backend action: 'feedback'
+      chrome.storage.local.set({
+        lastFeedbackPromptInteraction: {
+          action: 'feedback',
+          feedbackText: text,
+          date: new Date().toISOString()
+        }
+      });
+
+      this.openPopup(2);
+      this.emit('feedback-submitted', { reviewCount: await this.getCurrentReviewCount() });
+    } catch (error) {
+      dbgWarn('Failed to submit extension feedback:', error);
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit feedback';
+      }
+      this.showInlineError(overlay, 'Could not send feedback. Please try again.');
+    }
+  }
+
+  /**
+   * @param {HTMLElement|null} overlay
+   * @param {string} message
+   */
+  showInlineError(overlay, message) {
+    if (!overlay) return;
+    let err = overlay.querySelector('.thinkreview-store-feedback-error');
+    if (!err) {
+      err = document.createElement('div');
+      err.className = 'thinkreview-store-feedback-error';
+      const body = overlay.querySelector('.thinkreview-store-feedback-body');
+      if (body) body.appendChild(err);
+    }
+    err.textContent = message;
+  }
+
+  /**
+   * Step 2: open store reviews page and suppress future prompts.
+   */
+  async handleStoreRedirect() {
+    dbgLog('User chose to leave a store review');
+
     const redirectUrl = this.getStoreReviewUrl();
     window.open(redirectUrl, '_blank');
+
+    this.closePopup({ trackLater: false });
+    this.hide();
+    this.popupAutoOpenedForShow = false;
     this.showThankYouMessage(this.getStoreReviewThankYouMessage());
-    
+
+    chrome.storage.local.set({
+      lastFeedbackPromptInteraction: {
+        action: 'submit',
+        feedbackText: this.pendingFeedbackText || null,
+        date: new Date().toISOString()
+      }
+    });
+
     this.trackReviewPromptInteraction('submit', null, redirectUrl)
-      .catch(error => {
+      .catch((error) => {
         dbgWarn('Background tracking failed:', error);
       });
-    
-    this.emit('rated', { reviewCount: this.getCurrentReviewCount() });
+
+    const reviewCount = await this.getCurrentReviewCount();
+    this.emit('rated', { reviewCount });
   }
 
   /**
-   * Dismiss the review prompt (user clicked "Maybe Later")
+   * Dismiss CTA + popup (Maybe Later)
    */
   dismiss() {
+    this.closePopup({ trackLater: false });
     this.hide();
+    this.popupAutoOpenedForShow = false;
     dbgLog('Prompt dismissed - tracking "later" action in Firestore');
-    
-    // Emit custom event
+
     this.emit('dismissed', { permanent: false });
-    
-    // Track the interaction with the cloud function in the background (non-blocking)
-    // This updates Firestore with action='later' and current date
-    // Next time user data is fetched, it will check if 7 days have passed
+
+    chrome.storage.local.set({
+      lastFeedbackPromptInteraction: {
+        action: 'later',
+        date: new Date().toISOString()
+      }
+    });
+
     this.trackReviewPromptInteraction('later')
-      .catch(error => {
-        // Silently handle errors to avoid affecting user experience
+      .catch((error) => {
         dbgWarn('Background tracking failed:', error);
       });
   }
 
   /**
-   * Dismiss the review prompt permanently (user clicked "Never")
+   * Permanently dismiss
    */
   dismissPermanently() {
+    this.closePopup({ trackLater: false });
     this.hide();
+    this.popupAutoOpenedForShow = false;
     dbgLog('Prompt dismissed permanently - tracking "never" action in Firestore');
-    
-    // Emit custom event
+
     this.emit('dismissed', { permanent: true });
-    
-    // Track the interaction with the cloud function in the background (non-blocking)
-    // This updates Firestore with action='never'
-    // User will never be prompted again on any device
+
+    chrome.storage.local.set({
+      lastFeedbackPromptInteraction: {
+        action: 'never',
+        date: new Date().toISOString()
+      }
+    });
+
     this.trackReviewPromptInteraction('never')
-      .catch(error => {
-        // Silently handle errors to avoid affecting user experience
+      .catch((error) => {
         dbgWarn('Background tracking failed:', error);
       });
   }
 
   /**
-   * Show a thank you message after rating
-   * @param {string} message - Message to display
+   * @param {string} message
    */
   showThankYouMessage(message) {
     const container = document.getElementById(this.containerId);
     if (!container) return;
 
-    // Remove existing thank you message
     const existingMessage = container.querySelector('.review-thank-you-message');
     if (existingMessage) {
       existingMessage.remove();
     }
 
-    // Create new thank you message
     const thankYouDiv = document.createElement('div');
     thankYouDiv.className = 'gl-alert gl-alert-success gl-mt-3 review-thank-you-message';
     thankYouDiv.innerHTML = `
       <div class="gl-alert-content">
-        <div class="gl-alert-title">Thank you! 🙏</div>
-        <div>${message}</div>
+        <div class="gl-alert-title">Thank you!</div>
+        <div>${this.escapeHtml(message)}</div>
       </div>
     `;
-    
-    // Insert after the review prompt
+
     const reviewPrompt = container.querySelector('#review-prompt');
     if (reviewPrompt && reviewPrompt.parentNode) {
       reviewPrompt.parentNode.insertBefore(thankYouDiv, reviewPrompt.nextSibling);
-      
-      // Remove the message after 5 seconds
+
       setTimeout(() => {
         if (thankYouDiv.parentNode) {
           thankYouDiv.parentNode.removeChild(thankYouDiv);
@@ -466,85 +748,49 @@ class ReviewPrompt {
     }
   }
 
-  /**
-   * Reset all dismissal preferences (for testing)
-   * Note: This only clears the local cache
-   * The source of truth is in Firestore (lastFeedbackPromptInteraction)
-   * To truly reset, you need to update Firestore via the cloud function
-   */
   resetPreferences() {
+    this.popupAutoOpenedForShow = false;
     chrome.storage.local.remove(['lastFeedbackPromptInteraction'], () => {
       dbgLog('Local cache cleared - will be refreshed on next user data fetch');
     });
   }
 
-  /**
-   * Force show the prompt (for testing)
-   */
   forceShow() {
     dbgLog('Force showing prompt');
+    this.popupAutoOpenedForShow = false;
     this.show();
   }
 
-  /**
-   * Comprehensive debugging function
-   */
   async debugInfo() {
     dbgLog('=== ReviewPrompt Debug Info ===');
     dbgLog('Configuration:', this.config);
     dbgLog('Initialized:', this.isInitialized);
     dbgLog('Container ID:', this.containerId);
-    
+    dbgLog('Messages:', this.messages);
+
     const container = document.getElementById(this.containerId);
     dbgLog('Container found:', !!container);
-    
+
     const reviewCount = await this.getCurrentReviewCount();
     dbgLog('Current review count:', reviewCount);
-    
-    // Get lastFeedbackPromptInteraction from storage
+
     const lastFeedbackPromptInteraction = await new Promise((resolve) => {
       chrome.storage.local.get(['lastFeedbackPromptInteraction'], (result) => {
         resolve(result.lastFeedbackPromptInteraction || null);
       });
     });
     dbgLog('Last feedback prompt interaction:', lastFeedbackPromptInteraction);
-    
+
     const shouldShow = this.shouldShow(reviewCount, lastFeedbackPromptInteraction);
     dbgLog('Should show:', shouldShow);
-    
-    // Check storage directly
-    chrome.storage.local.get([this.config.storageKeys.reviewCount], (result) => {
-      dbgLog('Storage result:', result);
-    });
-    
-    // Check CloudService
-    dbgLog('CloudService available:', !!window.CloudService);
-    if (window.CloudService) {
-      try {
-        const cloudCount = await window.CloudService.getReviewCount();
-        dbgLog('CloudService review count:', cloudCount);
-      } catch (error) {
-        dbgLog('CloudService error:', error);
-      }
-    }
-    
     dbgLog('=== End Debug Info ===');
   }
 
-  /**
-   * Update configuration
-   * @param {Object} newConfig - New configuration options
-   */
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
     dbgLog('Configuration updated:', this.config);
   }
 
-  /**
-   * Emit custom events
-   * @param {string} eventName - Event name
-   * @param {Object} data - Event data
-   */
   emit(eventName, data) {
     const event = new CustomEvent(`review-prompt:${eventName}`, {
       detail: data,
@@ -553,104 +799,80 @@ class ReviewPrompt {
     document.dispatchEvent(event);
   }
 
+  async ensureCloudService() {
+    if (window.CloudService) return;
+    const module = await import(chrome.runtime.getURL('services/cloud-service.js'));
+    window.CloudService = module.CloudService;
+    dbgLog('CloudService loaded dynamically');
+  }
+
   /**
-   * Track review prompt interaction with the cloud function
-   * @param {string} action - The action taken ('submit', 'later', or 'never')
-   * @param {number} [rating] - Optional rating if action is 'submit'
-   * @param {string} [redirectUrl] - The URL user was redirected to if action is 'submit'
+   * @param {string} action
+   * @param {number|null} rating
+   * @param {string|null} redirectUrl
    */
   async trackReviewPromptInteraction(action, rating = null, redirectUrl = null) {
     try {
       dbgLog('Tracking interaction:', { action, rating, redirectUrl });
-      
-      // Get user email from storage
+
       const email = await this.getUserEmail();
-      
       if (!email) {
         dbgWarn('Cannot track interaction: No user email available');
         return;
       }
-      
-      // Ensure CloudService is available
-      if (!window.CloudService) {
-        try {
-          // Try to import CloudService dynamically
-          const module = await import(chrome.runtime.getURL('services/cloud-service.js'));
-          window.CloudService = module.CloudService;
-          dbgLog('CloudService loaded dynamically');
-        } catch (importError) {
-          dbgWarn('Failed to load CloudService:', importError);
-          throw new Error('CloudService not available');
-        }
-      }
-      
-      // Use CloudService to track the interaction (follows architecture pattern)
+
+      await this.ensureCloudService();
       const data = await window.CloudService.trackReviewPromptInteraction(email, action, rating, redirectUrl);
       dbgLog('Interaction tracked successfully via CloudService:', data);
-      
     } catch (error) {
       dbgWarn('Error tracking interaction:', error);
-      // Don't throw the error to avoid disrupting the user experience
     }
   }
 
   /**
-   * Fetch review prompt messages from cloud function
-   * @returns {Promise<Object|null>} - Promise that resolves with messages object { subtitle, question } or null if failed
+   * @returns {Promise<Object|null>}
    */
   async fetchMessages() {
-    // Return cached messages if available
     if (this.messages) {
       dbgLog('Using cached messages');
       return this.messages;
     }
 
-    // If already fetching, return the existing promise
     if (this.messagesFetchPromise) {
       dbgLog('Already fetching messages, waiting...');
       return this.messagesFetchPromise;
     }
 
-    // Create new fetch promise
     this.messagesFetchPromise = (async () => {
       try {
         dbgLog('Fetching messages from cloud function');
-        
-        // Get user email
+
         const email = await this.getUserEmail();
         if (!email) {
           dbgWarn('Cannot fetch messages: No user email available');
           return null;
         }
 
-        // Ensure CloudService is available
-        if (!window.CloudService) {
-          try {
-            const module = await import(chrome.runtime.getURL('services/cloud-service.js'));
-            window.CloudService = module.CloudService;
-            dbgLog('CloudService loaded dynamically');
-          } catch (importError) {
-            dbgWarn('Failed to load CloudService:', importError);
-            return null;
-          }
+        await this.ensureCloudService();
+        const messages = await window.CloudService.getReviewPromptMessages(email);
+
+        if (messages && messages.subtitle && messages.question) {
+          this.messages = {
+            subtitle: messages.subtitle,
+            question: messages.question,
+            rewardEnabled: messages.rewardEnabled === true,
+            rewardMessage: typeof messages.rewardMessage === 'string' ? messages.rewardMessage : ''
+          };
+          dbgLog('Messages fetched successfully:', this.messages);
+          return this.messages;
         }
 
-        // Fetch messages via CloudService
-        const messages = await window.CloudService.getReviewPromptMessages(email);
-        
-        if (messages && messages.subtitle && messages.question) {
-          this.messages = messages;
-          dbgLog('Messages fetched successfully:', messages);
-          return messages;
-        } else {
-          dbgWarn('Invalid messages format received');
-          return null;
-        }
+        dbgWarn('Invalid messages format received');
+        return null;
       } catch (error) {
         dbgWarn('Error fetching messages:', error);
         return null;
       } finally {
-        // Clear the fetch promise
         this.messagesFetchPromise = null;
       }
     })();
@@ -659,24 +881,20 @@ class ReviewPrompt {
   }
 
   /**
-   * Get user email from storage or Chrome identity API
-   * @returns {Promise<string|null>} - Promise that resolves with the user's email
+   * @returns {Promise<string|null>}
    */
   async getUserEmail() {
     try {
-      // First try to get from storage
       const storageData = await new Promise((resolve) => {
         chrome.storage.local.get(['userData', 'user'], (result) => {
           resolve(result);
         });
       });
-      
-      // Check userData first
+
       if (storageData.userData && storageData.userData.email) {
         return storageData.userData.email;
       }
-      
-      // Check user field (might be JSON string)
+
       if (storageData.user) {
         try {
           const parsedUser = JSON.parse(storageData.user);
@@ -687,8 +905,7 @@ class ReviewPrompt {
           dbgWarn('Failed to parse user data:', parseError);
         }
       }
-      
-      // Fallback to Chrome identity API
+
       const userInfo = await new Promise((resolve, reject) => {
         chrome.identity.getProfileUserInfo({ accountStatus: 'ANY' }, (userInfo) => {
           if (chrome.runtime.lastError) {
@@ -698,31 +915,27 @@ class ReviewPrompt {
           }
         });
       });
-      
+
       return userInfo?.email || null;
-      
     } catch (error) {
       dbgWarn('Error getting user email:', error);
       return null;
     }
   }
 
-  /**
-   * Destroy the component and clean up
-   */
   destroy() {
+    this.closePopup({ trackLater: false });
     this.hide();
     this.removeEventListeners(document.getElementById('review-prompt'));
     this.eventListeners.clear();
     this.isInitialized = false;
+    this.popupAutoOpenedForShow = false;
     dbgLog('Component destroyed');
   }
 }
 
-// Export the class
 export { ReviewPrompt };
 
-// Also make it available globally for backward compatibility
 if (typeof window !== 'undefined') {
   window.ReviewPrompt = ReviewPrompt;
-} 
+}
