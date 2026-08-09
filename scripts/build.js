@@ -34,8 +34,10 @@ export const HONEYBADGER_API_KEY = ${JSON.stringify(HONEYBADGER_API_KEY)};
   console.log('📝 Injected env into utils/env-config.js')
 }
 
-function createBuildDirectory (forFirefox = false) {
-  const dirName = forFirefox ? 'build-firefox' : 'build'
+const BUILD_DIRS = ['build', 'build-firefox', 'build-edge']
+
+function createBuildDirectory (target = 'chrome') {
+  const dirName = target === 'firefox' ? 'build-firefox' : target === 'edge' ? 'build-edge' : 'build'
   const buildDir = path.join(process.cwd(), dirName)
 
   // Clean and create build directory
@@ -48,7 +50,7 @@ function createBuildDirectory (forFirefox = false) {
   return buildDir
 }
 
-function copyProjectFiles (buildDir, excludeBuildDirs = ['build']) {
+function copyProjectFiles (buildDir, excludeBuildDirs = BUILD_DIRS) {
   const projectDir = process.cwd()
 
   // Files and directories to exclude from the build
@@ -98,9 +100,10 @@ function copyProjectFiles (buildDir, excludeBuildDirs = ['build']) {
   }
 }
 
-// AMO requires extension name ≤ 45 characters (Chrome allows longer)
-const FIREFOX_NAME_MAX_LENGTH = 45
+// AMO / Edge Add-ons require extension name ≤ 45 characters (Chrome allows longer)
+const STORE_NAME_MAX_LENGTH = 45
 const FIREFOX_SHORT_NAME = 'ThinkReview: Chat with your Pull Requests'
+const EDGE_SHORT_NAME = 'ThinkReview: AI Code Review for Pull Requests'
 
 /** Write Firefox-compatible manifest (background.scripts + optional_host_permissions format). */
 function writeFirefoxManifest (buildDir) {
@@ -111,7 +114,7 @@ function writeFirefoxManifest (buildDir) {
     type: 'module'
   }
   // Use short name for Firefox (AMO limit 45 chars)
-  if ((manifest.name || '').length > FIREFOX_NAME_MAX_LENGTH) {
+  if ((manifest.name || '').length > STORE_NAME_MAX_LENGTH) {
     manifest.name = FIREFOX_SHORT_NAME
     console.log('🦊 Set Firefox name to:', manifest.name, `(${manifest.name.length} chars)`)
   }
@@ -140,23 +143,49 @@ function writeFirefoxManifest (buildDir) {
   console.log('🦊 Wrote Firefox-compatible manifest (background.scripts, optional_host_permissions)')
 }
 
-function build (forFirefox = false) {
-  try {
-    console.log(forFirefox ? '🦊 Building extension for Firefox...' : '🚀 Building extension...')
+/** Write Edge Add-ons manifest (Chromium format + short name ≤ 45 chars). */
+function writeEdgeManifest (buildDir) {
+  const manifestPath = path.join(buildDir, 'manifest.json')
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+  if ((manifest.name || '').length > STORE_NAME_MAX_LENGTH) {
+    manifest.name = EDGE_SHORT_NAME
+    console.log('🟦 Set Edge name to:', manifest.name, `(${manifest.name.length} chars)`)
+  }
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
+  console.log('🟦 Wrote Edge Add-ons manifest (short name)')
+}
 
-    const excludeBuildDirs = forFirefox ? ['build', 'build-firefox'] : ['build', 'build-firefox']
-    const buildDir = createBuildDirectory(forFirefox)
-    copyProjectFiles(buildDir, excludeBuildDirs)
+/**
+ * @param {boolean|string} targetOrFirefox - true/'firefox', 'edge', or false/'chrome'
+ */
+function build (targetOrFirefox = false) {
+  try {
+    let target = 'chrome'
+    if (targetOrFirefox === true || targetOrFirefox === 'firefox') target = 'firefox'
+    else if (targetOrFirefox === 'edge') target = 'edge'
+
+    const label =
+      target === 'firefox' ? '🦊 Building extension for Firefox...'
+        : target === 'edge' ? '🟦 Building extension for Edge Add-ons...'
+          : '🚀 Building extension...'
+    console.log(label)
+
+    const buildDir = createBuildDirectory(target)
+    copyProjectFiles(buildDir, BUILD_DIRS)
     writeEnvConfig(buildDir)
 
-    if (forFirefox) {
+    if (target === 'firefox') {
       writeFirefoxManifest(buildDir)
+    } else if (target === 'edge') {
+      writeEdgeManifest(buildDir)
     }
 
     console.log('✅ Build completed successfully!')
     console.log(`📦 Extension files ready in: ${buildDir}`)
-    if (forFirefox) {
+    if (target === 'firefox') {
       console.log('   Load this folder in Firefox via about:debugging → Load Temporary Add-on')
+    } else if (target === 'edge') {
+      console.log('   Load this folder in Edge via edge://extensions → Load unpacked')
     }
   } catch (error) {
     console.error('❌ Build failed:', error.message)
@@ -165,8 +194,12 @@ function build (forFirefox = false) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const forFirefox = process.argv[2] === 'firefox' || process.env.BUILD_FIREFOX === '1'
-  build(forFirefox)
+  const arg = process.argv[2]
+  const target =
+    arg === 'firefox' || process.env.BUILD_FIREFOX === '1' ? 'firefox'
+      : arg === 'edge' || process.env.BUILD_EDGE === '1' ? 'edge'
+        : 'chrome'
+  build(target)
 }
 
 export { build }

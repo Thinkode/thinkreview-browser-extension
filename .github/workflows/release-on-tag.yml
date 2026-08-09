@@ -68,6 +68,17 @@ jobs:
           GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
           HONEYBADGER_API_KEY: ${{ secrets.HONEYBADGER_API_KEY }}
 
+      - name: Build Edge Add-ons extension zip
+        id: edge_zip
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm run build:edge:zip
+          echo "path=thinkreview-edge-v${VERSION}.zip" >> "$GITHUB_OUTPUT"
+        env:
+          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
+          GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
+          HONEYBADGER_API_KEY: ${{ secrets.HONEYBADGER_API_KEY }}
+
       - name: Archive extension
         id: archive
         run: |
@@ -85,6 +96,7 @@ jobs:
           files: |
             ${{ steps.archive.outputs.zip_path }}
             ${{ steps.firefox_zip.outputs.path }}
+            ${{ steps.edge_zip.outputs.path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
