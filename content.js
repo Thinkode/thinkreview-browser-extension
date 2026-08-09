@@ -1838,10 +1838,28 @@ async function toggleReviewPanel() {
         dbgWarn('Review fetch failed:', e?.message || e);
       }
     }
+
+    // Feedback prompt only appears after/while the panel is open
+    try {
+      if (typeof window.maybeShowReviewPrompt === 'function') {
+        await window.maybeShowReviewPrompt();
+      }
+    } catch (error) {
+      dbgWarn('Failed to check review prompt after expanding panel:', error);
+    }
   } else {
     // If panel is already visible, minimize it (even if review is in progress)
     panel.classList.remove('thinkreview-panel-minimized', 'thinkreview-panel-hidden', 'thinkreview-panel-minimized-to-button');
     panel.classList.add('thinkreview-panel-minimized-to-button');
+
+    // Feedback prompt must not linger while the panel is closed
+    try {
+      if (window.reviewPrompt && typeof window.reviewPrompt.hideWhilePanelClosed === 'function') {
+        window.reviewPrompt.hideWhilePanelClosed();
+      }
+    } catch (error) {
+      dbgWarn('Failed to hide review prompt after minimizing panel:', error);
+    }
 
     // Get settings to apply left positioning if needed
     const minimizeSettings = await getLayoutSettings();

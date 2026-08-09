@@ -170,6 +170,65 @@ async function initReviewPromptComponent() {
 // Initialize the review prompt component
 initReviewPromptComponent();
 
+// In-flight guard so overlapping callers (e.g. the post-review timeout firing
+// while toggleReviewPanel is also awaiting the same check) share one refresh
+// instead of issuing duplicate REFRESH_USER_DATA_STORAGE network round-trips.
+let _maybeShowReviewPromptInFlight = null;
+
+/**
+ * Refresh user data and show the store feedback prompt only when the
+ * integrated panel is open and eligibility conditions are met.
+ */
+async function maybeShowReviewPrompt() {
+  if (_maybeShowReviewPromptInFlight) {
+    return _maybeShowReviewPromptInFlight;
+  }
+
+  _maybeShowReviewPromptInFlight = (async () => {
+    if (!reviewPrompt) return;
+
+    const panel = document.getElementById('gitlab-mr-integrated-review');
+    if (!panel || panel.classList.contains('thinkreview-panel-minimized-to-button')) {
+      return;
+    }
+
+    try {
+      const refreshResponse = await chrome.runtime.sendMessage({
+        type: 'REFRESH_USER_DATA_STORAGE'
+      });
+
+      if (refreshResponse.status === 'success') {
+        dbgLog('User data refreshed before feedback check:', {
+          hasEmail: !!refreshResponse.data?.email,
+          todayReviewCount: refreshResponse.data?.todayReviewCount
+        });
+      } else {
+        dbgWarn('Failed to refresh user data:', refreshResponse.error);
+      }
+
+      await reviewPrompt.checkAndShow();
+    } catch (error) {
+      dbgWarn('Error checking review prompt:', error);
+    }
+  })();
+
+  try {
+    await _maybeShowReviewPromptInFlight;
+  } finally {
+    _maybeShowReviewPromptInFlight = null;
+  }
+}
+
+window.maybeShowReviewPrompt = maybeShowReviewPrompt;
+
+function hideReviewPromptWhilePanelClosed() {
+  if (reviewPrompt) {
+    reviewPrompt.hideWhilePanelClosed();
+  } else if (window.reviewPrompt) {
+    window.reviewPrompt.hideWhilePanelClosed();
+  }
+}
+
 // Conversation history
 let conversationHistory = [];
 let currentPatchContent = '';
@@ -312,6 +371,8 @@ async function createIntegratedReviewPanel(patchUrl) {
   const iconsModule = await import(chrome.runtime.getURL('assets/icons.js'));
   const refreshIconSvg = iconsModule.REFRESH_ICON_SVG;
   const settingsIconSvg = iconsModule.SETTINGS_ICON_SVG;
+  const githubIconSvg = iconsModule.GITHUB_ICON_SVG;
+  const starIconSvg = iconsModule.STAR_ICON_SVG;
   // Get logo URL
   const logoUrl = chrome.runtime.getURL('images/icon128.png');
   // Create the container for the review panel
@@ -326,10 +387,27 @@ async function createIntegratedReviewPanel(patchUrl) {
         <div class="thinkreview-card-title">
           <div class="thinkreview-card-title-row">
             <img src="${logoUrl}" alt="ThinkReview" class="thinkreview-header-logo">
-            <span class="gl-font-weight-bold">ThinkReview</span>
-            <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
+            <div class="thinkreview-brand-block">
+              <span class="gl-font-weight-bold">ThinkReview</span>
+              <span id="review-subscription-label" class="thinkreview-header-subscription" aria-label="Current plan"></span>
+            </div>
+            <span class="thinkreview-version-stack">
+              <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
+              <a
+                id="thinkreview-github-link"
+                class="thinkreview-github-btn"
+                href="https://github.com/Thinkode/thinkreview-browser-extension"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Star ThinkReview on GitHub"
+                title="Star us on GitHub"
+              >
+                ${githubIconSvg}
+                ${starIconSvg}
+                <span class="thinkreview-github-label">Star</span>
+              </a>
+            </span>
           </div>
-          <span id="review-subscription-label" class="thinkreview-header-subscription" aria-label="Current plan"></span>
         </div>
         <div class="thinkreview-header-actions">
           <span class="thinkreview-regenerate-btn-wrapper">
@@ -602,6 +680,9 @@ async function createIntegratedReviewPanel(patchUrl) {
       container.classList.remove('thinkreview-panel-minimized', 'thinkreview-panel-hidden');
       container.classList.add('thinkreview-panel-minimized-to-button');
 
+      // Feedback prompt must not linger while the panel is closed
+      hideReviewPromptWhilePanelClosed();
+
       // Notify content.js to remove docked body margin
       document.dispatchEvent(new CustomEvent('thinkreview:panelminimized'));
       
@@ -739,6 +820,20 @@ async function createIntegratedReviewPanel(patchUrl) {
     // No need to update the toggle icon in the header - it stays as a down arrow
   }
   
+  // GitHub link under version — don't minimize panel when opening the repo
+  const githubLink = container.querySelector('#thinkreview-github-link');
+  if (githubLink) {
+    githubLink.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+  const versionLinkEl = container.querySelector('#extension-version-link');
+  if (versionLinkEl) {
+    versionLinkEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+
   // Settings gear → inclusive dropdown (Layout + Implement via submenus + all settings)
   const settingsButton = container.querySelector('#thinkreview-settings-btn');
   if (settingsButton) {
@@ -2587,32 +2682,9 @@ async function displayIntegratedReview(
     });
   });
 
-  // Check if we should show the review prompt
-  setTimeout(async () => {
-    if (reviewPrompt) {
-      try {
-        // Refresh user data from server before checking feedback prompt
-        // This ensures we have the latest todayReviewCount and lastFeedbackPromptInteraction
-        const refreshResponse = await chrome.runtime.sendMessage({ 
-          type: 'REFRESH_USER_DATA_STORAGE' 
-        });
-        
-        if (refreshResponse.status === 'success') {
-          // Log only metadata, not full user data which may contain email
-          dbgLog('User data refreshed before feedback check:', {
-            hasEmail: !!refreshResponse.data?.email,
-            todayReviewCount: refreshResponse.data?.todayReviewCount
-          });
-        } else {
-          dbgWarn('Failed to refresh user data:', refreshResponse.error);
-        }
-        
-        // Now check if we should show the prompt (with fresh data in storage)
-        await reviewPrompt.checkAndShow();
-      } catch (error) {
-        // console.warn('Error checking review prompt:', error);
-      }
-    }
+  // Check if we should show the review prompt (only while the panel is open)
+  setTimeout(() => {
+    maybeShowReviewPrompt();
   }, 1000);
 
   // Handle code suggestions tab (modularized)

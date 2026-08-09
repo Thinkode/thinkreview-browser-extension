@@ -32,6 +32,7 @@ const GET_AGENT_REVIEWS_FOR_PATCH_URL = `${CLOUD_FUNCTIONS_BASE_URL}/ThinkReview
 const GET_USER_SUBSCRIPTION_DATA_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getUserSubscriptionDataThinkReview`;
 const TRACK_REVIEW_PROMPT_INTERACTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackReviewPromptInteractionHTTP`;
 const GET_REVIEW_PROMPT_MESSAGES_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getReviewPromptMessagesThinkReview`;
+const SUBMIT_EXTENSION_FEEDBACK_URL = `${CLOUD_FUNCTIONS_BASE_URL}/submitExtensionFeedbackThinkReview`;
 const GET_UPGRADE_PROMPT_CONFIG_URL = `${CLOUD_FUNCTIONS_BASE_URL}/getUpgradePromptConfigThinkReview`;
 const FETCH_NEWS_MESSAGE_THINKREVIEW_URL = `${CLOUD_FUNCTIONS_BASE_URL}/fetchNewsMessageThinkReview`;
 const CANCEL_SUBSCRIPTION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/cancelSubscriptionThinkReview`;
@@ -1041,7 +1042,7 @@ export class CloudService {
   /**
    * Get review prompt messages from Remote Config
    * @param {string} email - User's email for authentication
-   * @returns {Promise<Object>} - Promise that resolves with messages object { subtitle, question }
+   * @returns {Promise<Object>} - { subtitle, question, rewardEnabled?, rewardMessage? }
    */
   static async getReviewPromptMessages(email) {
     dbgLog('Fetching review prompt messages:', { email });
@@ -1070,7 +1071,9 @@ export class CloudService {
       if (data.status === 'success' && data.subtitle && data.question) {
         return {
           subtitle: data.subtitle,
-          question: data.question
+          question: data.question,
+          rewardEnabled: data.rewardEnabled === true,
+          rewardMessage: typeof data.rewardMessage === 'string' ? data.rewardMessage : ''
         };
       } else {
         throw new Error('Invalid response format from getReviewPromptMessages');
@@ -1079,6 +1082,48 @@ export class CloudService {
       dbgWarn('Error fetching review prompt messages:', error);
       throw error;
     }
+  }
+
+  /**
+   * Submit extension review-prompt feedback (step 1 of store review flow)
+   * @param {string} email
+   * @param {string} feedback
+   * @param {Object} [options]
+   * @param {string} [options.source]
+   * @param {'chrome'|'firefox'|null} [options.browser]
+   * @returns {Promise<{ status: string, feedbackId: string }>}
+   */
+  static async submitExtensionFeedback(email, feedback, options = {}) {
+    dbgLog('Submitting extension feedback:', { email, feedbackLength: feedback?.length });
+
+    if (!email) {
+      throw new Error('Email is required');
+    }
+    if (!feedback || typeof feedback !== 'string' || !feedback.trim()) {
+      throw new Error('Feedback is required');
+    }
+
+    const payload = {
+      email,
+      feedback: feedback.trim(),
+      source: options.source || 'extension_review_prompt',
+      ...(options.browser ? { browser: options.browser } : {})
+    };
+
+    const response = await CloudService.thinkReviewFetch(SUBMIT_EXTENSION_FEEDBACK_URL, payload);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    dbgLog('SubmitExtensionFeedback response:', data);
+
+    if (data.status === 'success' && data.feedbackId) {
+      return data;
+    }
+    throw new Error(data.message || 'Failed to submit extension feedback');
   }
 
   /**

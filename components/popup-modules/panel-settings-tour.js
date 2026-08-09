@@ -611,12 +611,40 @@ function _runTour(panelEl) {
 }
 
 /**
- * Start the panel settings tour on first expand if the user hasn't seen it.
+ * Whether the user is signed in (extension OAuth or webapp Firebase auth).
+ * Mirrors the checks used in content.js / popup.js.
+ * @returns {Promise<boolean>}
+ */
+async function _isUserLoggedIn() {
+  try {
+    const result = await chrome.storage.local.get(['user', 'userData']);
+    if (result.userData && result.userData.email) return true;
+    if (result.user) {
+      try {
+        const userData = typeof result.user === 'string' ? JSON.parse(result.user) : result.user;
+        return !!(userData && userData.email);
+      } catch (_) {
+        return false;
+      }
+    }
+    return false;
+  } catch (e) {
+    dbgWarn('Failed to read login state for panel settings tour:', e);
+    return false;
+  }
+}
+
+/**
+ * Start the panel settings tour on first expand if the user is logged in
+ * and hasn't seen it yet. Not marked as seen while logged out, so it can
+ * still appear after the user signs in.
  * @param {HTMLElement} panelEl
  */
 export async function maybeStartPanelSettingsTour(panelEl) {
   if (!panelEl) return;
   if (document.getElementById(TOUR_ROOT_ID)) return;
+
+  if (!(await _isUserLoggedIn())) return;
 
   try {
     const result = await chrome.storage.local.get([PANEL_SETTINGS_TOUR_SEEN_KEY]);
@@ -637,6 +665,9 @@ export async function maybeStartPanelSettingsTour(panelEl) {
 
   await _delay(700);
   if (abort.signal.aborted) return;
+
+  // Re-check after the wait — user may have signed out, or another tab marked seen
+  if (!(await _isUserLoggedIn())) return;
 
   try {
     const again = await chrome.storage.local.get([PANEL_SETTINGS_TOUR_SEEN_KEY]);
