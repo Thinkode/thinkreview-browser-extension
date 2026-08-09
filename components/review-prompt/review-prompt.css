@@ -266,6 +266,40 @@
   color: #ffb74d;
 }
 
+.thinkreview-store-feedback-reward-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 12px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(102, 126, 234, 0.16);
+  border: 1px solid rgba(196, 181, 253, 0.35);
+  color: #e8e0ff;
+}
+
+.thinkreview-store-feedback-reward-hint-label {
+  flex-shrink: 0;
+  margin-top: 1px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 224, 138, 0.18);
+  border: 1px solid rgba(255, 224, 138, 0.45);
+  color: #ffe08a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+.thinkreview-store-feedback-reward-hint-text {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #f0ebff;
+}
+
 .thinkreview-store-feedback-reward {
   display: flex;
   align-items: flex-start;

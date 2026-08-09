@@ -19,8 +19,6 @@ const REVIEW_PROMPT_CONFIG = {
 
 const DEFAULT_SUBTITLE = "We'd love to hear your feedback about ThinkReview";
 const DEFAULT_QUESTION = 'Would you mind leaving us a quick review?';
-const DEFAULT_REWARD_MESSAGE =
-  'Post your review on the Chrome Web Store or Firefox Add-ons and get 1 month of ThinkReview Lite free.';
 
 class ReviewPrompt {
   constructor(config = {}) {
@@ -333,16 +331,60 @@ class ReviewPrompt {
     return (this.messages && this.messages.question) ? this.messages.question : DEFAULT_QUESTION;
   }
 
-  isRewardEnabled() {
-    return !!(this.messages && this.messages.rewardEnabled === true);
+  /**
+   * Reward copy from Remote Config only — no local fallback.
+   * @returns {string}
+   */
+  getRewardMessage() {
+    if (!this.messages || typeof this.messages.rewardMessage !== 'string') {
+      return '';
+    }
+    return this.messages.rewardMessage.trim();
   }
 
-  getRewardMessage() {
+  /**
+   * Show reward UI only when Remote Config enabled it and supplied rewardMessage.
+   * @returns {boolean}
+   */
+  isRewardEnabled() {
+    return !!(this.messages && this.messages.rewardEnabled === true && this.getRewardMessage());
+  }
+
+  /**
+   * Compact step-1 hint markup when a Remote Config reward is available.
+   * @returns {string}
+   */
+  buildRewardHintHtml() {
     if (!this.isRewardEnabled()) return '';
-    if (this.messages && typeof this.messages.rewardMessage === 'string' && this.messages.rewardMessage.trim()) {
-      return this.messages.rewardMessage.trim();
-    }
-    return DEFAULT_REWARD_MESSAGE;
+    const rewardMessage = this.escapeHtml(this.getRewardMessage());
+    return `
+      <div class="thinkreview-store-feedback-reward-hint" role="note">
+        <span class="thinkreview-store-feedback-reward-hint-label">Reward</span>
+        <span class="thinkreview-store-feedback-reward-hint-text">${rewardMessage}</span>
+      </div>
+    `;
+  }
+
+  /**
+   * Full step-2 reward callout when a Remote Config reward is available.
+   * @returns {string}
+   */
+  buildRewardBlockHtml() {
+    if (!this.isRewardEnabled()) return '';
+    const rewardMessage = this.escapeHtml(this.getRewardMessage());
+    return `
+      <div class="thinkreview-store-feedback-reward" role="status">
+        <div class="thinkreview-store-feedback-reward-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 3l2.4 4.86L20 8.7l-4 3.9.94 5.5L12 15.9 7.06 18.1 8 12.6 4 8.7l5.6-.84L12 3z" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="thinkreview-store-feedback-reward-copy">
+          <span class="thinkreview-store-feedback-reward-label">Reward unlocked</span>
+          <p class="thinkreview-store-feedback-reward-message">${rewardMessage}</p>
+        </div>
+      </div>
+    `;
   }
 
   /**
@@ -471,21 +513,7 @@ class ReviewPrompt {
     const storeName = this.escapeHtml(this.getStoreDisplayName());
     if (step === 2) {
       const feedbackPreview = this.escapeHtml(this.pendingFeedbackText || '');
-      const rewardEnabled = this.isRewardEnabled();
-      const rewardMessage = this.escapeHtml(this.getRewardMessage());
-      const rewardBlock = rewardEnabled && rewardMessage
-        ? `<div class="thinkreview-store-feedback-reward" role="status">
-            <div class="thinkreview-store-feedback-reward-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 3l2.4 4.86L20 8.7l-4 3.9.94 5.5L12 15.9 7.06 18.1 8 12.6 4 8.7l5.6-.84L12 3z" fill="currentColor"/>
-              </svg>
-            </div>
-            <div class="thinkreview-store-feedback-reward-copy">
-              <span class="thinkreview-store-feedback-reward-label">Reward unlocked</span>
-              <p class="thinkreview-store-feedback-reward-message">${rewardMessage}</p>
-            </div>
-          </div>`
-        : '';
+      const rewardBlock = this.buildRewardBlockHtml();
 
       return `
         <div class="thinkreview-store-feedback-popup" role="dialog" aria-modal="true">
@@ -513,6 +541,8 @@ class ReviewPrompt {
       `;
     }
 
+    const rewardHint = this.buildRewardHintHtml();
+
     return `
       <div class="thinkreview-store-feedback-popup" role="dialog" aria-modal="true">
         <div class="thinkreview-store-feedback-header">
@@ -521,6 +551,7 @@ class ReviewPrompt {
         </div>
         <div class="thinkreview-store-feedback-body">
           <p>What did you like, or what should we improve? Your note helps us keep ThinkReview free and open source.</p>
+          ${rewardHint}
           <textarea
             id="thinkreview-store-feedback-textarea"
             class="thinkreview-store-feedback-textarea"
