@@ -372,6 +372,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   const refreshIconSvg = iconsModule.REFRESH_ICON_SVG;
   const settingsIconSvg = iconsModule.SETTINGS_ICON_SVG;
   const githubIconSvg = iconsModule.GITHUB_ICON_SVG;
+  const starIconSvg = iconsModule.STAR_ICON_SVG;
   // Get logo URL
   const logoUrl = chrome.runtime.getURL('images/icon128.png');
   // Create the container for the review panel
@@ -386,7 +387,10 @@ async function createIntegratedReviewPanel(patchUrl) {
         <div class="thinkreview-card-title">
           <div class="thinkreview-card-title-row">
             <img src="${logoUrl}" alt="ThinkReview" class="thinkreview-header-logo">
-            <span class="gl-font-weight-bold">ThinkReview</span>
+            <div class="thinkreview-brand-block">
+              <span class="gl-font-weight-bold">ThinkReview</span>
+              <span id="review-subscription-label" class="thinkreview-header-subscription" aria-label="Current plan"></span>
+            </div>
             <span class="thinkreview-version-stack">
               <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
               <a
@@ -395,15 +399,15 @@ async function createIntegratedReviewPanel(patchUrl) {
                 href="https://github.com/Thinkode/thinkreview-browser-extension"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="ThinkReview on GitHub"
-                title="GitHub"
+                aria-label="Star ThinkReview on GitHub"
+                title="Star us on GitHub"
               >
                 ${githubIconSvg}
-                <span class="thinkreview-github-label">GitHub</span>
+                ${starIconSvg}
+                <span class="thinkreview-github-label">Star</span>
               </a>
             </span>
           </div>
-          <span id="review-subscription-label" class="thinkreview-header-subscription" aria-label="Current plan"></span>
         </div>
         <div class="thinkreview-header-actions">
           <span class="thinkreview-regenerate-btn-wrapper">

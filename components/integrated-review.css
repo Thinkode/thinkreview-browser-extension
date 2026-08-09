@@ -147,7 +147,7 @@
   border-bottom: 1px solid #5a3ea5;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   cursor: pointer;
   flex-shrink: 0;
   position: relative;
@@ -165,8 +165,15 @@
   align-items: flex-start;
 }
 
+#gitlab-mr-integrated-review .thinkreview-brand-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
 #gitlab-mr-integrated-review .thinkreview-header-subscription {
-  margin-left: 28px; /* align with "ThinkReview" (logo 20px + margin-right 8px) */
+  margin-left: 0;
   margin-top: -1px;
   padding: 0 5px;
   font-size: 9px;
@@ -201,7 +208,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: -8px;
   flex-shrink: 0;
 }
 
@@ -1030,21 +1036,21 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   background-color: rgba(107, 79, 187, 0.3);
 }
 
-/* Version + GitHub stacked under the title row */
+/* Version + GitHub star stacked beside the brand */
 #gitlab-mr-integrated-review .thinkreview-version-stack {
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
   margin-left: 6px;
-  padding-top: 10px;
+  padding-top: 2px;
   line-height: 1.1;
-  gap: 2px;
+  gap: 6px;
 }
 
 #gitlab-mr-integrated-review .thinkreview-github-btn {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
   font-size: 9px;
@@ -2605,11 +2611,8 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   height: 20px;
   margin-right: 8px;
   flex-shrink: 0;
-  align-self: center;
-}
-
-#gitlab-mr-integrated-review .thinkreview-card-title-row > .gl-font-weight-bold {
-  align-self: center;
+  align-self: flex-start;
+  margin-top: 1px;
 }
 
 #gitlab-mr-integrated-review .thinkreview-version-link {
