@@ -31,6 +31,7 @@ class ReviewPrompt {
     this.pendingFeedbackText = '';
     this.popupOverlay = null;
     this.popupStep = 1;
+    this.popupEventsAbort = null;
   }
 
   /**
@@ -477,20 +478,54 @@ class ReviewPrompt {
   }
 
   /**
-   * Open the two-step feedback popup
-   * @param {1|2} step
+   * Ensure a single overlay element exists and is attached to the document.
+   * Reused across step transitions to avoid remounting the shell.
+   * @returns {HTMLElement}
    */
-  openPopup(step = 1) {
-    this.closePopup({ trackLater: false });
-    this.popupStep = step;
+  ensurePopupOverlay() {
+    if (this.popupOverlay && this.popupOverlay.isConnected) {
+      return this.popupOverlay;
+    }
+
+    const orphan = document.getElementById('thinkreview-store-feedback-overlay');
+    if (orphan) orphan.remove();
 
     const overlay = document.createElement('div');
     overlay.id = 'thinkreview-store-feedback-overlay';
     overlay.className = 'thinkreview-store-feedback-overlay';
-    overlay.innerHTML = this.buildPopupHtml(step);
     document.body.appendChild(overlay);
     this.popupOverlay = overlay;
+    return overlay;
+  }
 
+  /**
+   * Abort any listeners bound to the current popup content.
+   */
+  clearPopupEvents() {
+    if (this.popupEventsAbort) {
+      this.popupEventsAbort.abort();
+      this.popupEventsAbort = null;
+    }
+  }
+
+  /**
+   * Open / advance the two-step feedback popup.
+   * Reuses the overlay shell; only the step content is replaced.
+   * @param {1|2} step
+   */
+  openPopup(step = 1) {
+    this.popupStep = step;
+    const overlay = this.ensurePopupOverlay();
+    this.renderPopupStep(overlay, step);
+  }
+
+  /**
+   * @param {HTMLElement} overlay
+   * @param {1|2} step
+   */
+  renderPopupStep(overlay, step) {
+    this.clearPopupEvents();
+    overlay.innerHTML = this.buildPopupHtml(step);
     this.bindPopupEvents(overlay, step);
 
     if (step === 1) {
@@ -571,25 +606,48 @@ class ReviewPrompt {
   }
 
   /**
+   * Bind overlay listeners with AbortController so they are removed on step change / close.
+   * Click handling is delegated from the overlay shell.
    * @param {HTMLElement} overlay
    * @param {1|2} step
    */
   bindPopupEvents(overlay, step) {
-    const closeBtn = overlay.querySelector('.thinkreview-store-feedback-close');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.closePopup({ trackLater: false }));
-    }
+    this.clearPopupEvents();
+    this.popupEventsAbort = new AbortController();
+    const { signal } = this.popupEventsAbort;
 
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
         this.closePopup({ trackLater: false });
+        return;
       }
-    });
 
-    const laterBtn = overlay.querySelector('.thinkreview-store-feedback-later-btn');
-    if (laterBtn) {
-      laterBtn.addEventListener('click', () => this.dismiss());
-    }
+      if (e.target.closest('.thinkreview-store-feedback-close')) {
+        this.closePopup({ trackLater: false });
+        return;
+      }
+
+      if (e.target.closest('.thinkreview-store-feedback-later-btn')) {
+        this.dismiss();
+        return;
+      }
+
+      const copyBtn = e.target.closest('.thinkreview-store-feedback-copy-btn');
+      if (copyBtn) {
+        this.handleCopyFeedback(copyBtn, overlay);
+        return;
+      }
+
+      const primaryBtn = e.target.closest('.thinkreview-store-feedback-primary-btn');
+      if (primaryBtn && !primaryBtn.disabled) {
+        if (step === 1) {
+          const textarea = overlay.querySelector('#thinkreview-store-feedback-textarea');
+          this.handleFeedbackSubmit(textarea ? textarea.value : '');
+        } else {
+          this.handleStoreRedirect();
+        }
+      }
+    }, { signal });
 
     if (step === 1) {
       const textarea = overlay.querySelector('#thinkreview-store-feedback-textarea');
@@ -601,39 +659,32 @@ class ReviewPrompt {
           this.updateCharCount(textarea, charCount);
           submitBtn.disabled = textarea.value.trim().length === 0;
         };
-        textarea.addEventListener('input', onInput);
+        textarea.addEventListener('input', onInput, { signal });
         onInput();
-
-        submitBtn.addEventListener('click', () => {
-          this.handleFeedbackSubmit(textarea.value);
-        });
       }
-      return;
     }
+  }
 
-    const copyBtn = overlay.querySelector('.thinkreview-store-feedback-copy-btn');
-    if (copyBtn) {
-      copyBtn.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(this.pendingFeedbackText || '');
-          copyBtn.textContent = 'Copied!';
-          setTimeout(() => {
-            copyBtn.textContent = 'Copy feedback';
-          }, 1500);
-        } catch (err) {
-          dbgWarn('Clipboard copy failed:', err);
-          const preview = overlay.querySelector('#thinkreview-store-feedback-preview');
-          if (preview) {
-            preview.focus();
-            preview.select();
-          }
+  /**
+   * @param {HTMLElement} copyBtn
+   * @param {HTMLElement} overlay
+   */
+  async handleCopyFeedback(copyBtn, overlay) {
+    try {
+      await navigator.clipboard.writeText(this.pendingFeedbackText || '');
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => {
+        if (copyBtn.isConnected) {
+          copyBtn.textContent = 'Copy feedback';
         }
-      });
-    }
-
-    const storeBtn = overlay.querySelector('.thinkreview-store-feedback-primary-btn');
-    if (storeBtn) {
-      storeBtn.addEventListener('click', () => this.handleStoreRedirect());
+      }, 1500);
+    } catch (err) {
+      dbgWarn('Clipboard copy failed:', err);
+      const preview = overlay.querySelector('#thinkreview-store-feedback-preview');
+      if (preview) {
+        preview.focus();
+        preview.select();
+      }
     }
   }
 
@@ -659,6 +710,8 @@ class ReviewPrompt {
    * @param {{ trackLater?: boolean }} options
    */
   closePopup(options = {}) {
+    this.clearPopupEvents();
+
     if (this.popupOverlay) {
       this.popupOverlay.remove();
       this.popupOverlay = null;
