@@ -495,10 +495,11 @@ class ReviewPrompt {
 
     if (step === 1) {
       const textarea = overlay.querySelector('#thinkreview-store-feedback-textarea');
+      const charCount = overlay.querySelector('.thinkreview-store-feedback-char-count');
       if (textarea) {
         if (this.pendingFeedbackText) {
           textarea.value = this.pendingFeedbackText;
-          this.updateCharCount(overlay);
+          this.updateCharCount(textarea, charCount);
         }
         setTimeout(() => textarea.focus(), 100);
       }
@@ -592,11 +593,12 @@ class ReviewPrompt {
 
     if (step === 1) {
       const textarea = overlay.querySelector('#thinkreview-store-feedback-textarea');
+      const charCount = overlay.querySelector('.thinkreview-store-feedback-char-count');
       const submitBtn = overlay.querySelector('.thinkreview-store-feedback-primary-btn');
 
       if (textarea && submitBtn) {
         const onInput = () => {
-          this.updateCharCount(overlay);
+          this.updateCharCount(textarea, charCount);
           submitBtn.disabled = textarea.value.trim().length === 0;
         };
         textarea.addEventListener('input', onInput);
@@ -636,11 +638,10 @@ class ReviewPrompt {
   }
 
   /**
-   * @param {HTMLElement} overlay
+   * @param {HTMLTextAreaElement|null} textarea
+   * @param {HTMLElement|null} charCount
    */
-  updateCharCount(overlay) {
-    const textarea = overlay.querySelector('#thinkreview-store-feedback-textarea');
-    const charCount = overlay.querySelector('.thinkreview-store-feedback-char-count');
+  updateCharCount(textarea, charCount) {
     if (!textarea || !charCount) return;
 
     const length = textarea.value.length;
