@@ -313,7 +313,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   const refreshIconSvg = iconsModule.REFRESH_ICON_SVG;
   const settingsIconSvg = iconsModule.SETTINGS_ICON_SVG;
   // Get logo URL
-  const logoUrl = chrome.runtime.getURL('images/icon16.png');
+  const logoUrl = chrome.runtime.getURL('images/icon128.png');
   // Create the container for the review panel
   const container = document.createElement('div');
   container.id = 'gitlab-mr-integrated-review';
