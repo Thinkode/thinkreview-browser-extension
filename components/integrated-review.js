@@ -371,6 +371,7 @@ async function createIntegratedReviewPanel(patchUrl) {
   const iconsModule = await import(chrome.runtime.getURL('assets/icons.js'));
   const refreshIconSvg = iconsModule.REFRESH_ICON_SVG;
   const settingsIconSvg = iconsModule.SETTINGS_ICON_SVG;
+  const githubIconSvg = iconsModule.GITHUB_ICON_SVG;
   // Get logo URL
   const logoUrl = chrome.runtime.getURL('images/icon128.png');
   // Create the container for the review panel
@@ -386,7 +387,21 @@ async function createIntegratedReviewPanel(patchUrl) {
           <div class="thinkreview-card-title-row">
             <img src="${logoUrl}" alt="ThinkReview" class="thinkreview-header-logo">
             <span class="gl-font-weight-bold">ThinkReview</span>
-            <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
+            <span class="thinkreview-version-stack">
+              <a id="extension-version-link" class="thinkreview-version-link" href="https://thinkreview.dev/release-notes" target="_blank" title="View release notes">v<span id="extension-version-text">...</span></a>
+              <a
+                id="thinkreview-github-link"
+                class="thinkreview-github-btn"
+                href="https://github.com/Thinkode/thinkreview-browser-extension"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="ThinkReview on GitHub"
+                title="GitHub"
+              >
+                ${githubIconSvg}
+                <span class="thinkreview-github-label">GitHub</span>
+              </a>
+            </span>
           </div>
           <span id="review-subscription-label" class="thinkreview-header-subscription" aria-label="Current plan"></span>
         </div>
@@ -801,6 +816,20 @@ async function createIntegratedReviewPanel(patchUrl) {
     // No need to update the toggle icon in the header - it stays as a down arrow
   }
   
+  // GitHub link under version — don't minimize panel when opening the repo
+  const githubLink = container.querySelector('#thinkreview-github-link');
+  if (githubLink) {
+    githubLink.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+  const versionLinkEl = container.querySelector('#extension-version-link');
+  if (versionLinkEl) {
+    versionLinkEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+
   // Settings gear → inclusive dropdown (Layout + Implement via submenus + all settings)
   const settingsButton = container.querySelector('#thinkreview-settings-btn');
   if (settingsButton) {
