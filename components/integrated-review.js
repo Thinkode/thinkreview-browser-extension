@@ -170,35 +170,52 @@ async function initReviewPromptComponent() {
 // Initialize the review prompt component
 initReviewPromptComponent();
 
+// In-flight guard so overlapping callers (e.g. the post-review timeout firing
+// while toggleReviewPanel is also awaiting the same check) share one refresh
+// instead of issuing duplicate REFRESH_USER_DATA_STORAGE network round-trips.
+let _maybeShowReviewPromptInFlight = null;
+
 /**
  * Refresh user data and show the store feedback prompt only when the
  * integrated panel is open and eligibility conditions are met.
  */
 async function maybeShowReviewPrompt() {
-  if (!reviewPrompt) return;
-
-  const panel = document.getElementById('gitlab-mr-integrated-review');
-  if (!panel || panel.classList.contains('thinkreview-panel-minimized-to-button')) {
-    return;
+  if (_maybeShowReviewPromptInFlight) {
+    return _maybeShowReviewPromptInFlight;
   }
 
-  try {
-    const refreshResponse = await chrome.runtime.sendMessage({
-      type: 'REFRESH_USER_DATA_STORAGE'
-    });
+  _maybeShowReviewPromptInFlight = (async () => {
+    if (!reviewPrompt) return;
 
-    if (refreshResponse.status === 'success') {
-      dbgLog('User data refreshed before feedback check:', {
-        hasEmail: !!refreshResponse.data?.email,
-        todayReviewCount: refreshResponse.data?.todayReviewCount
-      });
-    } else {
-      dbgWarn('Failed to refresh user data:', refreshResponse.error);
+    const panel = document.getElementById('gitlab-mr-integrated-review');
+    if (!panel || panel.classList.contains('thinkreview-panel-minimized-to-button')) {
+      return;
     }
 
-    await reviewPrompt.checkAndShow();
-  } catch (error) {
-    dbgWarn('Error checking review prompt:', error);
+    try {
+      const refreshResponse = await chrome.runtime.sendMessage({
+        type: 'REFRESH_USER_DATA_STORAGE'
+      });
+
+      if (refreshResponse.status === 'success') {
+        dbgLog('User data refreshed before feedback check:', {
+          hasEmail: !!refreshResponse.data?.email,
+          todayReviewCount: refreshResponse.data?.todayReviewCount
+        });
+      } else {
+        dbgWarn('Failed to refresh user data:', refreshResponse.error);
+      }
+
+      await reviewPrompt.checkAndShow();
+    } catch (error) {
+      dbgWarn('Error checking review prompt:', error);
+    }
+  })();
+
+  try {
+    await _maybeShowReviewPromptInFlight;
+  } finally {
+    _maybeShowReviewPromptInFlight = null;
   }
 }
 
