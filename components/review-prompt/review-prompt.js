@@ -623,7 +623,7 @@ class ReviewPrompt {
       }
 
       if (e.target.closest('.thinkreview-store-feedback-close')) {
-        this.closePopup({ trackLater: false });
+        this.dismiss();
         return;
       }
 
