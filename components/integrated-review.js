@@ -1780,9 +1780,9 @@ async function runReviewCompletionEffects(review, isSeverityFormat) {
       effectsModule.runTriggerShake(triggerEl);
     }
     const bubbleModule = await import(chrome.runtime.getURL('components/popup-modules/completion-message-bubble.js'));
-    const text = bubbleModule.getCompletionBubbleText(review, isSeverityFormat);
+    const { text, severity } = bubbleModule.getCompletionBubbleContent(review, isSeverityFormat);
     if (text && triggerEl) {
-      bubbleModule.showBubble(triggerEl, text, 5000);
+      bubbleModule.showBubble(triggerEl, text, 5000, severity);
     }
   } catch (error) {
     dbgWarn('Failed to run completion effects (shake/bubble):', error);

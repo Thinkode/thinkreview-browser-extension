@@ -1,6 +1,7 @@
 /**
  * completion-message-bubble.js
- * Shows review completion text (suggestion or critical issue) in a tooltip-style bubble near the trigger.
+ * Shows review completion text (suggestion or critical/high/low issue) in a tooltip-style
+ * bubble near the trigger. Severity layout tints the warning triangle by severity.
  */
 
 const BUBBLE_ID = 'thinkreview-completion-bubble';
@@ -71,31 +72,47 @@ function formatSeverityIssueBubbleText(issue) {
 }
 
 /**
- * Text for the completion bubble: first suggestion (scoring) or first critical issue,
- * falling back to the first high issue if there are no critical issues (severity).
+ * Content for the completion bubble: first suggestion (scoring), or highest-priority
+ * severity issue (critical → high → low).
+ * @param {Object} review
+ * @param {boolean} isSeverityFormat
+ * @returns {{ text: string, severity: ('critical'|'high'|'low'|null) }}
+ */
+export function getCompletionBubbleContent(review, isSeverityFormat) {
+  if (!review || typeof review !== 'object') return { text: '', severity: null };
+  if (isSeverityFormat) {
+    const criticalIssues = review.criticalIssues;
+    if (Array.isArray(criticalIssues) && criticalIssues.length > 0) {
+      return { text: formatSeverityIssueBubbleText(criticalIssues[0]), severity: 'critical' };
+    }
+    const highIssues = review.highIssues;
+    if (Array.isArray(highIssues) && highIssues.length > 0) {
+      return { text: formatSeverityIssueBubbleText(highIssues[0]), severity: 'high' };
+    }
+    const lowIssues = review.lowIssues;
+    if (Array.isArray(lowIssues) && lowIssues.length > 0) {
+      return { text: formatSeverityIssueBubbleText(lowIssues[0]), severity: 'low' };
+    }
+    return { text: '', severity: null };
+  }
+  const suggestions = review.suggestions;
+  if (!Array.isArray(suggestions) || suggestions.length === 0) return { text: '', severity: null };
+  const first = suggestions[0];
+  if (typeof first === 'string') return { text: first.trim(), severity: null };
+  if (first && typeof first === 'object' && first.description) {
+    return { text: String(first.description).trim(), severity: null };
+  }
+  return { text: String(first).trim(), severity: null };
+}
+
+/**
+ * Text for the completion bubble (see getCompletionBubbleContent).
  * @param {Object} review
  * @param {boolean} isSeverityFormat
  * @returns {string}
  */
 export function getCompletionBubbleText(review, isSeverityFormat) {
-  if (!review || typeof review !== 'object') return '';
-  if (isSeverityFormat) {
-    const criticalIssues = review.criticalIssues;
-    if (Array.isArray(criticalIssues) && criticalIssues.length > 0) {
-      return formatSeverityIssueBubbleText(criticalIssues[0]);
-    }
-    const highIssues = review.highIssues;
-    if (Array.isArray(highIssues) && highIssues.length > 0) {
-      return formatSeverityIssueBubbleText(highIssues[0]);
-    }
-    return '';
-  }
-  const suggestions = review.suggestions;
-  if (!Array.isArray(suggestions) || suggestions.length === 0) return '';
-  const first = suggestions[0];
-  if (typeof first === 'string') return first.trim();
-  if (first && typeof first === 'object' && first.description) return String(first.description).trim();
-  return String(first).trim();
+  return getCompletionBubbleContent(review, isSeverityFormat).text;
 }
 
 /**
@@ -141,8 +158,9 @@ function positionBubble(bubble, triggerEl) {
  * @param {HTMLElement} triggerEl - The ThinkReview trigger (floating button or sidebar tab)
  * @param {string} text - Text to show (will be truncated to MAX_TEXT_LENGTH)
  * @param {number} durationMs - How long to show the bubble (default BUBBLE_DURATION_MS = 5s)
+ * @param {'critical'|'high'|'low'|null} [severity] - Severity for warning triangle color
  */
-export function showBubble(triggerEl, text, durationMs = BUBBLE_DURATION_MS) {
+export function showBubble(triggerEl, text, durationMs = BUBBLE_DURATION_MS, severity = null) {
   hideBubble();
 
   if (!triggerEl || !text || typeof text !== 'string') return;
@@ -156,7 +174,11 @@ export function showBubble(triggerEl, text, durationMs = BUBBLE_DURATION_MS) {
 
   const content = document.createElement('div');
   content.className = 'thinkreview-completion-bubble-content';
-  content.appendChild(createWarningIconSvg());
+  const icon = createWarningIconSvg();
+  if (severity === 'critical' || severity === 'high' || severity === 'low') {
+    icon.classList.add(`thinkreview-completion-bubble-icon--${severity}`);
+  }
+  content.appendChild(icon);
 
   const textEl = document.createElement('span');
   textEl.className = 'thinkreview-completion-bubble-text';

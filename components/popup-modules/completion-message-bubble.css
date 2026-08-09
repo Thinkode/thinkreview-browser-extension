@@ -29,7 +29,19 @@
 .thinkreview-completion-bubble-icon {
   flex-shrink: 0;
   margin-top: 1px;
-  color: #f79009;
+  color: #f79009; /* default (scoring suggestions) */
+}
+
+.thinkreview-completion-bubble-icon--critical {
+  color: #ef4444;
+}
+
+.thinkreview-completion-bubble-icon--high {
+  color: #f59e0b;
+}
+
+.thinkreview-completion-bubble-icon--low {
+  color: #eab308;
 }
 
 .thinkreview-completion-bubble-text {
