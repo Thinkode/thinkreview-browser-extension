@@ -4,7 +4,9 @@
   "description": "AI-powered code reviews for GitLab & Azure DevOps. Zero setup. Powered by Google Gemini.",
   "type": "module",
   "scripts": {
-    "lint": "node scripts/lint-manifest.js",
+    "lint:manifest": "node scripts/lint-manifest.js",
+    "lint:js": "eslint .",
+    "lint": "npm run lint:manifest && npm run lint:js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "build": "node scripts/build.js",
     "build:firefox": "node scripts/build.js firefox",
@@ -43,6 +45,9 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.9.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0"
   }
