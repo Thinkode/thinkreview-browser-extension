@@ -1044,7 +1044,7 @@ async function showUpgradeMessage(
         : 0;
       const meterHtml = showUsageMeter
         ? `<div class="upgrade-prompt-meter" aria-hidden="true"><div class="upgrade-prompt-meter-fill" style="width:${usagePct}%"></div></div>
-           <div class="upgrade-prompt-meter-label">${reviewCount} / ${dailyLimit} reviews used today</div>`
+           <div class="upgrade-prompt-meter-label">${reviewCount} / ${dailyLimit} review credits used today</div>`
         : '';
 
       upgradeWrapper.innerHTML = `
