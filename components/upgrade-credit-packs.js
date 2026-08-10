@@ -142,11 +142,66 @@ function appendFallbackActions(container) {
 }
 
 /**
+ * Prominent Revolut-style rewards prize card (rendered above buy-credits).
+ * Copy/URL come from cloud Remote Config — never hardcoded prize amounts.
+ */
+function appendRewardsCta(container, rewardsCta, analyticsContext) {
+  if (!rewardsCta || rewardsCta.enabled !== true) return;
+  const label = typeof rewardsCta.label === 'string' ? rewardsCta.label.trim() : '';
+  const url = typeof rewardsCta.url === 'string' ? rewardsCta.url.trim() : '';
+  if (!label || !url) return;
+  try {
+    if (new URL(url).protocol !== 'https:') return;
+  } catch {
+    return;
+  }
+
+  const card = document.createElement('div');
+  card.className = 'upgrade-rewards-prize';
+
+  const badge = document.createElement('span');
+  badge.className = 'upgrade-rewards-prize-badge';
+  badge.textContent = 'Free credits';
+  card.appendChild(badge);
+
+  const title = document.createElement('p');
+  title.className = 'upgrade-rewards-prize-title';
+  title.textContent = label;
+  card.appendChild(title);
+
+  const description =
+    typeof rewardsCta.description === 'string' ? rewardsCta.description.trim() : '';
+  if (description) {
+    card.appendChild(createParagraph('upgrade-rewards-prize-description', description));
+  }
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.className = 'upgrade-rewards-prize-btn';
+  link.textContent = 'Claim free credits';
+  link.addEventListener('click', async () => {
+    try {
+      const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+      trackUserAction('rewards_cta_clicked', {
+        context: analyticsContext
+      }).catch(() => {});
+    } catch {
+      // Silently fail - analytics should never break CTA
+    }
+  });
+  card.appendChild(link);
+  container.appendChild(card);
+}
+
+/**
  * @param {HTMLElement} container
  * @param {{
  *   creditPacks?: unknown[],
  *   prepaidBalance?: number|null,
- *   analyticsContext?: string
+ *   analyticsContext?: string,
+ *   rewardsCta?: { enabled?: boolean, label?: string, description?: string, url?: string }|null
  * }} [options]
  */
 export async function renderUpgradeCreditPacksActions(container, options = {}) {
@@ -155,10 +210,14 @@ export async function renderUpgradeCreditPacksActions(container, options = {}) {
   const {
     creditPacks: rawPacks = [],
     prepaidBalance = null,
-    analyticsContext = 'daily_limit_upgrade_prompt'
+    analyticsContext = 'daily_limit_upgrade_prompt',
+    rewardsCta = null
   } = options;
 
   container.replaceChildren();
+
+  // Prize / rewards first — most prominent path before paid packs.
+  appendRewardsCta(container, rewardsCta, analyticsContext);
 
   const balanceNote = getBalanceNoteText(prepaidBalance);
   if (balanceNote) {
@@ -182,10 +241,7 @@ export async function renderUpgradeCreditPacksActions(container, options = {}) {
       );
     });
     container.appendChild(packsRow);
-    return;
-  }
-
-  if (balanceNote == null) {
+  } else if (balanceNote == null) {
     appendFallbackActions(container);
   }
 }

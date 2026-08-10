@@ -1129,7 +1129,7 @@ export class CloudService {
   /**
    * Get daily-limit upgrade prompt configuration from Remote Config (via cloud function).
    * @param {string} email - User's email for authentication
-   * @returns {Promise<Object>} - { prompt, allowDiscounts, plans[], creditPacks[], promotionalMessage? }
+   * @returns {Promise<Object>} - { prompt, allowDiscounts, plans[], creditPacks[], promotionalMessage?, rewardsCta? }
    */
   static async getUpgradePromptConfig(email) {
     dbgLog('Fetching upgrade prompt config');
@@ -1149,7 +1149,8 @@ export class CloudService {
     dbgLog('GetUpgradePromptConfig response:', {
       status: data.status,
       planCount: Array.isArray(data.plans) ? data.plans.length : 0,
-      creditPackCount: Array.isArray(data.creditPacks) ? data.creditPacks.length : 0
+      creditPackCount: Array.isArray(data.creditPacks) ? data.creditPacks.length : 0,
+      hasRewardsCta: Boolean(data.rewardsCta?.enabled)
     });
 
     if (data.status !== 'success') {
@@ -1159,12 +1160,32 @@ export class CloudService {
       throw new Error('Invalid response format from getUpgradePromptConfig');
     }
 
+    const rewardsCta =
+      data.rewardsCta &&
+      data.rewardsCta.enabled === true &&
+      typeof data.rewardsCta.label === 'string' &&
+      data.rewardsCta.label.trim() &&
+      typeof data.rewardsCta.url === 'string' &&
+      data.rewardsCta.url.trim()
+        ? {
+            enabled: true,
+            label: data.rewardsCta.label.trim(),
+            description:
+              typeof data.rewardsCta.description === 'string'
+                ? data.rewardsCta.description.trim()
+                : '',
+            url: data.rewardsCta.url.trim()
+          }
+        : null;
+
     return {
       prompt: data.prompt || {},
       allowDiscounts: data.allowDiscounts !== false,
       plans: Array.isArray(data.plans) ? data.plans : [],
       creditPacks: filterValidCreditPacks(data.creditPacks),
-      promotionalMessage: typeof data.promotionalMessage === 'string' ? data.promotionalMessage : ''
+      promotionalMessage: typeof data.promotionalMessage === 'string' ? data.promotionalMessage : '',
+      rewardsCta,
+      remoteConfigApplied: data.remoteConfigApplied === true
     };
   }
 

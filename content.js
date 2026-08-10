@@ -996,7 +996,7 @@ async function showUpgradeMessage(
           const hasRemotePlans = Array.isArray(remoteConfig?.plans) && remoteConfig.plans.length > 0;
           const hasRemoteCreditPacks =
             Array.isArray(remoteConfig?.creditPacks) && remoteConfig.creditPacks.length > 0;
-          if (remoteConfig && (hasRemotePlans || hasRemoteCreditPacks)) {
+          if (remoteConfig && (hasRemotePlans || hasRemoteCreditPacks || remoteConfig.rewardsCta)) {
             upgradeConfig = {
               ...fallbackConfig,
               ...remoteConfig,
@@ -1006,7 +1006,8 @@ async function showUpgradeMessage(
               },
               plans: hasRemotePlans ? remoteConfig.plans : fallbackConfig.plans,
               creditPacks:
-                hideCreditPacks || !hasRemoteCreditPacks ? [] : remoteConfig.creditPacks
+                hideCreditPacks || !hasRemoteCreditPacks ? [] : remoteConfig.creditPacks,
+              rewardsCta: remoteConfig.rewardsCta || null
             };
           }
         }
@@ -1052,7 +1053,8 @@ async function showUpgradeMessage(
 
       const creditsActionsEl = upgradeWrapper.querySelector('#upgrade-credits-actions');
       if (creditsActionsEl) {
-        if (hideCreditPacks) {
+        const hasRewardsCta = Boolean(upgradeConfig.rewardsCta?.enabled);
+        if (hideCreditPacks && !hasRewardsCta) {
           creditsActionsEl.replaceChildren();
           creditsActionsEl.classList.add('gl-hidden');
         } else {
@@ -1061,8 +1063,9 @@ async function showUpgradeMessage(
             chrome.runtime.getURL('components/upgrade-credit-packs.js')
           );
           await upgradeCreditPacks.renderUpgradeCreditPacksActions(creditsActionsEl, {
-            creditPacks: upgradeConfig.creditPacks,
-            prepaidBalance
+            creditPacks: hideCreditPacks ? [] : upgradeConfig.creditPacks,
+            prepaidBalance: hideCreditPacks ? null : prepaidBalance,
+            rewardsCta: upgradeConfig.rewardsCta || null
           });
         }
       }
