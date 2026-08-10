@@ -1,185 +1,196 @@
-.subscription-section {
-  background-color: #2d3748;
-  border: 1px solid #4a5568;
-  border-radius: 6px;
-  padding: 12px;
-  margin: 12px 0;
-}
+/**
+ * Styles for the daily-limit upgrade prompt (limit header, rewards, credit packs, plans).
+ * Loaded into the integrated review panel.
+ */
 
-.settings-title {
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 6px;
-  color: #e2e8f0;
-}
-
-.settings-description {
-  font-size: 12px;
-  color: #a0aec0;
-  margin-bottom: 12px;
-  line-height: 1.4;
-}
-
-.subscription-promotion {
-  font-size: 12px;
-  font-weight: 600;
-  color: #fbd38d;
-  background: rgba(237, 137, 54, 0.12);
-  border: 1px solid rgba(237, 137, 54, 0.35);
-  border-radius: 6px;
-  padding: 8px 10px;
-  margin-bottom: 12px;
-  line-height: 1.4;
-}
-
-.subscription-buttons {
-  display: flex;
-  gap: 10px;
-  margin-top: 12px;
-  flex-shrink: 0;
-}
-
-.subscription-plans {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.subscription-plan-card {
+/* ---- Panel shell ---- */
+#upgrade-message-wrapper.upgrade-prompt-panel,
+.upgrade-prompt-panel {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  border: 1px solid #4a5568;
-  border-radius: 6px;
-  background: #1f2937;
-  padding: 12px;
-  /* Grid row stretch gives equal card heights; flex pushes CTA to the same baseline row */
-  align-self: stretch;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 28px -16px rgba(15, 23, 42, 0.35);
 }
 
-.plan-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  align-items: baseline;
+.upgrade-prompt-header {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
 }
 
-.plan-name {
-  color: #e2e8f0;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.plan-price {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 6px;
-  color: #cbd5e0;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: right;
-}
-
-.plan-price-current {
-  color: #e2e8f0;
-  font-weight: 700;
-  font-size: 13px;
-}
-
-.plan-price-original {
-  text-decoration: line-through;
-  color: #a0aec0;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.plan-billed {
-  font-size: 11px;
-  color: #a0aec0;
-  text-align: right;
-  margin-top: 2px;
-  line-height: 1.3;
-}
-
-.plan-tagline {
-  color: #a0aec0;
-  margin-top: 6px;
-  font-size: 12px;
-}
-
-.plan-offer {
-  margin-top: 8px;
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  color: #2f855a;
-  background: rgba(72, 187, 120, 0.16);
-  border: 1px solid rgba(72, 187, 120, 0.35);
+.upgrade-prompt-kicker {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 6px;
+  padding: 3px 9px;
   border-radius: 999px;
-  padding: 2px 8px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
-.plan-features {
-  flex: 1 1 auto;
-  min-height: 0;
-  margin: 10px 0 0;
-  padding-left: 16px;
-  list-style-type: disc;
-  list-style-position: outside;
-  color: #cbd5e0;
-  font-size: 12px;
-  line-height: 1.4;
+.upgrade-prompt-kicker--plan {
+  background: #ede9fe;
+  color: #5b21b6;
+  margin-bottom: 8px;
 }
 
-.plan-features li {
-  margin: 3px 0;
-  display: list-item;
+.upgrade-prompt-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: #0f172a;
 }
 
-.upgrade-btn {
-  width: 100%;
-  padding: 12px 24px;
-  border-radius: 6px;
-  border: 1px solid #6b4fbb;
-  background-color: #6b4fbb;
-  color: #e2e8f0;
+.upgrade-prompt-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.upgrade-prompt-meter {
+  margin-top: 10px;
+  height: 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.upgrade-prompt-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f59e0b 0%, #ef4444 100%);
+  max-width: 100%;
+}
+
+.upgrade-prompt-meter-label {
+  margin-top: 6px;
+  font-size: 11px;
   font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
+  color: #64748b;
 }
 
-@media (max-width: 860px) {
-  .subscription-plans {
-    grid-template-columns: 1fr;
-  }
+/* ---- Rewards prize (Revolut-style) ---- */
+.upgrade-rewards-prize {
+  margin: 0;
+  padding: 16px 16px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #4c1d95 0%, #6b4fbb 45%, #2563eb 100%);
+  color: #fff;
+  box-shadow: 0 12px 28px -10px rgba(76, 29, 149, 0.55);
+  position: relative;
+  overflow: hidden;
 }
 
-.upgrade-btn:hover {
-  background-color: #5a3fa8;
-  border-color: #5a3fa8;
-  transform: translateY(-2px);
-  box-shadow: 0 2px 5px rgba(107, 79, 187, 0.3);
+.upgrade-rewards-prize::after {
+  content: '';
+  position: absolute;
+  right: -24px;
+  top: -24px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+.upgrade-rewards-prize-badge {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  position: relative;
+  z-index: 1;
+}
+
+.upgrade-rewards-prize-title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  color: #fff;
+  position: relative;
+  z-index: 1;
+}
+
+.upgrade-rewards-prize-description {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.9);
+  position: relative;
+  z-index: 1;
+}
+
+.upgrade-rewards-prize-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 18px;
+  border-radius: 10px;
+  background: #fff;
+  color: #4c1d95;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.upgrade-rewards-prize-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  text-decoration: none;
+  color: #3b0764;
+  background: #fff;
+}
+
+/* ---- Buy credits section ---- */
+.upgrade-buy-section {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
 }
 
 .upgrade-credits-balance-note {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: 12px;
+  color: #475569;
 }
 
 .upgrade-credits-packs-label {
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 .upgrade-credits-validity-note {
-  margin: 0 0 8px;
-  font-size: 12px;
-  color: #5f6368;
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: #64748b;
 }
 
 .upgrade-credit-packs {
@@ -194,10 +205,12 @@
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-end;
+  flex: 1 1 110px;
+  min-width: 100px;
 }
 
 .upgrade-credit-pack-badge-slot {
-  min-height: 20px;
+  min-height: 18px;
   display: flex;
   align-items: flex-end;
   margin-bottom: 4px;
@@ -206,9 +219,9 @@
 .upgrade-credit-pack-badge {
   padding: 2px 8px;
   border-radius: 10px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   line-height: 1.4;
 }
@@ -224,13 +237,14 @@
 }
 
 .upgrade-credit-pack-btn {
-  padding: 8px 12px;
-  border-radius: 6px;
+  width: 100%;
+  padding: 10px 10px;
+  border-radius: 10px;
   border: 1px solid #047857;
   background: linear-gradient(135deg, #047857 0%, #059669 100%);
   color: #fff;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -238,7 +252,7 @@
 
 .upgrade-credit-pack-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(4, 120, 87, 0.35);
+  box-shadow: 0 4px 12px rgba(4, 120, 87, 0.3);
 }
 
 .upgrade-credit-pack-btn.is-best-value {
@@ -256,65 +270,176 @@
   text-decoration: none;
 }
 
-/* Revolut-style rewards prize card — shown above buy-credits */
-.upgrade-rewards-prize {
-  margin: 0 0 14px;
-  padding: 14px 14px 12px;
+/* ---- Plans / subscription section ---- */
+.subscription-section {
+  background: #fff;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
-  background: linear-gradient(135deg, #4c1d95 0%, #6b4fbb 48%, #2563eb 100%);
-  color: #fff;
-  box-shadow: 0 8px 20px -8px rgba(76, 29, 149, 0.55);
+  padding: 14px;
+  margin: 0;
 }
 
-.upgrade-rewards-prize-badge {
-  display: inline-block;
-  margin-bottom: 8px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  font-size: 10px;
+.settings-title {
+  font-size: 15px;
   font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  line-height: 1.3;
-}
-
-.upgrade-rewards-prize-title {
-  margin: 0 0 6px;
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.3;
+  margin: 0 0 4px;
+  color: #0f172a;
   letter-spacing: -0.01em;
-  color: #fff;
 }
 
-.upgrade-rewards-prize-description {
+.settings-description {
+  font-size: 12px;
+  color: #64748b;
   margin: 0 0 12px;
+  line-height: 1.45;
+}
+
+.subscription-promotion {
+  font-size: 12px;
+  font-weight: 700;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.subscription-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-shrink: 0;
+}
+
+.subscription-plans {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.subscription-plan-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 12px;
+  align-self: stretch;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.subscription-plan-card:hover {
+  border-color: #c4b5fd;
+  box-shadow: 0 6px 16px -10px rgba(107, 79, 187, 0.45);
+}
+
+.plan-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.plan-name {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.plan-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 6px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.plan-price-current {
+  color: #0f172a;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.plan-price-original {
+  text-decoration: line-through;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.plan-billed {
+  font-size: 11px;
+  color: #64748b;
+  text-align: right;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.plan-tagline {
+  color: #64748b;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.plan-offer {
+  margin-top: 8px;
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.plan-features {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 10px 0 0;
+  padding-left: 16px;
+  list-style-type: disc;
+  list-style-position: outside;
+  color: #475569;
   font-size: 12px;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.9);
 }
 
-.upgrade-rewards-prize-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 16px;
-  border-radius: 8px;
-  background: #fff;
-  color: #4c1d95;
-  font-size: 13px;
+.plan-features li {
+  margin: 3px 0;
+  display: list-item;
+}
+
+.upgrade-btn {
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: 1px solid #6b4fbb;
+  background: linear-gradient(135deg, #6b4fbb 0%, #5a3fa8 100%);
+  color: #fff;
   font-weight: 800;
-  text-decoration: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
 }
 
-.upgrade-rewards-prize-btn:hover {
+.upgrade-btn:hover {
+  background: linear-gradient(135deg, #5a3fa8 0%, #4c1d95 100%);
+  border-color: #5a3fa8;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
-  text-decoration: none;
-  color: #3b0764;
-  background: #fff;
+  box-shadow: 0 6px 14px -6px rgba(107, 79, 187, 0.55);
+}
+
+@media (max-width: 860px) {
+  .subscription-plans {
+    grid-template-columns: 1fr;
+  }
 }

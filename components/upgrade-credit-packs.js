@@ -219,19 +219,24 @@ export async function renderUpgradeCreditPacksActions(container, options = {}) {
   // Prize / rewards first — most prominent path before paid packs.
   appendRewardsCta(container, rewardsCta, analyticsContext);
 
+  const buySection = document.createElement('div');
+  buySection.className = 'upgrade-buy-section';
+  let buySectionHasContent = false;
+
   const balanceNote = getBalanceNoteText(prepaidBalance);
   if (balanceNote) {
-    container.appendChild(createParagraph('upgrade-credits-balance-note', balanceNote));
+    buySection.appendChild(createParagraph('upgrade-credits-balance-note', balanceNote));
+    buySectionHasContent = true;
   }
 
   const validationModule = await import(chrome.runtime.getURL('utils/credit-pack-validation.js'));
   const creditPacks = validationModule.filterValidCreditPacks(rawPacks);
 
   if (creditPacks.length > 0) {
-    container.appendChild(
+    buySection.appendChild(
       createParagraph('upgrade-credits-packs-label', getPacksSectionLabel(prepaidBalance))
     );
-    container.appendChild(createParagraph('upgrade-credits-validity-note', VALIDITY_NOTE_TEXT));
+    buySection.appendChild(createParagraph('upgrade-credits-validity-note', VALIDITY_NOTE_TEXT));
 
     const packsRow = document.createElement('div');
     packsRow.className = 'upgrade-credit-packs';
@@ -240,8 +245,15 @@ export async function renderUpgradeCreditPacksActions(container, options = {}) {
         createCreditPackItem(pack, packIndex, creditPacks.length, analyticsContext)
       );
     });
-    container.appendChild(packsRow);
+    buySection.appendChild(packsRow);
+    buySectionHasContent = true;
   } else if (balanceNote == null) {
-    appendFallbackActions(container);
+    const before = buySection.childNodes.length;
+    appendFallbackActions(buySection);
+    buySectionHasContent = buySection.childNodes.length > before;
+  }
+
+  if (buySectionHasContent) {
+    container.appendChild(buySection);
   }
 }
