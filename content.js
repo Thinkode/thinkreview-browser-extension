@@ -905,6 +905,7 @@ async function showUpgradeMessage(
   // Create a dedicated full-panel upgrade container
   const upgradeWrapper = document.createElement('div');
   upgradeWrapper.id = 'upgrade-message-wrapper';
+  upgradeWrapper.className = 'upgrade-prompt-panel';
 
   // Load subscription section styles
   if (!document.getElementById('subscription-styles')) {
@@ -926,15 +927,14 @@ async function showUpgradeMessage(
       if (chrome.runtime.lastError || !response?.success) {
         dbgWarn('Error loading subscription section:', response?.error || chrome.runtime.lastError?.message);
         upgradeWrapper.innerHTML = `
-          <div class="gl-alert gl-alert-warning">
-            <div class="gl-alert-content">
-              <div class="gl-alert-title">Daily Review Limit Reached</div>
-              <div class="gl-mb-3">Unable to load upgrade options. Please try again or visit the portal.</div>
-              <a href="https://portal.thinkreview.dev/subscription" target="_blank" rel="noopener noreferrer"
-                 class="btn btn-md btn-confirm" style="display:inline-block;text-decoration:none;">
-                Open subscription portal
-              </a>
-            </div>
+          <div class="upgrade-prompt-header">
+            <div class="upgrade-prompt-kicker">Daily limit</div>
+            <h2 class="upgrade-prompt-title">Daily Review Limit Reached</h2>
+            <p class="upgrade-prompt-body">Unable to load upgrade options. Please try again or visit the portal.</p>
+            <a href="https://portal.thinkreview.dev/subscription" target="_blank" rel="noopener noreferrer"
+               class="upgrade-rewards-prize-btn" style="margin-top:12px;">
+              Open subscription portal
+            </a>
           </div>
         `;
         revealUpgradePrompt(upgradeWrapper, reviewContent, options);
@@ -996,7 +996,7 @@ async function showUpgradeMessage(
           const hasRemotePlans = Array.isArray(remoteConfig?.plans) && remoteConfig.plans.length > 0;
           const hasRemoteCreditPacks =
             Array.isArray(remoteConfig?.creditPacks) && remoteConfig.creditPacks.length > 0;
-          if (remoteConfig && (hasRemotePlans || hasRemoteCreditPacks)) {
+          if (remoteConfig && (hasRemotePlans || hasRemoteCreditPacks || remoteConfig.rewardsCta)) {
             upgradeConfig = {
               ...fallbackConfig,
               ...remoteConfig,
@@ -1006,7 +1006,8 @@ async function showUpgradeMessage(
               },
               plans: hasRemotePlans ? remoteConfig.plans : fallbackConfig.plans,
               creditPacks:
-                hideCreditPacks || !hasRemoteCreditPacks ? [] : remoteConfig.creditPacks
+                hideCreditPacks || !hasRemoteCreditPacks ? [] : remoteConfig.creditPacks,
+              rewardsCta: remoteConfig.rewardsCta || null
             };
           }
         }
@@ -1033,16 +1034,29 @@ async function showUpgradeMessage(
           ? purchasedReviewCredits
           : null;
 
+      const showUsageMeter =
+        !limitOverride &&
+        Number.isFinite(Number(reviewCount)) &&
+        Number.isFinite(Number(dailyLimit)) &&
+        Number(dailyLimit) > 0;
+      const usagePct = showUsageMeter
+        ? Math.min(100, Math.round((Number(reviewCount) / Number(dailyLimit)) * 100))
+        : 0;
+      const meterHtml = showUsageMeter
+        ? `<div class="upgrade-prompt-meter" aria-hidden="true"><div class="upgrade-prompt-meter-fill" style="width:${usagePct}%"></div></div>
+           <div class="upgrade-prompt-meter-label">${reviewCount} / ${dailyLimit} review credits used today</div>`
+        : '';
+
       upgradeWrapper.innerHTML = `
-        ${tipBannerModule.getHTML()}
-        <div class="gl-alert gl-alert-warning">
-          <div class="gl-alert-content">
-            <div class="gl-alert-title" id="upgrade-limit-title"></div>
-            <div class="gl-mb-3" id="upgrade-limit-body"></div>
-            <div id="upgrade-credits-actions" class="gl-mt-3"></div>
-          </div>
+        <div class="upgrade-prompt-header">
+          <div class="upgrade-prompt-kicker">Daily limit</div>
+          <h2 class="upgrade-prompt-title" id="upgrade-limit-title"></h2>
+          <p class="upgrade-prompt-body" id="upgrade-limit-body"></p>
+          ${meterHtml}
         </div>
+        <div id="upgrade-credits-actions"></div>
         ${html}
+        ${tipBannerModule.getHTML()}
       `;
 
       const limitTitleEl = upgradeWrapper.querySelector('#upgrade-limit-title');
@@ -1052,7 +1066,8 @@ async function showUpgradeMessage(
 
       const creditsActionsEl = upgradeWrapper.querySelector('#upgrade-credits-actions');
       if (creditsActionsEl) {
-        if (hideCreditPacks) {
+        const hasRewardsCta = Boolean(upgradeConfig.rewardsCta?.enabled);
+        if (hideCreditPacks && !hasRewardsCta) {
           creditsActionsEl.replaceChildren();
           creditsActionsEl.classList.add('gl-hidden');
         } else {
@@ -1061,8 +1076,9 @@ async function showUpgradeMessage(
             chrome.runtime.getURL('components/upgrade-credit-packs.js')
           );
           await upgradeCreditPacks.renderUpgradeCreditPacksActions(creditsActionsEl, {
-            creditPacks: upgradeConfig.creditPacks,
-            prepaidBalance
+            creditPacks: hideCreditPacks ? [] : upgradeConfig.creditPacks,
+            prepaidBalance: hideCreditPacks ? null : prepaidBalance,
+            rewardsCta: upgradeConfig.rewardsCta || null
           });
         }
       }

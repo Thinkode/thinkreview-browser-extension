@@ -23,12 +23,12 @@ export function injectStyles() {
     .helpful-tip-banner {
       display: flex;
       align-items: flex-start;
-      gap: 8px;
-      background: rgba(99, 179, 237, 0.08);
-      border: 1px solid rgba(99, 179, 237, 0.25);
-      border-radius: 6px;
-      padding: 10px 12px;
-      margin: 0 0 10px;
+      gap: 10px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin: 0;
     }
     .helpful-tip-icon {
       font-size: 14px;
@@ -36,8 +36,8 @@ export function injectStyles() {
       margin-top: 1px;
     }
     .helpful-tip-text {
-      font-size: 14px;
-      color: #a0aec0;
+      font-size: 12px;
+      color: #475569;
       line-height: 1.45;
       flex: 1;
     }
@@ -50,22 +50,22 @@ export function injectStyles() {
     .helpful-tip-settings-btn,
     .helpful-tip-usage-btn {
       flex-shrink: 0;
-      padding: 5px 10px;
-      border-radius: 4px;
-      border: 1px solid #4a5568;
-      background: #2d3748;
-      color: #cbd5e0;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      color: #334155;
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       white-space: nowrap;
-      transition: background 0.15s, border-color 0.15s;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
     }
     .helpful-tip-settings-btn:hover,
     .helpful-tip-usage-btn:hover {
-      background: #3d4a5e;
-      border-color: #6b4fbb;
-      color: #e2e8f0;
+      background: #eef2ff;
+      border-color: #c4b5fd;
+      color: #4c1d95;
     }
   `;
   document.head.appendChild(styleEl);
@@ -78,7 +78,7 @@ export function injectStyles() {
 export function getHTML() {
   return `
     <div class="helpful-tip-banner">
-      <span class="helpful-tip-icon">💡</span>
+      <span class="helpful-tip-icon" aria-hidden="true">💡</span>
       <span class="helpful-tip-text">You can switch the auto-review setting to manual mode to better manage your daily review credits.</span>
       <div class="helpful-tip-actions">
         <button id="${SETTINGS_BUTTON_ID}" type="button" class="helpful-tip-settings-btn">Go to Settings</button>
