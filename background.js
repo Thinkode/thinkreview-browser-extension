@@ -439,7 +439,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   // Handle code review request from content script to avoid CSP issues
   if (message.type === 'REVIEW_PATCH_CODE') {
-    const { patchContent, mrId, mrUrl, language, platform, forceRegenerate, reviewFormat, startedAt } = message;
+    const { patchContent, mrId, mrUrl, language, platform, forceRegenerate, reviewFormat, reviewRequestId } = message;
     
     (async () => {
       // Get AI provider setting (declare outside try block so it's accessible in catch)
@@ -530,7 +530,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         // Use CloudService to review the patch code
-        const data = await CloudService.reviewPatchCode(patchContent, language, mrId, mrUrl, forceRegenerate, platform, reviewFormat, startedAt);
+        const data = await CloudService.reviewPatchCode(patchContent, language, mrId, mrUrl, forceRegenerate, platform, reviewFormat, reviewRequestId);
         
         // Track the review if mrId is provided
         if (mrId) {
@@ -589,8 +589,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep channel open
   }
 
-  if (message.type === 'POLL_REVIEW_PATCH_CODE') {
-    const { patchContent, mrId, reviewFormat, startedAt } = message;
+  if (message.type === 'CLAIM_REVIEW_PATCH_CODE') {
+    const { patchContent, mrId, reviewFormat } = message;
     (async () => {
       try {
         const settings = await chrome.storage.local.get(['aiProvider']);
@@ -599,11 +599,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ success: true, pending: true, provider });
           return;
         }
-        const data = await CloudService.pollReviewPatchStatus({
+        const data = await CloudService.claimReviewPatchRequest({
           patchContent,
           mrId,
           reviewFormat,
-          startedAt,
+        });
+        if (typeof data?.reviewRequestId === 'string' && data.reviewRequestId) {
+          sendResponse({ success: true, reviewRequestId: data.reviewRequestId, provider: 'cloud' });
+          return;
+        }
+        sendResponse({ success: false, error: 'Failed to claim review request' });
+      } catch (err) {
+        sendResponse({
+          success: false,
+          error: err.message,
+          ...authExpiredPayload(err),
+        });
+      }
+    })();
+    return true;
+  }
+
+  if (message.type === 'POLL_REVIEW_PATCH_CODE') {
+    const { reviewRequestId } = message;
+    (async () => {
+      try {
+        const settings = await chrome.storage.local.get(['aiProvider']);
+        const provider = settings.aiProvider || 'cloud';
+        if (provider !== 'cloud') {
+          sendResponse({ success: true, pending: true, provider });
+          return;
+        }
+        if (!reviewRequestId) {
+          sendResponse({ success: true, pending: true, provider: 'cloud' });
+          return;
+        }
+        const data = await CloudService.pollReviewPatchStatus({
+          reviewRequestId,
         });
         if (data?.status === 'success' && data.review) {
           sendResponse({ success: true, data, provider: 'cloud' });

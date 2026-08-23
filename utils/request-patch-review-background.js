@@ -1,6 +1,6 @@
 /**
  * Start REVIEW_PATCH_CODE and, if Chrome drops the long message (~5–6 min),
- * poll POLL_REVIEW_PATCH_CODE until the cached review is ready.
+ * poll POLL_REVIEW_PATCH_CODE until that server-issued request id is complete.
  * Cache polling is ThinkReview Cloud only (never Ollama / OpenRouter / self-hosted).
  */
 
@@ -40,26 +40,39 @@ function sendMessage(payload) {
  * @returns {Promise<object>} background response { success, data?, error?, ... }
  */
 export async function requestPatchReviewFromBackground(payload) {
-  // Same timestamp the backend uses to ignore older cached reviews.
   const startedAt = Date.now();
   let settled = null;
+  let reviewRequestId = null;
 
-  const longReview = sendMessage({ type: 'REVIEW_PATCH_CODE', ...payload, startedAt }).then((resp) => {
+  if (await isThinkReviewCloudProvider()) {
+    const claimResp = await sendMessage({
+      type: 'CLAIM_REVIEW_PATCH_CODE',
+      patchContent: payload.patchContent,
+      mrId: payload.mrId,
+      reviewFormat: payload.reviewFormat,
+    });
+    if (claimResp?.success && typeof claimResp.reviewRequestId === 'string') {
+      reviewRequestId = claimResp.reviewRequestId;
+    }
+  }
+
+  const longReview = sendMessage({ type: 'REVIEW_PATCH_CODE', ...payload, reviewRequestId }).then((resp) => {
     if (resp && settled == null) settled = resp;
     return resp;
   });
 
   while (settled == null && Date.now() - startedAt < DEADLINE_MS) {
-    if (Date.now() - startedAt < CHROME_SAFE_WAIT_MS || !(await isThinkReviewCloudProvider())) {
+    if (
+      Date.now() - startedAt < CHROME_SAFE_WAIT_MS
+      || !reviewRequestId
+      || !(await isThinkReviewCloudProvider())
+    ) {
       await wait(PRE_POLL_CHECK_MS);
       continue;
     }
     const pollResp = await sendMessage({
       type: 'POLL_REVIEW_PATCH_CODE',
-      patchContent: payload.patchContent,
-      mrId: payload.mrId,
-      reviewFormat: payload.reviewFormat,
-      startedAt,
+      reviewRequestId,
     });
     if (pollResp?.success && pollResp.data?.status === 'success') {
       settled = pollResp;

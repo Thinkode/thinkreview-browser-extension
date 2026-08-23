@@ -107,7 +107,7 @@ export class CloudService {
 
   static async getReviewCodeUrlV11() {
     const base = await CloudService.getReviewApiBaseUrl();
-    return `${base}/reviewPatchCode_1_1`;
+    return `${base}/reviewPatchCode_1_2`;
   }
 
   static async getReviewPatchStatusUrl() {
@@ -292,10 +292,10 @@ export class CloudService {
    * @param {boolean} [forceRegenerate] - Optional flag to force regenerate review even if cached
    * @param {string} [platform] - Optional platform information ('gitlab' or 'azure-devops')
    * @param {string} [reviewFormat='severity'] - Optional review layout: 'severity' (default) or 'scoring'
-   * @param {number} [startedAt] - Client start time for this attempt; polls use the same value to ignore older cache
+   * @param {string} [reviewRequestId] - Server-issued token from claimReviewPatchRequest
    * @returns {Promise<Object>} - Code review results from Gemini API
    */
-  static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null, forceRegenerate = false, platform = null, reviewFormat = 'severity', startedAt = null) {
+  static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null, forceRegenerate = false, platform = null, reviewFormat = 'severity', reviewRequestId = null) {
     dbgLog('Sending patch for code review');
     
     if (!patchContent) {
@@ -378,9 +378,8 @@ export class CloudService {
         requestBody.reviewFormat = reviewFormat;
       }
 
-      const startedAtMs = Number(startedAt);
-      if (Number.isFinite(startedAtMs) && startedAtMs > 0) {
-        requestBody.startedAt = startedAtMs;
+      if (typeof reviewRequestId === 'string' && reviewRequestId) {
+        requestBody.reviewRequestId = reviewRequestId;
       }
       
       const reviewUrl = await CloudService.getReviewCodeUrlV11();
@@ -440,37 +439,49 @@ export class CloudService {
    * Single cache-only poll. Does not start a new LLM review.
    * @returns {Promise<Object>} success payload or { status: 'pending' }
    */
-  static async pollReviewPatchCodeOnce(requestBody, startedAt) {
-    const statusUrl = await CloudService.getReviewPatchStatusUrl();
-    const response = await CloudService.thinkReviewFetch(statusUrl, {
-      ...requestBody,
-      startedAt,
-    });
-    await CloudService.throwIfFailedReviewResponse(response);
-    return response.json();
-  }
-
-  static async pollReviewPatchStatus({ patchContent, mrId, reviewFormat, startedAt }) {
-    let email = null;
+  static async resolveReviewEmail() {
     try {
       const storageData = await new Promise((resolve) => {
         chrome.storage.local.get(['userData', 'user'], resolve);
       });
-      if (storageData.userData?.email) {
-        email = storageData.userData.email;
-      } else if (storageData.user) {
+      if (storageData.userData?.email) return storageData.userData.email;
+      if (storageData.user) {
         try {
           const parsed = JSON.parse(storageData.user);
-          if (parsed?.email) email = parsed.email;
+          if (parsed?.email) return parsed.email;
         } catch (_) { /* ignore */ }
       }
     } catch (_) { /* ignore */ }
+    return null;
+  }
 
-    const requestBody = { patchContent };
+  static async pollReviewPatchCodeOnce(requestBody) {
+    const statusUrl = await CloudService.getReviewPatchStatusUrl();
+    const response = await CloudService.thinkReviewFetch(statusUrl, requestBody);
+    await CloudService.throwIfFailedReviewResponse(response);
+    return response.json();
+  }
+
+  /**
+   * Create a server-generated reviewRequestId for this attempt.
+   */
+  static async claimReviewPatchRequest({ patchContent, mrId, reviewFormat }) {
+    const email = await CloudService.resolveReviewEmail();
+    const requestBody = { claim: true, patchContent };
     if (email) requestBody.email = email;
     if (mrId) requestBody.mrId = mrId;
     if (reviewFormat) requestBody.reviewFormat = reviewFormat;
-    return CloudService.pollReviewPatchCodeOnce(requestBody, startedAt);
+    return CloudService.pollReviewPatchCodeOnce(requestBody);
+  }
+
+  /**
+   * Cache-only poll for a claimed reviewRequestId. Does not send the patch.
+   */
+  static async pollReviewPatchStatus({ reviewRequestId }) {
+    const email = await CloudService.resolveReviewEmail();
+    const requestBody = { reviewRequestId };
+    if (email) requestBody.email = email;
+    return CloudService.pollReviewPatchCodeOnce(requestBody);
   }
 
   /**
