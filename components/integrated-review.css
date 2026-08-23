@@ -1450,6 +1450,18 @@ body[data-theme="high-contrast"] #gitlab-mr-integrated-review .thinkreview-table
   text-align: center;
 }
 
+#gitlab-mr-integrated-review .loader-long-wait-message {
+  margin: 12px 8px 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #e8e4f8;
+  text-align: center;
+  background: rgba(107, 79, 187, 0.22);
+  border: 1px solid rgba(140, 107, 232, 0.45);
+  border-radius: 8px;
+}
+
 #gitlab-mr-integrated-review .gl-badge {
   display: inline-block;
   padding: 2px 8px;

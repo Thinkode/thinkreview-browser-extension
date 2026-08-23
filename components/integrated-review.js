@@ -275,8 +275,15 @@ window.clearPatchContentAndHistory = clearPatchContentAndHistory;
 
 // Enhanced loader functionality
 let loaderStageInterval = null;
+let loaderLongWaitTimeout = null;
 let currentLoaderStage = 0;
 const loaderStages = ['fetching', 'analyzing', 'generating'];
+const LOADER_LONG_WAIT_MS = 90 * 1000;
+
+function hideLoaderLongWaitMessage() {
+  const el = document.getElementById('loader-long-wait-message');
+  if (el) el.classList.add('gl-hidden');
+}
 
 /**
  * Starts the enhanced loader with progressive stages
@@ -288,6 +295,21 @@ function startEnhancedLoader() {
   // Reset to first stage
   currentLoaderStage = 0;
   updateLoaderStage('fetching');
+
+  if (loaderStageInterval) {
+    clearInterval(loaderStageInterval);
+    loaderStageInterval = null;
+  }
+  if (loaderLongWaitTimeout) {
+    clearTimeout(loaderLongWaitTimeout);
+    loaderLongWaitTimeout = null;
+  }
+  hideLoaderLongWaitMessage();
+  loaderLongWaitTimeout = setTimeout(() => {
+    loaderLongWaitTimeout = null;
+    const messageEl = document.getElementById('loader-long-wait-message');
+    if (messageEl) messageEl.classList.remove('gl-hidden');
+  }, LOADER_LONG_WAIT_MS);
   
   // Start progressive stage updates
   loaderStageInterval = setInterval(() => {
@@ -339,6 +361,11 @@ function stopEnhancedLoader() {
     clearInterval(loaderStageInterval);
     loaderStageInterval = null;
   }
+  if (loaderLongWaitTimeout) {
+    clearTimeout(loaderLongWaitTimeout);
+    loaderLongWaitTimeout = null;
+  }
+  hideLoaderLongWaitMessage();
 }
 
 /**
@@ -489,6 +516,7 @@ async function createIntegratedReviewPanel(patchUrl) {
                 <div class="progress-text">Retrieving patch data...</div>
               </div>
               <p class="loader-close-hint">Feel free to close this panel and return in a few seconds; your review will keep running in the cloud.</p>
+              <p id="loader-long-wait-message" class="loader-long-wait-message gl-hidden">This is taking longer than expected, but the review is still running in the cloud.</p>
             </div>
           </div>
         </div>

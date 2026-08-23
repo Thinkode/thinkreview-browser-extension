@@ -123,8 +123,7 @@ export class CloudService {
 
   static async getReviewCodeUrlV11() {
     const base = await CloudService.getReviewApiBaseUrl();
-    const isGateway = base !== CLOUD_FUNCTIONS_BASE_URL;
-    return `${base}/${isGateway ? 'reviewPatchCode_1_1' : 'reviewPatchCode_1_2'}`;
+    return `${base}/reviewPatchCode_1_1`;
   }
 
   static async getReviewPatchStatusUrl() {
@@ -396,7 +395,7 @@ export class CloudService {
       
       const startedAt = Date.now();
       const reviewUrl = await CloudService.getReviewCodeUrlV11();
-      const usingGateway = reviewUrl.endsWith('/reviewPatchCode_1_1');
+      const usingGateway = (await CloudService.getReviewApiBaseUrl()) !== CLOUD_FUNCTIONS_BASE_URL;
       try {
         return await CloudService.fetchReviewPatchResult(reviewUrl, requestBody, {
           abortAfterMs: usingGateway ? 0 : CHROME_SAFE_REVIEW_WAIT_MS,
