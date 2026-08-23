@@ -21,9 +21,13 @@ const _extensionVersion = (() => {
 
 const EXTENSION_VERSION_PAYLOAD = _extensionVersion ? { extensionVersion: _extensionVersion } : {};
 
-/** Abort the long review fetch before Chrome's ~5–6 min service-worker/message kill. */
+// Chrome MV3 often kills the SW / message port around 5–6 min; abort the long
+// fetch earlier so we can poll cache instead of losing the review.
 const CHROME_SAFE_REVIEW_WAIT_MS = 4 * 60 * 1000;
+// Background fallback poll after abort. Slower than the panel loop (5s) to
+// avoid duplicate getReviewPatchCode_1_1 traffic.
 const REVIEW_POLL_INTERVAL_MS = 8 * 1000;
+// Matches reviewPatchCode_1_1_v2 timeout; stop polling if cache never appears.
 const REVIEW_POLL_DEADLINE_MS = 15 * 60 * 1000;
 
 function delay(ms) {

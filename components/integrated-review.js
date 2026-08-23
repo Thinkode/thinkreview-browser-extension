@@ -6,6 +6,13 @@ if (typeof DEBUG === 'undefined') {
   var DEBUG = false;
 }
 
+// Show a "still running in the cloud" note after typical reviews should have finished.
+const LOADER_LONG_WAIT_MS = 90 * 1000;
+// PRs larger than this often take minutes; set expectations before the cloud call.
+const LOADER_LARGE_PATCH_BYTES = 100 * 1024;
+// Cycle fetching → analyzing → generating so the loader is not static.
+const LOADER_STAGE_INTERVAL_MS = 2 * 1000;
+
 // Logger functions - loaded dynamically to avoid module import issues in content scripts
 // Provide fallback functions immediately, then upgrade when logger loads
 // Check if variables already exist to avoid redeclaration errors
@@ -279,8 +286,6 @@ let loaderStageInterval = null;
 let loaderLongWaitTimeout = null;
 let currentLoaderStage = 0;
 const loaderStages = ['fetching', 'analyzing', 'generating'];
-const LOADER_LONG_WAIT_MS = 90 * 1000;
-const LOADER_LARGE_PATCH_BYTES = 100 * 1024;
 
 function hideLoaderLongWaitMessage() {
   const el = document.getElementById('loader-long-wait-message');
@@ -336,7 +341,7 @@ function startEnhancedLoader() {
       currentLoaderStage++;
       updateLoaderStage(loaderStages[currentLoaderStage]);
     }
-  }, 2000); // Change stage every 2 seconds
+  }, LOADER_STAGE_INTERVAL_MS);
 }
 
 /**
