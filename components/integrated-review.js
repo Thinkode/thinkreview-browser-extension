@@ -1969,7 +1969,7 @@ async function runReviewCompletionEffects(review, isSeverityFormat) {
 /**
  * Populate the shared suggested follow-up questions list (1 static + up to 3 AI-generated).
  * Used by both scoring and severity layouts.
- * @param {Object} review
+ * @param {{suggestedQuestions?: string[]}|null|undefined} review
  */
 function populateSuggestedQuestions(review) {
   const suggestedQuestionsContainer = document.getElementById('suggested-questions');
@@ -1992,8 +1992,9 @@ function populateSuggestedQuestions(review) {
   staticQuestionButton.appendChild(buttonContent);
   suggestedQuestionsContainer.appendChild(staticQuestionButton);
 
-  if (review.suggestedQuestions && review.suggestedQuestions.length > 0) {
-    const questionsToShow = review.suggestedQuestions.slice(0, 3);
+  const suggestedQuestions = Array.isArray(review?.suggestedQuestions) ? review.suggestedQuestions : [];
+  if (suggestedQuestions.length > 0) {
+    const questionsToShow = suggestedQuestions.slice(0, 3);
     questionsToShow.forEach((question) => {
       const questionButton = document.createElement('button');
       questionButton.className = 'thinkreview-suggested-question-btn';
