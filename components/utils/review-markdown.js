@@ -52,6 +52,11 @@ export function buildReviewMarkdown(review) {
       sections.push(`## Low Issues\n\n${items}`);
     }
 
+    if (Array.isArray(review.suggestedQuestions) && review.suggestedQuestions.length > 0) {
+      const items = review.suggestedQuestions.map((q) => `- ${String(q || '').trim()}`).join('\n');
+      sections.push(`## Suggested Follow-up Questions\n\n${items}`);
+    }
+
     return sections.join('\n\n');
   }
 

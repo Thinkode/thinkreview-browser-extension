@@ -1967,6 +1967,51 @@ async function runReviewCompletionEffects(review, isSeverityFormat) {
 }
 
 /**
+ * Populate the shared suggested follow-up questions list (1 static + up to 3 AI-generated).
+ * Used by both scoring and severity layouts.
+ * @param {{suggestedQuestions?: string[]}|null|undefined} review
+ */
+function populateSuggestedQuestions(review) {
+  const suggestedQuestionsContainer = document.getElementById('suggested-questions');
+  const suggestedQuestionsOuter = document.getElementById('suggested-questions-container');
+  if (!suggestedQuestionsContainer || !suggestedQuestionsOuter) return;
+
+  suggestedQuestionsContainer.replaceChildren();
+
+  const fullMRCommentPrompt = "Act as a senior software engineer reviewing this Pull Request. Provide a professional response ready to post. Address the author by name if it is available in the patch. Mention critical issues or actionable suggestions only if they are present; otherwise, provide a standard approval. Provide the comment text only, without preamble, emojis, or explanations.";
+  const shortDisplayText = "Generate a comment I can post on this MR";
+
+  const staticQuestionButton = document.createElement('button');
+  staticQuestionButton.className = 'thinkreview-suggested-question-btn static-question';
+  staticQuestionButton.setAttribute('data-question', fullMRCommentPrompt);
+  staticQuestionButton.setAttribute('title', 'Click to generate a comment ready to post on this Merge Request');
+
+  const buttonContent = document.createElement('span');
+  buttonContent.className = 'thinkreview-button-content';
+  buttonContent.textContent = shortDisplayText;
+  staticQuestionButton.appendChild(buttonContent);
+  suggestedQuestionsContainer.appendChild(staticQuestionButton);
+
+  const suggestedQuestions = Array.isArray(review?.suggestedQuestions) ? review.suggestedQuestions : [];
+  if (suggestedQuestions.length > 0) {
+    const questionsToShow = suggestedQuestions.slice(0, 3);
+    questionsToShow.forEach((question) => {
+      const questionButton = document.createElement('button');
+      questionButton.className = 'thinkreview-suggested-question-btn';
+      const label = document.createElement('span');
+      label.className = 'thinkreview-button-content';
+      label.textContent = question;
+      questionButton.appendChild(label);
+      questionButton.setAttribute('data-question', question);
+      questionButton.setAttribute('title', 'Click to ask this question');
+      suggestedQuestionsContainer.appendChild(questionButton);
+    });
+  }
+
+  suggestedQuestionsOuter.classList.remove('gl-hidden');
+}
+
+/**
  * Render severity-layout review sections (PR description + issues).
  * Hides scoring-layout containers.
  * @param {Object} review
@@ -1977,7 +2022,6 @@ async function runReviewCompletionEffects(review, isSeverityFormat) {
  * @param {HTMLElement|null} containers.suggestionsContainer
  * @param {HTMLElement|null} containers.securityContainer
  * @param {HTMLElement|null} containers.practicesContainer
- * @param {HTMLElement|null} containers.suggestedQuestionsOuter
  */
 async function renderSeverityReviewSections(review, containers) {
   const {
@@ -1986,8 +2030,7 @@ async function renderSeverityReviewSections(review, containers) {
     summaryContainer,
     suggestionsContainer,
     securityContainer,
-    practicesContainer,
-    suggestedQuestionsOuter
+    practicesContainer
   } = containers;
 
   // Hide scoring-layout sections
@@ -2003,7 +2046,6 @@ async function renderSeverityReviewSections(review, containers) {
   if (suggestionsContainer) suggestionsContainer.classList.add('gl-hidden');
   if (securityContainer) securityContainer.classList.add('gl-hidden');
   if (practicesContainer) practicesContainer.classList.add('gl-hidden');
-  if (suggestedQuestionsOuter) suggestedQuestionsOuter.classList.add('gl-hidden');
 
   // Render severity layout
   if (severityContainer) {
@@ -2030,7 +2072,7 @@ async function renderSeverityReviewSections(review, containers) {
 }
 
 /**
- * Render scoring-layout review sections (metrics, summary, lists, suggested questions).
+ * Render scoring-layout review sections (metrics, summary, lists).
  * Hides severity-layout containers.
  * @param {Object} review
  * @param {Object} containers
@@ -2340,50 +2382,6 @@ async function renderScoringReviewLayout(review, containers, integrationOpts = n
   // Highlight code within lists and entire scroll container
   const scrollContainer = document.getElementById('review-scroll-container');
   applySimpleSyntaxHighlighting(scrollContainer);
-
-  // Populate suggested questions (limit to maximum 3 AI-generated + 1 static)
-  const suggestedQuestionsContainer = document.getElementById('suggested-questions');
-  if (suggestedQuestionsContainer) {
-    suggestedQuestionsContainer.replaceChildren(); // Clear previous questions
-    
-    // Add static question for generating MR comment
-    // Full detailed prompt that will be sent when clicked
-    const fullMRCommentPrompt = "Act as a senior software engineer reviewing this Pull Request. Provide a professional response ready to post. Address the author by name if it is available in the patch. Mention critical issues or actionable suggestions only if they are present; otherwise, provide a standard approval. Provide the comment text only, without preamble, emojis, or explanations.";
-    // Shorter display text for the UI button
-    const shortDisplayText = "Generate a comment I can post on this MR";
-    
-    const staticQuestionButton = document.createElement('button');
-    staticQuestionButton.className = 'thinkreview-suggested-question-btn static-question';
-    staticQuestionButton.setAttribute('data-question', fullMRCommentPrompt);
-    staticQuestionButton.setAttribute('title', 'Click to generate a comment ready to post on this Merge Request');
-    
-    // Create button content wrapper
-    const buttonContent = document.createElement('span');
-    buttonContent.className = 'thinkreview-button-content';
-    buttonContent.textContent = shortDisplayText;
-    
-    staticQuestionButton.appendChild(buttonContent);
-    suggestedQuestionsContainer.appendChild(staticQuestionButton);
-    
-    // Add AI-generated questions (limit to maximum of 3)
-    if (review.suggestedQuestions && review.suggestedQuestions.length > 0) {
-      const questionsToShow = review.suggestedQuestions.slice(0, 3);
-      questionsToShow.forEach((question, index) => {
-        const questionButton = document.createElement('button');
-        questionButton.className = 'thinkreview-suggested-question-btn';
-        const label = document.createElement('span');
-        label.className = 'thinkreview-button-content';
-        label.textContent = question;
-        questionButton.appendChild(label);
-        questionButton.setAttribute('data-question', question);
-        questionButton.setAttribute('title', 'Click to ask this question');
-        suggestedQuestionsContainer.appendChild(questionButton);
-      });
-    }
-    
-    document.getElementById('suggested-questions-container').classList.remove('gl-hidden');
-  }
-
 }
 
 async function displayIntegratedReview(
@@ -2560,8 +2558,6 @@ async function displayIntegratedReview(
   const suggestionsContainer = document.getElementById('review-suggestions-container');
   const securityContainer = document.getElementById('review-security-container');
   const practicesContainer = document.getElementById('review-practices-container');
-  const suggestedQuestionsOuter = document.getElementById('suggested-questions-container');
-
   if (isSeverityFormat) {
     await renderSeverityReviewSections(review, {
       reviewMetricsContainer,
@@ -2569,8 +2565,7 @@ async function displayIntegratedReview(
       summaryContainer,
       suggestionsContainer,
       securityContainer,
-      practicesContainer,
-      suggestedQuestionsOuter
+      practicesContainer
     });
   } else {
     await renderScoringReviewLayout(review, {
@@ -2583,6 +2578,8 @@ async function displayIntegratedReview(
       reviewPractices
     }, integrationOpts);
   }
+
+  populateSuggestedQuestions(review);
 
   await runReviewCompletionEffects(review, isSeverityFormat);
 
@@ -2746,7 +2743,8 @@ async function displayIntegratedReview(
           const isStaticQuestion = button.classList.contains('static-question');
           analyticsModule.trackUserAction('suggested_question_clicked', {
             context: 'integrated_review_panel',
-            question_type: isStaticQuestion ? 'static' : 'dynamic'
+            question_type: isStaticQuestion ? 'static' : 'dynamic',
+            review_format: isSeverityFormat ? 'severity' : 'scoring'
           }).catch(() => {});
         } catch (error) { /* silent */ }
         

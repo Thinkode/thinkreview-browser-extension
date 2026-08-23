@@ -1,6 +1,8 @@
 /**
- * Start REVIEW_PATCH_CODE and, if Chrome drops the long message (~5–6 min),
- * poll POLL_REVIEW_PATCH_CODE until the cached review is ready.
+ * Start REVIEW_PATCH_CODE and, if Chrome / GFE drops the long message (~5–6 min),
+ * poll POLL_REVIEW_PATCH_CODE (getReviewPatchCode_1_1) after the safe window.
+ * Do not abort the long fetch: Cloud Run can cancel reviewPatchCode_1_2 on disconnect.
+ * Treat 504 / timeout as "still running" and keep polling until the cache is ready.
  * Cache polling is ThinkReview Cloud only (never Ollama / OpenRouter / self-hosted).
  */
 
@@ -35,6 +37,13 @@ function sendMessage(payload) {
   });
 }
 
+function isTerminalReviewResponse(resp) {
+  if (!resp || resp.pending) return false;
+  if (resp.success === true && (resp.data?.status === 'success' || resp.data?.review)) return true;
+  if (resp.isAuthExpired || resp.isLimitExceeded || resp.isPatchTooLarge) return true;
+  return false;
+}
+
 /**
  * @param {object} payload - same fields as REVIEW_PATCH_CODE
  * @returns {Promise<object>} background response { success, data?, error?, ... }
@@ -45,7 +54,7 @@ export async function requestPatchReviewFromBackground(payload) {
   let settled = null;
 
   const longReview = sendMessage({ type: 'REVIEW_PATCH_CODE', ...payload, startedAt }).then((resp) => {
-    if (resp && settled == null) settled = resp;
+    if (settled == null && isTerminalReviewResponse(resp)) settled = resp;
     return resp;
   });
 
@@ -65,7 +74,7 @@ export async function requestPatchReviewFromBackground(payload) {
       settled = pollResp;
       break;
     }
-    if (pollResp?.success === false && !pollResp.pending) {
+    if (isTerminalReviewResponse(pollResp)) {
       settled = pollResp;
       break;
     }
@@ -74,6 +83,6 @@ export async function requestPatchReviewFromBackground(payload) {
 
   if (settled) return settled;
   const late = await longReview;
-  if (late) return late;
+  if (isTerminalReviewResponse(late)) return late;
   return { success: false, error: 'Review timed out. Please try again.' };
 }

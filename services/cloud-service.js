@@ -107,7 +107,7 @@ export class CloudService {
 
   static async getReviewCodeUrlV11() {
     const base = await CloudService.getReviewApiBaseUrl();
-    return `${base}/reviewPatchCode_1_1`;
+    return `${base}/reviewPatchCode_1_2`;
   }
 
   static async getReviewPatchStatusUrl() {
@@ -419,6 +419,10 @@ export class CloudService {
       rateLimitError.isRateLimit = true;
       rateLimitError.rateLimitMessage = '🚫 Rate limit reached! You\'ve made too many requests in a short time. Please wait a few minutes before trying again. This helps us provide quality service to all users.';
       throw rateLimitError;
+    } else if (response.status === 502 || response.status === 503 || response.status === 504) {
+      const gatewayError = new Error(`HTTP error ${response.status}: ${errorText}`);
+      gatewayError.isTransientTimeout = true;
+      throw gatewayError;
     }
 
     throw new Error(`HTTP error ${response.status}: ${errorText}`);
