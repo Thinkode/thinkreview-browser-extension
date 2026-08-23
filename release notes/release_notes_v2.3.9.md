@@ -1,6 +1,6 @@
 # ThinkReview - Version 2.3.9 Release Notes
 
-**Release Date:** 23 August 2026
+**Release Date:** 24 August 2026
 
 ---
 
