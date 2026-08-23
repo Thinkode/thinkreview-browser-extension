@@ -593,6 +593,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { patchContent, mrId, reviewFormat, startedAt } = message;
     (async () => {
       try {
+        const settings = await chrome.storage.local.get(['aiProvider']);
+        const provider = settings.aiProvider || 'cloud';
+        if (provider !== 'cloud') {
+          sendResponse({ success: true, pending: true, provider });
+          return;
+        }
         const data = await CloudService.pollReviewPatchStatus({
           patchContent,
           mrId,

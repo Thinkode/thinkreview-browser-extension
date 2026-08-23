@@ -6,9 +6,9 @@ if (typeof DEBUG === 'undefined') {
   var DEBUG = false;
 }
 
-// Show a "still running in the cloud" note after typical reviews should have finished.
-const LOADER_LONG_WAIT_MS = 90 * 1000;
-// PRs larger than this often take minutes; set expectations before the cloud call.
+// Show a "still running in the cloud" note after typical small reviews should have finished.
+const LOADER_LONG_WAIT_MS = 2 * 60 * 1000;
+// PRs this size or larger often take minutes; set expectations before the cloud call.
 const LOADER_LARGE_PATCH_BYTES = 100 * 1024;
 // Cycle fetching → analyzing → generating so the loader is not static.
 const LOADER_STAGE_INTERVAL_MS = 2 * 1000;
@@ -284,6 +284,7 @@ window.clearPatchContentAndHistory = clearPatchContentAndHistory;
 // Enhanced loader functionality
 let loaderStageInterval = null;
 let loaderLongWaitTimeout = null;
+let loaderPatchExceedsLargeThreshold = false;
 let currentLoaderStage = 0;
 const loaderStages = ['fetching', 'analyzing', 'generating'];
 
@@ -314,10 +315,12 @@ function countPatchChangeLines(patchContent) {
 function showLoaderLargePatchHint(patchContent) {
   const el = document.getElementById('loader-large-patch-message');
   const patchLength = typeof patchContent === 'string' ? patchContent.length : Number(patchContent);
-  if (!el || !Number.isFinite(patchLength) || patchLength <= LOADER_LARGE_PATCH_BYTES) {
+  if (!el || !Number.isFinite(patchLength) || patchLength < LOADER_LARGE_PATCH_BYTES) {
+    loaderPatchExceedsLargeThreshold = false;
     hideLoaderLargePatchMessage();
     return;
   }
+  loaderPatchExceedsLargeThreshold = true;
   const sizeKb = Math.max(1, Math.round(patchLength / 1024));
   const changeLines = typeof patchContent === 'string' ? countPatchChangeLines(patchContent) : 0;
   const sizeLabel = changeLines > 0
@@ -349,8 +352,10 @@ function startEnhancedLoader() {
   }
   hideLoaderLongWaitMessage();
   hideLoaderLargePatchMessage();
+  loaderPatchExceedsLargeThreshold = false;
   loaderLongWaitTimeout = setTimeout(() => {
     loaderLongWaitTimeout = null;
+    if (loaderPatchExceedsLargeThreshold) return;
     const messageEl = document.getElementById('loader-long-wait-message');
     if (messageEl) messageEl.classList.remove('gl-hidden');
     syncLoaderStatusNotes();

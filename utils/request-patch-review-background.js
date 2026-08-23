@@ -1,6 +1,7 @@
 /**
  * Start REVIEW_PATCH_CODE and, if Chrome drops the long message (~5–6 min),
  * poll POLL_REVIEW_PATCH_CODE until the cached review is ready.
+ * Cache polling is ThinkReview Cloud only (never Ollama / OpenRouter / self-hosted).
  */
 
 // Chrome MV3 often kills the SW / message port around 5–6 min. Wait this long
@@ -9,12 +10,17 @@ const CHROME_SAFE_WAIT_MS = 4 * 60 * 1000;
 // Cheap loop while still inside the safe window (no cloud poll yet).
 const PRE_POLL_CHECK_MS = 2 * 1000;
 // Panel poll of getReviewPatchCode_1_1 after the safe window.
-const POLL_INTERVAL_MS = 5 * 1000;
+const POLL_INTERVAL_MS = 10 * 1000;
 // Matches reviewPatchCode_1_1_v2 timeout; give up if cache never appears.
 const DEADLINE_MS = 15 * 60 * 1000;
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function isThinkReviewCloudProvider() {
+  const stored = await chrome.storage.local.get(['aiProvider']);
+  return (stored.aiProvider || 'cloud') === 'cloud';
 }
 
 function sendMessage(payload) {
@@ -44,7 +50,7 @@ export async function requestPatchReviewFromBackground(payload) {
   });
 
   while (settled == null && Date.now() - startedAt < DEADLINE_MS) {
-    if (Date.now() - startedAt < CHROME_SAFE_WAIT_MS) {
+    if (Date.now() - startedAt < CHROME_SAFE_WAIT_MS || !(await isThinkReviewCloudProvider())) {
       await wait(PRE_POLL_CHECK_MS);
       continue;
     }
