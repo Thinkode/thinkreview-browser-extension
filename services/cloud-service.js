@@ -107,7 +107,7 @@ export class CloudService {
 
   static async getReviewCodeUrlV11() {
     const base = await CloudService.getReviewApiBaseUrl();
-    return `${base}/reviewPatchCode_1_1`;
+    return `${base}/reviewPatchCode_1_2`;
   }
 
   static async getReviewPatchStatusUrl() {

@@ -599,6 +599,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ success: true, pending: true, provider });
           return;
         }
+        if (!patchContent) {
+          sendResponse({ success: true, pending: true, provider: 'cloud' });
+          return;
+        }
         const data = await CloudService.pollReviewPatchStatus({
           patchContent,
           mrId,

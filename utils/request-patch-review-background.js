@@ -1,6 +1,7 @@
 /**
  * Start REVIEW_PATCH_CODE and, if Chrome drops the long message (~5–6 min),
- * poll POLL_REVIEW_PATCH_CODE until the cached review is ready.
+ * poll POLL_REVIEW_PATCH_CODE (getReviewPatchCode_1_1) after the safe window.
+ * reviewPatchCode_1_2 already serves cache hits, so do not poll immediately.
  * Cache polling is ThinkReview Cloud only (never Ollama / OpenRouter / self-hosted).
  */
 
