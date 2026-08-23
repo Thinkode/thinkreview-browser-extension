@@ -3,7 +3,7 @@
 // Debug toggle: set to false to disable console logs in production
 // Check if DEBUG already exists to avoid conflicts
 if (typeof DEBUG === 'undefined') {
-  var DEBUG = true;
+  var DEBUG = false;
 }
 
 // Timing constants (in milliseconds)
@@ -1489,6 +1489,10 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       }
     }
     
+    if (typeof showLoaderLargePatchHint === 'function') {
+      showLoaderLargePatchHint(filteredCodeContent.length);
+    }
+
     // Get the user's language preference from extension storage
     const result = await chrome.storage.local.get(['code-review-language', 'code-review-format']);
     const language = result['code-review-language'] || 'English';

@@ -147,6 +147,7 @@ window.reviewPrompt = null;
 window.startEnhancedLoader = startEnhancedLoader;
 window.stopEnhancedLoader = stopEnhancedLoader;
 window.updateLoaderStage = updateLoaderStage;
+window.showLoaderLargePatchHint = showLoaderLargePatchHint;
 
 // Initialize review prompt component
 async function initReviewPromptComponent() {
@@ -279,10 +280,27 @@ let loaderLongWaitTimeout = null;
 let currentLoaderStage = 0;
 const loaderStages = ['fetching', 'analyzing', 'generating'];
 const LOADER_LONG_WAIT_MS = 90 * 1000;
+const LOADER_LARGE_PATCH_BYTES = 100 * 1024;
 
 function hideLoaderLongWaitMessage() {
   const el = document.getElementById('loader-long-wait-message');
   if (el) el.classList.add('gl-hidden');
+}
+
+function hideLoaderLargePatchMessage() {
+  const el = document.getElementById('loader-large-patch-message');
+  if (el) el.classList.add('gl-hidden');
+}
+
+function showLoaderLargePatchHint(patchLength) {
+  const el = document.getElementById('loader-large-patch-message');
+  if (!el || !Number.isFinite(patchLength) || patchLength <= LOADER_LARGE_PATCH_BYTES) {
+    hideLoaderLargePatchMessage();
+    return;
+  }
+  const sizeKb = Math.max(1, Math.round(patchLength / 1024));
+  el.textContent = `This PR is ${sizeKb} KB, so the review may take some time. It is still running in the cloud.`;
+  el.classList.remove('gl-hidden');
 }
 
 /**
@@ -305,6 +323,7 @@ function startEnhancedLoader() {
     loaderLongWaitTimeout = null;
   }
   hideLoaderLongWaitMessage();
+  hideLoaderLargePatchMessage();
   loaderLongWaitTimeout = setTimeout(() => {
     loaderLongWaitTimeout = null;
     const messageEl = document.getElementById('loader-long-wait-message');
@@ -366,6 +385,7 @@ function stopEnhancedLoader() {
     loaderLongWaitTimeout = null;
   }
   hideLoaderLongWaitMessage();
+  hideLoaderLargePatchMessage();
 }
 
 /**
@@ -517,6 +537,7 @@ async function createIntegratedReviewPanel(patchUrl) {
               </div>
               <p class="loader-close-hint">Feel free to close this panel and return in a few seconds; your review will keep running in the cloud.</p>
               <p id="loader-long-wait-message" class="loader-long-wait-message gl-hidden">This is taking longer than expected, but the review is still running in the cloud.</p>
+              <p id="loader-large-patch-message" class="loader-large-patch-message gl-hidden"></p>
             </div>
           </div>
         </div>
