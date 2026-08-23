@@ -10,7 +10,7 @@ const CHROME_SAFE_WAIT_MS = 4 * 60 * 1000;
 // Cheap loop while still inside the safe window (no cloud poll yet).
 const PRE_POLL_CHECK_MS = 2 * 1000;
 // Panel poll of getReviewPatchCode_1_1 after the safe window.
-const POLL_INTERVAL_MS = 10 * 1000;
+const POLL_INTERVAL_MS = 15 * 1000;
 // Matches reviewPatchCode_1_1_v2 timeout; give up if cache never appears.
 const DEADLINE_MS = 15 * 60 * 1000;
 
