@@ -1489,6 +1489,10 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       }
     }
     
+    if (typeof showLoaderLargePatchHint === 'function') {
+      showLoaderLargePatchHint(filteredCodeContent);
+    }
+
     // Get the user's language preference from extension storage
     const result = await chrome.storage.local.get(['code-review-language', 'code-review-format']);
     const language = result['code-review-language'] || 'English';
@@ -1526,18 +1530,19 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       }
     }
     
-    // Send the code content for review via background script (avoids CSP fetch issues)
-    const bgResponse = await new Promise((resolve) => {
-      chrome.runtime.sendMessage({ 
-        type: 'REVIEW_PATCH_CODE', 
-        patchContent: filteredCodeContent,
-        mrId: reviewId, // Include the review ID for tracking
-        mrUrl: mrUrl, // Include the full MR/PR URL
-        language, // Include the language preference
-        platform, // Include platform information
-        forceRegenerate, // Include force regenerate flag
-        reviewFormat // Include review layout format (scoring | severity)
-      }, resolve);
+    // Send the code content for review via background script (avoids CSP fetch issues).
+    // After ~4 min, also poll cache so Chrome dropping the long message does not lose the review.
+    const { requestPatchReviewFromBackground } = await import(
+      chrome.runtime.getURL('utils/request-patch-review-background.js')
+    );
+    const bgResponse = await requestPatchReviewFromBackground({
+      patchContent: filteredCodeContent,
+      mrId: reviewId,
+      mrUrl: mrUrl,
+      language,
+      platform,
+      forceRegenerate,
+      reviewFormat
     });
 
     if (!bgResponse || !bgResponse.success) {

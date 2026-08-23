@@ -6,6 +6,13 @@ if (typeof DEBUG === 'undefined') {
   var DEBUG = false;
 }
 
+// Show a "still running in the cloud" note after typical small reviews should have finished.
+const LOADER_LONG_WAIT_MS = 2 * 60 * 1000;
+// PRs this size or larger often take minutes; set expectations before the cloud call.
+const LOADER_LARGE_PATCH_BYTES = 100 * 1024;
+// Cycle fetching → analyzing → generating so the loader is not static.
+const LOADER_STAGE_INTERVAL_MS = 2 * 1000;
+
 // Logger functions - loaded dynamically to avoid module import issues in content scripts
 // Provide fallback functions immediately, then upgrade when logger loads
 // Check if variables already exist to avoid redeclaration errors
@@ -147,6 +154,7 @@ window.reviewPrompt = null;
 window.startEnhancedLoader = startEnhancedLoader;
 window.stopEnhancedLoader = stopEnhancedLoader;
 window.updateLoaderStage = updateLoaderStage;
+window.showLoaderLargePatchHint = showLoaderLargePatchHint;
 
 // Initialize review prompt component
 async function initReviewPromptComponent() {
@@ -275,8 +283,53 @@ window.clearPatchContentAndHistory = clearPatchContentAndHistory;
 
 // Enhanced loader functionality
 let loaderStageInterval = null;
+let loaderLongWaitTimeout = null;
+let loaderPatchExceedsLargeThreshold = false;
 let currentLoaderStage = 0;
 const loaderStages = ['fetching', 'analyzing', 'generating'];
+
+function syncLoaderStatusNotes() {
+  const notes = document.getElementById('loader-status-notes');
+  if (!notes) return;
+  const hasVisible = [...notes.querySelectorAll('p')].some((p) => !p.classList.contains('gl-hidden'));
+  notes.classList.toggle('gl-hidden', !hasVisible);
+}
+
+function hideLoaderLongWaitMessage() {
+  const el = document.getElementById('loader-long-wait-message');
+  if (el) el.classList.add('gl-hidden');
+  syncLoaderStatusNotes();
+}
+
+function hideLoaderLargePatchMessage() {
+  const el = document.getElementById('loader-large-patch-message');
+  if (el) el.classList.add('gl-hidden');
+  syncLoaderStatusNotes();
+}
+
+function countPatchChangeLines(patchContent) {
+  if (typeof patchContent !== 'string' || !patchContent) return 0;
+  return patchContent.match(/^[+-](?![+-])/gm)?.length ?? 0;
+}
+
+function showLoaderLargePatchHint(patchContent) {
+  const el = document.getElementById('loader-large-patch-message');
+  const patchLength = typeof patchContent === 'string' ? patchContent.length : Number(patchContent);
+  if (!el || !Number.isFinite(patchLength) || patchLength < LOADER_LARGE_PATCH_BYTES) {
+    loaderPatchExceedsLargeThreshold = false;
+    hideLoaderLargePatchMessage();
+    return;
+  }
+  loaderPatchExceedsLargeThreshold = true;
+  const sizeKb = Math.max(1, Math.round(patchLength / 1024));
+  const changeLines = typeof patchContent === 'string' ? countPatchChangeLines(patchContent) : 0;
+  const sizeLabel = changeLines > 0
+    ? `${sizeKb} KB, about ${changeLines.toLocaleString()} changed lines`
+    : `${sizeKb} KB`;
+  el.textContent = `This pull request is quite large (${sizeLabel}), so the review may take a little longer.`;
+  el.classList.remove('gl-hidden');
+  syncLoaderStatusNotes();
+}
 
 /**
  * Starts the enhanced loader with progressive stages
@@ -288,6 +341,25 @@ function startEnhancedLoader() {
   // Reset to first stage
   currentLoaderStage = 0;
   updateLoaderStage('fetching');
+
+  if (loaderStageInterval) {
+    clearInterval(loaderStageInterval);
+    loaderStageInterval = null;
+  }
+  if (loaderLongWaitTimeout) {
+    clearTimeout(loaderLongWaitTimeout);
+    loaderLongWaitTimeout = null;
+  }
+  hideLoaderLongWaitMessage();
+  hideLoaderLargePatchMessage();
+  loaderPatchExceedsLargeThreshold = false;
+  loaderLongWaitTimeout = setTimeout(() => {
+    loaderLongWaitTimeout = null;
+    if (loaderPatchExceedsLargeThreshold) return;
+    const messageEl = document.getElementById('loader-long-wait-message');
+    if (messageEl) messageEl.classList.remove('gl-hidden');
+    syncLoaderStatusNotes();
+  }, LOADER_LONG_WAIT_MS);
   
   // Start progressive stage updates
   loaderStageInterval = setInterval(() => {
@@ -295,7 +367,7 @@ function startEnhancedLoader() {
       currentLoaderStage++;
       updateLoaderStage(loaderStages[currentLoaderStage]);
     }
-  }, 2000); // Change stage every 2 seconds
+  }, LOADER_STAGE_INTERVAL_MS);
 }
 
 /**
@@ -339,6 +411,12 @@ function stopEnhancedLoader() {
     clearInterval(loaderStageInterval);
     loaderStageInterval = null;
   }
+  if (loaderLongWaitTimeout) {
+    clearTimeout(loaderLongWaitTimeout);
+    loaderLongWaitTimeout = null;
+  }
+  hideLoaderLongWaitMessage();
+  hideLoaderLargePatchMessage();
 }
 
 /**
@@ -489,6 +567,10 @@ async function createIntegratedReviewPanel(patchUrl) {
                 <div class="progress-text">Retrieving patch data...</div>
               </div>
               <p class="loader-close-hint">Feel free to close this panel and return in a few seconds; your review will keep running in the cloud.</p>
+              <div id="loader-status-notes" class="loader-status-notes gl-hidden">
+                <p id="loader-large-patch-message" class="loader-large-patch-message gl-hidden"></p>
+                <p id="loader-long-wait-message" class="loader-long-wait-message gl-hidden">This is taking longer than expected, but the review is still running in the cloud.</p>
+              </div>
             </div>
           </div>
         </div>

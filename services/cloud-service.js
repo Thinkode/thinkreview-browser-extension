@@ -110,6 +110,11 @@ export class CloudService {
     return `${base}/reviewPatchCode_1_1`;
   }
 
+  static async getReviewPatchStatusUrl() {
+    const base = await CloudService.getReviewApiBaseUrl();
+    return `${base}/getReviewPatchCode_1_1`;
+  }
+
   static async getConversationalReviewUrlV11() {
     const base = await CloudService.getReviewApiBaseUrl();
     return `${base}/getConversationalReview_1_1`;
@@ -287,9 +292,10 @@ export class CloudService {
    * @param {boolean} [forceRegenerate] - Optional flag to force regenerate review even if cached
    * @param {string} [platform] - Optional platform information ('gitlab' or 'azure-devops')
    * @param {string} [reviewFormat='severity'] - Optional review layout: 'severity' (default) or 'scoring'
+   * @param {number} [startedAt] - Client start time for this attempt; polls use the same value to ignore older cache
    * @returns {Promise<Object>} - Code review results from Gemini API
    */
-  static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null, forceRegenerate = false, platform = null, reviewFormat = 'severity') {
+  static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null, forceRegenerate = false, platform = null, reviewFormat = 'severity', startedAt = null) {
     dbgLog('Sending patch for code review');
     
     if (!patchContent) {
@@ -332,8 +338,7 @@ export class CloudService {
       dbgWarn('Error getting user email for review:', error);
     }
     
-    try {
-      const requestBody = {
+    const requestBody = {
         patchContent
       };
       
@@ -372,61 +377,100 @@ export class CloudService {
       if (reviewFormat) {
         requestBody.reviewFormat = reviewFormat;
       }
-      
-      const response = await CloudService.thinkReviewFetch(await CloudService.getReviewCodeUrlV11(), requestBody);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        
-        // Handle daily limits and IP rate limiting specifically
-        if (response.status === 429) {
-          // 429 is used for daily limit exceeded
-          try {
-            const errorData = JSON.parse(errorText);
-            if (errorData.message === 'Reviews-limits-exceeded') {
-              const limitError = new Error('Daily review limit exceeded');
-              limitError.isLimitExceeded = true;
-              limitError.dailyLimit = errorData.dailyLimit;
-              limitError.currentCount = errorData.currentCount;
-              limitError.purchasedReviewCredits = errorData.purchasedReviewCredits;
-              throw limitError;
-            }
-            if (errorData.message === 'PR-size-limit-exceeded') {
-              const patchTooLargeError = new Error('PR size limit exceeded for free tier');
-              patchTooLargeError.isPatchTooLarge = true;
-              patchTooLargeError.patchSize = errorData.patchSize;
-              patchTooLargeError.maxPatchSize = errorData.maxPatchSize;
-              throw patchTooLargeError;
-            }
-          } catch (parseError) {
-            // Re-throw typed errors; fall through to generic error for everything else
-            if (parseError.isLimitExceeded || parseError.isPatchTooLarge) {
-              throw parseError;
-            }
-          }
-        } else if (response.status === 403) {
-          // 403 is used for IP rate limiting
-          const rateLimitError = new Error('Rate limit reached');
-          rateLimitError.isRateLimit = true;
-          rateLimitError.rateLimitMessage = '🚫 Rate limit reached! You\'ve made too many requests in a short time. Please wait a few minutes before trying again. This helps us provide quality service to all users.';
-          throw rateLimitError;
-        }
-        
-        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+
+      const startedAtMs = Number(startedAt);
+      if (Number.isFinite(startedAtMs) && startedAtMs > 0) {
+        requestBody.startedAt = startedAtMs;
       }
       
-      const data = await response.json();
-      // Log only metadata, not the actual review content
-      dbgLog('Code review completed successfully:', {
-        status: data?.status,
-        hasReview: !!data?.review,
-        reviewLength: data?.review?.response?.length || 0
-      });
-      return data;
-    } catch (error) {
-      dbgWarn('Error reviewing code:', error);
-      throw error;
+      const reviewUrl = await CloudService.getReviewCodeUrlV11();
+      return CloudService.fetchReviewPatchResult(reviewUrl, requestBody);
+  }
+
+  static async throwIfFailedReviewResponse(response) {
+    if (response.ok) return;
+    const errorText = await response.text();
+
+    if (response.status === 429) {
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.message === 'Reviews-limits-exceeded') {
+          const limitError = new Error('Daily review limit exceeded');
+          limitError.isLimitExceeded = true;
+          limitError.dailyLimit = errorData.dailyLimit;
+          limitError.currentCount = errorData.currentCount;
+          limitError.purchasedReviewCredits = errorData.purchasedReviewCredits;
+          throw limitError;
+        }
+        if (errorData.message === 'PR-size-limit-exceeded') {
+          const patchTooLargeError = new Error('PR size limit exceeded for free tier');
+          patchTooLargeError.isPatchTooLarge = true;
+          patchTooLargeError.patchSize = errorData.patchSize;
+          patchTooLargeError.maxPatchSize = errorData.maxPatchSize;
+          throw patchTooLargeError;
+        }
+      } catch (parseError) {
+        if (parseError.isLimitExceeded || parseError.isPatchTooLarge) {
+          throw parseError;
+        }
+      }
+    } else if (response.status === 403) {
+      const rateLimitError = new Error('Rate limit reached');
+      rateLimitError.isRateLimit = true;
+      rateLimitError.rateLimitMessage = '🚫 Rate limit reached! You\'ve made too many requests in a short time. Please wait a few minutes before trying again. This helps us provide quality service to all users.';
+      throw rateLimitError;
     }
+
+    throw new Error(`HTTP error ${response.status}: ${errorText}`);
+  }
+
+  static async fetchReviewPatchResult(url, requestBody) {
+    const response = await CloudService.thinkReviewFetch(url, requestBody);
+    await CloudService.throwIfFailedReviewResponse(response);
+    const data = await response.json();
+    dbgLog('Code review completed successfully:', {
+      status: data?.status,
+      hasReview: !!data?.review,
+      reviewLength: data?.review?.response?.length || 0
+    });
+    return data;
+  }
+
+  /**
+   * Single cache-only poll. Does not start a new LLM review.
+   * @returns {Promise<Object>} success payload or { status: 'pending' }
+   */
+  static async pollReviewPatchCodeOnce(requestBody, startedAt) {
+    const statusUrl = await CloudService.getReviewPatchStatusUrl();
+    const response = await CloudService.thinkReviewFetch(statusUrl, {
+      ...requestBody,
+      startedAt,
+    });
+    await CloudService.throwIfFailedReviewResponse(response);
+    return response.json();
+  }
+
+  static async pollReviewPatchStatus({ patchContent, mrId, reviewFormat, startedAt }) {
+    let email = null;
+    try {
+      const storageData = await new Promise((resolve) => {
+        chrome.storage.local.get(['userData', 'user'], resolve);
+      });
+      if (storageData.userData?.email) {
+        email = storageData.userData.email;
+      } else if (storageData.user) {
+        try {
+          const parsed = JSON.parse(storageData.user);
+          if (parsed?.email) email = parsed.email;
+        } catch (_) { /* ignore */ }
+      }
+    } catch (_) { /* ignore */ }
+
+    const requestBody = { patchContent };
+    if (email) requestBody.email = email;
+    if (mrId) requestBody.mrId = mrId;
+    if (reviewFormat) requestBody.reviewFormat = reviewFormat;
+    return CloudService.pollReviewPatchCodeOnce(requestBody, startedAt);
   }
 
   /**

@@ -439,7 +439,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   // Handle code review request from content script to avoid CSP issues
   if (message.type === 'REVIEW_PATCH_CODE') {
-    const { patchContent, mrId, mrUrl, language, platform, forceRegenerate, reviewFormat } = message;
+    const { patchContent, mrId, mrUrl, language, platform, forceRegenerate, reviewFormat, startedAt } = message;
     
     (async () => {
       // Get AI provider setting (declare outside try block so it's accessible in catch)
@@ -530,7 +530,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         // Use CloudService to review the patch code
-        const data = await CloudService.reviewPatchCode(patchContent, language, mrId, mrUrl, forceRegenerate, platform, reviewFormat);
+        const data = await CloudService.reviewPatchCode(patchContent, language, mrId, mrUrl, forceRegenerate, platform, reviewFormat, startedAt);
         
         // Track the review if mrId is provided
         if (mrId) {
@@ -587,6 +587,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     })();
     return true; // Keep channel open
+  }
+
+  if (message.type === 'POLL_REVIEW_PATCH_CODE') {
+    const { patchContent, mrId, reviewFormat, startedAt } = message;
+    (async () => {
+      try {
+        const settings = await chrome.storage.local.get(['aiProvider']);
+        const provider = settings.aiProvider || 'cloud';
+        if (provider !== 'cloud') {
+          sendResponse({ success: true, pending: true, provider });
+          return;
+        }
+        const data = await CloudService.pollReviewPatchStatus({
+          patchContent,
+          mrId,
+          reviewFormat,
+          startedAt,
+        });
+        if (data?.status === 'success' && data.review) {
+          sendResponse({ success: true, data, provider: 'cloud' });
+          return;
+        }
+        sendResponse({ success: true, pending: true, provider: 'cloud' });
+      } catch (err) {
+        sendResponse({
+          success: false,
+          error: err.message,
+          ...authExpiredPayload(err),
+        });
+      }
+    })();
+    return true;
   }
 
   if (message.type === 'FETCH_AGENT_REVIEWS_FOR_PATCH') {

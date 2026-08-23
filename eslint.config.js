@@ -66,6 +66,7 @@ export default [
         showIntegratedReviewError: 'readonly',
         startEnhancedLoader: 'readonly',
         stopEnhancedLoader: 'readonly',
+        showLoaderLargePatchHint: 'readonly',
         fetchAndDisplayCodeReview: 'writable',
         platformDetector: 'writable',
       },
