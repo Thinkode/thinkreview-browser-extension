@@ -287,25 +287,50 @@ let loaderLongWaitTimeout = null;
 let currentLoaderStage = 0;
 const loaderStages = ['fetching', 'analyzing', 'generating'];
 
+function syncLoaderStatusNotes() {
+  const notes = document.getElementById('loader-status-notes');
+  if (!notes) return;
+  const hasVisible = [...notes.querySelectorAll('p')].some((p) => !p.classList.contains('gl-hidden'));
+  notes.classList.toggle('gl-hidden', !hasVisible);
+}
+
 function hideLoaderLongWaitMessage() {
   const el = document.getElementById('loader-long-wait-message');
   if (el) el.classList.add('gl-hidden');
+  syncLoaderStatusNotes();
 }
 
 function hideLoaderLargePatchMessage() {
   const el = document.getElementById('loader-large-patch-message');
   if (el) el.classList.add('gl-hidden');
+  syncLoaderStatusNotes();
 }
 
-function showLoaderLargePatchHint(patchLength) {
+function countPatchChangeLines(patchContent) {
+  if (typeof patchContent !== 'string' || !patchContent) return 0;
+  let count = 0;
+  for (const line of patchContent.split('\n')) {
+    if (line.startsWith('+') && !line.startsWith('+++')) count += 1;
+    else if (line.startsWith('-') && !line.startsWith('---')) count += 1;
+  }
+  return count;
+}
+
+function showLoaderLargePatchHint(patchContent) {
   const el = document.getElementById('loader-large-patch-message');
+  const patchLength = typeof patchContent === 'string' ? patchContent.length : Number(patchContent);
   if (!el || !Number.isFinite(patchLength) || patchLength <= LOADER_LARGE_PATCH_BYTES) {
     hideLoaderLargePatchMessage();
     return;
   }
   const sizeKb = Math.max(1, Math.round(patchLength / 1024));
-  el.textContent = `This PR is ${sizeKb} KB, so the review may take some time. It is still running in the cloud.`;
+  const changeLines = typeof patchContent === 'string' ? countPatchChangeLines(patchContent) : 0;
+  const sizeLabel = changeLines > 0
+    ? `${sizeKb} KB, about ${changeLines.toLocaleString()} changed lines`
+    : `${sizeKb} KB`;
+  el.textContent = `This pull request is quite large (${sizeLabel}), so the review may take a little longer.`;
   el.classList.remove('gl-hidden');
+  syncLoaderStatusNotes();
 }
 
 /**
@@ -333,6 +358,7 @@ function startEnhancedLoader() {
     loaderLongWaitTimeout = null;
     const messageEl = document.getElementById('loader-long-wait-message');
     if (messageEl) messageEl.classList.remove('gl-hidden');
+    syncLoaderStatusNotes();
   }, LOADER_LONG_WAIT_MS);
   
   // Start progressive stage updates
@@ -541,8 +567,10 @@ async function createIntegratedReviewPanel(patchUrl) {
                 <div class="progress-text">Retrieving patch data...</div>
               </div>
               <p class="loader-close-hint">Feel free to close this panel and return in a few seconds; your review will keep running in the cloud.</p>
-              <p id="loader-long-wait-message" class="loader-long-wait-message gl-hidden">This is taking longer than expected, but the review is still running in the cloud.</p>
-              <p id="loader-large-patch-message" class="loader-large-patch-message gl-hidden"></p>
+              <div id="loader-status-notes" class="loader-status-notes gl-hidden">
+                <p id="loader-large-patch-message" class="loader-large-patch-message gl-hidden"></p>
+                <p id="loader-long-wait-message" class="loader-long-wait-message gl-hidden">This is taking longer than expected, but the review is still running in the cloud.</p>
+              </div>
             </div>
           </div>
         </div>

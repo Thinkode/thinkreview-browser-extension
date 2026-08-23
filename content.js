@@ -1490,7 +1490,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     }
     
     if (typeof showLoaderLargePatchHint === 'function') {
-      showLoaderLargePatchHint(filteredCodeContent.length);
+      showLoaderLargePatchHint(filteredCodeContent);
     }
 
     // Get the user's language preference from extension storage
