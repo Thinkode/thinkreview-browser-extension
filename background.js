@@ -574,6 +574,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ 
           success: false, 
           error: err.message,
+          isTransientTimeout: err.isTransientTimeout === true,
           isLimitExceeded: err.isLimitExceeded || false,
           isPatchTooLarge: err.isPatchTooLarge || false,
           patchSize: err.patchSize,
@@ -618,6 +619,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({
           success: false,
           error: err.message,
+          isTransientTimeout: err.isTransientTimeout === true,
           ...authExpiredPayload(err),
         });
       }
