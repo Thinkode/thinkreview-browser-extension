@@ -21,26 +21,6 @@ const _extensionVersion = (() => {
 
 const EXTENSION_VERSION_PAYLOAD = _extensionVersion ? { extensionVersion: _extensionVersion } : {};
 
-// Chrome MV3 often kills the SW / message port around 5–6 min; abort the long
-// fetch earlier so we can poll cache instead of losing the review.
-const CHROME_SAFE_REVIEW_WAIT_MS = 4 * 60 * 1000;
-// Background fallback poll after abort. Slower than the panel loop (5s) to
-// avoid duplicate getReviewPatchCode_1_1 traffic.
-const REVIEW_POLL_INTERVAL_MS = 8 * 1000;
-// Matches reviewPatchCode_1_1_v2 timeout; stop polling if cache never appears.
-const REVIEW_POLL_DEADLINE_MS = 15 * 60 * 1000;
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function isAbortOrDisconnectError(error) {
-  if (!error) return false;
-  if (error.name === 'AbortError') return true;
-  const msg = String(error.message || '');
-  return /aborted|Failed to fetch|NetworkError|network error|Load failed/i.test(msg);
-}
-
 // Cloud function URLs
 const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net';
 const SYNC_USER_URL = `${CLOUD_FUNCTIONS_BASE_URL}/syncUserByEmailReviews`;
@@ -397,21 +377,8 @@ export class CloudService {
         requestBody.reviewFormat = reviewFormat;
       }
       
-      const startedAt = Date.now();
       const reviewUrl = await CloudService.getReviewCodeUrlV11();
-      const usingGateway = (await CloudService.getReviewApiBaseUrl()) !== CLOUD_FUNCTIONS_BASE_URL;
-      try {
-        return await CloudService.fetchReviewPatchResult(reviewUrl, requestBody, {
-          abortAfterMs: usingGateway ? 0 : CHROME_SAFE_REVIEW_WAIT_MS,
-        });
-      } catch (error) {
-        if (!usingGateway && isAbortOrDisconnectError(error)) {
-          dbgWarn('Long review fetch ended; polling getReviewPatchCode_1_1');
-          return CloudService.pollReviewPatchCodeUntilReady(requestBody, startedAt);
-        }
-        dbgWarn('Error reviewing code:', error);
-        throw error;
-      }
+      return CloudService.fetchReviewPatchResult(reviewUrl, requestBody);
   }
 
   static async throwIfFailedReviewResponse(response) {
@@ -451,28 +418,16 @@ export class CloudService {
     throw new Error(`HTTP error ${response.status}: ${errorText}`);
   }
 
-  static async fetchReviewPatchResult(url, requestBody, { abortAfterMs = 0 } = {}) {
-    const controller = abortAfterMs > 0 ? new AbortController() : null;
-    const abortTimer = controller
-      ? setTimeout(() => controller.abort(), abortAfterMs)
-      : null;
-    try {
-      const response = await CloudService.thinkReviewFetch(
-        url,
-        requestBody,
-        controller ? { signal: controller.signal } : {}
-      );
-      await CloudService.throwIfFailedReviewResponse(response);
-      const data = await response.json();
-      dbgLog('Code review completed successfully:', {
-        status: data?.status,
-        hasReview: !!data?.review,
-        reviewLength: data?.review?.response?.length || 0
-      });
-      return data;
-    } finally {
-      if (abortTimer) clearTimeout(abortTimer);
-    }
+  static async fetchReviewPatchResult(url, requestBody) {
+    const response = await CloudService.thinkReviewFetch(url, requestBody);
+    await CloudService.throwIfFailedReviewResponse(response);
+    const data = await response.json();
+    dbgLog('Code review completed successfully:', {
+      status: data?.status,
+      hasReview: !!data?.review,
+      reviewLength: data?.review?.response?.length || 0
+    });
+    return data;
   }
 
   /**
@@ -487,19 +442,6 @@ export class CloudService {
     });
     await CloudService.throwIfFailedReviewResponse(response);
     return response.json();
-  }
-
-  static async pollReviewPatchCodeUntilReady(requestBody, startedAt) {
-    const deadline = startedAt + REVIEW_POLL_DEADLINE_MS;
-    while (Date.now() < deadline) {
-      await delay(REVIEW_POLL_INTERVAL_MS);
-      const data = await CloudService.pollReviewPatchCodeOnce(requestBody, startedAt);
-      if (data?.status === 'success' && data.review) {
-        dbgLog('Polled review is ready');
-        return data;
-      }
-    }
-    throw new Error('Review is still running. Please try again in a moment.');
   }
 
   static async pollReviewPatchStatus({ patchContent, mrId, reviewFormat, startedAt }) {

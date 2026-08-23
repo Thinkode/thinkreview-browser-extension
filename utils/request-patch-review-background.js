@@ -34,10 +34,11 @@ function sendMessage(payload) {
  * @returns {Promise<object>} background response { success, data?, error?, ... }
  */
 export async function requestPatchReviewFromBackground(payload) {
+  // Same timestamp the backend uses to ignore older cached reviews.
   const startedAt = Date.now();
   let settled = null;
 
-  const longReview = sendMessage({ type: 'REVIEW_PATCH_CODE', ...payload }).then((resp) => {
+  const longReview = sendMessage({ type: 'REVIEW_PATCH_CODE', ...payload, startedAt }).then((resp) => {
     if (resp && settled == null) settled = resp;
     return resp;
   });

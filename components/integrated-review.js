@@ -308,12 +308,7 @@ function hideLoaderLargePatchMessage() {
 
 function countPatchChangeLines(patchContent) {
   if (typeof patchContent !== 'string' || !patchContent) return 0;
-  let count = 0;
-  for (const line of patchContent.split('\n')) {
-    if (line.startsWith('+') && !line.startsWith('+++')) count += 1;
-    else if (line.startsWith('-') && !line.startsWith('---')) count += 1;
-  }
-  return count;
+  return patchContent.match(/^[+-](?![+-])/gm)?.length ?? 0;
 }
 
 function showLoaderLargePatchHint(patchContent) {
