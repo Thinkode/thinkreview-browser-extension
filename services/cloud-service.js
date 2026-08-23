@@ -292,9 +292,10 @@ export class CloudService {
    * @param {boolean} [forceRegenerate] - Optional flag to force regenerate review even if cached
    * @param {string} [platform] - Optional platform information ('gitlab' or 'azure-devops')
    * @param {string} [reviewFormat='severity'] - Optional review layout: 'severity' (default) or 'scoring'
+   * @param {number} [startedAt] - Client start time for this attempt; polls use the same value to ignore older cache
    * @returns {Promise<Object>} - Code review results from Gemini API
    */
-  static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null, forceRegenerate = false, platform = null, reviewFormat = 'severity') {
+  static async reviewPatchCode(patchContent, language = 'English', mrId = null, mrUrl = null, forceRegenerate = false, platform = null, reviewFormat = 'severity', startedAt = null) {
     dbgLog('Sending patch for code review');
     
     if (!patchContent) {
@@ -375,6 +376,11 @@ export class CloudService {
       // (backend still defaults to scoring if omitted)
       if (reviewFormat) {
         requestBody.reviewFormat = reviewFormat;
+      }
+
+      const startedAtMs = Number(startedAt);
+      if (Number.isFinite(startedAtMs) && startedAtMs > 0) {
+        requestBody.startedAt = startedAtMs;
       }
       
       const reviewUrl = await CloudService.getReviewCodeUrlV11();
