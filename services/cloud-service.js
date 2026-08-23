@@ -21,6 +21,22 @@ const _extensionVersion = (() => {
 
 const EXTENSION_VERSION_PAYLOAD = _extensionVersion ? { extensionVersion: _extensionVersion } : {};
 
+/** Abort the long review fetch before Chrome's ~5–6 min service-worker/message kill. */
+const CHROME_SAFE_REVIEW_WAIT_MS = 4 * 60 * 1000;
+const REVIEW_POLL_INTERVAL_MS = 8 * 1000;
+const REVIEW_POLL_DEADLINE_MS = 15 * 60 * 1000;
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isAbortOrDisconnectError(error) {
+  if (!error) return false;
+  if (error.name === 'AbortError') return true;
+  const msg = String(error.message || '');
+  return /aborted|Failed to fetch|NetworkError|network error|Load failed/i.test(msg);
+}
+
 // Cloud function URLs
 const CLOUD_FUNCTIONS_BASE_URL = 'https://us-central1-thinkgpt.cloudfunctions.net';
 const SYNC_USER_URL = `${CLOUD_FUNCTIONS_BASE_URL}/syncUserByEmailReviews`;
@@ -107,7 +123,13 @@ export class CloudService {
 
   static async getReviewCodeUrlV11() {
     const base = await CloudService.getReviewApiBaseUrl();
-    return `${base}/reviewPatchCode_1_1`;
+    const isGateway = base !== CLOUD_FUNCTIONS_BASE_URL;
+    return `${base}/${isGateway ? 'reviewPatchCode_1_1' : 'reviewPatchCode_1_2'}`;
+  }
+
+  static async getReviewPatchStatusUrl() {
+    const base = await CloudService.getReviewApiBaseUrl();
+    return `${base}/getReviewPatchCode_1_1`;
   }
 
   static async getConversationalReviewUrlV11() {
@@ -332,8 +354,7 @@ export class CloudService {
       dbgWarn('Error getting user email for review:', error);
     }
     
-    try {
-      const requestBody = {
+    const requestBody = {
         patchContent
       };
       
@@ -373,60 +394,132 @@ export class CloudService {
         requestBody.reviewFormat = reviewFormat;
       }
       
-      const response = await CloudService.thinkReviewFetch(await CloudService.getReviewCodeUrlV11(), requestBody);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        
-        // Handle daily limits and IP rate limiting specifically
-        if (response.status === 429) {
-          // 429 is used for daily limit exceeded
-          try {
-            const errorData = JSON.parse(errorText);
-            if (errorData.message === 'Reviews-limits-exceeded') {
-              const limitError = new Error('Daily review limit exceeded');
-              limitError.isLimitExceeded = true;
-              limitError.dailyLimit = errorData.dailyLimit;
-              limitError.currentCount = errorData.currentCount;
-              limitError.purchasedReviewCredits = errorData.purchasedReviewCredits;
-              throw limitError;
-            }
-            if (errorData.message === 'PR-size-limit-exceeded') {
-              const patchTooLargeError = new Error('PR size limit exceeded for free tier');
-              patchTooLargeError.isPatchTooLarge = true;
-              patchTooLargeError.patchSize = errorData.patchSize;
-              patchTooLargeError.maxPatchSize = errorData.maxPatchSize;
-              throw patchTooLargeError;
-            }
-          } catch (parseError) {
-            // Re-throw typed errors; fall through to generic error for everything else
-            if (parseError.isLimitExceeded || parseError.isPatchTooLarge) {
-              throw parseError;
-            }
-          }
-        } else if (response.status === 403) {
-          // 403 is used for IP rate limiting
-          const rateLimitError = new Error('Rate limit reached');
-          rateLimitError.isRateLimit = true;
-          rateLimitError.rateLimitMessage = '🚫 Rate limit reached! You\'ve made too many requests in a short time. Please wait a few minutes before trying again. This helps us provide quality service to all users.';
-          throw rateLimitError;
+      const startedAt = Date.now();
+      const reviewUrl = await CloudService.getReviewCodeUrlV11();
+      const usingGateway = reviewUrl.endsWith('/reviewPatchCode_1_1');
+      try {
+        return await CloudService.fetchReviewPatchResult(reviewUrl, requestBody, {
+          abortAfterMs: usingGateway ? 0 : CHROME_SAFE_REVIEW_WAIT_MS,
+        });
+      } catch (error) {
+        if (!usingGateway && isAbortOrDisconnectError(error)) {
+          dbgWarn('Long review fetch ended; polling getReviewPatchCode_1_1');
+          return CloudService.pollReviewPatchCodeUntilReady(requestBody, startedAt);
         }
-        
-        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+        dbgWarn('Error reviewing code:', error);
+        throw error;
       }
-      
+  }
+
+  static async throwIfFailedReviewResponse(response) {
+    if (response.ok) return;
+    const errorText = await response.text();
+
+    if (response.status === 429) {
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.message === 'Reviews-limits-exceeded') {
+          const limitError = new Error('Daily review limit exceeded');
+          limitError.isLimitExceeded = true;
+          limitError.dailyLimit = errorData.dailyLimit;
+          limitError.currentCount = errorData.currentCount;
+          limitError.purchasedReviewCredits = errorData.purchasedReviewCredits;
+          throw limitError;
+        }
+        if (errorData.message === 'PR-size-limit-exceeded') {
+          const patchTooLargeError = new Error('PR size limit exceeded for free tier');
+          patchTooLargeError.isPatchTooLarge = true;
+          patchTooLargeError.patchSize = errorData.patchSize;
+          patchTooLargeError.maxPatchSize = errorData.maxPatchSize;
+          throw patchTooLargeError;
+        }
+      } catch (parseError) {
+        if (parseError.isLimitExceeded || parseError.isPatchTooLarge) {
+          throw parseError;
+        }
+      }
+    } else if (response.status === 403) {
+      const rateLimitError = new Error('Rate limit reached');
+      rateLimitError.isRateLimit = true;
+      rateLimitError.rateLimitMessage = '🚫 Rate limit reached! You\'ve made too many requests in a short time. Please wait a few minutes before trying again. This helps us provide quality service to all users.';
+      throw rateLimitError;
+    }
+
+    throw new Error(`HTTP error ${response.status}: ${errorText}`);
+  }
+
+  static async fetchReviewPatchResult(url, requestBody, { abortAfterMs = 0 } = {}) {
+    const controller = abortAfterMs > 0 ? new AbortController() : null;
+    const abortTimer = controller
+      ? setTimeout(() => controller.abort(), abortAfterMs)
+      : null;
+    try {
+      const response = await CloudService.thinkReviewFetch(
+        url,
+        requestBody,
+        controller ? { signal: controller.signal } : {}
+      );
+      await CloudService.throwIfFailedReviewResponse(response);
       const data = await response.json();
-      // Log only metadata, not the actual review content
       dbgLog('Code review completed successfully:', {
         status: data?.status,
         hasReview: !!data?.review,
         reviewLength: data?.review?.response?.length || 0
       });
       return data;
-    } catch (error) {
-      dbgWarn('Error reviewing code:', error);
-      throw error;
+    } finally {
+      if (abortTimer) clearTimeout(abortTimer);
     }
+  }
+
+  /**
+   * Single cache-only poll. Does not start a new LLM review.
+   * @returns {Promise<Object>} success payload or { status: 'pending' }
+   */
+  static async pollReviewPatchCodeOnce(requestBody, startedAt) {
+    const statusUrl = await CloudService.getReviewPatchStatusUrl();
+    const response = await CloudService.thinkReviewFetch(statusUrl, {
+      ...requestBody,
+      startedAt,
+    });
+    await CloudService.throwIfFailedReviewResponse(response);
+    return response.json();
+  }
+
+  static async pollReviewPatchCodeUntilReady(requestBody, startedAt) {
+    const deadline = startedAt + REVIEW_POLL_DEADLINE_MS;
+    while (Date.now() < deadline) {
+      await delay(REVIEW_POLL_INTERVAL_MS);
+      const data = await CloudService.pollReviewPatchCodeOnce(requestBody, startedAt);
+      if (data?.status === 'success' && data.review) {
+        dbgLog('Polled review is ready');
+        return data;
+      }
+    }
+    throw new Error('Review is still running. Please try again in a moment.');
+  }
+
+  static async pollReviewPatchStatus({ patchContent, mrId, reviewFormat, startedAt }) {
+    let email = null;
+    try {
+      const storageData = await new Promise((resolve) => {
+        chrome.storage.local.get(['userData', 'user'], resolve);
+      });
+      if (storageData.userData?.email) {
+        email = storageData.userData.email;
+      } else if (storageData.user) {
+        try {
+          const parsed = JSON.parse(storageData.user);
+          if (parsed?.email) email = parsed.email;
+        } catch (_) { /* ignore */ }
+      }
+    } catch (_) { /* ignore */ }
+
+    const requestBody = { patchContent };
+    if (email) requestBody.email = email;
+    if (mrId) requestBody.mrId = mrId;
+    if (reviewFormat) requestBody.reviewFormat = reviewFormat;
+    return CloudService.pollReviewPatchCodeOnce(requestBody, startedAt);
   }
 
   /**

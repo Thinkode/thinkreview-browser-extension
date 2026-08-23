@@ -589,6 +589,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep channel open
   }
 
+  if (message.type === 'POLL_REVIEW_PATCH_CODE') {
+    const { patchContent, mrId, reviewFormat, startedAt } = message;
+    (async () => {
+      try {
+        const data = await CloudService.pollReviewPatchStatus({
+          patchContent,
+          mrId,
+          reviewFormat,
+          startedAt,
+        });
+        if (data?.status === 'success' && data.review) {
+          sendResponse({ success: true, data, provider: 'cloud' });
+          return;
+        }
+        sendResponse({ success: true, pending: true, provider: 'cloud' });
+      } catch (err) {
+        sendResponse({
+          success: false,
+          error: err.message,
+          ...authExpiredPayload(err),
+        });
+      }
+    })();
+    return true;
+  }
+
   if (message.type === 'FETCH_AGENT_REVIEWS_FOR_PATCH') {
     const { patchContent, mrId } = message;
     (async () => {
