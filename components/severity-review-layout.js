@@ -129,7 +129,7 @@ function buildIssueSection(title, severityClass, issues, handlers = {}) {
 /**
  * Render the severity review layout into a container.
  * @param {HTMLElement} container
- * @param {Object} review - { prDescription, criticalIssues, highIssues, lowIssues }
+ * @param {Object} review - { prDescription, criticalIssues, highIssues, lowIssues, suggestedQuestions }
  * @param {Object} [handlers]
  * @param {Function} [handlers.onIssueClick] - (plainText, severity, issue) => void
  * @param {Function} [handlers.markdownToHtml]
