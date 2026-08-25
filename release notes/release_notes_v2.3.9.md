@@ -1,6 +1,6 @@
 # ThinkReview - Version 2.3.9 Release Notes
 
-**Release Date:** 23 August 2026
+**Release Date:** 28 August 2026
 
 ---
 
@@ -22,10 +22,6 @@ While a cloud review is running, the loader can now tell you what’s going on i
 - **Long waits:** After a couple of minutes on smaller PRs, you’ll see a short “still running” message instead of wondering if anything happened.
 
 Those notes are combined into a single status card so they don’t stack as duplicate banners.
-
-### Redesigned upgrade prompt when you hit the daily limit 🎁
-
-Hitting the daily review limit now opens a clearer in-panel prompt. It leads with your usage, then a Rewards card when a prize or free-credits offer is available, then options to buy extra review credits or upgrade your plan. Credit-pack labels and balance notes are easier to scan, including when you already have purchased credits to use after the daily cap.
 
 ---
 
