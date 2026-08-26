@@ -39,6 +39,59 @@ if (typeof dbgError === 'undefined') {
     }
   })();
 
+function trackAnalytics(eventName, params) {
+  import(chrome.runtime.getURL('utils/analytics-service.js'))
+    .then((m) => m.trackUserAction(eventName, params || {}))
+    .catch(() => {});
+}
+
+function setAnalyticsContext(partial) {
+  import(chrome.runtime.getURL('utils/analytics-service.js'))
+    .then((m) => m.setAnalyticsContext(partial || {}))
+    .catch(() => {});
+}
+
+function countReviewFindings(review) {
+  if (!review) return 0;
+  const len = (v) => (Array.isArray(v) ? v.length : 0);
+  const severity = len(review.criticalIssues) + len(review.highIssues) + len(review.lowIssues);
+  if (severity > 0) return severity;
+  return len(review.suggestions) + len(review.securityIssues) + len(review.bestPractices);
+}
+
+function classifyReviewError(error) {
+  const msg = String(error?.message || '');
+  if (msg.includes('patchContent') || msg.includes('no code changes')) return 'no_code_changes';
+  if (msg.includes('Azure DevOps token')) return 'azure_token';
+  if (msg.includes('HTTP')) return 'http_error';
+  if (msg.includes('Not a Merge request') || msg.includes('Not a Pull request')) return 'not_pr_page';
+  return 'unknown';
+}
+
+let lastPrPageDetectedKey = null;
+
+async function trackPrPageOpened() {
+  try {
+    const platform = getCurrentPlatform() || 'unknown';
+    const prId = (typeof getCurrentPRId === 'function' && getCurrentPRId()) || currentPRId || '';
+    const key = `${platform}:${prId || (typeof location !== 'undefined' ? location.pathname : '')}`;
+    if (key === lastPrPageDetectedKey) return;
+    lastPrPageDetectedKey = key;
+
+    const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+    analyticsModule.setAnalyticsContext({ platform });
+    analyticsModule.trackUserAction('pr_page_detected', { platform }).catch(() => {});
+
+    const awaiting = await chrome.storage.local.get(['ga_awaiting_first_open']);
+    if (awaiting.ga_awaiting_first_open) {
+      await chrome.storage.local.set({ ga_awaiting_first_open: false });
+      analyticsModule.trackUserAction('first_open', { platform }).catch(() => {});
+    }
+  } catch {
+    // analytics must never block panel injection
+  }
+}
+
   // Configuration constants
 // Note: Daily review limit is now handled server-side via Firebase Remote Config
 // Delay initial log until logger is loaded
@@ -619,6 +672,7 @@ async function injectIntegratedReviewPanel(opts = {}) {
   }
   
   dbgLog('Creating integrated review panel');
+  trackPrPageOpened();
   // Create the review panel with the patch URL
   const patchUrl = getPatchUrl();
   await createIntegratedReviewPanel(patchUrl);
@@ -767,6 +821,11 @@ function showLoginPrompt(options = {}) {
     
     signInButton.addEventListener('click', () => {
       dbgLog('Requesting background to open portal sign-in page');
+      trackAnalytics('sign_in_clicked', {
+        context: 'login_prompt',
+        location: 'integrated_panel',
+        session_expired: options.sessionExpired ? 1 : 0
+      });
       signInButton.disabled = true;
       const prevLabel = signInButton.textContent;
       signInButton.textContent = 'Opening…';
@@ -808,6 +867,11 @@ function showLoginPrompt(options = {}) {
   
   // Show the login prompt
   loginPrompt.classList.remove('gl-hidden');
+  trackAnalytics('sign_in_shown', {
+    context: 'login_prompt',
+    location: 'integrated_panel',
+    session_expired: sessionExpired ? 1 : 0
+  });
 }
 
 function applySessionExpiredToLoginPrompt(loginPrompt, sessionExpired) {
@@ -866,6 +930,22 @@ async function showUpgradeMessage(
 ) {
   const skipLoader = options?.skipLoader === true;
   const hideCreditPacks = options?.hideCreditPacks === true;
+  const upgradeSurface = limitOverride ? 'large_pr' : 'limit_banner';
+  if (upgradeSurface === 'limit_banner') {
+    trackAnalytics('daily_limit_reached', {
+      context: 'upgrade_prompt',
+      location: 'integrated_panel',
+      surface: upgradeSurface,
+      review_count: reviewCount,
+      daily_limit: dailyLimit,
+      purchased_credits: purchasedReviewCredits
+    });
+  }
+  trackAnalytics('upgrade_impression', {
+    context: 'upgrade_prompt',
+    location: 'integrated_panel',
+    surface: upgradeSurface
+  });
   const reviewLoading = document.getElementById('review-loading');
   const reviewContent = document.getElementById('review-content');
   const reviewError = document.getElementById('review-error');
@@ -1078,7 +1158,8 @@ async function showUpgradeMessage(
           await upgradeCreditPacks.renderUpgradeCreditPacksActions(creditsActionsEl, {
             creditPacks: hideCreditPacks ? [] : upgradeConfig.creditPacks,
             prepaidBalance: hideCreditPacks ? null : prepaidBalance,
-            rewardsCta: upgradeConfig.rewardsCta || null
+            rewardsCta: upgradeConfig.rewardsCta || null,
+            analyticsContext: upgradeSurface
           });
         }
       }
@@ -1198,7 +1279,8 @@ async function showUpgradeMessage(
               trackUserAction('upgrade_button_clicked', {
                 context: 'subscription_section',
                 location: 'integrated_panel',
-                source: 'daily_limit',
+                source: upgradeSurface,
+                surface: upgradeSurface,
                 planId: plan.id || null,
                 interval: plan.interval || null
               }).catch(() => {});
@@ -1324,6 +1406,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     dbgLog('Failed to show loading indicator:', error);
   }
   
+  const reviewStartedAt = Date.now();
+  const reviewTrigger = isAutoTriggered ? 'auto' : 'manual';
+
   try {
     // Check if the user is logged in first
     const loggedIn = await isUserLoggedIn();
@@ -1503,6 +1588,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     
     // Get platform for sending to background script
     const platform = getCurrentPlatform();
+    setAnalyticsContext({ platform });
 
     // PR changed while we were fetching — do not call the cloud or update UI for the old PR
     if (sessionAtStart !== reviewSessionId) {
@@ -1521,6 +1607,12 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       const decision = shouldProceedWithAutoReview(filteredCodeContent, { platform, mrId: reviewId });
       if (!decision.proceed) {
         dbgLog('Auto review skipped by autoReviewDecisionMaker:', decision.reason, decision.details);
+        trackAnalytics('auto_start_review_skipped', {
+          context: 'auto_review',
+          reason: decision.reason || 'unknown',
+          patch_size: decision.details?.patchSize,
+          platform
+        });
         try {
           dismissIntegratedReviewLoadingUI();
         } catch (error) {
@@ -1528,6 +1620,22 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         }
         return;
       }
+    }
+
+    trackAnalytics('review_started', {
+      context: 'code_review',
+      trigger: reviewTrigger,
+      review_format: reviewFormat,
+      platform,
+      patch_size: typeof filteredCodeContent === 'string' ? filteredCodeContent.length : 0,
+      force_regenerate: forceRegenerate ? 1 : 0
+    });
+    if (isAutoTriggered) {
+      trackAnalytics('auto_start_review_triggered', {
+        context: 'auto_review',
+        platform,
+        patch_size: typeof filteredCodeContent === 'string' ? filteredCodeContent.length : 0
+      });
     }
     
     // Send the code content for review via background script (avoids CSP fetch issues).
@@ -1593,6 +1701,14 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         ? `Unable to parse AI response: ${data.review.errorMessage}. Please try regenerating the review.`
         : 'The AI generated a response that could not be parsed. Please try regenerating the review or report this issue at https://thinkreview.dev/bug-report';
       await showIntegratedReviewError(errorMessage);
+      if (sessionAtStart === reviewSessionId) {
+        trackAnalytics('review_failed', {
+          context: 'code_review',
+          trigger: reviewTrigger,
+          error_type: 'parse_error',
+          duration_ms: Date.now() - reviewStartedAt
+        });
+      }
       return;
     }
     
@@ -1641,6 +1757,31 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         agentReviewsResultPromise
       }
     );
+    
+    const findingsCount = countReviewFindings(data.review);
+    const modelKey = data.modelUsed || data.ollamaMeta?.model || data.openrouterMeta?.model || '';
+    if (modelKey) setAnalyticsContext({ model_key: modelKey });
+    trackAnalytics('review_succeeded', {
+      context: 'code_review',
+      trigger: reviewTrigger,
+      review_format: data.review.reviewFormat || reviewFormat,
+      platform,
+      cached: data.cached ? 1 : 0,
+      provider: bgResponse.provider || 'cloud',
+      model_key: modelKey,
+      findings_count: findingsCount,
+      duration_ms: Date.now() - reviewStartedAt,
+      patch_size: data.patchSize || (typeof filteredCodeContent === 'string' ? filteredCodeContent.length : 0)
+    });
+    if (findingsCount === 0) {
+      trackAnalytics('review_empty', {
+        context: 'code_review',
+        trigger: reviewTrigger,
+        review_format: data.review.reviewFormat || reviewFormat,
+        platform,
+        model_key: modelKey
+      });
+    }
     
     // Handle code suggestions injection for GitLab
     if (Array.isArray(data.review.codeSuggestions) && data.review.codeSuggestions.length > 0) {
@@ -1709,6 +1850,14 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     }
     
     await showIntegratedReviewError(userFriendlyMessage);
+    if (sessionAtStart === reviewSessionId) {
+      trackAnalytics('review_failed', {
+        context: 'code_review',
+        trigger: isAutoTriggered ? 'auto' : 'manual',
+        error_type: classifyReviewError(error),
+        duration_ms: Date.now() - reviewStartedAt
+      });
+    }
   } finally {
     // A stale/old-session run must not touch shared state (loading UI, isReviewInProgress,
     // pendingManualReview) — a newer session after PR navigation owns all of that now.

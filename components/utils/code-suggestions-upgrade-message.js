@@ -12,6 +12,14 @@ const SUBSCRIPTION_PORTAL_URL = 'https://portal.thinkreview.dev/subscription';
  * @returns {HTMLElement} The upgrade message container element
  */
 export function createCodeSuggestionsUpgradeMessage() {
+  import(chrome.runtime.getURL('utils/analytics-service.js'))
+    .then((analyticsModule) => analyticsModule.trackUserAction('upgrade_impression', {
+      context: 'code_suggestions_tab',
+      location: 'integrated_panel',
+      surface: 'code_suggestions'
+    }))
+    .catch(() => {});
+
   const upgradeBox = document.createElement('div');
   upgradeBox.className = 'thinkreview-code-suggestions-upgrade';
   Object.assign(upgradeBox.style, {
@@ -63,10 +71,11 @@ export function createCodeSuggestionsUpgradeMessage() {
   upgradeLink.addEventListener('click', async () => {
     try {
       const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
-      analyticsModule.trackUserAction('code_suggestions_upgrade_clicked', {
+      analyticsModule.trackUserAction('upgrade_button_clicked', {
         context: 'code_suggestions_tab',
         location: 'integrated_panel',
-        source: 'upgrade_message'
+        source: 'upgrade_message',
+        surface: 'code_suggestions'
       }).catch(() => {});
     } catch (e) {
       dbgWarn('Failed to load analytics module:', e);

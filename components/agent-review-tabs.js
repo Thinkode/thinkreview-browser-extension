@@ -305,6 +305,11 @@ export function renderAgentSectionContent(sec, processors) {
               context: 'integrated_review_panel',
               category: 'agent_section_item'
             }).catch(() => { });
+            analyticsModule.trackUserAction('chat_message_sent', {
+              context: 'integrated_review_panel',
+              source: 'agent_finding_click',
+              category: 'agent_section_item'
+            }).catch(() => { });
           } catch (error) { dbgError('Failed to track review item click for agent section:', error); }
 
           const tempDiv = document.createElement('div');
@@ -346,6 +351,11 @@ export function renderAgentSectionContent(sec, processors) {
         const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
         analyticsModule.trackUserAction('review_item_clicked', {
           context: 'integrated_review_panel',
+          category: 'agent_section'
+        }).catch(() => { });
+        analyticsModule.trackUserAction('chat_message_sent', {
+          context: 'integrated_review_panel',
+          source: 'agent_finding_click',
           category: 'agent_section'
         }).catch(() => { });
       } catch (error) { dbgError('Failed to track review item click for agent section container:', error); }

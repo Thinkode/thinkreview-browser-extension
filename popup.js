@@ -699,7 +699,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     buyCreditsBtn.addEventListener('click', async () => {
       try {
         const { trackUserAction } = await import('./utils/analytics-service.js');
-        trackUserAction('additional_credits_opened', { context: 'popup' }).catch(() => {});
+        trackUserAction('additional_credits_opened', { context: 'popup', surface: 'popup' }).catch(() => {});
       } catch (e) { /* silent */ }
       chrome.tabs.create({ url: 'https://portal.thinkreview.dev/additional-credits' });
     });

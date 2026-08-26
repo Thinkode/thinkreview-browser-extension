@@ -653,7 +653,8 @@ export async function copyItemContent(element, button) {
     // Track copy action
     trackUserAction('copy_button', {
       context: 'review_item',
-      location: 'integrated_panel'
+      location: 'integrated_panel',
+      copy_kind: 'review_item'
     }).catch(() => {}); // Silently fail
   } catch (error) {
     dbgWarn('Failed to copy content:', error);
@@ -669,6 +670,7 @@ export async function copyItemContent(element, button) {
           trackUserAction('copy_button', {
             context: 'review_item',
             location: 'integrated_panel',
+            copy_kind: 'review_item',
             method: 'fallback'
           }).catch(() => {}); // Silently fail
         } else {
