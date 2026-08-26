@@ -13,6 +13,8 @@
     "build:firefox:zip": "node scripts/build-firefox-zip.js",
     "build:edge": "node scripts/build.js edge",
     "build:edge:zip": "node scripts/build-edge-zip.js",
+    "publish:chrome": "node scripts/publish-chrome.js",
+    "publish:edge": "node scripts/publish-edge.js",
     "validate": "node scripts/validate-manifest.js",
     "ci": "npm run validate && npm run lint && npm run test"
   },

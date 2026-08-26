@@ -1,7 +1,29 @@
 # Required: set in repo Settings → Secrets and variables → Actions:
+#
+# Build / analytics
 # - Variable: GA_MEASUREMENT_ID (GA4 Measurement ID)
 # - Secret: GA_API_SECRET (Measurement Protocol API Secret)
 # - Secret: HONEYBADGER_API_KEY (Honeybadger API key)
+#
+# Chrome Web Store API v2 (service account)
+# https://developer.chrome.com/docs/webstore/using-api
+# https://developer.chrome.com/docs/webstore/service-accounts
+# - Secret: CHROME_PUBLISHER_ID            Developer Dashboard → Publisher → Settings
+# - Secret: CHROME_SERVICE_ACCOUNT_JSON    Google Cloud service account key (full JSON)
+#   Enable Chrome Web Store API in the GCP project, then add the service
+#   account email in CWS Developer Dashboard → Account.
+#
+# Firefox Add-ons / AMO (https://addons.mozilla.org/developers/addon/api/key/)
+# - Secret: FIREFOX_JWT_ISSUER   (JWT issuer / API key)
+# - Secret: FIREFOX_JWT_SECRET   (JWT secret / API secret)
+#
+# Microsoft Edge Add-ons API v1.1 (Partner Center → Microsoft Edge → Publish API)
+# - Secret: EDGE_PRODUCT_ID      (product GUID on the extension Overview page)
+# - Secret: EDGE_CLIENT_ID
+# - Secret: EDGE_API_KEY         (shown once when you create API credentials)
+#
+# Store jobs are skipped when their credentials are missing, so you can roll this
+# out one store at a time. Re-run a failed job from the Actions UI to retry.
 name: Release Extension
 
 on:
@@ -9,18 +31,35 @@ on:
     tags:
       - 'v*'
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
+
+env:
+  CHROME_EXTENSION_ID: bpgkhgbchmlmpjjpmlaiejhnnbkdjdjn
+  FIREFOX_ADDON_GUID: thinkreview@thinkreview.dev
 
 jobs:
   build-and-release:
     if: ${{ github.ref_type == 'tag' }}
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      chrome_zip: ${{ steps.archive.outputs.zip_path }}
+      firefox_zip: ${{ steps.firefox_zip.outputs.path }}
+      edge_zip: ${{ steps.edge_zip.outputs.path }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Resolve version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Verify tag points to main
         run: |
@@ -41,7 +80,7 @@ jobs:
 
       - name: Update manifest version
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${{ steps.version.outputs.version }}"
           node -e "
             const fs = require('fs');
             const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
@@ -60,9 +99,8 @@ jobs:
       - name: Build Firefox extension zip
         id: firefox_zip
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           npm run build:firefox:zip
-          echo "path=thinkreview-firefox-v${VERSION}.zip" >> "$GITHUB_OUTPUT"
+          echo "path=thinkreview-firefox-v${{ steps.version.outputs.version }}.zip" >> "$GITHUB_OUTPUT"
         env:
           GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
           GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
@@ -71,9 +109,8 @@ jobs:
       - name: Build Edge Add-ons extension zip
         id: edge_zip
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           npm run build:edge:zip
-          echo "path=thinkreview-edge-v${VERSION}.zip" >> "$GITHUB_OUTPUT"
+          echo "path=thinkreview-edge-v${{ steps.version.outputs.version }}.zip" >> "$GITHUB_OUTPUT"
         env:
           GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
           GA_API_SECRET: ${{ secrets.GA_API_SECRET }}
@@ -100,3 +137,171 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Upload store packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-packages
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            ${{ steps.archive.outputs.zip_path }}
+            ${{ steps.firefox_zip.outputs.path }}
+            ${{ steps.edge_zip.outputs.path }}
+
+  store-credentials:
+    name: Detect store credentials
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    outputs:
+      chrome: ${{ steps.check.outputs.chrome }}
+      firefox: ${{ steps.check.outputs.firefox }}
+      edge: ${{ steps.check.outputs.edge }}
+    steps:
+      - name: Check which store APIs are configured
+        id: check
+        env:
+          CHROME: ${{ secrets.CHROME_SERVICE_ACCOUNT_JSON }}
+          FIREFOX: ${{ secrets.FIREFOX_JWT_SECRET }}
+          EDGE: ${{ secrets.EDGE_API_KEY }}
+        run: |
+          echo "chrome=$([ -n "$CHROME" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "firefox=$([ -n "$FIREFOX" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "edge=$([ -n "$EDGE" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  publish-chrome:
+    name: Submit Chrome Web Store
+    needs: [build-and-release, store-credentials]
+    if: ${{ needs.store-credentials.outputs.chrome == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download store packages
+        uses: actions/download-artifact@v4
+        with:
+          name: store-packages
+          path: packages
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Upload and publish to Chrome Web Store
+        run: node scripts/publish-chrome.js "packages/${{ needs.build-and-release.outputs.chrome_zip }}"
+        env:
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+          CHROME_SERVICE_ACCOUNT_JSON: ${{ secrets.CHROME_SERVICE_ACCOUNT_JSON }}
+
+  publish-firefox:
+    name: Submit Firefox Add-ons
+    needs: [build-and-release, store-credentials]
+    if: ${{ needs.store-credentials.outputs.firefox == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download store packages
+        uses: actions/download-artifact@v4
+        with:
+          name: store-packages
+          path: packages
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Prepare Firefox package and source
+        run: |
+          mkdir -p firefox-unsigned
+          unzip -q "packages/${{ needs.build-and-release.outputs.firefox_zip }}" -d firefox-unsigned
+          echo "AMO GUID ${FIREFOX_ADDON_GUID}"
+          git archive --format=zip --output source.zip HEAD ':!.github'
+          node -e '
+            const fs = require("fs");
+            fs.writeFileSync("amo-metadata.json", JSON.stringify({
+              version: {
+                approval_notes: "ThinkReview browser extension update. Source is not minified or bundled. Production zip is produced by npm run build:firefox (scripts/build.js), which copies source and rewrites manifest.json for Firefox (background.scripts, 45-char name, gecko.data_collection_permissions). utils/env-config.js is generated at build time for analytics. Source archive is a git snapshot of this tag. Repo: https://github.com/Thinkode/thinkreview-browser-extension"
+              }
+            }, null, 2) + "\n");
+          '
+
+      - name: Submit listed version to AMO
+        run: |
+          npx web-ext@9 sign \
+            --channel listed \
+            --source-dir firefox-unsigned \
+            --upload-source-code source.zip \
+            --amo-metadata amo-metadata.json \
+            --approval-timeout 0
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.FIREFOX_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
+
+  publish-edge:
+    name: Submit Edge Add-ons
+    needs: [build-and-release, store-credentials]
+    if: ${{ needs.store-credentials.outputs.edge == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download store packages
+        uses: actions/download-artifact@v4
+        with:
+          name: store-packages
+          path: packages
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Upload and publish to Edge Add-ons
+        run: node scripts/publish-edge.js "packages/${{ needs.build-and-release.outputs.edge_zip }}"
+        env:
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          EDGE_NOTES: |
+            ThinkReview ${{ needs.build-and-release.outputs.version }} automated submission.
+            Package is built by `npm run build:edge`. Source: https://github.com/Thinkode/thinkreview-browser-extension
+
+  store-publish-summary:
+    name: Store publish summary
+    needs: [build-and-release, store-credentials, publish-chrome, publish-firefox, publish-edge]
+    if: ${{ always() && needs.build-and-release.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write summary
+        run: |
+          chrome="${{ needs.publish-chrome.result }}"
+          firefox="${{ needs.publish-firefox.result }}"
+          edge="${{ needs.publish-edge.result }}"
+          {
+            echo "## Store submissions (${{ needs.build-and-release.outputs.version }})"
+            echo
+            echo "| Store | Result |"
+            echo "| --- | --- |"
+            echo "| Chrome Web Store | ${chrome} |"
+            echo "| Firefox Add-ons | ${firefox} |"
+            echo "| Microsoft Edge Add-ons | ${edge} |"
+            echo
+            echo "\`skipped\` means that store's API credentials are not configured yet."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Chrome=${chrome} Firefox=${firefox} Edge=${edge}"
+          for result in "$chrome" "$firefox" "$edge"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              exit 1
+            fi
+          done
