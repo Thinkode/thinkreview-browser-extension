@@ -94,10 +94,17 @@ function createPackButton(pack, badgeKind, analyticsContext) {
     e.preventDefault();
     try {
       const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+      const surface = analyticsContext || 'limit_banner';
       trackUserAction('credit_pack_checkout_clicked', {
         context: analyticsContext,
+        surface,
         packId: pack.id || null,
         credits: pack.credits || null
+      }).catch(() => {});
+      trackUserAction('upgrade_button_clicked', {
+        context: analyticsContext,
+        surface,
+        source: 'credit_pack'
       }).catch(() => {});
     } catch {
       // Silently fail - analytics should never break CTA

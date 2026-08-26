@@ -2061,6 +2061,20 @@ async function renderSeverityReviewSections(review, containers) {
             : severity === 'high' ? 'high issue'
             : 'low issue';
           const query = `Can you provide more details about this ${severityLabel}? ${plainText}`;
+          import(chrome.runtime.getURL('utils/analytics-service.js'))
+            .then((analyticsModule) => {
+              analyticsModule.trackUserAction('review_item_clicked', {
+                context: 'integrated_review_panel',
+                category: `severity_${severity || 'unknown'}`,
+                source: 'issue_click'
+              }).catch(() => {});
+              analyticsModule.trackUserAction('chat_message_sent', {
+                context: 'integrated_review_panel',
+                source: 'issue_click',
+                message_length: (plainText || '').length
+              }).catch(() => {});
+            })
+            .catch(() => {});
           handleSendMessage(query);
         }
       });
@@ -2191,7 +2205,12 @@ async function renderScoringReviewLayout(review, containers, integrationOpts = n
         try {
           const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
           analyticsModule.trackUserAction('copy_all_review', {
-            context: 'integrated_review_panel'
+            context: 'integrated_review_panel',
+            copy_kind: 'copy_all'
+          }).catch(() => {});
+          analyticsModule.trackUserAction('copy_button', {
+            context: 'integrated_review_panel',
+            copy_kind: 'copy_all'
           }).catch(() => {});
         } catch (error) { /* silent */ }
       } catch (error) {
@@ -2325,6 +2344,12 @@ async function renderScoringReviewLayout(review, containers, integrationOpts = n
             analyticsModule.trackUserAction('review_item_clicked', {
               context: 'integrated_review_panel',
               category: category
+            }).catch(() => {});
+            analyticsModule.trackUserAction('chat_message_sent', {
+              context: 'integrated_review_panel',
+              source: 'finding_click',
+              category,
+              message_length: extractPlainText(itemHtml).trim().length
             }).catch(() => {});
           } catch (error) { /* silent */ }
           
@@ -2669,6 +2694,7 @@ async function displayIntegratedReview(
         const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
         analyticsModule.trackUserAction('chat_message_sent', {
           context: 'integrated_review_panel',
+          source: 'composer',
           message_length: messageText.length
         }).catch(() => {});
       } catch (error) { /* silent */ }
@@ -2745,6 +2771,11 @@ async function displayIntegratedReview(
             context: 'integrated_review_panel',
             question_type: isStaticQuestion ? 'static' : 'dynamic',
             review_format: isSeverityFormat ? 'severity' : 'scoring'
+          }).catch(() => {});
+          analyticsModule.trackUserAction('chat_message_sent', {
+            context: 'integrated_review_panel',
+            source: 'suggested_question',
+            message_length: question.length
           }).catch(() => {});
         } catch (error) { /* silent */ }
         

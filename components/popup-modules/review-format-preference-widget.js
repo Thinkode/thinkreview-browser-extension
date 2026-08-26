@@ -272,6 +272,7 @@ export async function mountReviewFormatPreferenceWidget(headerActionsEl, options
 
     const selected = await _setFormat(id);
     await _trackFormatMenu('review_format_changed', {
+      review_format: selected,
       reviewFormat: selected,
       previous_format: previous
     });

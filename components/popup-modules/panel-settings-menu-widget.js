@@ -727,6 +727,7 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     }
     if (action === 'buy-credits') {
       await _trackSettingsMenu('settings_menu_buy_credits_clicked');
+      await _trackSettingsMenu('upgrade_impression', { surface: 'gear' });
       await _openSubmenu('buy-credits');
       return;
     }
@@ -751,7 +752,8 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
     const action = item.dataset.creditsAction;
 
     if (action === 'portal') {
-      await _trackSettingsMenu('additional_credits_opened', { via: 'credits_submenu_portal' });
+      await _trackSettingsMenu('additional_credits_opened', { via: 'credits_submenu_portal', surface: 'gear' });
+      await _trackSettingsMenu('upgrade_button_clicked', { surface: 'gear', source: 'credits_submenu_portal' });
       _closeAll();
       window.open(ADDITIONAL_CREDITS_PORTAL_URL, '_blank', 'noopener,noreferrer');
       return;
@@ -762,7 +764,13 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
       await _trackSettingsMenu('credit_pack_checkout_clicked', {
         packId: item.dataset.packId || null,
         credits: item.dataset.credits ? Number(item.dataset.credits) : null,
-        url
+        url,
+        surface: 'gear'
+      });
+      await _trackSettingsMenu('upgrade_button_clicked', {
+        surface: 'gear',
+        source: 'credit_pack',
+        packId: item.dataset.packId || null
       });
       _closeAll();
       window.open(url, '_blank', 'noopener,noreferrer');

@@ -14,6 +14,7 @@ import { azureDevOpsFetcher } from './services/azure-devops-fetcher.js';
 import { AzureDevOpsAuthError } from './services/azure-devops-api.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+import { trackUserActionSafe } from './utils/analytics-service.js';
 import { getThinkReviewAuthHeaders, EXTENSION_AUTH_TOKEN_KEY, isAuthExpiredError, handleUnauthorizedResponse, AuthExpiredError } from './utils/extension-auth.js';
 import { hasOpenRouterHostPermission } from './utils/openrouter-permissions.js';
 import { assertSelfHostedGatewayReady } from './utils/enterprise-gateway.js';
@@ -1291,7 +1292,11 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     chrome.tabs.create({ url: 'https://thinkreview.dev/onboarding' });
     // Store the current version
     const manifest = chrome.runtime.getManifest();
-    await chrome.storage.local.set({ lastInstalledVersion: manifest.version });
+    await chrome.storage.local.set({
+      lastInstalledVersion: manifest.version,
+      ga_awaiting_first_open: true
+    });
+    trackUserActionSafe('extension_installed', { version: manifest.version });
   }
   
   // On update, just track version change in storage (no auto-opening release notes tab)
@@ -1307,6 +1312,11 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     if (previousVersion && previousVersion !== currentVersion) {
       dbgLog(`Extension updated from ${previousVersion} to ${currentVersion}, release notes not auto-opened`);
     }
+
+    trackUserActionSafe('extension_updated', {
+      version: currentVersion,
+      previous_version: previousVersion || 'unknown'
+    });
     
     // Update stored version
     await chrome.storage.local.set({ lastInstalledVersion: currentVersion });

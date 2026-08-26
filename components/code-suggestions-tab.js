@@ -101,6 +101,23 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
               </div>
             `;
             codeSuggestionsInner.appendChild(banner);
+            const analyticsModule = await getAnalyticsModule();
+            analyticsModule.trackUserAction('upgrade_impression', {
+              context: 'code_suggestions_tab',
+              location: 'integrated_panel',
+              surface: 'code_suggestions',
+              source: 'truncation_limit'
+            }).catch(() => {});
+            banner.querySelectorAll('.thinkreview-upgrade-link').forEach((link) => {
+              link.addEventListener('click', () => {
+                analyticsModule.trackUserAction('upgrade_button_clicked', {
+                  context: 'code_suggestions_tab',
+                  location: 'integrated_panel',
+                  surface: 'code_suggestions',
+                  source: 'truncation_limit'
+                }).catch(() => {});
+              });
+            });
           }
         } catch (e) {
           dbgWarn('Failed to render code suggestions truncation banner:', e);
@@ -218,7 +235,8 @@ export async function updateCodeSuggestionsTab({ review, patchContent, subscript
             if (showCopySuccessFeedback) showCopySuccessFeedback(copyBtn);
             analyticsModule.trackUserAction('copy_button', {
               context: 'code_suggestion',
-              location: 'integrated_panel'
+              location: 'integrated_panel',
+              copy_kind: 'code_suggestion'
             }).catch(() => {});
           } catch (err) {
             if (showCopyErrorFeedback) showCopyErrorFeedback(copyBtn);

@@ -310,6 +310,13 @@ export function renderReviewMetadataBar(
 
   // Add upgrade message if forced truncation occurred and user is on free tier
   if (showUpgradeMessage) {
+    if (trackUserAction) {
+      trackUserAction('upgrade_impression', {
+        context: 'upgrade_message',
+        location: 'metadata_bar',
+        surface: 'metadata_bar'
+      }).catch(() => {});
+    }
     // Calculate percentages with a minimum visible value of 0.1% when some code was reviewed
     let percentageReviewed;
     if (patchSize.original > 0) {
@@ -357,7 +364,14 @@ export function renderReviewMetadataBar(
           trackUserAction('upgrade_link_clicked', {
             context: 'upgrade_message',
             location: 'metadata_bar',
-            source: 'truncation_limit'
+            source: 'truncation_limit',
+            surface: 'metadata_bar'
+          }).catch(() => {});
+          trackUserAction('upgrade_button_clicked', {
+            context: 'upgrade_message',
+            location: 'metadata_bar',
+            source: 'truncation_limit',
+            surface: 'metadata_bar'
           }).catch(() => {}); // Silently fail
         }
       });

@@ -785,6 +785,13 @@ async function showSuggestionDialog(suggestion, markerElement) {
       await navigator.clipboard.writeText(textToCopy);
       dbgLog('Copied suggestion in GitLab format to clipboard');
       showCopySuccessFeedback(copyButton);
+      import(chrome.runtime.getURL('utils/analytics-service.js'))
+        .then((analyticsModule) => analyticsModule.trackUserAction('copy_button', {
+          context: 'gitlab_diff',
+          location: 'diff_view',
+          copy_kind: 'gitlab_diff'
+        }))
+        .catch(() => {});
     } catch (err) {
       dbgWarn('Failed to copy suggestion to clipboard', err);
       showCopyErrorFeedback(copyButton);
