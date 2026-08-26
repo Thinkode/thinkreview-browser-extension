@@ -901,16 +901,51 @@ chrome.runtime.onMessage.addListener((message) => {
   }
 });
 
+let upgradePromptLoader = null;
+let thinkReviewLoaderModulePromise = null;
+
+function getThinkReviewLoaderModule() {
+  return (thinkReviewLoaderModulePromise ??= import(
+    chrome.runtime.getURL('components/loader/loader.js')
+  ));
+}
+
+function unmountUpgradePromptLoader() {
+  if (upgradePromptLoader) {
+    upgradePromptLoader.hide();
+    upgradePromptLoader = null;
+  }
+}
+
+window.unmountUpgradePromptLoader = unmountUpgradePromptLoader;
+
 /**
- * Shows an upgrade message in the integrated review panel
- * @param {number} reviewCount - The number of reviews used today
- * @param {number} dailyLimit - The daily review limit (optional, defaults to 3)
- * @param {Object|null} limitOverride - Optional override for the limit title/body (e.g. for PR size errors).
- *   If provided, { title: string, body: string } will be used instead of the remote config / fallback values.
- * @param {number|null} purchasedReviewCredits - Prepaid credits balance (used after daily limit).
- * @param {{ skipLoader?: boolean, hideCreditPacks?: boolean }} [options] - skipLoader: keep review panel visible while loading; hideCreditPacks: plans only (e.g. PR size limit).
+ * Mount the branded loader inside the upgrade wrapper while remote config is fetched.
+ * @param {HTMLElement} hostEl
  */
+async function mountUpgradePromptLoader(hostEl) {
+  if (!hostEl) return;
+  try {
+    const { ThinkReviewLoader } = await getThinkReviewLoaderModule();
+    if (!hostEl.isConnected) return;
+    unmountUpgradePromptLoader();
+    upgradePromptLoader = new ThinkReviewLoader(hostEl, {
+      message: 'Loading upgrade options',
+      subMessage: 'Fetching your plans and credit packs…',
+      size: 0.48,
+      showFacts: true,
+      minHeight: 220,
+      contained: true,
+    });
+    upgradePromptLoader.show();
+  } catch (error) {
+    dbgWarn('Failed to mount upgrade prompt loader:', error);
+  }
+}
+
 function revealUpgradePrompt(upgradeWrapper, reviewContent, options = {}) {
+  unmountUpgradePromptLoader();
+  if (upgradeWrapper) upgradeWrapper.classList.remove('is-loading');
   const skipLoader = options?.skipLoader === true;
   if (upgradeWrapper && reviewContent && !upgradeWrapper.isConnected) {
     reviewContent.insertBefore(upgradeWrapper, reviewContent.firstChild);
@@ -921,6 +956,15 @@ function revealUpgradePrompt(upgradeWrapper, reviewContent, options = {}) {
   if (reviewContent) reviewContent.classList.remove('gl-hidden');
 }
 
+/**
+ * Shows an upgrade message in the integrated review panel
+ * @param {number} reviewCount - The number of reviews used today
+ * @param {number} dailyLimit - The daily review limit (optional, defaults to 3)
+ * @param {Object|null} limitOverride - Optional override for the limit title/body (e.g. for PR size errors).
+ *   If provided, { title: string, body: string } will be used instead of the remote config / fallback values.
+ * @param {number|null} purchasedReviewCredits - Prepaid credits balance (used after daily limit).
+ * @param {{ skipLoader?: boolean, hideCreditPacks?: boolean }} [options] - skipLoader: keep review panel visible while loading; hideCreditPacks: plans only (e.g. PR size limit).
+ */
 async function showUpgradeMessage(
   reviewCount,
   dailyLimit = 3,
@@ -928,7 +972,6 @@ async function showUpgradeMessage(
   purchasedReviewCredits = null,
   options = {}
 ) {
-  const skipLoader = options?.skipLoader === true;
   const hideCreditPacks = options?.hideCreditPacks === true;
   const upgradeSurface = limitOverride ? 'large_pr' : 'limit_banner';
   if (upgradeSurface === 'limit_banner') {
@@ -946,19 +989,9 @@ async function showUpgradeMessage(
     location: 'integrated_panel',
     surface: upgradeSurface
   });
-  const reviewLoading = document.getElementById('review-loading');
   const reviewContent = document.getElementById('review-content');
   const reviewError = document.getElementById('review-error');
   const loginPrompt = document.getElementById('review-login-prompt');
-
-  if (skipLoader) {
-    dismissIntegratedReviewLoadingUI();
-    if (reviewContent) reviewContent.classList.remove('gl-hidden');
-  } else {
-    // Keep the initial review loader visible until upgrade prompt config is fetched.
-    if (reviewLoading) reviewLoading.classList.remove('gl-hidden');
-    if (reviewContent) reviewContent.classList.add('gl-hidden');
-  }
 
   // Hide error area
   if (reviewError) reviewError.classList.add('gl-hidden');
@@ -979,13 +1012,25 @@ async function showUpgradeMessage(
   if (chatInputContainer) chatInputContainer.classList.add('gl-hidden');
 
   // Remove a previously injected upgrade wrapper if the function is called again
+  unmountUpgradePromptLoader();
   const existingWrapper = document.getElementById('upgrade-message-wrapper');
   if (existingWrapper) existingWrapper.remove();
 
-  // Create a dedicated full-panel upgrade container
+  // Create a dedicated full-panel upgrade container and show a loader immediately
+  // so the dark panel is not empty while getUpgradePromptConfig returns.
   const upgradeWrapper = document.createElement('div');
   upgradeWrapper.id = 'upgrade-message-wrapper';
-  upgradeWrapper.className = 'upgrade-prompt-panel';
+  upgradeWrapper.className = 'upgrade-prompt-panel is-loading';
+
+  const loadingHost = document.createElement('div');
+  loadingHost.id = 'upgrade-prompt-loading';
+  loadingHost.setAttribute('role', 'status');
+  loadingHost.textContent = 'Loading upgrade options…';
+  upgradeWrapper.appendChild(loadingHost);
+  reviewContent.insertBefore(upgradeWrapper, reviewContent.firstChild);
+  reviewContent.classList.remove('gl-hidden');
+  dismissIntegratedReviewLoadingUI();
+  mountUpgradePromptLoader(loadingHost);
 
   // Load subscription section styles
   if (!document.getElementById('subscription-styles')) {
@@ -1004,8 +1049,14 @@ async function showUpgradeMessage(
   chrome.runtime.sendMessage(
     { type: 'GET_EXTENSION_RESOURCE', path: 'components/subscription-section.html' },
     async (response) => {
+      if (!upgradeWrapper.isConnected) {
+        unmountUpgradePromptLoader();
+        return;
+      }
       if (chrome.runtime.lastError || !response?.success) {
         dbgWarn('Error loading subscription section:', response?.error || chrome.runtime.lastError?.message);
+        unmountUpgradePromptLoader();
+        upgradeWrapper.classList.remove('is-loading');
         upgradeWrapper.innerHTML = `
           <div class="upgrade-prompt-header">
             <div class="upgrade-prompt-kicker">Daily limit</div>
@@ -1127,6 +1178,13 @@ async function showUpgradeMessage(
            <div class="upgrade-prompt-meter-label">${reviewCount} / ${dailyLimit} review credits used today</div>`
         : '';
 
+      if (!upgradeWrapper.isConnected) {
+        unmountUpgradePromptLoader();
+        return;
+      }
+
+      unmountUpgradePromptLoader();
+      upgradeWrapper.classList.remove('is-loading');
       upgradeWrapper.innerHTML = `
         <div class="upgrade-prompt-header">
           <div class="upgrade-prompt-kicker">Daily limit</div>

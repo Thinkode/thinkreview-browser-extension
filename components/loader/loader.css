@@ -70,6 +70,12 @@
   display: none !important;
 }
 
+.tr-loader-overlay--contained {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
 .tr-loader-content {
   display: flex;
   flex-direction: column;

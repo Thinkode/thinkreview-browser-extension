@@ -304,6 +304,10 @@
   -webkit-overflow-scrolling: touch;
 }
 
+#gitlab-mr-integrated-review #review-content:has(#upgrade-prompt-loading) {
+  overflow: hidden;
+}
+
 #upgrade-message-wrapper {
   margin: 0;
   padding: 16px;
@@ -313,12 +317,35 @@
   min-height: 280px;
 }
 
+#upgrade-message-wrapper.is-loading,
+#upgrade-message-wrapper:has(#upgrade-prompt-loading) {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  border-radius: 14px;
+}
+
+#upgrade-prompt-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  height: 100%;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 #upgrade-prompt-loading.tr-loader-overlay {
   position: absolute;
   inset: 0;
   z-index: 2;
   min-height: 280px;
-  border-radius: 8px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
 }
 
 #upgrade-prompt-loading.tr-loader-overlay .tr-loader-content {
