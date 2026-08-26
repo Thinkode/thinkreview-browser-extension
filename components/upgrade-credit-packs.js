@@ -101,11 +101,6 @@ function createPackButton(pack, badgeKind, analyticsContext) {
         packId: pack.id || null,
         credits: pack.credits || null
       }).catch(() => {});
-      trackUserAction('upgrade_button_clicked', {
-        context: analyticsContext,
-        surface,
-        source: 'credit_pack'
-      }).catch(() => {});
     } catch {
       // Silently fail - analytics should never break CTA
     }

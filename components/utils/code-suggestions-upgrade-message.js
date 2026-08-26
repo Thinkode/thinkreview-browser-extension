@@ -71,12 +71,6 @@ export function createCodeSuggestionsUpgradeMessage() {
   upgradeLink.addEventListener('click', async () => {
     try {
       const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
-      analyticsModule.trackUserAction('code_suggestions_upgrade_clicked', {
-        context: 'code_suggestions_tab',
-        location: 'integrated_panel',
-        source: 'upgrade_message',
-        surface: 'code_suggestions'
-      }).catch(() => {});
       analyticsModule.trackUserAction('upgrade_button_clicked', {
         context: 'code_suggestions_tab',
         location: 'integrated_panel',

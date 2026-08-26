@@ -2204,10 +2204,6 @@ async function renderScoringReviewLayout(review, containers, integrationOpts = n
         // Track copy-all action
         try {
           const analyticsModule = await import(chrome.runtime.getURL('utils/analytics-service.js'));
-          analyticsModule.trackUserAction('copy_all_review', {
-            context: 'integrated_review_panel',
-            copy_kind: 'copy_all'
-          }).catch(() => {});
           analyticsModule.trackUserAction('copy_button', {
             context: 'integrated_review_panel',
             copy_kind: 'copy_all'

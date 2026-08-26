@@ -361,18 +361,12 @@ export function renderReviewMetadataBar(
       link.addEventListener('click', (e) => {
         // Track upgrade link click
         if (trackUserAction) {
-          trackUserAction('upgrade_link_clicked', {
-            context: 'upgrade_message',
-            location: 'metadata_bar',
-            source: 'truncation_limit',
-            surface: 'metadata_bar'
-          }).catch(() => {});
           trackUserAction('upgrade_button_clicked', {
             context: 'upgrade_message',
             location: 'metadata_bar',
             source: 'truncation_limit',
             surface: 'metadata_bar'
-          }).catch(() => {}); // Silently fail
+          }).catch(() => {});
         }
       });
     });
