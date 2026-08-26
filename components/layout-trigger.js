@@ -121,11 +121,51 @@ function _injectSidebarTab(settings, onToggle) {
   const side = settings.sidebarSide || 'right';
   const chevron = side === 'right' ? '◀' : '▶';
   const logoUrl = chrome.runtime.getURL('images/icon16.png');
+  const isRight = side === 'right';
 
   const tab = document.createElement('button');
   tab.id = SIDEBAR_TAB_ID;
+  tab.type = 'button';
   tab.className = `thinkreview-sidebar-tab side-${side}`;
   tab.title = 'Open ThinkReview panel';
+  // Inline styles so TFS / Azure DevOps button resets cannot strip the purple fill
+  // even if host CSS loads after layout-trigger.css.
+  tab.style.cssText = [
+    'position:fixed',
+    'top:50%',
+    'transform:translateY(-50%)',
+    'z-index:9999',
+    'appearance:none',
+    '-webkit-appearance:none',
+    'background:#6b4fbb',
+    'background-color:#6b4fbb',
+    'color:#ffffff',
+    'cursor:pointer',
+    'border:none',
+    'margin:0',
+    'padding:14px 7px',
+    'display:flex',
+    'flex-direction:column',
+    'align-items:center',
+    'justify-content:center',
+    'gap:8px',
+    'box-shadow:0 2px 8px rgba(0,0,0,0.25)',
+    'user-select:none',
+    'box-sizing:border-box',
+    'overflow:visible',
+    'height:auto',
+    'min-height:0',
+    'max-height:none',
+    'width:auto',
+    'min-width:0',
+    'max-width:none',
+    'line-height:1',
+    'font-size:11px',
+    'font-weight:600',
+    'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
+    'text-transform:none',
+    isRight ? 'right:0;left:auto;border-radius:6px 0 0 6px' : 'left:0;right:auto;border-radius:0 6px 6px 0',
+  ].join(';');
   // Logo and label wrapped together so rotation applies to both, keeping logo before text
   tab.innerHTML = `
     <span class="thinkreview-sidebar-tab-chevron">${chevron}</span>
@@ -134,6 +174,26 @@ function _injectSidebarTab(settings, onToggle) {
       <span class="thinkreview-sidebar-tab-label">ThinkReview</span>
     </span>
   `;
+
+  const chevronEl = tab.querySelector('.thinkreview-sidebar-tab-chevron');
+  if (chevronEl) chevronEl.style.cssText = 'font-size:9px;line-height:1;opacity:0.8;color:#ffffff;display:block;';
+  const contentEl = tab.querySelector('.thinkreview-sidebar-tab-content');
+  if (contentEl) {
+    contentEl.style.cssText = `display:flex;flex-direction:column;align-items:center;gap:5px;${side === 'left' ? 'transform:rotate(180deg);' : ''}`;
+  }
+  const logoEl = tab.querySelector('.thinkreview-sidebar-tab-logo');
+  if (logoEl) logoEl.style.cssText = 'width:14px;height:14px;max-width:none;border-radius:2px;flex-shrink:0;display:block;';
+  const labelEl = tab.querySelector('.thinkreview-sidebar-tab-label');
+  if (labelEl) labelEl.style.cssText = 'writing-mode:vertical-rl;text-orientation:mixed;font-size:11px;font-weight:600;letter-spacing:0.5px;line-height:1;color:#ffffff;display:inline-block;';
+
+  tab.addEventListener('mouseenter', () => {
+    tab.style.background = '#5a3ea5';
+    tab.style.backgroundColor = '#5a3ea5';
+  });
+  tab.addEventListener('mouseleave', () => {
+    tab.style.background = '#6b4fbb';
+    tab.style.backgroundColor = '#6b4fbb';
+  });
 
   tab.onclick = (e) => {
     e.preventDefault();
