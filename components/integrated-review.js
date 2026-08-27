@@ -2854,6 +2854,9 @@ async function displayIntegratedReview(
  * @param {HTMLElement} [reviewContent] - The #review-content element. If omitted, looked up from the DOM.
  */
 function clearUpgradeMessage(reviewContent) {
+  if (typeof window.unmountUpgradePromptLoader === 'function') {
+    window.unmountUpgradePromptLoader();
+  }
   const wrapper = document.getElementById('upgrade-message-wrapper');
   if (wrapper) {
     wrapper.remove();

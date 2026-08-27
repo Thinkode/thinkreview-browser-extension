@@ -56,6 +56,7 @@
         "images/*",
         "components/*",
         "components/integrated-review.css",
+        "components/loader/*",
         "components/review-prompt/*",
         "services/*",
         "services/ollama-service.js",

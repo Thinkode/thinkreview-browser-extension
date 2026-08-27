@@ -36,6 +36,7 @@ function extensionIconUrl(file) {
  * @property {number} [size] Scale multiplier (default 0.52 for extension tab)
  * @property {boolean} [showFacts]
  * @property {number|null} [minHeight] Min height of inner content in px
+ * @property {boolean} [contained] Position over the host instead of the viewport (e.g. integrated panel)
  */
 
 export class ThinkReviewLoader {
@@ -52,6 +53,7 @@ export class ThinkReviewLoader {
       size: typeof options.size === 'number' ? options.size : 0.52,
       showFacts: options.showFacts !== false,
       minHeight: options.minHeight ?? null,
+      contained: !!options.contained,
     };
     /** @type {HTMLElement|null} */
     this._inner = null;
@@ -71,6 +73,7 @@ export class ThinkReviewLoader {
 
     this.root.textContent = '';
     this.root.classList.add('tr-loader-overlay');
+    this.root.classList.toggle('tr-loader-overlay--contained', this.options.contained);
 
     const { size } = this.options;
     const BASE = 96 * size;
