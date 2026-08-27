@@ -1027,6 +1027,10 @@ async function showUpgradeMessage(
   loadingHost.setAttribute('role', 'status');
   loadingHost.textContent = 'Loading upgrade options…';
   upgradeWrapper.appendChild(loadingHost);
+  if (!reviewContent) {
+    dbgWarn('showUpgradeMessage: #review-content not found, aborting loader mount');
+    return;
+  }
   reviewContent.insertBefore(upgradeWrapper, reviewContent.firstChild);
   reviewContent.classList.remove('gl-hidden');
   dismissIntegratedReviewLoadingUI();
