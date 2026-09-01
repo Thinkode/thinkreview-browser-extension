@@ -818,6 +818,10 @@ function showLoginPrompt(options = {}) {
     signInButton.type = 'button';
     signInButton.className = 'thinkreview-signin-button';
     signInButton.textContent = 'Signup / Sign in';
+
+    const refreshHint = document.createElement('p');
+    refreshHint.className = 'thinkreview-login-description thinkreview-login-refresh-hint';
+    refreshHint.textContent = 'After signing in, this panel will update automatically.';
     
     signInButton.addEventListener('click', () => {
       dbgLog('Requesting background to open portal sign-in page');
@@ -829,6 +833,8 @@ function showLoginPrompt(options = {}) {
       signInButton.disabled = true;
       const prevLabel = signInButton.textContent;
       signInButton.textContent = 'Opening…';
+      refreshHint.textContent = 'Waiting for you to finish signing in… this panel will update automatically.';
+      startLoginPromptAuthWatch();
       chrome.runtime.sendMessage({ type: 'OPEN_SIGNIN_PORTAL' }, (response) => {
         if (chrome.runtime.lastError) {
           dbgWarn('Error opening portal sign-in:', chrome.runtime.lastError);
@@ -848,10 +854,6 @@ function showLoginPrompt(options = {}) {
     });
     
     signInContainer.appendChild(signInButton);
-
-    const refreshHint = document.createElement('p');
-    refreshHint.className = 'thinkreview-login-description thinkreview-login-refresh-hint';
-    refreshHint.textContent = 'After signing in, refresh this page, then click the ThinkReview button.';
     signInContainer.appendChild(refreshHint);
 
     loginPrompt.appendChild(signInContainer);
@@ -867,6 +869,7 @@ function showLoginPrompt(options = {}) {
   
   // Show the login prompt
   loginPrompt.classList.remove('gl-hidden');
+  startLoginPromptAuthWatch();
   trackAnalytics('sign_in_shown', {
     context: 'login_prompt',
     location: 'integrated_panel',
@@ -898,8 +901,52 @@ function applySessionExpiredToLoginPrompt(loginPrompt, sessionExpired) {
 chrome.runtime.onMessage.addListener((message) => {
   if (message?.type === 'AUTH_SESSION_EXPIRED') {
     showLoginPrompt({ sessionExpired: true });
+    return;
+  }
+  if (message?.type === 'WEBAPP_AUTH_SYNCED') {
+    dbgLog('Received webapp auth sync in integrated panel');
+    handleIntegratedPanelAuthAvailable();
   }
 });
+
+let loginAuthWatcherReady = null;
+
+function getLoginAuthWatcher() {
+  if (!loginAuthWatcherReady) {
+    loginAuthWatcherReady = import(chrome.runtime.getURL('utils/panel-auth-sync.js'))
+      .then((mod) => {
+        const watcher = mod.createLoginAuthWatcher({
+          isUserLoggedIn,
+          onAuthAvailable: () => {
+            dbgLog('Auth detected in integrated panel; starting review without page refresh');
+            return fetchAndDisplayCodeReview(false, false);
+          },
+        });
+        chrome.storage.onChanged.addListener(watcher.onStorageChanged);
+        return watcher;
+      })
+      .catch((error) => {
+        dbgWarn('Failed to initialize login auth watcher:', error);
+        return null;
+      });
+  }
+  return loginAuthWatcherReady;
+}
+
+function startLoginPromptAuthWatch() {
+  getLoginAuthWatcher().then((watcher) => {
+    if (watcher) watcher.startPoll();
+  });
+}
+
+function handleIntegratedPanelAuthAvailable() {
+  getLoginAuthWatcher().then((watcher) => {
+    if (watcher) watcher.handleAuthAvailable();
+  });
+}
+
+// Start loading the watcher immediately so it is ready when the user signs in.
+getLoginAuthWatcher();
 
 let upgradePromptLoader = null;
 let thinkReviewLoaderModulePromise = null;
