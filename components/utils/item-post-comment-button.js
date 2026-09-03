@@ -386,7 +386,7 @@ async function handlePostClick(button, getPlainText) {
       showPostCommentModal({
         title: 'Post to the pull request',
         message:
-          'Post publishes this finding as a conversation comment on the PR under your Git account (using your Personal Access Token from Integrations).',
+          'Post publishes this finding as a conversation comment on the PR. Uses your Full Context integration (GitHub App, GitLab OAuth, or PAT). GitHub App comments appear as ThinkReview.',
         showIllustration: true,
         primaryLabel: 'Got it',
         secondaryLabel: 'Cancel',
@@ -457,14 +457,12 @@ async function executePost(button, body) {
     }
 
     const code = result?.code;
-    if (code === 'no_integration' || code === 'pat_required') {
+    if (code === 'no_integration') {
       trackAction('post_pr_comment_setup_shown', { reason: code });
       showPostCommentModal({
-        title: 'Connect a Personal Access Token',
+        title: 'Connect an integration',
         message:
-          code === 'pat_required'
-            ? 'Posting comments requires a Personal Access Token under your name. GitHub App / GitLab OAuth alone cannot post as you. Add a PAT in Integrations.'
-            : 'To post this finding on the PR, connect a Personal Access Token for this platform under Full Context Integrations.',
+          'To post this finding on the PR, connect GitHub App, GitLab OAuth, or a Personal Access Token under Full Context Integrations.',
         primaryLabel: 'Set up Integrations',
         secondaryLabel: 'Close',
         primaryOpensIntegrations: true,
@@ -474,12 +472,23 @@ async function executePost(button, body) {
     }
 
     if (code === 'missing_write_permission') {
-      trackAction('post_pr_comment_setup_shown', { reason: 'missing_write_permission' });
+      trackAction('post_pr_comment_setup_shown', {
+        reason: 'missing_write_permission',
+        authType: result?.authType || null,
+      });
+      const authType = result?.authType;
+      const message =
+        typeof result?.message === 'string' && result.message.trim()
+          ? result.message
+          : authType === 'gitlab_oauth'
+            ? 'Your GitLab connection needs comment permission. Reconnect with GitLab in Integrations, then try again.'
+            : authType === 'github_app'
+              ? 'The ThinkReview GitHub App needs permission to write pull request comments. Ask an admin to approve updated App permissions, or add a PAT with write access.'
+              : 'Your token can read the repo but cannot post comments. Update it with write access for pull/merge requests, then try again.';
       showPostCommentModal({
         title: 'Write access needed',
-        message:
-          'Your token can read the repo but cannot post comments. Update it with write access for pull/merge requests, then try again.',
-        primaryLabel: 'Update Integrations',
+        message,
+        primaryLabel: 'Open Integrations',
         secondaryLabel: 'Close',
         primaryOpensIntegrations: true,
       });
