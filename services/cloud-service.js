@@ -41,6 +41,7 @@ const TRACK_CUSTOM_DOMAINS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/trackCustomDomains
 const STORE_LAYOUT_SETTINGS_URL = `${CLOUD_FUNCTIONS_BASE_URL}/storeLayoutSettingsThinkReview`;
 const LOG_AZURE_DEVOPS_VERSION_URL = `${CLOUD_FUNCTIONS_BASE_URL}/logAzureDevOpsVersionThinkReview`;
 const SUBMIT_REVIEW_FEEDBACK_URL = `${CLOUD_FUNCTIONS_BASE_URL}/submitReviewFeedback`;
+const POST_PR_COMMENT_URL = `${CLOUD_FUNCTIONS_BASE_URL}/postPrCommentThinkReview`;
 
 /**
  * Cloud Service for GitLab MR Reviews
@@ -1684,5 +1685,53 @@ export class CloudService {
       dbgWarn('Error submitting feedback:', error);
       throw error;
     }
+  }
+
+  /**
+   * Post a conversation comment on the current PR/MR using the user's stored PAT.
+   * @param {string} email
+   * @param {string} mrUrl
+   * @param {string} body - Markdown comment body
+   * @returns {Promise<{status: string, code?: string, htmlUrl?: string|null, platform?: string, message?: string}>}
+   */
+  static async postPrComment(email, mrUrl, body) {
+    dbgLog('Posting PR comment:', { email, hasMrUrl: !!mrUrl, bodyLength: (body || '').length });
+
+    if (!email) {
+      throw new Error('Email is required');
+    }
+    if (!mrUrl) {
+      throw new Error('mrUrl is required');
+    }
+    if (body == null || !String(body).trim()) {
+      throw new Error('Comment body is required');
+    }
+
+    const response = await CloudService.thinkReviewFetch(POST_PR_COMMENT_URL, {
+      email,
+      mrUrl,
+      body: String(body),
+      ...EXTENSION_VERSION_PAYLOAD,
+    });
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (_) {
+      data = null;
+    }
+
+    if (!response.ok) {
+      // Prefer structured error codes from the cloud function for UI branching.
+      if (data && data.code) {
+        return data;
+      }
+      const fallbackMessage =
+        (data && data.message) || `HTTP error ${response.status}`;
+      throw new Error(fallbackMessage);
+    }
+
+    dbgLog('PR comment posted successfully:', data);
+    return data || { status: 'success' };
   }
 }

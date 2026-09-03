@@ -75,6 +75,13 @@ itemCopyButtonLinkElement.rel = 'stylesheet';
 itemCopyButtonLinkElement.href = itemCopyButtonCssURL;
 document.head.appendChild(itemCopyButtonLinkElement);
 
+// Import post-comment button CSS
+const itemPostCommentCssURL = chrome.runtime.getURL('components/utils/item-post-comment-button.css');
+const itemPostCommentLinkElement = document.createElement('link');
+itemPostCommentLinkElement.rel = 'stylesheet';
+itemPostCommentLinkElement.href = itemPostCommentCssURL;
+document.head.appendChild(itemPostCommentLinkElement);
+
 // Formatting utils
 let markdownToHtml = null;
 let markdownToSummaryHtml = null;
@@ -86,6 +93,7 @@ let setupCopyHandler = null;
 let createCopyButton = null;
 let copyItemContent = null;
 let attachCopyButtonToItem = null;
+let attachPostCommentButtonToItem = null;
 
 // Store current review data for copy-all functionality
 let currentReviewData = null;
@@ -134,6 +142,14 @@ async function initCopyButtonUtils() {
     dbgLog('Copy button utils loaded');
   } catch (e) {
     dbgWarn('Failed to load copy button utils', e);
+  }
+
+  try {
+    const postModule = await import(chrome.runtime.getURL('components/utils/item-post-comment-button.js'));
+    attachPostCommentButtonToItem = postModule.attachPostCommentButtonToItem;
+    dbgLog('Post comment button utils loaded');
+  } catch (e) {
+    dbgWarn('Failed to load post comment button utils', e);
   }
 }
 
@@ -2055,6 +2071,7 @@ async function renderSeverityReviewSections(review, containers) {
         markdownToHtml,
         preprocessAIResponse,
         attachCopyButtonToItem,
+        attachPostCommentButtonToItem,
         applySimpleSyntaxHighlighting,
         onIssueClick: (plainText, severity) => {
           const severityLabel = severity === 'critical' ? 'critical issue'
@@ -2275,6 +2292,9 @@ async function renderScoringReviewLayout(review, containers, integrationOpts = n
   const summaryWrapper = reviewSummary.parentElement;
   if (summaryWrapper && summaryWrapper.classList.contains('thinkreview-item-wrapper') && attachCopyButtonToItem) {
     attachCopyButtonToItem(reviewSummary, summaryWrapper);
+    if (attachPostCommentButtonToItem) {
+      attachPostCommentButtonToItem(summaryWrapper, () => extractPlainText(summaryHtml).trim());
+    }
   }
 
   // Generate PR description button: send a dedicated prompt and show result in chat (attach once)
@@ -2376,6 +2396,10 @@ async function renderScoringReviewLayout(review, containers, integrationOpts = n
           attachCopyButtonToItem(contentDiv, itemWrapper);
         }
 
+        if (attachPostCommentButtonToItem) {
+          attachPostCommentButtonToItem(itemWrapper, () => extractPlainText(itemHtml).trim());
+        }
+
         if (
           (category === 'suggestion' || category === 'practice' || category === 'security') &&
           ideAssistIntegration
@@ -2425,8 +2449,8 @@ async function displayIntegratedReview(
     integratedPanelEl.thinkreviewIntegrationOpts = integrationOpts;
   }
 
-  // Ensure copy button utils are loaded
-  if (!attachCopyButtonToItem) {
+  // Ensure copy + post button utils are loaded
+  if (!attachCopyButtonToItem || !attachPostCommentButtonToItem) {
     await initCopyButtonUtils();
   }
 

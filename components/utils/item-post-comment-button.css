@@ -1,0 +1,177 @@
+/* item-post-comment-button.css */
+/* Post-as-comment button + first-time / setup modals */
+
+#gitlab-mr-integrated-review .thinkreview-item-post-comment-btn {
+  background: transparent !important;
+  color: var(--thinkreview-text-secondary) !important;
+  border: none !important;
+  border-radius: 4px;
+  padding: 2px 4px;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+  flex-shrink: 0;
+  margin-top: 2px;
+  visibility: visible !important;
+  position: relative;
+}
+
+#gitlab-mr-integrated-review .thinkreview-item-post-comment-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+#gitlab-mr-integrated-review .thinkreview-item-post-comment-btn:active {
+  transform: scale(0.95);
+}
+
+#gitlab-mr-integrated-review .thinkreview-item-post-comment-btn:disabled {
+  opacity: 0.4;
+  cursor: wait !important;
+  transform: none;
+}
+
+#gitlab-mr-integrated-review .thinkreview-item-post-comment-btn svg {
+  display: block !important;
+  width: 14px;
+  height: 14px;
+  visibility: visible !important;
+}
+
+#gitlab-mr-integrated-review .thinkreview-item-post-comment-btn[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: auto;
+  right: 0;
+  white-space: nowrap;
+  background: #1f1f1f;
+  color: #f0f0f0;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 9999;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+#gitlab-mr-integrated-review .thinkreview-item-post-comment-btn[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+/* Modal */
+#gitlab-mr-integrated-review .thinkreview-post-comment-backdrop,
+.thinkreview-post-comment-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1300;
+  padding: 16px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-post-comment-dialog,
+.thinkreview-post-comment-dialog {
+  background: #2d2d2d;
+  border: 2px solid #6b4fbb;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 360px;
+  max-height: 90%;
+  overflow: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+.thinkreview-post-comment-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 16px 8px;
+}
+
+.thinkreview-post-comment-dialog-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #f5f5f5;
+}
+
+.thinkreview-post-comment-dialog-close {
+  background: transparent;
+  border: none;
+  color: #aaa;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.thinkreview-post-comment-dialog-close:hover {
+  color: #fff;
+}
+
+.thinkreview-post-comment-dialog-body {
+  padding: 8px 16px 12px;
+  color: #d4d4d4;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.thinkreview-post-comment-dialog-body p {
+  margin: 10px 0 0;
+}
+
+.thinkreview-post-comment-illustration {
+  display: block;
+  margin: 0 auto;
+  max-width: 280px;
+}
+
+.thinkreview-post-comment-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 16px 14px;
+}
+
+.thinkreview-post-comment-btn-primary,
+.thinkreview-post-comment-btn-secondary {
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.thinkreview-post-comment-btn-primary {
+  background: #6b4fbb;
+  color: #fff;
+  border-color: #6b4fbb;
+}
+
+.thinkreview-post-comment-btn-primary:hover {
+  background: #7c5fd4;
+}
+
+.thinkreview-post-comment-btn-secondary {
+  background: transparent;
+  color: #d4d4d4;
+  border-color: #555;
+}
+
+.thinkreview-post-comment-btn-secondary:hover {
+  background: #3a3a3a;
+}
