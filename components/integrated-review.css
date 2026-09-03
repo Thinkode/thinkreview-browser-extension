@@ -3883,6 +3883,14 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   height: 18px;
 }
 
+#gitlab-mr-integrated-review .thinkreview-ollama-not-running-help .thinkreview-ollama-error-cloud-fallback {
+  margin-bottom: 0;
+}
+
+#gitlab-mr-integrated-review .thinkreview-ollama-not-running-help .thinkreview-ollama-cors-steps-intro {
+  text-align: center;
+}
+
 /* Ollama unified help: “Need a review right away?” — bordered callout */
 #gitlab-mr-integrated-review .thinkreview-ollama-error-cloud-fallback {
   box-sizing: border-box;

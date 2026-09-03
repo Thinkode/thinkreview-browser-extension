@@ -41,6 +41,9 @@ function isTerminalReviewResponse(resp) {
   if (!resp || resp.pending) return false;
   if (resp.success === true && (resp.data?.status === 'success' || resp.data?.review)) return true;
   if (resp.isAuthExpired || resp.isLimitExceeded || resp.isPatchTooLarge) return true;
+  // Real provider errors (Ollama down, 4xx, etc.). Null means the port dropped;
+  // Cloud Run 504s set isTransientTimeout and must keep polling.
+  if (resp.success === false && resp.error && resp.isTransientTimeout !== true) return true;
   return false;
 }
 
@@ -58,9 +61,19 @@ export async function requestPatchReviewFromBackground(payload) {
     return resp;
   });
 
+  // Ollama / OpenRouter / self-hosted have no cloud cache to poll — return as soon
+  // as REVIEW_PATCH_CODE finishes so a refused localhost connection is not hidden
+  // behind the 15-minute cloud wait loop.
+  if (!(await isThinkReviewCloudProvider())) {
+    const resp = await longReview;
+    if (isTerminalReviewResponse(resp)) return resp;
+    if (resp?.success === false) return resp;
+    return { success: false, error: resp?.error || 'Review failed. Please try again.' };
+  }
+
   while (settled == null && Date.now() - startedAt < DEADLINE_MS) {
-    if (Date.now() - startedAt < CHROME_SAFE_WAIT_MS || !(await isThinkReviewCloudProvider())) {
-      await wait(PRE_POLL_CHECK_MS);
+    if (Date.now() - startedAt < CHROME_SAFE_WAIT_MS) {
+      await Promise.race([wait(PRE_POLL_CHECK_MS), longReview]);
       continue;
     }
     const pollResp = await sendMessage({

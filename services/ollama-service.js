@@ -1,6 +1,29 @@
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 import { clampOllamaOptions } from '../utils/ollama-options.js';
 
+export const OLLAMA_NOT_RUNNING_MESSAGE =
+  "Ollama isn't running. Start it with ollama serve, or switch to ThinkReview Cloud.";
+
+function isOllamaUnreachableError(error) {
+  const msg = String(error?.message || error || '');
+  const name = error?.name || '';
+  return (
+    msg.includes('Failed to fetch') ||
+    msg.includes('NetworkError') ||
+    msg.includes('Load failed') ||
+    name === 'AbortError' ||
+    /timeout/i.test(msg) ||
+    /ERR_CONNECTION/i.test(msg) ||
+    (name === 'TypeError' && /fetch/i.test(msg))
+  );
+}
+
+function ollamaNotRunningError(url) {
+  const error = new Error(OLLAMA_NOT_RUNNING_MESSAGE);
+  error.ollamaUrl = url || 'http://localhost:11434';
+  return error;
+}
+
 
 /**
  * Ollama Service for ThinkReview
@@ -30,6 +53,11 @@ export class OllamaService {
       const { temperature: tempClamped, top_p: topPClamped, top_k: topKClamped } = clampOllamaOptions({ temperature: temp, top_p: topP, top_k: topK });
       
       dbgLog(`Using Ollama at ${url} with model ${model}`);
+
+      const connection = await OllamaService.checkConnection(url);
+      if (!connection.connected) {
+        throw ollamaNotRunningError(url);
+      }
       
       // Single prompt: instructions + patch (split so we can truncate patch by context length)
       const promptBeforePatch = `You are an expert code reviewer. Analyze this git patch and provide a comprehensive code review in ${language}.
@@ -249,10 +277,9 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
       }
     } catch (error) {
       dbgWarn('Error reviewing code with Ollama:', error);
-      
-      // Provide helpful error messages
-      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        throw new Error(`Cannot connect to Ollama at the configured URL. Please ensure Ollama is running and accessible.\n\nTroubleshooting:\n1. Check if Ollama is running: 'ollama serve'\n2. Verify the URL in settings\n3. Try accessing ${error.url || 'http://localhost:11434'} in your browser`);
+
+      if (error.message === OLLAMA_NOT_RUNNING_MESSAGE || isOllamaUnreachableError(error)) {
+        throw ollamaNotRunningError(error.ollamaUrl);
       } else if (error.message.includes('model')) {
         throw new Error(`Model error: ${error.message}\n\nMake sure the selected model is installed.\nRun: ollama pull ${error.model || 'gemma4'}`);
       } else {
@@ -284,6 +311,11 @@ Important: Respond ONLY with valid JSON. Do not include any explanatory text bef
       const { temperature: tempClamped, top_p: topPClamped, top_k: topKClamped } = clampOllamaOptions({ temperature: temp, top_p: topP, top_k: topK });
       
       dbgLog(`Using Ollama at ${url} with model ${model} for conversation`);
+
+      const connection = await OllamaService.checkConnection(url);
+      if (!connection.connected) {
+        throw ollamaNotRunningError(url);
+      }
       
       // Truncate patch content if extremely large
       const truncatedPatch = patchContent.length > 40000 
@@ -370,10 +402,9 @@ Your role is to answer questions about this code review in a helpful, concise ma
       
     } catch (error) {
       dbgWarn('Error getting conversational response from Ollama:', error);
-      
-      // Provide helpful error messages
-      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        throw new Error(`Cannot connect to Ollama. Please ensure Ollama is running and accessible.\n\nTroubleshooting:\n1. Check if Ollama is running: 'ollama serve'\n2. Verify the URL in settings`);
+
+      if (error.message === OLLAMA_NOT_RUNNING_MESSAGE || isOllamaUnreachableError(error)) {
+        throw ollamaNotRunningError(error.ollamaUrl);
       } else {
         throw new Error(`Ollama error: ${error.message}`);
       }

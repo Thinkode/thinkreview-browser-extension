@@ -1812,7 +1812,11 @@ async function handleSendMessage(messageText) {
     } else if (error.message && error.message.includes('Ollama')) {
       try {
         const mod = await getOllamaBrowserExtensionCorsMessageModule();
-        errorMessage = mod.getOllamaCorsHelpMarkdown();
+        if (typeof mod.isOllamaNotRunningMessage === 'function' && mod.isOllamaNotRunningMessage(error.message)) {
+          errorMessage = mod.getOllamaNotRunningHelpMarkdown();
+        } else {
+          errorMessage = mod.getOllamaCorsHelpMarkdown();
+        }
       } catch {
         /* keep default errorMessage */
       }
@@ -2949,9 +2953,28 @@ async function showIntegratedReviewError(message) {
     }
   }
 
+  const showOllamaNotRunningHelp = !!(message && ollamaModule?.isOllamaNotRunningMessage?.(message));
   const showOllamaUnifiedHelp = !!(message && ollamaModule?.isOllamaProviderFailureMessage?.(message));
 
-  if (showOllamaUnifiedHelp && ollamaModule) {
+  const wireSwitchToCloud = () => {
+    reviewErrorMessage
+      .querySelector('[data-thinkreview-action="switch-to-cloud-ai"]')
+      ?.addEventListener('click', () => {
+        document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
+      });
+  };
+
+  if (showOllamaNotRunningHelp && ollamaModule && typeof ollamaModule.appendOllamaNotRunningHelp === 'function') {
+    reviewErrorMessage.classList.add('thinkreview-error-message--rich');
+    try {
+      ollamaModule.appendOllamaNotRunningHelp(reviewErrorMessage);
+      wireSwitchToCloud();
+    } catch (e) {
+      dbgWarn('appendOllamaNotRunningHelp failed:', e);
+      reviewErrorMessage.classList.remove('thinkreview-error-message--rich');
+      reviewErrorMessage.textContent = message || "Ollama isn't running.";
+    }
+  } else if (showOllamaUnifiedHelp && ollamaModule) {
     reviewErrorMessage.classList.add('thinkreview-error-message--rich');
     try {
       if (typeof ollamaModule.appendOllamaCorsHelp === 'function') {
@@ -2959,11 +2982,7 @@ async function showIntegratedReviewError(message) {
         if (ollamaModule.attachOllamaCorsHelpCopyButtons) {
           ollamaModule.attachOllamaCorsHelpCopyButtons(reviewErrorMessage);
         }
-        reviewErrorMessage
-          .querySelector('[data-thinkreview-action="switch-to-cloud-ai"]')
-          ?.addEventListener('click', () => {
-            document.dispatchEvent(new CustomEvent('thinkreview-switch-to-cloud'));
-          });
+        wireSwitchToCloud();
       } else {
         dbgWarn('Ollama help module missing appendOllamaCorsHelp; reload the page after updating the extension.');
         reviewErrorMessage.classList.remove('thinkreview-error-message--rich');

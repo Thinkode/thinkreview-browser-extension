@@ -102,24 +102,31 @@ function appendCorsCopyRow(parent, doc, copyKey) {
  * @param {HTMLElement} parent
  * @param {Document} doc
  */
-function appendSwitchToCloudCallout(parent, doc) {
+function appendSwitchToCloudCallout(parent, doc, options = {}) {
+  const {
+    buttonLabel = 'Switch to Cloud AI',
+    ariaLabel = 'Switch to Cloud AI and regenerate this review',
+    bodyBeforeStrong = 'Need a review right away? Use ',
+    strongText = 'Cloud AI',
+    bodyAfterStrong = ' for instant hosted reviews—no local Ollama setup required.'
+  } = options;
   const wrap = doc.createElement('div');
   wrap.className = 'thinkreview-ollama-error-cloud-fallback';
   wrap.setAttribute('role', 'region');
-  wrap.setAttribute('aria-label', 'Cloud AI alternative');
+  wrap.setAttribute('aria-label', 'ThinkReview Cloud alternative');
   const p = doc.createElement('p');
   p.className = 'thinkreview-ollama-error-cloud-fallback-text';
-  p.appendChild(doc.createTextNode('Need a review right away? Use '));
+  p.appendChild(doc.createTextNode(bodyBeforeStrong));
   const strong = doc.createElement('strong');
-  strong.textContent = 'Cloud AI';
+  strong.textContent = strongText;
   p.appendChild(strong);
-  p.appendChild(doc.createTextNode(' for instant hosted reviews—no local Ollama setup required.'));
+  p.appendChild(doc.createTextNode(bodyAfterStrong));
   const b = doc.createElement('button');
   b.type = 'button';
   b.className = 'thinkreview-ollama-switch-to-cloud-btn thinkreview-ollama-switch-to-cloud-btn--inline-error';
   b.setAttribute('data-thinkreview-action', 'switch-to-cloud-ai');
-  b.setAttribute('aria-label', 'Switch to Cloud AI and regenerate this review');
-  b.textContent = 'Switch to Cloud AI';
+  b.setAttribute('aria-label', ariaLabel);
+  b.textContent = buttonLabel;
   wrap.appendChild(p);
   wrap.appendChild(b);
   parent.appendChild(wrap);
@@ -257,6 +264,22 @@ export function attachOllamaCorsHelpCopyButtons(container) {
 }
 
 /**
+ * True when Ollama is unreachable (not running, connection refused, or timed out).
+ * Distinct from CORS/403, where Ollama is up but blocking the extension origin.
+ * @param {string} [message]
+ * @returns {boolean}
+ */
+export function isOllamaNotRunningMessage(message) {
+  if (!message || typeof message !== 'string') return false;
+  return (
+    /ollama isn't running/i.test(message) ||
+    /cannot connect to ollama/i.test(message) ||
+    /ensure ollama is running/i.test(message) ||
+    (/ollama/i.test(message) && /failed to fetch|networkerror|err_connection|load failed/i.test(message))
+  );
+}
+
+/**
  * True when the review error text refers to Ollama (local provider), including connection, CORS, and model errors.
  * @param {string} [message]
  * @returns {boolean}
@@ -264,6 +287,51 @@ export function attachOllamaCorsHelpCopyButtons(container) {
 export function isOllamaProviderFailureMessage(message) {
   if (!message || typeof message !== 'string') return false;
   return /ollama/i.test(message);
+}
+
+/**
+ * Build the "Ollama isn't running" error with a switch-to-cloud action.
+ * @param {HTMLElement | null} container
+ */
+export function appendOllamaNotRunningHelp(container) {
+  if (!container) return;
+  const doc = container.ownerDocument || document;
+  clearNode(container);
+  const root = doc.createElement('div');
+  root.className = 'thinkreview-ollama-cors-help thinkreview-ollama-not-running-help';
+
+  const errTitle = doc.createElement('p');
+  errTitle.className = 'thinkreview-ollama-error-title';
+  errTitle.textContent = "Ollama isn't running";
+  root.appendChild(errTitle);
+
+  const intro = doc.createElement('p');
+  intro.className = 'thinkreview-ollama-cors-steps-intro';
+  intro.textContent =
+    "ThinkReview couldn't reach your local Ollama server. Start it with ollama serve, then try again.";
+  root.appendChild(intro);
+
+  appendSwitchToCloudCallout(root, doc, {
+    buttonLabel: 'Switch to ThinkReview Cloud',
+    ariaLabel: 'Switch to ThinkReview Cloud and regenerate this review',
+    bodyBeforeStrong: 'Or continue with ',
+    strongText: 'ThinkReview Cloud',
+    bodyAfterStrong: ' for a hosted review—no local Ollama required.'
+  });
+
+  container.appendChild(root);
+}
+
+/**
+ * Markdown help for follow-up chat when Ollama is not running.
+ * @returns {string}
+ */
+export function getOllamaNotRunningHelpMarkdown() {
+  return `**Ollama isn't running**
+
+ThinkReview couldn't reach your local Ollama server. Start it with \`ollama serve\`, then try again.
+
+Or switch to **ThinkReview Cloud** in this panel (or the extension popup) for a hosted review—no local Ollama required.`;
 }
 
 /** Shown as a small footnote; main copy rows stay on chrome-extension://* */
