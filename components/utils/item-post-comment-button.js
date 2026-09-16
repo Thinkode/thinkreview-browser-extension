@@ -5,7 +5,7 @@ import { dbgWarn } from '../../utils/logger.js';
 
 const ONBOARDING_STORAGE_KEY = 'hasSeenPostPrCommentOnboarding';
 const INTEGRATIONS_URL = 'https://portal.thinkreview.dev/integrations';
-const FOOTER_LINE = '_Posted with [ThinkReview](https://thinkreview.dev)_';
+const POSTING_TOAST_ID = 'thinkreview-post-comment-toast';
 
 /**
  * @returns {SVGSVGElement}
@@ -61,6 +61,66 @@ function clearElement(el) {
   while (el.firstChild) {
     el.removeChild(el.firstChild);
   }
+}
+
+/**
+ * @param {number} [size]
+ * @returns {HTMLSpanElement}
+ */
+function createSpinnerEl(size = 14) {
+  const el = document.createElement('span');
+  el.className = 'thinkreview-post-comment-spinner';
+  el.style.width = `${size}px`;
+  el.style.height = `${size}px`;
+  el.setAttribute('aria-hidden', 'true');
+  return el;
+}
+
+function getToastHost() {
+  return document.getElementById('gitlab-mr-integrated-review') || document.body;
+}
+
+/**
+ * Non-blocking status toast while the post request is in flight.
+ * @param {string} [message]
+ */
+function showPostingToast(message) {
+  hidePostingToast(true);
+  const host = getToastHost();
+  const toast = document.createElement('div');
+  toast.id = POSTING_TOAST_ID;
+  toast.className = 'thinkreview-post-comment-toast';
+  if (host.id !== 'gitlab-mr-integrated-review') {
+    toast.classList.add('thinkreview-post-comment-toast-fixed');
+  }
+  toast.setAttribute('role', 'status');
+  toast.setAttribute('aria-live', 'polite');
+  toast.appendChild(createSpinnerEl(14));
+  const label = document.createElement('span');
+  label.className = 'thinkreview-post-comment-toast-label';
+  label.textContent = message || 'Posting comment…';
+  toast.appendChild(label);
+  host.appendChild(toast);
+}
+
+/**
+ * @param {boolean} [immediate]
+ */
+function hidePostingToast(immediate = false) {
+  const toast = document.getElementById(POSTING_TOAST_ID);
+  if (!toast) return;
+  if (immediate) {
+    toast.remove();
+    return;
+  }
+  toast.classList.add('thinkreview-post-comment-toast-out');
+  window.setTimeout(() => toast.remove(), 180);
+}
+
+function showButtonSpinner(button) {
+  clearElement(button);
+  button.appendChild(createSpinnerEl(14));
+  button.style.color = '';
 }
 
 function trackAction(name, props = {}) {
@@ -320,9 +380,7 @@ function showPostCommentModal(options) {
  * @returns {string}
  */
 export function buildPostCommentMarkdown(plainText) {
-  const text = String(plainText || '').trim();
-  if (!text) return '';
-  return `${text}\n\n${FOOTER_LINE}`;
+  return String(plainText || '').trim();
 }
 
 /**
@@ -427,12 +485,17 @@ async function executePost(button, body) {
   if (button.dataset.posting === '1') return;
   button.dataset.posting = '1';
   button.disabled = true;
+  showButtonSpinner(button);
+  showPostingToast('Posting comment…');
+
+  const finishWait = () => hidePostingToast(true);
 
   try {
     const cloudModule = await import(chrome.runtime.getURL('services/cloud-service.js'));
     const CloudService = cloudModule.CloudService;
     const email = await getSignedInEmail();
     if (!email) {
+      finishWait();
       trackAction('post_pr_comment_setup_shown', { reason: 'not_signed_in' });
       showPostCommentModal({
         title: 'Sign in required',
@@ -449,6 +512,7 @@ async function executePost(button, body) {
     const result = await CloudService.postPrComment(email, mrUrl, body);
 
     if (result?.status === 'success') {
+      finishWait();
       trackAction('post_pr_comment_posted', {
         platform: result.platform || null,
       });
@@ -458,6 +522,7 @@ async function executePost(button, body) {
 
     const code = result?.code;
     if (code === 'no_integration') {
+      finishWait();
       trackAction('post_pr_comment_setup_shown', { reason: code });
       showPostCommentModal({
         title: 'Connect an integration',
@@ -472,6 +537,7 @@ async function executePost(button, body) {
     }
 
     if (code === 'missing_write_permission') {
+      finishWait();
       trackAction('post_pr_comment_setup_shown', {
         reason: 'missing_write_permission',
         authType: result?.authType || null,
@@ -496,9 +562,11 @@ async function executePost(button, body) {
       return;
     }
 
+    finishWait();
     showPostErrorFeedback(button);
   } catch (err) {
     dbgWarn('Failed to post PR comment:', err);
+    finishWait();
     if (err?.name === 'AuthExpiredError' || err?.isAuthExpired) {
       showPostCommentModal({
         title: 'Sign in required',
@@ -508,6 +576,7 @@ async function executePost(button, body) {
     }
     showPostErrorFeedback(button);
   } finally {
+    hidePostingToast(true);
     button.dataset.posting = '0';
     button.disabled = false;
   }

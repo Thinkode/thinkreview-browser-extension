@@ -29,7 +29,7 @@
 }
 
 #gitlab-mr-integrated-review .thinkreview-item-post-comment-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.85;
   cursor: wait !important;
   transform: none;
 }
@@ -174,4 +174,71 @@
 
 .thinkreview-post-comment-btn-secondary:hover {
   background: #3a3a3a;
+}
+
+/* In-flight posting: small spinner (button + toast) */
+#gitlab-mr-integrated-review .thinkreview-post-comment-spinner,
+.thinkreview-post-comment-spinner {
+  display: block;
+  box-sizing: border-box;
+  border: 2px solid rgba(167, 139, 250, 0.28);
+  border-top-color: #a78bfa;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: thinkreview-post-comment-spin 0.7s linear infinite;
+}
+
+@keyframes thinkreview-post-comment-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Non-blocking toast — does not cover the review */
+#gitlab-mr-integrated-review .thinkreview-post-comment-toast,
+.thinkreview-post-comment-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: var(--thinkreview-z-toast, 1250);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+  padding: 8px 12px;
+  background: #1a1628;
+  border: 1px solid #3d2d6e;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  pointer-events: none;
+  animation: thinkreview-post-comment-toast-in 0.18s ease-out;
+}
+
+.thinkreview-post-comment-toast-fixed {
+  position: fixed;
+  bottom: 24px;
+}
+
+.thinkreview-post-comment-toast-label {
+  white-space: nowrap;
+}
+
+.thinkreview-post-comment-toast-out {
+  opacity: 0;
+  transform: translateX(-50%) translateY(6px);
+  transition: opacity 0.16s ease-out, transform 0.16s ease-out;
+}
+
+@keyframes thinkreview-post-comment-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
