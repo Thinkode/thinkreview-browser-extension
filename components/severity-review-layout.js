@@ -19,7 +19,6 @@ function formatLocation(issue) {
 }
 
 /**
- * Build a severity issue list section
  * @param {string} title
  * @param {string} severityClass - CSS modifier (critical|high|low)
  * @param {Array} issues
@@ -28,6 +27,7 @@ function formatLocation(issue) {
  * @param {Function} [handlers.markdownToHtml]
  * @param {Function} [handlers.preprocessAIResponse]
  * @param {Function} [handlers.attachCopyButtonToItem]
+ * @param {Function} [handlers.attachPostCommentButtonToItem]
  * @returns {HTMLElement|null}
  */
 function buildIssueSection(title, severityClass, issues, handlers = {}) {
@@ -54,7 +54,8 @@ function buildIssueSection(title, severityClass, issues, handlers = {}) {
     onIssueClick,
     markdownToHtml,
     preprocessAIResponse,
-    attachCopyButtonToItem
+    attachCopyButtonToItem,
+    attachPostCommentButtonToItem
   } = handlers;
 
   issues.forEach((issue) => {
@@ -90,19 +91,25 @@ function buildIssueSection(title, severityClass, issues, handlers = {}) {
     }
     content.appendChild(descEl);
 
+    const issuePlainText = [
+      issue.title || '',
+      location,
+      issue.description || ''
+    ].filter(Boolean).join('\n\n');
+
     if (typeof onIssueClick === 'function') {
       wrapper.classList.add('thinkreview-clickable-item');
       wrapper.setAttribute('title', 'Click to ask a follow-up about this issue');
       wrapper.addEventListener('click', (e) => {
-        if (e.target.closest('.thinkreview-copy-btn') || e.target.closest('.thinkreview-ide-assist-btn')) {
+        if (
+          e.target.closest('.thinkreview-copy-btn') ||
+          e.target.closest('.thinkreview-item-copy-btn') ||
+          e.target.closest('.thinkreview-item-post-comment-btn') ||
+          e.target.closest('.thinkreview-ide-assist-btn')
+        ) {
           return;
         }
-        const plain = [
-          issue.title || '',
-          location,
-          issue.description || ''
-        ].filter(Boolean).join('\n');
-        onIssueClick(plain, severityClass, issue);
+        onIssueClick(issuePlainText.replace(/\n\n/g, '\n'), severityClass, issue);
       });
     }
 
@@ -110,12 +117,12 @@ function buildIssueSection(title, severityClass, issues, handlers = {}) {
 
     if (typeof attachCopyButtonToItem === 'function') {
       const copySource = document.createElement('div');
-      copySource.textContent = [
-        issue.title || '',
-        location,
-        issue.description || ''
-      ].filter(Boolean).join('\n\n');
+      copySource.textContent = issuePlainText;
       attachCopyButtonToItem(copySource, wrapper);
+    }
+
+    if (typeof attachPostCommentButtonToItem === 'function') {
+      attachPostCommentButtonToItem(wrapper, () => issuePlainText);
     }
 
     li.appendChild(wrapper);
@@ -135,6 +142,7 @@ function buildIssueSection(title, severityClass, issues, handlers = {}) {
  * @param {Function} [handlers.markdownToHtml]
  * @param {Function} [handlers.preprocessAIResponse]
  * @param {Function} [handlers.attachCopyButtonToItem]
+ * @param {Function} [handlers.attachPostCommentButtonToItem]
  * @param {Function} [handlers.applySimpleSyntaxHighlighting]
  * @returns {HTMLElement|null}
  */
@@ -148,6 +156,7 @@ export function renderSeverityLayout(container, review, handlers = {}) {
     markdownToHtml,
     preprocessAIResponse,
     attachCopyButtonToItem,
+    attachPostCommentButtonToItem,
     applySimpleSyntaxHighlighting,
     onIssueClick
   } = handlers;
@@ -185,6 +194,10 @@ export function renderSeverityLayout(container, review, handlers = {}) {
     attachCopyButtonToItem(copySource, prWrapper);
   }
 
+  if (typeof attachPostCommentButtonToItem === 'function') {
+    attachPostCommentButtonToItem(prWrapper, () => prText);
+  }
+
   prSection.appendChild(prWrapper);
   container.appendChild(prSection);
 
@@ -192,7 +205,8 @@ export function renderSeverityLayout(container, review, handlers = {}) {
     onIssueClick,
     markdownToHtml,
     preprocessAIResponse,
-    attachCopyButtonToItem
+    attachCopyButtonToItem,
+    attachPostCommentButtonToItem
   };
 
   container.appendChild(
