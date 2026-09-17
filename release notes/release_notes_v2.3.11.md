@@ -23,13 +23,6 @@ If Full Context is not set up yet, Post opens the setup hint instead of failing 
 
 ---
 
-## 🐛 Bug Fixes
-
-- Hitting the daily review limit now shows a branded ThinkReview loader while the upgrade prompt is loading, instead of a blank wait.
-- The upgrade prompt no longer errors if the review panel is closed before it finishes inserting.
-
----
-
 ## 📞 Support
 
 - **Bug reports:** Use the "Report a Bug" button in the review panel or extension
