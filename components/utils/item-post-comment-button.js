@@ -425,10 +425,10 @@ function showPostErrorFeedback(button) {
  * @param {HTMLButtonElement} button
  * @param {() => string} getPlainText
  */
-async function handlePostClick(button, getPlainText) {
+async function handlePostClick(button, getPlainText, location = 'review_item') {
   trackAction('post_pr_comment_clicked', {
     context: 'integrated_review_panel',
-    location: 'review_item',
+    location,
   });
 
   const plain = typeof getPlainText === 'function' ? getPlainText() : '';
@@ -444,7 +444,7 @@ async function handlePostClick(button, getPlainText) {
       showPostCommentModal({
         title: 'Post to the pull request',
         message:
-          'Post publishes this finding as a conversation comment on the PR. Uses your Full Context integration (GitHub App, GitLab OAuth, or PAT). GitHub App comments appear as ThinkReview.',
+          'Post publishes this as a conversation comment on the PR. Uses your Full Context integration (GitHub App, GitLab OAuth, or PAT). GitHub App comments appear as ThinkReview.',
         showIllustration: true,
         primaryLabel: 'Got it',
         secondaryLabel: 'Cancel',
@@ -586,9 +586,10 @@ async function executePost(button, body) {
  * Attach a post-comment button next to the copy button on a review item wrapper.
  * @param {HTMLElement} wrapperElement
  * @param {() => string} getPlainText - Returns the plain text / markdown source for the comment
+ * @param {{ location?: string }} [options]
  * @returns {HTMLElement|null}
  */
-export function attachPostCommentButtonToItem(wrapperElement, getPlainText) {
+export function attachPostCommentButtonToItem(wrapperElement, getPlainText, options = {}) {
   if (!wrapperElement) {
     dbgWarn('Cannot attach post comment button: missing wrapperElement');
     return null;
@@ -597,11 +598,12 @@ export function attachPostCommentButtonToItem(wrapperElement, getPlainText) {
   const existing = wrapperElement.querySelector('.thinkreview-item-post-comment-btn');
   if (existing) return existing;
 
+  const location = options.location || 'review_item';
   const postBtn = createPostCommentButton();
   postBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     e.preventDefault();
-    handlePostClick(postBtn, getPlainText);
+    handlePostClick(postBtn, getPlainText, location);
   });
 
   const copyBtn = wrapperElement.querySelector('.thinkreview-item-copy-btn');

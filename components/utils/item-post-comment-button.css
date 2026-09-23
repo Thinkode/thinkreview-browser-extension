@@ -66,6 +66,17 @@
   opacity: 1;
 }
 
+/* Sit beside the copy button on AI chat replies */
+#gitlab-mr-integrated-review .chat-message-bubble-wrapper .thinkreview-item-post-comment-btn {
+  opacity: 0.5 !important;
+  display: flex !important;
+  visibility: visible !important;
+}
+
+#gitlab-mr-integrated-review .chat-message-bubble-wrapper:hover .thinkreview-item-post-comment-btn {
+  opacity: 1 !important;
+}
+
 /* Modal */
 #gitlab-mr-integrated-review .thinkreview-post-comment-backdrop,
 .thinkreview-post-comment-backdrop {
