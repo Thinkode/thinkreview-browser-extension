@@ -4433,6 +4433,11 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   position: static;
 }
 
+/* Finding cards are the containing block for their corner icons. */
+#gitlab-mr-integrated-review .thinkreview-severity-issue-wrapper.thinkreview-item-wrapper {
+  position: relative;
+}
+
 #gitlab-mr-integrated-review .thinkreview-severity-pr-section .thinkreview-item-copy-btn,
 #gitlab-mr-integrated-review .thinkreview-severity-pr-section .thinkreview-item-post-comment-btn,
 #gitlab-mr-integrated-review .thinkreview-severity-issue-wrapper .thinkreview-item-copy-btn,
@@ -4577,6 +4582,7 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
 }
 
 .thinkreview-severity-issue-wrapper {
+  position: relative;
   background-color: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
