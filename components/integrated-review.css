@@ -4383,25 +4383,80 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
 
 /* ===== Severity review layout ===== */
 
+/* Keep severity blocks inside the scroll pane; flex children default to
+   min-width:auto and otherwise push long paths / code tokens past the frame. */
+#gitlab-mr-integrated-review #review-severity-container {
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* PR Description section */
 .thinkreview-severity-pr-section {
+  position: relative;
   background-color: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 20px !important;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .thinkreview-severity-pr-section .thinkreview-section-title {
   font-size: 16px;
   margin-bottom: 12px;
   color: #ffffff;
+  padding-right: 52px;
 }
 
 .thinkreview-severity-pr-description {
   white-space: normal;
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.9);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+/* Block, not flex: copy/comment icons must not reserve a right column.
+   They are pinned to the corner below so body text uses the card width. */
+#gitlab-mr-integrated-review .thinkreview-severity-pr-section > .thinkreview-item-wrapper,
+#gitlab-mr-integrated-review .thinkreview-severity-issue-wrapper.thinkreview-item-wrapper {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#gitlab-mr-integrated-review .thinkreview-severity-pr-section > .thinkreview-item-wrapper {
+  position: static;
+}
+
+#gitlab-mr-integrated-review .thinkreview-severity-pr-section .thinkreview-item-copy-btn,
+#gitlab-mr-integrated-review .thinkreview-severity-pr-section .thinkreview-item-post-comment-btn,
+#gitlab-mr-integrated-review .thinkreview-severity-issue-wrapper .thinkreview-item-copy-btn,
+#gitlab-mr-integrated-review .thinkreview-severity-issue-wrapper .thinkreview-item-post-comment-btn {
+  position: absolute;
+  top: 8px;
+  margin-top: 0;
+  z-index: 1;
+}
+
+#gitlab-mr-integrated-review .thinkreview-severity-pr-section .thinkreview-item-post-comment-btn,
+#gitlab-mr-integrated-review .thinkreview-severity-issue-wrapper .thinkreview-item-post-comment-btn {
+  right: 8px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-severity-pr-section .thinkreview-item-copy-btn,
+#gitlab-mr-integrated-review .thinkreview-severity-issue-wrapper .thinkreview-item-copy-btn {
+  right: 32px;
+}
+
+#gitlab-mr-integrated-review .thinkreview-severity-pr-section .thinkreview-item-wrapper > .thinkreview-section-content,
+#gitlab-mr-integrated-review .thinkreview-severity-issue-content {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .thinkreview-severity-pr-description h3,
@@ -4443,6 +4498,9 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   padding: 16px;
   margin-bottom: 16px !important;
   transition: all 0.2s ease;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .thinkreview-severity-section:hover {
@@ -4510,6 +4568,8 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
 
 .thinkreview-severity-issue-item {
   margin-bottom: 12px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .thinkreview-severity-issue-item:last-child {
@@ -4520,8 +4580,11 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   background-color: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
-  padding: 12px;
-  transition: all 0.2s ease;
+  padding: 10px 12px;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .thinkreview-severity-issue-wrapper.thinkreview-clickable-item {
@@ -4531,7 +4594,6 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
 .thinkreview-severity-issue-wrapper.thinkreview-clickable-item:hover {
   background-color: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.15);
-  transform: translateX(4px);
 }
 
 .thinkreview-severity-issue-title {
@@ -4540,6 +4602,9 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   margin-bottom: 6px;
   color: #ffffff;
   line-height: 1.4;
+  /* Icons sit on this line only; description and path use the full card width. */
+  padding-right: 52px;
+  overflow-wrap: break-word;
 }
 
 .thinkreview-severity-issue-location {
@@ -4552,6 +4617,10 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   padding: 4px 8px;
   border-radius: 4px;
   display: inline-block;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .thinkreview-severity-issue-description {
@@ -4559,10 +4628,14 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.85);
   font-size: 13px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 
 .thinkreview-severity-issue-description p {
   margin-bottom: 8px;
+  overflow-wrap: break-word;
 }
 
 .thinkreview-severity-issue-description code {
@@ -4570,6 +4643,24 @@ body[data-theme="dark"] #gitlab-mr-integrated-review .thinkreview-progress-bar,
   padding: 2px 4px;
   border-radius: 3px;
   font-size: 0.9em;
+}
+
+/* Inline code chips must wrap inside the finding frame. Host pages often set
+   code { white-space: pre }, which lets long identifiers spill past the card.
+   Fenced blocks stay on pre code and keep horizontal scroll. */
+#gitlab-mr-integrated-review .thinkreview-severity-issue-description :not(pre) > code,
+#gitlab-mr-integrated-review .thinkreview-severity-pr-description :not(pre) > code {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+#gitlab-mr-integrated-review .thinkreview-severity-issue-description .thinkreview-code-block,
+#gitlab-mr-integrated-review .thinkreview-severity-pr-description .thinkreview-code-block,
+#gitlab-mr-integrated-review .thinkreview-severity-issue-description pre,
+#gitlab-mr-integrated-review .thinkreview-severity-pr-description pre {
+  max-width: 100%;
 }
 
 /* Empty state */
