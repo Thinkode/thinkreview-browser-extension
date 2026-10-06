@@ -1396,6 +1396,18 @@ function appendToChatLog(sender, message, aiResponseText = null, isTypingIndicat
     attachCopyButtonToItem(messageBubble, messageBubbleWrapper);
   }
 
+  // Post-as-PR-comment sits next to the copy button on AI replies only
+  if (sender === 'ai' && !isTypingIndicator && attachPostCommentButtonToItem) {
+    const sourceText = typeof aiResponseText === 'string' && aiResponseText.trim()
+      ? aiResponseText
+      : (typeof message === 'string' ? message : '');
+    attachPostCommentButtonToItem(
+      messageBubbleWrapper,
+      () => sourceText.trim(),
+      { location: 'chat_message' }
+    );
+  }
+
   messageWrapper.appendChild(messageBubbleWrapper);
   
   // Add feedback buttons for AI messages (Gemini-style, small and subtle)
@@ -1766,8 +1778,8 @@ async function handleSendMessage(messageText) {
     // Store raw response text for feedback querying (use original response before markdown processing)
     const rawResponseText = responseText;
 
-    // Ensure copy button utils are loaded so the response has a copy button (e.g. for Generate PR description)
-    if (!attachCopyButtonToItem) {
+    // Ensure copy and post buttons are loaded so the response has both (e.g. Generate PR description)
+    if (!attachCopyButtonToItem || !attachPostCommentButtonToItem) {
       await initCopyButtonUtils();
     }
     appendToChatLog('ai', responseText, rawResponseText);
