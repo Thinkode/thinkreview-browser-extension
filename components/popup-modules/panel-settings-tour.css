@@ -52,6 +52,11 @@
   outline-offset: 2px;
 }
 
+html[data-thinkreview-tour-active] #gitlab-mr-integrated-review .thinkreview-item-post-comment-btn.thinkreview-tour-target-pulse,
+html[data-thinkreview-tour-active] #gitlab-mr-integrated-review .chat-message-bubble-wrapper .thinkreview-item-post-comment-btn.thinkreview-tour-target-pulse {
+  opacity: 1 !important;
+}
+
 @keyframes thinkreview-tour-card-in {
   from {
     opacity: 0;
