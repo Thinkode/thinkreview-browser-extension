@@ -1,4 +1,4 @@
-# ThinkReview - Version 2.3.12 Release Notes
+# ThinkReview - Version 2.3.13 Release Notes
 
 **Release Date:** 9 October 2026
 
