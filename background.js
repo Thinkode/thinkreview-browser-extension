@@ -14,6 +14,10 @@ import { azureDevOpsFetcher } from './services/azure-devops-fetcher.js';
 import { AzureDevOpsAuthError } from './services/azure-devops-api.js';
 
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
+import {
+  FEEDBACK_PROMPT_LOCAL_INTERACTION_KEY,
+  resolveFeedbackPromptInteraction
+} from './utils/feedback-prompt-interaction.js';
 import { trackUserActionSafe } from './utils/analytics-service.js';
 import { getThinkReviewAuthHeaders, EXTENSION_AUTH_TOKEN_KEY, isAuthExpiredError, handleUnauthorizedResponse, AuthExpiredError } from './utils/extension-auth.js';
 import { hasOpenRouterHostPermission } from './utils/openrouter-permissions.js';
@@ -31,6 +35,26 @@ const AUTH_USER_KEY = 'oauth_user';
 
 function authExpiredPayload(err) {
   return { isAuthExpired: isAuthExpiredError(err) };
+}
+
+/**
+ * Write user-data refresh fields without clobbering a newer local
+ * feedback-prompt dismiss/submit (including the dedicated local key
+ * that refresh payloads do not own).
+ * @param {Object} toStore
+ * @param {Object|null|undefined} remoteInteraction
+ * @returns {Promise<Object|null>}
+ */
+async function applyUserDataStorage(toStore, remoteInteraction) {
+  const localState = await chrome.storage.local.get([
+    'lastFeedbackPromptInteraction',
+    FEEDBACK_PROMPT_LOCAL_INTERACTION_KEY
+  ]);
+  const merged = resolveFeedbackPromptInteraction(localState, remoteInteraction);
+  toStore.lastFeedbackPromptInteraction = merged;
+  delete toStore[FEEDBACK_PROMPT_LOCAL_INTERACTION_KEY];
+  await chrome.storage.local.set(toStore);
+  return merged;
 }
 
 // Rate limiter for OPEN_EXTENSION_PAGE — max 3 opens per 60 seconds
@@ -558,7 +582,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               const subscriptionData = await CloudService.getUserSubscriptionData(email);
               if (subscriptionData) toStore.userSubscriptionData = subscriptionData;
             }
-            await chrome.storage.local.set(toStore);
+            await applyUserDataStorage(toStore, userData.lastFeedbackPromptInteraction);
             dbgLog('Post-review user data refresh stored');
           } catch (refreshErr) {
             dbgWarn('Post-review user data refresh failed:', refreshErr?.message || refreshErr);
@@ -902,15 +926,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Store subscription data and review prompt fields in chrome.storage
         const toStore = {
           todayReviewCount: userData.todayReviewCount || 0,
-          lastFeedbackPromptInteraction: userData.lastFeedbackPromptInteraction || null,
           enabledReviewAgents: Array.isArray(userData.enabledReviewAgents) ? userData.enabledReviewAgents : []
         };
         if (subscriptionData) toStore.userSubscriptionData = subscriptionData;
-        chrome.storage.local.set(toStore, () => {
-          dbgLog('Stored todayReviewCount:', userData.todayReviewCount);
-          dbgLog('Stored lastFeedbackPromptInteraction:', userData.lastFeedbackPromptInteraction);
-          if (subscriptionData) dbgLog('Stored userSubscriptionData');
-        });
+        const mergedFeedbackInteraction = await applyUserDataStorage(
+          toStore,
+          userData.lastFeedbackPromptInteraction
+        );
+        dbgLog('Stored todayReviewCount:', userData.todayReviewCount);
+        dbgLog('Stored lastFeedbackPromptInteraction:', mergedFeedbackInteraction);
+        if (subscriptionData) dbgLog('Stored userSubscriptionData');
 
         const responseUserData = {
           userExists: userData.userExists,
@@ -921,7 +946,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           currentPlanValidTo: userData.currentPlanValidTo,
           cancellationRequested: userData.cancellationRequested || false,
           planInterval: userData.planInterval || null,
-          lastFeedbackPromptInteraction: userData.lastFeedbackPromptInteraction || null,
+          lastFeedbackPromptInteraction: mergedFeedbackInteraction,
           lastReviewDate: userData.lastReviewDate || null,
           purchasedReviewCredits: userData.purchasedReviewCredits ?? 0,
           enabledReviewAgents: Array.isArray(userData.enabledReviewAgents) ? userData.enabledReviewAgents : []
@@ -958,14 +983,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
         const toStore = { ...userData };
         if (subscriptionData) toStore.userSubscriptionData = subscriptionData;
-        chrome.storage.local.set(toStore, () => {
-          dbgLog('Local storage updated with user data and subscription data');
-          sendResponse({
-            status: 'success',
-            data: userData,
-            userSubscriptionData: subscriptionData || null,
-            message: 'User data refreshed successfully'
-          });
+        const mergedFeedbackInteraction = await applyUserDataStorage(
+          toStore,
+          userData.lastFeedbackPromptInteraction
+        );
+        dbgLog('Local storage updated with user data and subscription data');
+        sendResponse({
+          status: 'success',
+          data: { ...userData, lastFeedbackPromptInteraction: mergedFeedbackInteraction },
+          userSubscriptionData: subscriptionData || null,
+          message: 'User data refreshed successfully'
         });
       } catch (error) {
         dbgWarn('Error refreshing user data:', error);

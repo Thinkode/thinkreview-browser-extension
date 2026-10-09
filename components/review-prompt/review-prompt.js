@@ -1,4 +1,11 @@
 import { dbgLog, dbgWarn } from '../../utils/logger.js';
+import {
+  FEEDBACK_PROMPT_LOCAL_INTERACTION_KEY,
+  FEEDBACK_PROMPT_TOUR_STARTED_EVENT,
+  isFeedbackPromptBlockedByTour,
+  resolveFeedbackPromptInteraction,
+  shouldShowFeedbackPrompt
+} from '../../utils/feedback-prompt-interaction.js';
 /**
  * Review Prompt Component
  * Compact inline CTA + two-step popup for store feedback
@@ -10,10 +17,13 @@ const REVIEW_PROMPT_CONFIG = {
   feedbackUrl: 'https://thinkreview.dev/extension-feedback.html',
   // Re-ask after a prior submit/feedback once this many months have passed
   submitSuppressMonths: 3,
+  laterCooldownDays: 7,
   maxFeedbackLength: 2000,
   storageKeys: {
     reviewCount: 'reviewCount',
-    todayReviewCount: 'todayReviewCount'
+    todayReviewCount: 'todayReviewCount',
+    lastFeedbackPromptInteraction: 'lastFeedbackPromptInteraction',
+    localInteraction: FEEDBACK_PROMPT_LOCAL_INTERACTION_KEY
   }
 };
 
@@ -34,6 +44,9 @@ class ReviewPrompt {
     this.popupEventsAbort = null;
     /** @type {symbol|null} Invalidated when popup closes so stale submits cannot reopen UI */
     this.activeSubmitRequest = null;
+    /** In-memory dismiss so panel reopen cannot re-show before storage settles */
+    this.sessionDismissed = false;
+    this.tourStartedListener = null;
   }
 
   /**
@@ -48,8 +61,20 @@ class ReviewPrompt {
 
     this.containerId = containerId;
     this.isInitialized = true;
+    this.bindTourStartedListener();
 
     dbgLog('Initialized with config:', this.config);
+  }
+
+  /**
+   * Hide the feedback overlay if the product tour starts on top of it.
+   */
+  bindTourStartedListener() {
+    if (this.tourStartedListener) return;
+    this.tourStartedListener = () => {
+      this.hideForTour();
+    };
+    document.addEventListener(FEEDBACK_PROMPT_TOUR_STARTED_EVENT, this.tourStartedListener);
   }
 
   /**
@@ -161,35 +186,54 @@ class ReviewPrompt {
    */
   shouldShow(reviewCount, lastFeedbackPromptInteraction = null) {
     if (lastFeedbackPromptInteraction && lastFeedbackPromptInteraction.action) {
-      dbgLog('Last feedback prompt interaction from Firestore:', lastFeedbackPromptInteraction);
-
-      if (this.shouldSuppressForSubmit(lastFeedbackPromptInteraction)) {
-        return false;
-      }
-
-      if (lastFeedbackPromptInteraction.action === 'later' && lastFeedbackPromptInteraction.date) {
-        const lastInteractionDate = new Date(lastFeedbackPromptInteraction.date);
-        const today = new Date();
-        const daysSinceLastInteraction = Math.floor((today - lastInteractionDate) / (1000 * 60 * 60 * 24));
-
-        dbgLog('Days since last "later" interaction:', daysSinceLastInteraction);
-
-        if (daysSinceLastInteraction <= 7) {
-          dbgLog('Not showing prompt: Less than 7 days since "later" (', daysSinceLastInteraction, 'days)');
-          return false;
-        }
-        dbgLog('More than 7 days since "later", will check other conditions');
-      }
-
-      if (lastFeedbackPromptInteraction.action === 'never') {
-        dbgLog('Not showing prompt: User selected "never ask again" in Firestore');
-        return false;
-      }
+      dbgLog('Last feedback prompt interaction:', lastFeedbackPromptInteraction);
     }
 
-    const shouldShow = reviewCount >= this.config.threshold;
+    const shouldShow = shouldShowFeedbackPrompt(reviewCount, lastFeedbackPromptInteraction, {
+      threshold: this.config.threshold,
+      submitSuppressMonths: this.config.submitSuppressMonths,
+      laterCooldownDays: this.config.laterCooldownDays
+    });
     dbgLog('Should show prompt:', shouldShow, '(count:', reviewCount, '>=', this.config.threshold, ')');
     return shouldShow;
+  }
+
+  /**
+   * Persist interaction to both the server-synced key and a local key that
+   * user-data refreshes do not overwrite.
+   * @param {string} action
+   * @returns {Promise<void>}
+   */
+  async persistInteraction(action) {
+    const interaction = {
+      action,
+      date: new Date().toISOString()
+    };
+
+    try {
+      await chrome.storage.local.set({
+        [this.config.storageKeys.lastFeedbackPromptInteraction]: interaction,
+        [this.config.storageKeys.localInteraction]: interaction
+      });
+      dbgLog('Persisted feedback prompt interaction:', interaction);
+    } catch (error) {
+      dbgWarn('Failed to persist feedback prompt interaction:', error);
+    }
+  }
+
+  /**
+   * @returns {Promise<{ reviewCount: number, lastFeedbackPromptInteraction: Object|null }>}
+   */
+  async getPromptEligibilityState() {
+    const reviewCountKey = this.config.storageKeys.reviewCount;
+    const result = await chrome.storage.local.get([
+      reviewCountKey,
+      this.config.storageKeys.lastFeedbackPromptInteraction,
+      this.config.storageKeys.localInteraction
+    ]);
+    const reviewCount = result[reviewCountKey] || 0;
+    const lastFeedbackPromptInteraction = resolveFeedbackPromptInteraction(result);
+    return { reviewCount, lastFeedbackPromptInteraction };
   }
 
   /**
@@ -220,19 +264,23 @@ class ReviewPrompt {
    */
   async checkAndShow() {
     try {
+      if (this.sessionDismissed) {
+        dbgLog('Not showing prompt: already dismissed this session');
+        return false;
+      }
+
+      if (isFeedbackPromptBlockedByTour()) {
+        dbgLog('Not showing prompt: product tour is pending or active');
+        return false;
+      }
+
       if (!this.isIntegratedPanelOpen()) {
         dbgLog('Not showing prompt: integrated panel is closed/minimized');
         return false;
       }
 
-      const reviewCount = await this.getCurrentReviewCount();
+      const { reviewCount, lastFeedbackPromptInteraction } = await this.getPromptEligibilityState();
       dbgLog('Total review count:', reviewCount, '| Threshold:', this.config.threshold);
-
-      const lastFeedbackPromptInteraction = await new Promise((resolve) => {
-        chrome.storage.local.get(['lastFeedbackPromptInteraction'], (result) => {
-          resolve(result.lastFeedbackPromptInteraction || null);
-        });
-      });
       dbgLog('Last feedback prompt interaction from storage:', lastFeedbackPromptInteraction);
 
       if (this.shouldShow(reviewCount, lastFeedbackPromptInteraction)) {
@@ -254,6 +302,16 @@ class ReviewPrompt {
    * @param {number} reviewCount
    */
   async show(reviewCount = this.config.threshold) {
+    if (this.sessionDismissed) {
+      dbgLog('Skipping show: already dismissed this session');
+      return;
+    }
+
+    if (isFeedbackPromptBlockedByTour()) {
+      dbgLog('Skipping show: product tour is pending or active');
+      return;
+    }
+
     if (!this.isIntegratedPanelOpen()) {
       dbgLog('Skipping show: integrated panel is closed/minimized');
       return;
@@ -271,9 +329,9 @@ class ReviewPrompt {
       dbgWarn('Failed to fetch messages, using fallbacks:', error);
     }
 
-    // Panel may have been closed while messages were loading
-    if (!this.isIntegratedPanelOpen()) {
-      dbgLog('Skipping show after fetch: integrated panel closed');
+    // Panel may have been closed (or a tour started) while messages were loading
+    if (this.sessionDismissed || isFeedbackPromptBlockedByTour() || !this.isIntegratedPanelOpen()) {
+      dbgLog('Skipping show after fetch: panel closed, dismissed, or tour active');
       return;
     }
 
@@ -313,6 +371,16 @@ class ReviewPrompt {
   hideWhilePanelClosed() {
     this.hide();
     this.closePopup({ trackLater: false });
+  }
+
+  /**
+   * Close feedback UI without recording a dismiss so it can reopen after the tour.
+   */
+  hideForTour() {
+    this.hide();
+    this.closePopup({ trackLater: false });
+    this.popupAutoOpenedForShow = false;
+    dbgLog('Hid feedback prompt for product tour');
   }
 
   /**
@@ -620,7 +688,7 @@ class ReviewPrompt {
 
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
-        this.closePopup({ trackLater: false });
+        this.dismiss();
         return;
       }
 
@@ -786,15 +854,11 @@ class ReviewPrompt {
       }
 
       this.pendingFeedbackText = text;
+      this.sessionDismissed = true;
 
       // Keep local dismiss cache in sync with backend action: 'feedback'
       // (feedback body is stored only in the backend feedback subcollection)
-      chrome.storage.local.set({
-        lastFeedbackPromptInteraction: {
-          action: 'feedback',
-          date: new Date().toISOString()
-        }
-      });
+      await this.persistInteraction('feedback');
 
       this.openPopup(2);
       this.emit('feedback-submitted', { reviewCount: await this.getCurrentReviewCount() });
@@ -837,14 +901,10 @@ class ReviewPrompt {
     this.closePopup({ trackLater: false });
     this.hide();
     this.popupAutoOpenedForShow = false;
+    this.sessionDismissed = true;
     this.showThankYouMessage(this.getStoreReviewThankYouMessage());
 
-    chrome.storage.local.set({
-      lastFeedbackPromptInteraction: {
-        action: 'submit',
-        date: new Date().toISOString()
-      }
-    });
+    await this.persistInteraction('submit');
 
     this.trackReviewPromptInteraction('submit', null, redirectUrl)
       .catch((error) => {
@@ -862,21 +922,21 @@ class ReviewPrompt {
     this.closePopup({ trackLater: false });
     this.hide();
     this.popupAutoOpenedForShow = false;
+    this.sessionDismissed = true;
     dbgLog('Prompt dismissed - tracking "later" action in Firestore');
 
     this.emit('dismissed', { permanent: false });
 
-    chrome.storage.local.set({
-      lastFeedbackPromptInteraction: {
-        action: 'later',
-        date: new Date().toISOString()
-      }
+    const persist = this.persistInteraction('later').catch((error) => {
+      dbgWarn('Failed to persist later interaction:', error);
     });
 
     this.trackReviewPromptInteraction('later')
       .catch((error) => {
         dbgWarn('Background tracking failed:', error);
       });
+
+    return persist;
   }
 
   /**
@@ -886,15 +946,13 @@ class ReviewPrompt {
     this.closePopup({ trackLater: false });
     this.hide();
     this.popupAutoOpenedForShow = false;
+    this.sessionDismissed = true;
     dbgLog('Prompt dismissed permanently - tracking "never" action in Firestore');
 
     this.emit('dismissed', { permanent: true });
 
-    chrome.storage.local.set({
-      lastFeedbackPromptInteraction: {
-        action: 'never',
-        date: new Date().toISOString()
-      }
+    this.persistInteraction('never').catch((error) => {
+      dbgWarn('Failed to persist never interaction:', error);
     });
 
     this.trackReviewPromptInteraction('never')
@@ -938,14 +996,22 @@ class ReviewPrompt {
 
   resetPreferences() {
     this.popupAutoOpenedForShow = false;
-    chrome.storage.local.remove(['lastFeedbackPromptInteraction'], () => {
-      dbgLog('Local cache cleared - will be refreshed on next user data fetch');
-    });
+    this.sessionDismissed = false;
+    chrome.storage.local.remove(
+      [
+        this.config.storageKeys.lastFeedbackPromptInteraction,
+        this.config.storageKeys.localInteraction
+      ],
+      () => {
+        dbgLog('Local cache cleared - will be refreshed on next user data fetch');
+      }
+    );
   }
 
   forceShow() {
     dbgLog('Force showing prompt');
     this.popupAutoOpenedForShow = false;
+    this.sessionDismissed = false;
     this.show();
   }
 
@@ -962,11 +1028,7 @@ class ReviewPrompt {
     const reviewCount = await this.getCurrentReviewCount();
     dbgLog('Current review count:', reviewCount);
 
-    const lastFeedbackPromptInteraction = await new Promise((resolve) => {
-      chrome.storage.local.get(['lastFeedbackPromptInteraction'], (result) => {
-        resolve(result.lastFeedbackPromptInteraction || null);
-      });
-    });
+    const { lastFeedbackPromptInteraction } = await this.getPromptEligibilityState();
     dbgLog('Last feedback prompt interaction:', lastFeedbackPromptInteraction);
 
     const shouldShow = this.shouldShow(reviewCount, lastFeedbackPromptInteraction);
@@ -1116,8 +1178,13 @@ class ReviewPrompt {
     this.hide();
     this.removeEventListeners(document.getElementById('review-prompt'));
     this.eventListeners.clear();
+    if (this.tourStartedListener) {
+      document.removeEventListener(FEEDBACK_PROMPT_TOUR_STARTED_EVENT, this.tourStartedListener);
+      this.tourStartedListener = null;
+    }
     this.isInitialized = false;
     this.popupAutoOpenedForShow = false;
+    this.sessionDismissed = false;
     dbgLog('Component destroyed');
   }
 }

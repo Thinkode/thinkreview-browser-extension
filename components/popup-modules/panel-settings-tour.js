@@ -4,6 +4,10 @@
  */
 
 import { dbgWarn } from '../../utils/logger.js';
+import {
+  FEEDBACK_PROMPT_TOUR_ENDED_EVENT,
+  FEEDBACK_PROMPT_TOUR_STARTED_EVENT
+} from '../../utils/feedback-prompt-interaction.js';
 
 const _cssURL = chrome.runtime.getURL('components/popup-modules/panel-settings-tour.css');
 if (!document.querySelector(`link[href="${_cssURL}"]`)) {
@@ -15,6 +19,7 @@ if (!document.querySelector(`link[href="${_cssURL}"]`)) {
 
 export const PANEL_SETTINGS_TOUR_SEEN_KEY = 'thinkreview-panel-settings-tour-seen';
 export const PANEL_SETTINGS_TOUR_ACTIVE_ATTR = 'data-thinkreview-tour-active';
+export const PANEL_SETTINGS_TOUR_PENDING_ATTR = 'data-thinkreview-tour-pending';
 
 const TOUR_ROOT_ID = 'thinkreview-panel-settings-tour';
 const PAD = 6;
@@ -22,8 +27,49 @@ const PAD = 6;
 /** @type {AbortController | null} */
 let _activeAbort = null;
 
+/** @type {Promise<void> | null} */
+let _settleInFlight = null;
+
 export function isPanelSettingsTourActive() {
   return document.documentElement.hasAttribute(PANEL_SETTINGS_TOUR_ACTIVE_ATTR);
+}
+
+export function isPanelSettingsTourPending() {
+  return document.documentElement.hasAttribute(PANEL_SETTINGS_TOUR_PENDING_ATTR);
+}
+
+export function isPanelSettingsTourBlocking() {
+  return isPanelSettingsTourActive() || isPanelSettingsTourPending();
+}
+
+function _setTourPending(pending) {
+  if (pending) {
+    document.documentElement.setAttribute(PANEL_SETTINGS_TOUR_PENDING_ATTR, '1');
+  } else {
+    document.documentElement.removeAttribute(PANEL_SETTINGS_TOUR_PENDING_ATTR);
+  }
+}
+
+function _emitTourEnded() {
+  _setTourPending(false);
+  document.documentElement.removeAttribute(PANEL_SETTINGS_TOUR_ACTIVE_ATTR);
+  document.dispatchEvent(new CustomEvent(FEEDBACK_PROMPT_TOUR_ENDED_EVENT));
+}
+
+function _waitForExistingTourToEnd() {
+  if (!isPanelSettingsTourBlocking() && !document.getElementById(TOUR_ROOT_ID)) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const finish = () => {
+      document.removeEventListener(FEEDBACK_PROMPT_TOUR_ENDED_EVENT, finish);
+      resolve();
+    };
+    document.addEventListener(FEEDBACK_PROMPT_TOUR_ENDED_EVENT, finish);
+    if (!isPanelSettingsTourBlocking() && !document.getElementById(TOUR_ROOT_ID)) {
+      finish();
+    }
+  });
 }
 
 async function _markSeen() {
@@ -271,14 +317,23 @@ function _positionSpotlight(spotlight, targetRect) {
 
 /**
  * @param {HTMLElement} panelEl
+ * @returns {Promise<void>}
  */
 function _runTour(panelEl) {
-  if (document.getElementById(TOUR_ROOT_ID)) return;
+  if (document.getElementById(TOUR_ROOT_ID)) {
+    return _waitForExistingTourToEnd();
+  }
 
   const steps = _buildSteps(panelEl);
-  if (!steps.length) return;
+  if (!steps.length) {
+    _emitTourEnded();
+    return Promise.resolve();
+  }
 
+  return new Promise((resolve) => {
+  _setTourPending(false);
   document.documentElement.setAttribute(PANEL_SETTINGS_TOUR_ACTIVE_ATTR, '1');
+  document.dispatchEvent(new CustomEvent(FEEDBACK_PROMPT_TOUR_STARTED_EVENT));
 
   const root = document.createElement('div');
   root.id = TOUR_ROOT_ID;
@@ -419,10 +474,12 @@ function _runTour(panelEl) {
     }
   };
 
+  let tourEnded = false;
   const endTour = async (reason) => {
+    if (tourEnded) return;
+    tourEnded = true;
     clearHighlight();
     _closeMenusQuietly();
-    document.documentElement.removeAttribute(PANEL_SETTINGS_TOUR_ACTIVE_ATTR);
     window.removeEventListener('resize', scheduleReposition);
     window.removeEventListener('scroll', scheduleReposition, true);
     document.removeEventListener('thinkreview:layoutchanged', onLayoutChanged);
@@ -439,6 +496,8 @@ function _runTour(panelEl) {
       last_step: steps[stepIndex]?.id || null,
       step_index: stepIndex
     });
+    _emitTourEnded();
+    resolve();
   };
 
   const resolveTarget = async (step) => {
@@ -608,6 +667,7 @@ function _runTour(panelEl) {
 
   _track('panel_settings_tour_started', { step_count: steps.length });
   renderStep();
+  });
 }
 
 /**
@@ -638,11 +698,31 @@ async function _isUserLoggedIn() {
  * Start the panel settings tour on first expand if the user is logged in
  * and hasn't seen it yet. Not marked as seen while logged out, so it can
  * still appear after the user signs in.
+ *
+ * Resolves when the tour is finished, skipped, or will not run. Concurrent
+ * callers share the in-flight promise so the feedback prompt can wait.
+ *
  * @param {HTMLElement} panelEl
+ * @returns {Promise<void>}
  */
-export async function maybeStartPanelSettingsTour(panelEl) {
+export function maybeStartPanelSettingsTour(panelEl) {
+  if (_settleInFlight) return _settleInFlight;
+  _settleInFlight = _maybeStartPanelSettingsTourImpl(panelEl).finally(() => {
+    _settleInFlight = null;
+  });
+  return _settleInFlight;
+}
+
+/**
+ * @param {HTMLElement} panelEl
+ * @returns {Promise<void>}
+ */
+async function _maybeStartPanelSettingsTourImpl(panelEl) {
   if (!panelEl) return;
-  if (document.getElementById(TOUR_ROOT_ID)) return;
+  if (document.getElementById(TOUR_ROOT_ID)) {
+    await _waitForExistingTourToEnd();
+    return;
+  }
 
   if (!(await _isUserLoggedIn())) return;
 
@@ -654,6 +734,10 @@ export async function maybeStartPanelSettingsTour(panelEl) {
     return;
   }
 
+  // Block the feedback prompt during the expand/delay window so the two
+  // overlays cannot stack for returning users after a reinstall.
+  _setTourPending(true);
+
   if (_activeAbort) {
     _activeAbort.abort();
   }
@@ -661,23 +745,43 @@ export async function maybeStartPanelSettingsTour(panelEl) {
   _activeAbort = abort;
 
   const expanded = await _waitForPanelExpanded(panelEl, abort.signal);
-  if (!expanded || abort.signal.aborted) return;
-
-  await _delay(700);
-  if (abort.signal.aborted) return;
-
-  // Re-check after the wait — user may have signed out, or another tab marked seen
-  if (!(await _isUserLoggedIn())) return;
-
-  try {
-    const again = await chrome.storage.local.get([PANEL_SETTINGS_TOUR_SEEN_KEY]);
-    if (again[PANEL_SETTINGS_TOUR_SEEN_KEY]) return;
-  } catch (_) {
+  if (!expanded || abort.signal.aborted) {
+    _emitTourEnded();
     return;
   }
 
-  if (document.getElementById(TOUR_ROOT_ID)) return;
-  if (panelEl.classList.contains('thinkreview-panel-minimized-to-button')) return;
+  await _delay(700);
+  if (abort.signal.aborted) {
+    _emitTourEnded();
+    return;
+  }
 
-  _runTour(panelEl);
+  // Re-check after the wait — user may have signed out, or another tab marked seen
+  if (!(await _isUserLoggedIn())) {
+    _emitTourEnded();
+    return;
+  }
+
+  try {
+    const again = await chrome.storage.local.get([PANEL_SETTINGS_TOUR_SEEN_KEY]);
+    if (again[PANEL_SETTINGS_TOUR_SEEN_KEY]) {
+      _emitTourEnded();
+      return;
+    }
+  } catch (_) {
+    _emitTourEnded();
+    return;
+  }
+
+  if (document.getElementById(TOUR_ROOT_ID)) {
+    _setTourPending(false);
+    await _waitForExistingTourToEnd();
+    return;
+  }
+  if (panelEl.classList.contains('thinkreview-panel-minimized-to-button')) {
+    _emitTourEnded();
+    return;
+  }
+
+  await _runTour(panelEl);
 }
