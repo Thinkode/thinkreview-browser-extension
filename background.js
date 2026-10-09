@@ -1164,6 +1164,43 @@ async function handleLogout(sendResponse) {
 }
 
 /**
+ * Notify popup and integrated-pane content scripts that webapp auth was stored.
+ * chrome.runtime.sendMessage reaches extension pages (popup); content scripts need tabs.sendMessage.
+ */
+function notifyWebappAuthSynced(userData) {
+  try {
+    chrome.runtime.sendMessage({
+      type: 'WEBAPP_AUTH_SYNCED',
+      user: userData
+    }, () => {
+      void chrome.runtime.lastError;
+    });
+  } catch (error) {
+    dbgLog('Could not notify extension pages of auth sync:', error);
+  }
+
+  try {
+    chrome.tabs.query({}, (tabs) => {
+      if (chrome.runtime.lastError) {
+        dbgLog('Could not query tabs for auth sync:', chrome.runtime.lastError);
+        return;
+      }
+      for (const tab of tabs || []) {
+        if (tab.id == null) continue;
+        chrome.tabs.sendMessage(tab.id, {
+          type: 'WEBAPP_AUTH_SYNCED',
+          user: userData
+        }, () => {
+          void chrome.runtime.lastError;
+        });
+      }
+    });
+  } catch (error) {
+    dbgLog('Could not notify tabs of auth sync:', error);
+  }
+}
+
+/**
  * Handle webapp auth state changes
  * SECURITY: Verifies sender origin before processing
  */
@@ -1226,19 +1263,8 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
       await chrome.storage.local.set(storagePayload);
       
       dbgLog('Webapp auth synced successfully');
-    
-      // Notify popup to refresh if it's open
-      try {
-        chrome.runtime.sendMessage({
-          type: 'WEBAPP_AUTH_SYNCED',
-          user: userData
-        }).catch(() => {
-          // Popup might not be open, ignore error
-        });
-      } catch (error) {
-        // Popup might not be open, ignore error
-        dbgLog('Could not notify popup (may not be open):', error);
-      }
+
+      notifyWebappAuthSynced(userData);
       
       sendResponse({ success: true, user: userData });
     } catch (syncError) {
@@ -1255,19 +1281,8 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
         fallbackPayload[EXTENSION_AUTH_TOKEN_KEY] = extensionAuthToken;
       }
       await chrome.storage.local.set(fallbackPayload);
-      
-      // Notify popup to refresh if it's open
-      try {
-        chrome.runtime.sendMessage({
-          type: 'WEBAPP_AUTH_SYNCED',
-          user: message.userData
-        }).catch(() => {
-          // Popup might not be open, ignore error
-        });
-      } catch (error) {
-        // Popup might not be open, ignore error
-        dbgLog('Could not notify popup (may not be open):', error);
-      }
+
+      notifyWebappAuthSynced(message.userData);
       
       sendResponse({ success: true, user: message.userData });
     }
