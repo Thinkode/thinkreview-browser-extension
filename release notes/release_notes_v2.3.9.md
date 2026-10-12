@@ -1,6 +1,6 @@
 # ThinkReview - Version 2.3.9 Release Notes
 
-**Release Date:** 24 August 2026
+**Release Date:** 29 August 2026
 
 ---
 
@@ -8,7 +8,7 @@
 
 ### Suggested follow-up questions on Severity reviews 💬
 
-Severity reviews now show the same suggested follow-up questions you already get with Scoring. After a review finishes, you’ll see a static prompt plus up to three AI-generated questions you can click to keep digging. Those questions are included when you copy or export the review as markdown, so they stay with the write-up you share.
+Severity reviews now show the same suggested follow-up questions you already get with Scoring. After a review finishes, you'll see a static prompt plus up to three AI-generated questions you can click to keep digging. Those questions are included when you copy or export the review as markdown, so they stay with the write-up you share.
 
 ### Large and long cloud reviews keep running ⏳
 
@@ -16,16 +16,12 @@ ThinkReview Cloud reviews that take longer than a typical browser request no lon
 
 ### Clearer status while a review is in progress 📋
 
-While a cloud review is running, the loader can now tell you what’s going on in one place:
+While a cloud review is running, the loader can now tell you what's going on in one place:
 
-- **Large PRs:** When the patch is especially big (over 100 KB), you’ll see a note with the size and how many lines changed.
-- **Long waits:** After a couple of minutes on smaller PRs, you’ll see a short “still running” message instead of wondering if anything happened.
+- **Large PRs:** When the patch is especially big (over 100 KB), you'll see a note with the size and how many lines changed.
+- **Long waits:** After a couple of minutes on smaller PRs, you'll see a short "still running" message instead of wondering if anything happened.
 
-Those notes are combined into a single status card so they don’t stack as duplicate banners.
-
-### Redesigned upgrade prompt when you hit the daily limit 🎁
-
-Hitting the daily review limit now opens a clearer in-panel prompt. It leads with your usage, then a Rewards card when a prize or free-credits offer is available, then options to buy extra review credits or upgrade your plan. Credit-pack labels and balance notes are easier to scan, including when you already have purchased credits to use after the daily cap.
+Those notes are combined into a single status card so they don't stack as duplicate banners.
 
 ---
 
