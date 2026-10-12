@@ -1,6 +1,6 @@
 /**
  * First-open interactive tour for integrated panel settings.
- * Walks through review format, text size, settings gear, layout, and auto-start.
+ * Walks through review format, text size, settings gear, layout, auto-start, and posting a PR comment.
  */
 
 import { dbgWarn } from '../../utils/logger.js';
@@ -119,6 +119,34 @@ async function _openSettingsMain() {
   return document.getElementById('thinkreview-settings-btn');
 }
 
+function _pickPostCommentButton(panelEl) {
+  if (!panelEl) return null;
+  const buttons = panelEl.querySelectorAll('.thinkreview-item-post-comment-btn');
+  for (const btn of buttons) {
+    if (btn.closest('.chat-message-bubble-wrapper')) continue;
+    const rect = btn.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) return btn;
+  }
+  for (const btn of buttons) {
+    const rect = btn.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) return btn;
+  }
+  return null;
+}
+
+async function _revealPostCommentButton(panelEl) {
+  const deadline = Date.now() + 1200;
+  let btn = _pickPostCommentButton(panelEl);
+  while (!btn && Date.now() < deadline) {
+    await _delay(150);
+    btn = _pickPostCommentButton(panelEl);
+  }
+  if (!btn) return null;
+  btn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  await _delay(40);
+  return btn;
+}
+
 async function _openLayoutSubmenu() {
   const api = _getSettingsMenuApi();
   if (!api) return null;
@@ -227,6 +255,15 @@ function _buildSteps(panelEl) {
         api?.closeSubmenus?.();
         await _delay(30);
         return document.querySelector('[data-menu-action="auto-start-review"]');
+      }
+    },
+    {
+      id: 'post-pr-comment',
+      title: 'Post to the pull request',
+      body: 'Each finding and AI reply has a Post button. It publishes that text as a comment on the pull request, using your GitHub App, GitLab connection, or personal access token.',
+      getTarget: () => _revealPostCommentButton(panelEl),
+      before: async () => {
+        _closeMenusQuietly();
       }
     },
     {
