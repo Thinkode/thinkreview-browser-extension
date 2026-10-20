@@ -957,28 +957,44 @@ function revealUpgradePrompt(upgradeWrapper, reviewContent, options = {}) {
 }
 
 /**
+ * Formats the date a monthly credit pool resets (e.g. "1 Nov").
+ * @param {string|null|undefined} resetsAt - ISO timestamp from the quota check
+ * @returns {string|null}
+ */
+function formatLimitResetDate(resetsAt) {
+  if (!resetsAt) return null;
+  const date = new Date(resetsAt);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
+/**
  * Shows an upgrade message in the integrated review panel
- * @param {number} reviewCount - The number of reviews used today
- * @param {number} dailyLimit - The daily review limit (optional, defaults to 3)
+ * @param {number} reviewCount - The number of reviews used this month
+ * @param {number} dailyLimit - The monthly review-credit limit (optional, defaults to 30)
  * @param {Object|null} limitOverride - Optional override for the limit title/body (e.g. for PR size errors).
  *   If provided, { title: string, body: string } will be used instead of the remote config / fallback values.
  * @param {number|null} purchasedReviewCredits - Prepaid credits balance (used after daily limit).
- * @param {{ skipLoader?: boolean, hideCreditPacks?: boolean }} [options] - skipLoader: keep review panel visible while loading; hideCreditPacks: plans only (e.g. PR size limit).
+ * @param {{ skipLoader?: boolean, hideCreditPacks?: boolean, limitDetails?: { limitType?: string, resetsAt?: string|null, burstLimit?: number|null, todayCount?: number|null }|null }} [options] - skipLoader: keep review panel visible while loading; hideCreditPacks: plans only (e.g. PR size limit); limitDetails: which limit was hit ('monthly' pool or the daily 'burst' cap) and when the pool resets.
  */
 async function showUpgradeMessage(
   reviewCount,
-  dailyLimit = 3,
+  dailyLimit = 30,
   limitOverride = null,
   purchasedReviewCredits = null,
   options = {}
 ) {
-  const hideCreditPacks = options?.hideCreditPacks === true;
+  const limitDetails = options?.limitDetails || null;
+  const isBurstLimit = !limitOverride && limitDetails?.limitType === 'burst';
+  const hideCreditPacks = options?.hideCreditPacks === true || isBurstLimit;
+  const resetDateLabel = formatLimitResetDate(limitDetails?.resetsAt);
   const upgradeSurface = limitOverride ? 'large_pr' : 'limit_banner';
   if (upgradeSurface === 'limit_banner') {
     trackAnalytics('daily_limit_reached', {
       context: 'upgrade_prompt',
       location: 'integrated_panel',
       surface: upgradeSurface,
+      limit_type: isBurstLimit ? 'burst' : 'monthly',
       review_count: reviewCount,
       daily_limit: dailyLimit,
       purchased_credits: purchasedReviewCredits
@@ -1061,10 +1077,14 @@ async function showUpgradeMessage(
         dbgWarn('Error loading subscription section:', response?.error || chrome.runtime.lastError?.message);
         unmountUpgradePromptLoader();
         upgradeWrapper.classList.remove('is-loading');
+        const fallbackKicker = limitOverride ? 'Upgrade' : (isBurstLimit ? 'Daily burst limit' : 'Monthly limit');
+        const fallbackTitle = limitOverride
+          ? String(limitOverride.title)
+          : (isBurstLimit ? 'Daily Burst Limit Reached' : 'Monthly Review Limit Reached');
         upgradeWrapper.innerHTML = `
           <div class="upgrade-prompt-header">
-            <div class="upgrade-prompt-kicker">Daily limit</div>
-            <h2 class="upgrade-prompt-title">Daily Review Limit Reached</h2>
+            <div class="upgrade-prompt-kicker">${fallbackKicker}</div>
+            <h2 class="upgrade-prompt-title">${fallbackTitle}</h2>
             <p class="upgrade-prompt-body">Unable to load upgrade options. Please try again or visit the portal.</p>
             <a href="https://portal.thinkreview.dev/subscription" target="_blank" rel="noopener noreferrer"
                class="upgrade-rewards-prize-btn" style="margin-top:12px;">
@@ -1077,10 +1097,10 @@ async function showUpgradeMessage(
       }
       const fallbackConfig = {
         prompt: {
-          limitTitle: 'Daily Review Limit Reached',
-          limitBody: "You've used {reviewCount} of {dailyLimit} free reviews today. Your limit resets daily - come back tomorrow for more reviews, or unlock unlimited reviews by upgrading now.",
+          limitTitle: 'Monthly Review Limit Reached',
+          limitBody: "You've used {reviewCount} of {dailyLimit} free review credits this month. Your credits reset on {resetDate} — upgrade now for a larger monthly pool.",
           title: 'Upgrade to one of our premium plans',
-          description: 'Get unlimited reviews, review larger PRs, choose your AI model, customize review rules, and more'
+          description: 'Get up to 600 monthly review credits, review Giant PRs, choose your AI model, customize review rules, and more'
         },
         promotionalMessage: '',
         plans: [
@@ -1091,7 +1111,7 @@ async function showUpgradeMessage(
             period: 'month',
             currency: 'USD',
             ctaText: 'Choose Lite',
-            features: ['15 reviews per day', 'Bigger PR analysis', 'Lite flagship models'],
+            features: ['300 review credits per month', '10x more usage than Free', 'Bigger PR analysis', 'Lite flagship models'],
             checkoutUrl: 'https://portal.thinkreview.dev/subscription',
             hasDiscount: false
           },
@@ -1102,7 +1122,7 @@ async function showUpgradeMessage(
             period: 'month',
             currency: 'USD',
             ctaText: 'Choose Professional',
-            features: ['25 reviews per day', 'Premium AI models', 'Priority support'],
+            features: ['600 review credits per month', '20x more usage than Free', 'Premium AI models', 'Priority support'],
             checkoutUrl: 'https://portal.thinkreview.dev/subscription',
             hasDiscount: false
           }
@@ -1154,14 +1174,30 @@ async function showUpgradeMessage(
         upgradeConfig.creditPacks = [];
       }
 
-      const safeBody = limitOverride
-        ? String(limitOverride.body)
-        : String(upgradeConfig.prompt.limitBody || fallbackConfig.prompt.limitBody)
-            .replace('{reviewCount}', String(reviewCount))
-            .replace('{dailyLimit}', String(dailyLimit));
-      const safeLimitTitle = limitOverride
-        ? String(limitOverride.title)
-        : String(upgradeConfig.prompt.limitTitle || fallbackConfig.prompt.limitTitle);
+      // Number(null) is 0, which would render "0 of today's N credits". Absent
+      // values stay missing so the prompt falls back to the generic burst copy.
+      const burstLimitValue = limitDetails?.burstLimit == null ? NaN : Number(limitDetails.burstLimit);
+      const burstTodayValue = limitDetails?.todayCount == null ? NaN : Number(limitDetails.todayCount);
+      const hasBurstNumbers =
+        isBurstLimit && Number.isFinite(burstLimitValue) && burstLimitValue > 0 && Number.isFinite(burstTodayValue);
+
+      let safeBody;
+      let safeLimitTitle;
+      if (limitOverride) {
+        safeBody = String(limitOverride.body);
+        safeLimitTitle = String(limitOverride.title);
+      } else if (isBurstLimit) {
+        safeLimitTitle = 'Daily Burst Limit Reached';
+        safeBody = hasBurstNumbers
+          ? `You've used ${burstTodayValue} of today's ${burstLimitValue} review credits. This daily safety limit resets tomorrow, and your monthly credits are unaffected.`
+          : "You've reached today's burst limit. It resets tomorrow, and your monthly credits are unaffected.";
+      } else {
+        safeBody = String(upgradeConfig.prompt.limitBody || fallbackConfig.prompt.limitBody)
+          .replace('{reviewCount}', String(reviewCount))
+          .replace('{dailyLimit}', String(dailyLimit))
+          .replace('{resetDate}', resetDateLabel || 'the 1st of next month');
+        safeLimitTitle = String(upgradeConfig.prompt.limitTitle || fallbackConfig.prompt.limitTitle);
+      }
 
       const html = response.content;
       const prepaidBalance =
@@ -1169,17 +1205,23 @@ async function showUpgradeMessage(
           ? purchasedReviewCredits
           : null;
 
+      // Burst limit: meter shows today's spend against the daily cap; otherwise the monthly pool.
+      const meterUsed = isBurstLimit ? burstTodayValue : Number(reviewCount);
+      const meterTotal = isBurstLimit ? burstLimitValue : Number(dailyLimit);
       const showUsageMeter =
         !limitOverride &&
-        Number.isFinite(Number(reviewCount)) &&
-        Number.isFinite(Number(dailyLimit)) &&
-        Number(dailyLimit) > 0;
+        Number.isFinite(meterUsed) &&
+        Number.isFinite(meterTotal) &&
+        meterTotal > 0;
       const usagePct = showUsageMeter
-        ? Math.min(100, Math.round((Number(reviewCount) / Number(dailyLimit)) * 100))
+        ? Math.min(100, Math.round((meterUsed / meterTotal) * 100))
         : 0;
+      const meterLabel = isBurstLimit
+        ? `${meterUsed} / ${meterTotal} review credits used today`
+        : `${meterUsed} / ${meterTotal} review credits used this month${resetDateLabel ? ` · resets ${resetDateLabel}` : ''}`;
       const meterHtml = showUsageMeter
         ? `<div class="upgrade-prompt-meter" aria-hidden="true"><div class="upgrade-prompt-meter-fill" style="width:${usagePct}%"></div></div>
-           <div class="upgrade-prompt-meter-label">${reviewCount} / ${dailyLimit} review credits used today</div>`
+           <div class="upgrade-prompt-meter-label">${meterLabel}</div>`
         : '';
 
       if (!upgradeWrapper.isConnected) {
@@ -1191,7 +1233,7 @@ async function showUpgradeMessage(
       upgradeWrapper.classList.remove('is-loading');
       upgradeWrapper.innerHTML = `
         <div class="upgrade-prompt-header">
-          <div class="upgrade-prompt-kicker">Daily limit</div>
+          <div class="upgrade-prompt-kicker">${isBurstLimit ? 'Daily burst limit' : 'Monthly limit'}</div>
           <h2 class="upgrade-prompt-title" id="upgrade-limit-title"></h2>
           <p class="upgrade-prompt-body" id="upgrade-limit-body"></p>
           ${meterHtml}
@@ -1735,9 +1777,10 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         dbgLog('Daily review limit exceeded');
         showUpgradeMessage(
           bgResponse.currentCount || bgResponse.dailyLimit,
-          bgResponse.dailyLimit || 15,
+          bgResponse.dailyLimit || 30,
           null,
-          bgResponse.purchasedReviewCredits
+          bgResponse.purchasedReviewCredits,
+          { limitDetails: bgResponse.limitDetails || null }
         );
         return; // Exit early, don't show error
       }
@@ -2204,6 +2247,7 @@ window.getAIResponse = (patchContent, conversationHistory, language = 'English')
             error.dailyLimit = response.dailyLimit;
             error.currentCount = response.currentCount;
             error.purchasedReviewCredits = response.purchasedReviewCredits;
+            error.limitDetails = response.limitDetails || null;
           }
           if (response.isAuthExpired) {
             error.isAuthExpired = true;
