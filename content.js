@@ -984,9 +984,9 @@ async function showUpgradeMessage(
   purchasedReviewCredits = null,
   options = {}
 ) {
-  const hideCreditPacks = options?.hideCreditPacks === true;
   const limitDetails = options?.limitDetails || null;
   const isBurstLimit = !limitOverride && limitDetails?.limitType === 'burst';
+  const hideCreditPacks = options?.hideCreditPacks === true || isBurstLimit;
   const resetDateLabel = formatLimitResetDate(limitDetails?.resetsAt);
   const upgradeSurface = limitOverride ? 'large_pr' : 'limit_banner';
   if (upgradeSurface === 'limit_banner') {
