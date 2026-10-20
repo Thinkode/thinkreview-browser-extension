@@ -959,7 +959,7 @@ function revealUpgradePrompt(upgradeWrapper, reviewContent, options = {}) {
 /**
  * Shows an upgrade message in the integrated review panel
  * @param {number} reviewCount - The number of reviews used today
- * @param {number} dailyLimit - The daily review limit (optional, defaults to 3)
+ * @param {number} dailyLimit - The monthly review-credit limit (optional, defaults to 30)
  * @param {Object|null} limitOverride - Optional override for the limit title/body (e.g. for PR size errors).
  *   If provided, { title: string, body: string } will be used instead of the remote config / fallback values.
  * @param {number|null} purchasedReviewCredits - Prepaid credits balance (used after daily limit).
@@ -967,7 +967,7 @@ function revealUpgradePrompt(upgradeWrapper, reviewContent, options = {}) {
  */
 async function showUpgradeMessage(
   reviewCount,
-  dailyLimit = 3,
+  dailyLimit = 30,
   limitOverride = null,
   purchasedReviewCredits = null,
   options = {}
@@ -1063,8 +1063,8 @@ async function showUpgradeMessage(
         upgradeWrapper.classList.remove('is-loading');
         upgradeWrapper.innerHTML = `
           <div class="upgrade-prompt-header">
-            <div class="upgrade-prompt-kicker">Daily limit</div>
-            <h2 class="upgrade-prompt-title">Daily Review Limit Reached</h2>
+            <div class="upgrade-prompt-kicker">Monthly limit</div>
+            <h2 class="upgrade-prompt-title">Monthly Review Limit Reached</h2>
             <p class="upgrade-prompt-body">Unable to load upgrade options. Please try again or visit the portal.</p>
             <a href="https://portal.thinkreview.dev/subscription" target="_blank" rel="noopener noreferrer"
                class="upgrade-rewards-prize-btn" style="margin-top:12px;">
@@ -1077,10 +1077,10 @@ async function showUpgradeMessage(
       }
       const fallbackConfig = {
         prompt: {
-          limitTitle: 'Daily Review Limit Reached',
-          limitBody: "You've used {reviewCount} of {dailyLimit} free reviews today. Your limit resets daily - come back tomorrow for more reviews, or unlock unlimited reviews by upgrading now.",
+          limitTitle: 'Monthly Review Limit Reached',
+          limitBody: "You've used {reviewCount} of {dailyLimit} free review credits this month. Your limit resets next month — upgrade now for a larger monthly pool.",
           title: 'Upgrade to one of our premium plans',
-          description: 'Get unlimited reviews, review larger PRs, choose your AI model, customize review rules, and more'
+          description: 'Get up to 500 monthly review credits, review Giant PRs, choose your AI model, customize review rules, and more'
         },
         promotionalMessage: '',
         plans: [
@@ -1091,7 +1091,7 @@ async function showUpgradeMessage(
             period: 'month',
             currency: 'USD',
             ctaText: 'Choose Lite',
-            features: ['15 reviews per day', 'Bigger PR analysis', 'Lite flagship models'],
+            features: ['150 review credits per month', '5x more usage than Free', 'Bigger PR analysis', 'Lite flagship models'],
             checkoutUrl: 'https://portal.thinkreview.dev/subscription',
             hasDiscount: false
           },
@@ -1102,7 +1102,7 @@ async function showUpgradeMessage(
             period: 'month',
             currency: 'USD',
             ctaText: 'Choose Professional',
-            features: ['25 reviews per day', 'Premium AI models', 'Priority support'],
+            features: ['500 review credits per month', '17x more usage than Free', 'Premium AI models', 'Priority support'],
             checkoutUrl: 'https://portal.thinkreview.dev/subscription',
             hasDiscount: false
           }
@@ -1179,7 +1179,7 @@ async function showUpgradeMessage(
         : 0;
       const meterHtml = showUsageMeter
         ? `<div class="upgrade-prompt-meter" aria-hidden="true"><div class="upgrade-prompt-meter-fill" style="width:${usagePct}%"></div></div>
-           <div class="upgrade-prompt-meter-label">${reviewCount} / ${dailyLimit} review credits used today</div>`
+           <div class="upgrade-prompt-meter-label">${reviewCount} / ${dailyLimit} review credits used this month</div>`
         : '';
 
       if (!upgradeWrapper.isConnected) {
@@ -1191,7 +1191,7 @@ async function showUpgradeMessage(
       upgradeWrapper.classList.remove('is-loading');
       upgradeWrapper.innerHTML = `
         <div class="upgrade-prompt-header">
-          <div class="upgrade-prompt-kicker">Daily limit</div>
+          <div class="upgrade-prompt-kicker">Monthly limit</div>
           <h2 class="upgrade-prompt-title" id="upgrade-limit-title"></h2>
           <p class="upgrade-prompt-body" id="upgrade-limit-body"></p>
           ${meterHtml}
@@ -1735,7 +1735,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         dbgLog('Daily review limit exceeded');
         showUpgradeMessage(
           bgResponse.currentCount || bgResponse.dailyLimit,
-          bgResponse.dailyLimit || 15,
+          bgResponse.dailyLimit || 30,
           null,
           bgResponse.purchasedReviewCredits
         );

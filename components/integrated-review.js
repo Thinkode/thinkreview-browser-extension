@@ -1825,7 +1825,7 @@ async function handleSendMessage(messageText) {
     if (error.isLimitExceeded && typeof window.showUpgradeMessage === 'function') {
       await window.showUpgradeMessage(
         error.currentCount ?? 0,
-        error.dailyLimit ?? 15,
+        error.dailyLimit ?? 30,
         null,
         error.purchasedReviewCredits ?? null,
         { skipLoader: true }

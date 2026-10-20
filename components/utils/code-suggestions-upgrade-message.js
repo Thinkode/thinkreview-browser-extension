@@ -38,7 +38,7 @@ export function createCodeSuggestionsUpgradeMessage() {
   featureList.style.cssText = 'margin: 0 0 20px; padding-left: 20px; color: #b8b8b8; font-size: 13px; line-height: 1.7; text-align: left;';
   const features = [
     'Use the best frontier models in the market',
-    '25 code reviews per day',
+    'Up to 500 review credits per month (17x Free)',
     'Add custom rules that best fit your codebase and team'
   ];
   features.forEach((text) => {
