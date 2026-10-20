@@ -1170,8 +1170,10 @@ async function showUpgradeMessage(
         upgradeConfig.creditPacks = [];
       }
 
-      const burstLimitValue = Number(limitDetails?.burstLimit);
-      const burstTodayValue = Number(limitDetails?.todayCount);
+      // Number(null) is 0, which would render "0 of today's N credits". Absent
+      // values stay missing so the prompt falls back to the generic burst copy.
+      const burstLimitValue = limitDetails?.burstLimit == null ? NaN : Number(limitDetails.burstLimit);
+      const burstTodayValue = limitDetails?.todayCount == null ? NaN : Number(limitDetails.todayCount);
       const hasBurstNumbers =
         isBurstLimit && Number.isFinite(burstLimitValue) && burstLimitValue > 0 && Number.isFinite(burstTodayValue);
 
