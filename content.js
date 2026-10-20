@@ -1077,10 +1077,14 @@ async function showUpgradeMessage(
         dbgWarn('Error loading subscription section:', response?.error || chrome.runtime.lastError?.message);
         unmountUpgradePromptLoader();
         upgradeWrapper.classList.remove('is-loading');
+        const fallbackKicker = limitOverride ? 'Upgrade' : (isBurstLimit ? 'Daily burst limit' : 'Monthly limit');
+        const fallbackTitle = limitOverride
+          ? String(limitOverride.title)
+          : (isBurstLimit ? 'Daily Burst Limit Reached' : 'Monthly Review Limit Reached');
         upgradeWrapper.innerHTML = `
           <div class="upgrade-prompt-header">
-            <div class="upgrade-prompt-kicker">Monthly limit</div>
-            <h2 class="upgrade-prompt-title">Monthly Review Limit Reached</h2>
+            <div class="upgrade-prompt-kicker">${fallbackKicker}</div>
+            <h2 class="upgrade-prompt-title">${fallbackTitle}</h2>
             <p class="upgrade-prompt-body">Unable to load upgrade options. Please try again or visit the portal.</p>
             <a href="https://portal.thinkreview.dev/subscription" target="_blank" rel="noopener noreferrer"
                class="upgrade-rewards-prize-btn" style="margin-top:12px;">
