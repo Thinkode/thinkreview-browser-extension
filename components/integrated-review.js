@@ -1828,7 +1828,7 @@ async function handleSendMessage(messageText) {
         error.dailyLimit ?? 30,
         null,
         error.purchasedReviewCredits ?? null,
-        { skipLoader: true }
+        { skipLoader: true, limitDetails: error.limitDetails || null }
       );
       return;
     }

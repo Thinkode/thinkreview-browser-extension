@@ -401,6 +401,12 @@ export class CloudService {
           limitError.dailyLimit = errorData.dailyLimit;
           limitError.currentCount = errorData.currentCount;
           limitError.purchasedReviewCredits = errorData.purchasedReviewCredits;
+          limitError.limitDetails = {
+            limitType: errorData.limitType || 'monthly',
+            resetsAt: errorData.resetsAt || null,
+            burstLimit: errorData.burstLimit ?? null,
+            todayCount: errorData.todayCount ?? null
+          };
           throw limitError;
         }
         if (errorData.message === 'PR-size-limit-exceeded') {
@@ -609,6 +615,12 @@ export class CloudService {
               originalError.dailyLimit = errorData.dailyLimit;
               originalError.currentCount = errorData.currentCount;
               originalError.purchasedReviewCredits = errorData.purchasedReviewCredits;
+              originalError.limitDetails = {
+                limitType: errorData.limitType || 'monthly',
+                resetsAt: errorData.resetsAt || null,
+                burstLimit: errorData.burstLimit ?? null,
+                todayCount: errorData.todayCount ?? null
+              };
               originalError.rateLimitMessage = 'Daily review limit exceeded';
             }
           } catch (parseError) {
