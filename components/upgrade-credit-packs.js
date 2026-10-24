@@ -39,9 +39,18 @@ export function formatPackButtonLabel(pack) {
 
 /**
  * @param {number|null} prepaidBalance
+ * @param {{ packsHeading?: string|null, isBurstLimit?: boolean }} [options]
  * @returns {string}
  */
-export function getPacksSectionLabel(prepaidBalance) {
+export function getPacksSectionLabel(prepaidBalance, options = {}) {
+  const override =
+    typeof options.packsHeading === 'string' ? options.packsHeading.trim() : '';
+  if (override) return override.endsWith(':') ? override : `${override}:`;
+  if (options.isBurstLimit) {
+    return prepaidBalance != null && prepaidBalance > 0
+      ? 'Buy more credits to unlock today’s limit:'
+      : 'Buy review credits to unlock today’s limit:';
+  }
   return prepaidBalance != null && prepaidBalance > 0
     ? 'Buy more review credits:'
     : 'Buy review credits without upgrading your plan:';
@@ -49,10 +58,14 @@ export function getPacksSectionLabel(prepaidBalance) {
 
 /**
  * @param {number|null} prepaidBalance
+ * @param {{ isBurstLimit?: boolean }} [options]
  * @returns {string|null}
  */
-export function getBalanceNoteText(prepaidBalance) {
+export function getBalanceNoteText(prepaidBalance, options = {}) {
   if (prepaidBalance == null || !(prepaidBalance > 0)) return null;
+  if (options.isBurstLimit) {
+    return `You have ${prepaidBalance} purchased credits ready — they unlock today’s burst limit and last 1 year from purchase.`;
+  }
   return `You have ${prepaidBalance} purchased credits for reviews after your daily plan limit (each pack expires 1 year after purchase).`;
 }
 
@@ -82,7 +95,7 @@ function createBadge(badgeKind) {
  * @param {string} analyticsContext
  * @returns {HTMLButtonElement}
  */
-function createPackButton(pack, badgeKind, analyticsContext) {
+function createPackButton(pack, badgeKind, analyticsContext, analyticsExtras = {}) {
   const packBtn = document.createElement('button');
   packBtn.type = 'button';
   packBtn.className = 'upgrade-credit-pack-btn';
@@ -99,7 +112,8 @@ function createPackButton(pack, badgeKind, analyticsContext) {
         context: analyticsContext,
         surface,
         packId: pack.id || null,
-        credits: pack.credits || null
+        credits: pack.credits || null,
+        ...analyticsExtras
       }).catch(() => {});
     } catch {
       // Silently fail - analytics should never break CTA
@@ -116,9 +130,10 @@ function createPackButton(pack, badgeKind, analyticsContext) {
  * @param {number} packIndex
  * @param {number} packCount
  * @param {string} analyticsContext
+ * @param {object} [analyticsExtras]
  * @returns {HTMLDivElement}
  */
-export function createCreditPackItem(pack, packIndex, packCount, analyticsContext) {
+export function createCreditPackItem(pack, packIndex, packCount, analyticsContext, analyticsExtras = {}) {
   const badgeKind = getPackBadgeKind(packIndex, packCount);
   const packItem = document.createElement('div');
   packItem.className = 'upgrade-credit-pack-item';
@@ -127,7 +142,7 @@ export function createCreditPackItem(pack, packIndex, packCount, analyticsContex
   badgeSlot.className = 'upgrade-credit-pack-badge-slot';
   if (badgeKind) badgeSlot.appendChild(createBadge(badgeKind));
   packItem.appendChild(badgeSlot);
-  packItem.appendChild(createPackButton(pack, badgeKind, analyticsContext));
+  packItem.appendChild(createPackButton(pack, badgeKind, analyticsContext, analyticsExtras));
 
   return packItem;
 }
@@ -147,7 +162,7 @@ function appendFallbackActions(container) {
  * Prominent Revolut-style rewards prize card (rendered above buy-credits).
  * Copy/URL come from cloud Remote Config — never hardcoded prize amounts.
  */
-function appendRewardsCta(container, rewardsCta, analyticsContext) {
+function appendRewardsCta(container, rewardsCta, analyticsContext, analyticsExtras = {}, secondary = false) {
   if (!rewardsCta || rewardsCta.enabled !== true) return;
   const label = typeof rewardsCta.label === 'string' ? rewardsCta.label.trim() : '';
   const url = typeof rewardsCta.url === 'string' ? rewardsCta.url.trim() : '';
@@ -159,7 +174,9 @@ function appendRewardsCta(container, rewardsCta, analyticsContext) {
   }
 
   const card = document.createElement('div');
-  card.className = 'upgrade-rewards-prize';
+  card.className = secondary
+    ? 'upgrade-rewards-prize upgrade-rewards-prize--secondary'
+    : 'upgrade-rewards-prize';
 
   const badge = document.createElement('span');
   badge.className = 'upgrade-rewards-prize-badge';
@@ -187,7 +204,8 @@ function appendRewardsCta(container, rewardsCta, analyticsContext) {
     try {
       const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
       trackUserAction('rewards_cta_clicked', {
-        context: analyticsContext
+        context: analyticsContext,
+        ...analyticsExtras
       }).catch(() => {});
     } catch {
       // Silently fail - analytics should never break CTA
@@ -203,6 +221,11 @@ function appendRewardsCta(container, rewardsCta, analyticsContext) {
  *   creditPacks?: unknown[],
  *   prepaidBalance?: number|null,
  *   analyticsContext?: string,
+ *   analyticsExtras?: object,
+ *   packsHeading?: string|null,
+ *   isBurstLimit?: boolean,
+ *   rewardsSecondary?: boolean,
+ *   renderPacks?: boolean,
  *   rewardsCta?: { enabled?: boolean, label?: string, description?: string, url?: string }|null
  * }} [options]
  */
@@ -213,30 +236,41 @@ export async function renderUpgradeCreditPacksActions(container, options = {}) {
     creditPacks: rawPacks = [],
     prepaidBalance = null,
     analyticsContext = 'daily_limit_upgrade_prompt',
+    analyticsExtras = {},
+    packsHeading = null,
+    isBurstLimit = false,
+    rewardsSecondary = false,
+    renderPacks = true,
     rewardsCta = null
   } = options;
 
   container.replaceChildren();
 
-  // Prize / rewards first — most prominent path before paid packs.
-  appendRewardsCta(container, rewardsCta, analyticsContext);
+  if (!renderPacks) {
+    appendRewardsCta(container, rewardsCta, analyticsContext, analyticsExtras, rewardsSecondary);
+    return;
+  }
+
+  const validationModule = await import(chrome.runtime.getURL('utils/credit-pack-validation.js'));
+  const creditPacks = validationModule.filterValidCreditPacks(rawPacks);
+  const labelOptions = { packsHeading, isBurstLimit };
+  const balanceNote = getBalanceNoteText(prepaidBalance, { isBurstLimit });
 
   const buySection = document.createElement('div');
   buySection.className = 'upgrade-buy-section';
   let buySectionHasContent = false;
 
-  const balanceNote = getBalanceNoteText(prepaidBalance);
   if (balanceNote) {
     buySection.appendChild(createParagraph('upgrade-credits-balance-note', balanceNote));
     buySectionHasContent = true;
   }
 
-  const validationModule = await import(chrome.runtime.getURL('utils/credit-pack-validation.js'));
-  const creditPacks = validationModule.filterValidCreditPacks(rawPacks);
-
   if (creditPacks.length > 0) {
     buySection.appendChild(
-      createParagraph('upgrade-credits-packs-label', getPacksSectionLabel(prepaidBalance))
+      createParagraph(
+        'upgrade-credits-packs-label',
+        getPacksSectionLabel(prepaidBalance, labelOptions)
+      )
     );
     buySection.appendChild(createParagraph('upgrade-credits-validity-note', VALIDITY_NOTE_TEXT));
 
@@ -244,18 +278,30 @@ export async function renderUpgradeCreditPacksActions(container, options = {}) {
     packsRow.className = 'upgrade-credit-packs';
     creditPacks.forEach((pack, packIndex) => {
       packsRow.appendChild(
-        createCreditPackItem(pack, packIndex, creditPacks.length, analyticsContext)
+        createCreditPackItem(
+          pack,
+          packIndex,
+          creditPacks.length,
+          analyticsContext,
+          analyticsExtras
+        )
       );
     });
     buySection.appendChild(packsRow);
     buySectionHasContent = true;
   } else if (balanceNote == null) {
+    // Portal fallback when remote packs are unavailable (settings menu still works).
     const before = buySection.childNodes.length;
     appendFallbackActions(buySection);
     buySectionHasContent = buySection.childNodes.length > before;
   }
 
-  if (buySectionHasContent) {
-    container.appendChild(buySection);
+  // Paid packs first when rewards are secondary (conversion: don't bury checkout).
+  if (rewardsSecondary) {
+    if (buySectionHasContent) container.appendChild(buySection);
+    appendRewardsCta(container, rewardsCta, analyticsContext, analyticsExtras, true);
+  } else {
+    appendRewardsCta(container, rewardsCta, analyticsContext, analyticsExtras, false);
+    if (buySectionHasContent) container.appendChild(buySection);
   }
 }

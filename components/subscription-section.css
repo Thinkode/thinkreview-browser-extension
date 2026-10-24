@@ -93,6 +93,40 @@
   overflow: hidden;
 }
 
+/* Secondary (below paid CTAs) — quieter so rewards don't cannibalize checkout */
+.upgrade-rewards-prize--secondary {
+  margin-top: 10px;
+  background: #fff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow: none;
+}
+
+.upgrade-rewards-prize--secondary::after {
+  display: none;
+}
+
+.upgrade-rewards-prize--secondary .upgrade-rewards-prize-badge {
+  background: #ede9fe;
+  border-color: #ddd6fe;
+  color: #5b21b6;
+}
+
+.upgrade-rewards-prize--secondary .upgrade-rewards-prize-title {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.upgrade-rewards-prize--secondary .upgrade-rewards-prize-description {
+  color: #64748b;
+}
+
+.upgrade-rewards-prize--secondary .upgrade-rewards-prize-btn {
+  background: #f8fafc;
+  color: #4c1d95;
+  border: 1px solid #e2e8f0;
+}
+
 .upgrade-rewards-prize::after {
   content: '';
   position: absolute;
@@ -319,7 +353,12 @@
   gap: 10px;
 }
 
+.subscription-plans.subscription-plans--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .subscription-plan-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -334,6 +373,27 @@
 .subscription-plan-card:hover {
   border-color: #c4b5fd;
   box-shadow: 0 6px 16px -10px rgba(107, 79, 187, 0.45);
+}
+
+.plan-popular-badge {
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5b21b6;
+  background: #ede9fe;
+  border: 1px solid #ddd6fe;
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-bottom: 6px;
+}
+
+.plan-usage-multiple {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b4fbb;
+  margin: 2px 0 4px;
 }
 
 .plan-header {

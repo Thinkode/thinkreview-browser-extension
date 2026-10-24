@@ -968,6 +968,211 @@ function formatLimitResetDate(resetsAt) {
   return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
+/** Built-in limit-screen fallbacks when the server has not yet shipped limitScreens. */
+const BUILTIN_LIMIT_SCREEN_FALLBACKS = {
+  monthly: {
+    free: {
+      kicker: 'Monthly limit',
+      title: 'Monthly Review Limit Reached',
+      body: "You've used {reviewCount} of {monthlyLimit} free review credits this month. Your credits reset on {resetDate}. Upgrade for a larger monthly pool, or top up instantly with credit packs.",
+      bodyFallback: "You've used all your free review credits this month. Upgrade for a larger pool, or top up with credit packs.",
+      plansHeading: 'Upgrade to one of our premium plans',
+      plansDescription: 'Get up to 600 monthly review credits, review Giant PRs, choose your AI model, customize review rules, and more',
+      planIds: ['lite', 'professional'],
+      showCreditPacks: true,
+      showRewards: true,
+      showTip: true,
+      sectionOrder: ['plans', 'packs', 'rewards'],
+      packsHeading: 'Or buy review credits without upgrading'
+    },
+    lite: {
+      kicker: 'Monthly limit',
+      title: 'Monthly Review Limit Reached',
+      body: "You've used {reviewCount} of {monthlyLimit} Lite credits this month. Credits reset on {resetDate}. Go Professional for a larger pool, or top up instantly.",
+      bodyFallback: "You've used all your Lite credits this month. Upgrade to Professional or top up with credit packs.",
+      plansHeading: 'Upgrade to Professional',
+      plansDescription: 'Get more monthly credits, frontier models, GitHub Enterprise / Azure DevOps, and Priority Support',
+      planIds: ['professional'],
+      showCreditPacks: true,
+      showRewards: false,
+      showTip: true,
+      sectionOrder: ['plans', 'packs'],
+      packsHeading: 'Or buy review credits without upgrading'
+    },
+    professional: {
+      kicker: 'Monthly limit',
+      title: 'Monthly Review Limit Reached',
+      body: "You've used {reviewCount} of {monthlyLimit} Professional credits this month. Credits reset on {resetDate}. Top up instantly — additional credits work with your plan and last 1 year.",
+      bodyFallback: "You've used all your Professional credits this month. Top up with credit packs to keep reviewing.",
+      plansHeading: '',
+      plansDescription: '',
+      planIds: [],
+      showCreditPacks: true,
+      showRewards: false,
+      showTip: true,
+      sectionOrder: ['packs'],
+      packsHeading: 'Buy review credits to keep reviewing'
+    },
+    teams: {
+      kicker: 'Monthly limit',
+      title: 'Monthly Review Limit Reached',
+      body: "You've used {reviewCount} of {monthlyLimit} Teams credits this month. Credits reset on {resetDate}. Top up instantly — additional credits work with your plan and last 1 year.",
+      bodyFallback: "You've used all your Teams credits this month. Top up with credit packs to keep reviewing.",
+      plansHeading: '',
+      plansDescription: '',
+      planIds: [],
+      showCreditPacks: true,
+      showRewards: false,
+      showTip: true,
+      sectionOrder: ['packs'],
+      packsHeading: 'Buy review credits to keep reviewing'
+    }
+  },
+  burst: {
+    free: {
+      kicker: 'Daily burst limit',
+      title: 'Daily Burst Limit Reached',
+      body: "You've used {todayCount} of today's {dailyCap} free review credits. This daily safety limit resets {dailyResetLabel}. Your monthly credits are unaffected. Upgrade for a higher daily capacity, or buy credits to keep reviewing now.",
+      bodyFallback: "You've reached today's burst limit. It resets tomorrow, and your monthly credits are unaffected. Upgrade or buy credits to keep reviewing.",
+      plansHeading: 'Upgrade for a higher daily capacity',
+      plansDescription: 'Lite raises your daily capacity and monthly pool. Professional unlocks frontier models and more.',
+      planIds: ['lite', 'professional'],
+      showCreditPacks: true,
+      showRewards: true,
+      showTip: true,
+      sectionOrder: ['packs', 'plans', 'rewards'],
+      packsHeading: 'Buy review credits to keep reviewing now'
+    },
+    lite: {
+      kicker: 'Daily burst limit',
+      title: 'Daily Burst Limit Reached',
+      body: "You've used {todayCount} of today's {dailyCap} review credits. Your monthly credits are safe and this daily limit resets {dailyResetLabel}. Buy additional credits to keep reviewing right now.",
+      bodyFallback: "You've reached today's burst limit. Your monthly credits are safe. Buy additional credits to keep reviewing, or continue tomorrow.",
+      plansHeading: '',
+      plansDescription: '',
+      planIds: [],
+      showCreditPacks: true,
+      showRewards: false,
+      showTip: true,
+      sectionOrder: ['packs'],
+      packsHeading: 'Buy review credits to unlock today\'s limit'
+    },
+    professional: {
+      kicker: 'Daily burst limit',
+      title: 'Daily Burst Limit Reached',
+      body: "You've used {todayCount} of today's {dailyCap} review credits. Your monthly credits are safe and this daily limit resets {dailyResetLabel}. Buy additional credits to keep reviewing right now.",
+      bodyFallback: "You've reached today's burst limit. Your monthly credits are safe. Buy additional credits to keep reviewing, or continue tomorrow.",
+      plansHeading: '',
+      plansDescription: '',
+      planIds: [],
+      showCreditPacks: true,
+      showRewards: false,
+      showTip: true,
+      sectionOrder: ['packs'],
+      packsHeading: 'Buy review credits to unlock today\'s limit'
+    },
+    teams: {
+      kicker: 'Daily burst limit',
+      title: 'Daily Burst Limit Reached',
+      body: "You've used {todayCount} of today's {dailyCap} review credits. Your monthly credits are safe and this daily limit resets {dailyResetLabel}. Buy additional credits to keep reviewing right now.",
+      bodyFallback: "You've reached today's burst limit. Your monthly credits are safe. Buy additional credits to keep reviewing, or continue tomorrow.",
+      plansHeading: '',
+      plansDescription: '',
+      planIds: [],
+      showCreditPacks: true,
+      showRewards: false,
+      showTip: true,
+      sectionOrder: ['packs'],
+      packsHeading: 'Buy review credits to unlock today\'s limit'
+    }
+  },
+  prSize: {
+    free: {
+      kicker: 'Upgrade',
+      title: 'PR Too Large for Free Plan',
+      body: 'Your PR exceeds the free-plan size limit. Upgrade to review larger PRs with more powerful AI models.',
+      bodyFallback: 'Your PR is too large for the free plan. Upgrade to review larger PRs.',
+      plansHeading: 'Upgrade to review Giant PRs',
+      plansDescription: 'Lite and Professional unlock Giant PR analysis, more models, and custom agents',
+      planIds: ['lite', 'professional'],
+      showCreditPacks: false,
+      showRewards: false,
+      showTip: false,
+      sectionOrder: ['plans'],
+      packsHeading: ''
+    }
+  }
+};
+
+function normalizeUpgradePlanKey(value) {
+  const key = String(value || '').trim().toLowerCase();
+  if (key === 'lite' || key === 'professional' || key === 'teams' || key === 'free') return key;
+  return null;
+}
+
+/**
+ * Resolve user plan for limit-screen selection.
+ * Preference: server userPlan → 429 planType → chrome.storage subscription.
+ * @param {string|null} serverUserPlan
+ * @param {object|null} limitDetails
+ * @param {object} storageData
+ * @returns {string|null} null when unknown (legacy fallback behavior)
+ */
+function resolveUpgradeUserPlan(serverUserPlan, limitDetails, storageData) {
+  const fromServer = normalizeUpgradePlanKey(serverUserPlan);
+  if (fromServer) return fromServer;
+  const fromLimit = normalizeUpgradePlanKey(limitDetails?.planType);
+  if (fromLimit) return fromLimit;
+  const sub =
+    storageData?.userSubscriptionData?.userSubscriptionType ||
+    storageData?.userData?.subscriptionType ||
+    storageData?.subscriptionType ||
+    null;
+  return normalizeUpgradePlanKey(sub);
+}
+
+function getLimitScreenConfig(limitScreens, limitType, planKey) {
+  const typeKey = limitType === 'burst' ? 'burst' : limitType === 'prSize' ? 'prSize' : 'monthly';
+  const plan = planKey || 'free';
+  const fromServer = limitScreens?.[typeKey];
+  if (fromServer && typeof fromServer === 'object') {
+    // Server may send either the resolved screen for the user's plan, or a map by plan.
+    if (fromServer.title || fromServer.body || Array.isArray(fromServer.planIds)) {
+      return fromServer;
+    }
+    if (fromServer[plan] && typeof fromServer[plan] === 'object') return fromServer[plan];
+    if (fromServer.free && typeof fromServer.free === 'object') return fromServer.free;
+  }
+  const builtin = BUILTIN_LIMIT_SCREEN_FALLBACKS[typeKey];
+  if (!builtin) return null;
+  return builtin[plan] || builtin.free || null;
+}
+
+function interpolateLimitScreenText(template, values) {
+  if (typeof template !== 'string' || !template) return '';
+  let out = template;
+  let missing = false;
+  out = out.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => {
+    const value = values[key];
+    if (value == null || value === '') {
+      missing = true;
+      return '';
+    }
+    return String(value);
+  });
+  return missing ? null : out;
+}
+
+function filterPlansByIds(plans, planIds) {
+  if (!Array.isArray(planIds)) return Array.isArray(plans) ? plans.slice(0, 2) : [];
+  if (planIds.length === 0) return [];
+  const wanted = planIds.map((id) => String(id).toLowerCase());
+  const list = Array.isArray(plans) ? plans : [];
+  return wanted
+    .map((id) => list.find((p) => String(p?.id || p?.name || '').toLowerCase() === id))
+    .filter(Boolean);
+}
+
 /**
  * Shows an upgrade message in the integrated review panel
  * @param {number} reviewCount - The number of reviews used this month
@@ -975,7 +1180,7 @@ function formatLimitResetDate(resetsAt) {
  * @param {Object|null} limitOverride - Optional override for the limit title/body (e.g. for PR size errors).
  *   If provided, { title: string, body: string } will be used instead of the remote config / fallback values.
  * @param {number|null} purchasedReviewCredits - Prepaid credits balance (used after daily limit).
- * @param {{ skipLoader?: boolean, hideCreditPacks?: boolean, limitDetails?: { limitType?: string, resetsAt?: string|null, burstLimit?: number|null, todayCount?: number|null }|null }} [options] - skipLoader: keep review panel visible while loading; hideCreditPacks: plans only (e.g. PR size limit); limitDetails: which limit was hit ('monthly' pool or the daily 'burst' cap) and when the pool resets.
+ * @param {{ skipLoader?: boolean, hideCreditPacks?: boolean, limitDetails?: object|null }} [options]
  */
 async function showUpgradeMessage(
   reviewCount,
@@ -986,25 +1191,15 @@ async function showUpgradeMessage(
 ) {
   const limitDetails = options?.limitDetails || null;
   const isBurstLimit = !limitOverride && limitDetails?.limitType === 'burst';
-  const hideCreditPacks = options?.hideCreditPacks === true || isBurstLimit;
+  const isPrSizeLimit = Boolean(limitOverride) || limitDetails?.limitType === 'prSize';
+  const limitTypeKey = isPrSizeLimit ? 'prSize' : isBurstLimit ? 'burst' : 'monthly';
+  // Burst no longer hides packs — packs unlock the daily burst cap. PR-size still hides them.
+  const hideCreditPacks = options?.hideCreditPacks === true;
   const resetDateLabel = formatLimitResetDate(limitDetails?.resetsAt);
-  const upgradeSurface = limitOverride ? 'large_pr' : 'limit_banner';
-  if (upgradeSurface === 'limit_banner') {
-    trackAnalytics('daily_limit_reached', {
-      context: 'upgrade_prompt',
-      location: 'integrated_panel',
-      surface: upgradeSurface,
-      limit_type: isBurstLimit ? 'burst' : 'monthly',
-      review_count: reviewCount,
-      daily_limit: dailyLimit,
-      purchased_credits: purchasedReviewCredits
-    });
-  }
-  trackAnalytics('upgrade_impression', {
-    context: 'upgrade_prompt',
-    location: 'integrated_panel',
-    surface: upgradeSurface
-  });
+  const dailyResetLabel =
+    formatLimitResetDate(limitDetails?.dailyResetsAt) || 'tomorrow';
+  const upgradeSurface = isPrSizeLimit ? 'large_pr' : 'limit_banner';
+  // Analytics fired after plan/screen resolution below.
   const reviewContent = document.getElementById('review-content');
   const reviewError = document.getElementById('review-error');
   const loginPrompt = document.getElementById('review-login-prompt');
@@ -1077,6 +1272,32 @@ async function showUpgradeMessage(
         dbgWarn('Error loading subscription section:', response?.error || chrome.runtime.lastError?.message);
         unmountUpgradePromptLoader();
         upgradeWrapper.classList.remove('is-loading');
+        // Keep impression analytics even when the subscription section fails to load.
+        const failureVariant = `${limitTypeKey}_${normalizeUpgradePlanKey(limitDetails?.planType) || 'unknown'}`;
+        const failurePlan = normalizeUpgradePlanKey(limitDetails?.planType) || 'unknown';
+        if (upgradeSurface === 'limit_banner') {
+          trackAnalytics('daily_limit_reached', {
+            context: 'upgrade_prompt',
+            location: 'integrated_panel',
+            surface: upgradeSurface,
+            limit_type: limitTypeKey,
+            plan_type: failurePlan,
+            screen_variant: failureVariant,
+            sections_shown: '',
+            review_count: reviewCount,
+            daily_limit: dailyLimit,
+            purchased_credits: purchasedReviewCredits
+          });
+        }
+        trackAnalytics('upgrade_impression', {
+          context: 'upgrade_prompt',
+          location: 'integrated_panel',
+          surface: upgradeSurface,
+          limit_type: limitTypeKey,
+          plan_type: failurePlan,
+          screen_variant: failureVariant,
+          sections_shown: ''
+        });
         const fallbackKicker = limitOverride ? 'Upgrade' : (isBurstLimit ? 'Daily burst limit' : 'Monthly limit');
         const fallbackTitle = limitOverride
           ? String(limitOverride.title)
@@ -1105,9 +1326,10 @@ async function showUpgradeMessage(
         promotionalMessage: '',
         plans: [
           {
+            id: 'lite',
             name: 'Lite',
             interval: 'monthly',
-            price: 10,
+            price: 15,
             period: 'month',
             currency: 'USD',
             ctaText: 'Choose Lite',
@@ -1116,24 +1338,32 @@ async function showUpgradeMessage(
             hasDiscount: false
           },
           {
+            id: 'professional',
             name: 'Professional',
             interval: 'monthly',
-            price: 15,
+            price: 24,
             period: 'month',
             currency: 'USD',
             ctaText: 'Choose Professional',
             features: ['600 review credits per month', '20x more usage than Free', 'Premium AI models', 'Priority support'],
             checkoutUrl: 'https://portal.thinkreview.dev/subscription',
-            hasDiscount: false
+            hasDiscount: false,
+            isPopular: true
           }
-        ]
+        ],
+        limitScreens: null,
+        userPlan: null
       };
 
       let upgradeConfig = fallbackConfig;
+      let storageData = {};
       try {
         const cloudModule = await import(chrome.runtime.getURL('services/cloud-service.js'));
-        const storageData = await new Promise((resolve) => {
-          chrome.storage.local.get(['userData', 'user'], resolve);
+        storageData = await new Promise((resolve) => {
+          chrome.storage.local.get(
+            ['userData', 'user', 'userSubscriptionData', 'subscriptionType'],
+            resolve
+          );
         });
 
         let email = storageData?.userData?.email || null;
@@ -1151,7 +1381,7 @@ async function showUpgradeMessage(
           const hasRemotePlans = Array.isArray(remoteConfig?.plans) && remoteConfig.plans.length > 0;
           const hasRemoteCreditPacks =
             Array.isArray(remoteConfig?.creditPacks) && remoteConfig.creditPacks.length > 0;
-          if (remoteConfig && (hasRemotePlans || hasRemoteCreditPacks || remoteConfig.rewardsCta)) {
+          if (remoteConfig && (hasRemotePlans || hasRemoteCreditPacks || remoteConfig.rewardsCta || remoteConfig.limitScreens)) {
             upgradeConfig = {
               ...fallbackConfig,
               ...remoteConfig,
@@ -1160,9 +1390,10 @@ async function showUpgradeMessage(
                 ...(remoteConfig.prompt || {})
               },
               plans: hasRemotePlans ? remoteConfig.plans : fallbackConfig.plans,
-              creditPacks:
-                hideCreditPacks || !hasRemoteCreditPacks ? [] : remoteConfig.creditPacks,
-              rewardsCta: remoteConfig.rewardsCta || null
+              creditPacks: !hasRemoteCreditPacks ? [] : remoteConfig.creditPacks,
+              rewardsCta: remoteConfig.rewardsCta || null,
+              limitScreens: remoteConfig.limitScreens || null,
+              userPlan: remoteConfig.userPlan || null
             };
           }
         }
@@ -1170,7 +1401,32 @@ async function showUpgradeMessage(
         dbgWarn('Error fetching upgrade prompt config, using fallback:', configError);
       }
 
-      if (hideCreditPacks) {
+      const userPlanKey = resolveUpgradeUserPlan(
+        upgradeConfig.userPlan,
+        limitDetails,
+        storageData
+      );
+      const screenConfig = getLimitScreenConfig(
+        upgradeConfig.limitScreens,
+        limitTypeKey,
+        userPlanKey || 'free'
+      );
+
+      const showPacks =
+        !hideCreditPacks &&
+        (screenConfig ? screenConfig.showCreditPacks !== false : true);
+      // Free credits (Rewards) are for free users only; unknown plan keeps legacy behavior.
+      const isKnownPaidPlan = userPlanKey !== null && userPlanKey !== 'free';
+      const showRewards =
+        !isKnownPaidPlan && (screenConfig ? screenConfig.showRewards !== false : true);
+      const showTip = screenConfig ? screenConfig.showTip !== false : true;
+      const sectionOrder = Array.isArray(screenConfig?.sectionOrder)
+        ? screenConfig.sectionOrder
+        : isBurstLimit
+          ? ['packs', 'plans', 'rewards']
+          : ['plans', 'packs', 'rewards'];
+
+      if (!showPacks) {
         upgradeConfig.creditPacks = [];
       }
 
@@ -1183,23 +1439,98 @@ async function showUpgradeMessage(
       const hasBurstNumbers =
         isBurstLimit && Number.isFinite(burstLimitValue) && burstLimitValue > 0 && Number.isFinite(burstTodayValue);
 
+      const placeholderValues = {
+        reviewCount: Number.isFinite(Number(reviewCount)) ? String(reviewCount) : '',
+        monthlyLimit: Number.isFinite(monthlyPool) ? String(monthlyPool) : '',
+        dailyLimit: Number.isFinite(monthlyPool) ? String(monthlyPool) : String(dailyLimit),
+        todayCount: Number.isFinite(burstTodayValue) ? String(burstTodayValue) : '',
+        dailyCap: Number.isFinite(burstLimitValue) ? String(burstLimitValue) : '',
+        resetDate: resetDateLabel || 'the 1st of next month',
+        dailyResetLabel,
+        creditsBalance:
+          typeof purchasedReviewCredits === 'number' && Number.isFinite(purchasedReviewCredits)
+            ? String(purchasedReviewCredits)
+            : ''
+      };
+
       let safeBody;
       let safeLimitTitle;
+      let safeKicker;
       if (limitOverride) {
         safeBody = String(limitOverride.body);
         safeLimitTitle = String(limitOverride.title);
+        safeKicker = screenConfig?.kicker || 'Upgrade';
+      } else if (screenConfig) {
+        safeLimitTitle = screenConfig.title || (isBurstLimit ? 'Daily Burst Limit Reached' : 'Monthly Review Limit Reached');
+        safeKicker = screenConfig.kicker || (isBurstLimit ? 'Daily burst limit' : 'Monthly limit');
+        const interpolated = interpolateLimitScreenText(screenConfig.body, placeholderValues);
+        safeBody =
+          interpolated ||
+          screenConfig.bodyFallback ||
+          (isBurstLimit
+            ? "You've reached today's burst limit. It resets tomorrow, and your monthly credits are unaffected."
+            : String(upgradeConfig.prompt.limitBody || fallbackConfig.prompt.limitBody)
+                .replace('{reviewCount}', placeholderValues.reviewCount)
+                .replace('{dailyLimit}', placeholderValues.dailyLimit)
+                .replace('{resetDate}', placeholderValues.resetDate));
       } else if (isBurstLimit) {
         safeLimitTitle = 'Daily Burst Limit Reached';
+        safeKicker = 'Daily burst limit';
         safeBody = hasBurstNumbers
           ? `You've used ${burstTodayValue} of today's ${burstLimitValue} review credits. This daily safety limit resets tomorrow, and your monthly credits are unaffected.`
           : "You've reached today's burst limit. It resets tomorrow, and your monthly credits are unaffected.";
       } else {
+        safeKicker = 'Monthly limit';
         safeBody = String(upgradeConfig.prompt.limitBody || fallbackConfig.prompt.limitBody)
           .replace('{reviewCount}', String(reviewCount))
           .replace('{dailyLimit}', String(Number.isFinite(monthlyPool) ? monthlyPool : dailyLimit))
           .replace('{resetDate}', resetDateLabel || 'the 1st of next month');
         safeLimitTitle = String(upgradeConfig.prompt.limitTitle || fallbackConfig.prompt.limitTitle);
       }
+
+      const planIdsForScreen = Array.isArray(screenConfig?.planIds)
+        ? screenConfig.planIds
+        : userPlanKey === 'professional' || userPlanKey === 'teams'
+          ? []
+          : userPlanKey === 'lite'
+            ? ['professional']
+            : null;
+      const allPlans = Array.isArray(upgradeConfig.plans) ? upgradeConfig.plans : fallbackConfig.plans;
+      const plans =
+        planIdsForScreen === null
+          ? allPlans.slice(0, 2)
+          : filterPlansByIds(allPlans, planIdsForScreen);
+      const showPlansSection = plans.length > 0;
+
+      const sectionsShown = [];
+      if (showPlansSection) sectionsShown.push('plans');
+      if (showPacks) sectionsShown.push('packs');
+      if (showRewards && upgradeConfig.rewardsCta?.enabled) sectionsShown.push('rewards');
+      const screenVariant = `${limitTypeKey}_${userPlanKey || 'unknown'}`;
+
+      if (upgradeSurface === 'limit_banner') {
+        trackAnalytics('daily_limit_reached', {
+          context: 'upgrade_prompt',
+          location: 'integrated_panel',
+          surface: upgradeSurface,
+          limit_type: limitTypeKey,
+          plan_type: userPlanKey || 'unknown',
+          screen_variant: screenVariant,
+          sections_shown: sectionsShown.join(','),
+          review_count: reviewCount,
+          daily_limit: dailyLimit,
+          purchased_credits: purchasedReviewCredits
+        });
+      }
+      trackAnalytics('upgrade_impression', {
+        context: 'upgrade_prompt',
+        location: 'integrated_panel',
+        surface: upgradeSurface,
+        limit_type: limitTypeKey,
+        plan_type: userPlanKey || 'unknown',
+        screen_variant: screenVariant,
+        sections_shown: sectionsShown.join(',')
+      });
 
       const html = response.content;
       const prepaidBalance =
@@ -1235,51 +1566,94 @@ async function showUpgradeMessage(
       upgradeWrapper.classList.remove('is-loading');
       upgradeWrapper.innerHTML = `
         <div class="upgrade-prompt-header">
-          <div class="upgrade-prompt-kicker">${isBurstLimit ? 'Daily burst limit' : 'Monthly limit'}</div>
+          <div class="upgrade-prompt-kicker" id="upgrade-limit-kicker"></div>
           <h2 class="upgrade-prompt-title" id="upgrade-limit-title"></h2>
           <p class="upgrade-prompt-body" id="upgrade-limit-body"></p>
           ${meterHtml}
         </div>
         <div id="upgrade-credits-actions"></div>
+        <div id="upgrade-rewards-actions"></div>
         ${html}
-        ${tipBannerModule.getHTML()}
+        ${showTip ? tipBannerModule.getHTML() : ''}
       `;
 
+      const kickerEl = upgradeWrapper.querySelector('#upgrade-limit-kicker');
       const limitTitleEl = upgradeWrapper.querySelector('#upgrade-limit-title');
       const limitBodyEl = upgradeWrapper.querySelector('#upgrade-limit-body');
+      if (kickerEl) kickerEl.textContent = safeKicker;
       if (limitTitleEl) limitTitleEl.textContent = safeLimitTitle;
       if (limitBodyEl) limitBodyEl.textContent = safeBody;
 
       const creditsActionsEl = upgradeWrapper.querySelector('#upgrade-credits-actions');
+      const subscriptionSection = upgradeWrapper.querySelector('#subscription-section');
+      const analyticsExtras = {
+        plan_type: userPlanKey || 'unknown',
+        limit_type: limitTypeKey,
+        screen_variant: screenVariant,
+        sections_shown: sectionsShown.join(',')
+      };
+
+      const rewardsActionsEl = upgradeWrapper.querySelector('#upgrade-rewards-actions');
+      const hasRewardsCta = showRewards && Boolean(upgradeConfig.rewardsCta?.enabled);
+      // Rewards are visually secondary unless RC puts them first in sectionOrder.
+      const rewardsSecondary = sectionOrder.indexOf('rewards') !== 0;
+      const upgradeCreditPacks =
+        showPacks || hasRewardsCta
+          ? await import(chrome.runtime.getURL('components/upgrade-credit-packs.js'))
+          : null;
+
       if (creditsActionsEl) {
-        const hasRewardsCta = Boolean(upgradeConfig.rewardsCta?.enabled);
-        if (hideCreditPacks && !hasRewardsCta) {
+        if (!showPacks) {
           creditsActionsEl.replaceChildren();
           creditsActionsEl.classList.add('gl-hidden');
         } else {
           creditsActionsEl.classList.remove('gl-hidden');
-          const upgradeCreditPacks = await import(
-            chrome.runtime.getURL('components/upgrade-credit-packs.js')
-          );
           await upgradeCreditPacks.renderUpgradeCreditPacksActions(creditsActionsEl, {
-            creditPacks: hideCreditPacks ? [] : upgradeConfig.creditPacks,
-            prepaidBalance: hideCreditPacks ? null : prepaidBalance,
-            rewardsCta: upgradeConfig.rewardsCta || null,
-            analyticsContext: upgradeSurface
+            creditPacks: upgradeConfig.creditPacks,
+            prepaidBalance,
+            rewardsCta: null,
+            packsHeading: screenConfig?.packsHeading || null,
+            isBurstLimit,
+            analyticsContext: upgradeSurface,
+            analyticsExtras
+          });
+        }
+      }
+
+      if (rewardsActionsEl) {
+        if (!hasRewardsCta) {
+          rewardsActionsEl.replaceChildren();
+          rewardsActionsEl.classList.add('gl-hidden');
+        } else {
+          rewardsActionsEl.classList.remove('gl-hidden');
+          await upgradeCreditPacks.renderUpgradeCreditPacksActions(rewardsActionsEl, {
+            renderPacks: false,
+            rewardsCta: upgradeConfig.rewardsCta,
+            rewardsSecondary,
+            analyticsContext: upgradeSurface,
+            analyticsExtras
           });
         }
       }
 
       const titleEl = upgradeWrapper.querySelector('#subscription-title');
       const descriptionEl = upgradeWrapper.querySelector('#subscription-description');
-      if (titleEl) titleEl.textContent = upgradeConfig.prompt.title || fallbackConfig.prompt.title;
-      if (descriptionEl) descriptionEl.textContent = upgradeConfig.prompt.description || fallbackConfig.prompt.description;
+      const plansHeading =
+        (screenConfig?.plansHeading && String(screenConfig.plansHeading).trim()) ||
+        upgradeConfig.prompt.title ||
+        fallbackConfig.prompt.title;
+      const plansDescription =
+        (screenConfig?.plansDescription && String(screenConfig.plansDescription).trim()) ||
+        upgradeConfig.prompt.description ||
+        fallbackConfig.prompt.description;
+      if (titleEl) titleEl.textContent = plansHeading;
+      if (descriptionEl) descriptionEl.textContent = plansDescription;
 
       const promotionEl = upgradeWrapper.querySelector('#subscription-promotion');
       const promoText =
         typeof upgradeConfig.promotionalMessage === 'string' ? upgradeConfig.promotionalMessage.trim() : '';
       if (promotionEl) {
-        if (promoText) {
+        if (promoText && showPlansSection) {
           promotionEl.textContent = promoText;
           promotionEl.classList.remove('gl-hidden');
         } else {
@@ -1288,7 +1662,19 @@ async function showUpgradeMessage(
         }
       }
 
-      const plans = Array.isArray(upgradeConfig.plans) ? upgradeConfig.plans.slice(0, 2) : fallbackConfig.plans;
+      if (subscriptionSection) {
+        if (!showPlansSection) {
+          subscriptionSection.classList.add('gl-hidden');
+        } else {
+          subscriptionSection.classList.remove('gl-hidden');
+        }
+      }
+
+      const plansGrid = upgradeWrapper.querySelector('#subscription-plans');
+      if (plansGrid) {
+        plansGrid.classList.toggle('subscription-plans--single', plans.length === 1);
+      }
+
       const cards = upgradeWrapper.querySelectorAll('.subscription-plan-card');
       cards.forEach((card, idx) => {
         const plan = plans[idx];
@@ -1296,6 +1682,7 @@ async function showUpgradeMessage(
           card.classList.add('gl-hidden');
           return;
         }
+        card.classList.remove('gl-hidden');
 
         const nameEl = card.querySelector('.plan-name');
         const priceEl = card.querySelector('.plan-price');
@@ -1304,6 +1691,8 @@ async function showUpgradeMessage(
         const offerEl = card.querySelector('.plan-offer');
         const featuresEl = card.querySelector('.plan-features');
         const ctaBtn = card.querySelector('.upgrade-btn');
+        const popularEl = card.querySelector('.plan-popular-badge');
+        const usageEl = card.querySelector('.plan-usage-multiple');
 
         const period = plan.period || 'month';
         const isAnnualInterval = String(plan.interval || '').toLowerCase() === 'annual';
@@ -1318,6 +1707,24 @@ async function showUpgradeMessage(
           price > 0;
 
         if (nameEl) nameEl.textContent = plan.name || `Plan ${idx + 1}`;
+        if (popularEl) {
+          if (plan.isPopular) {
+            popularEl.textContent = 'Most popular';
+            popularEl.classList.remove('gl-hidden');
+          } else {
+            popularEl.textContent = '';
+            popularEl.classList.add('gl-hidden');
+          }
+        }
+        if (usageEl) {
+          if (plan.usageMultiple && plan.usageMultiple.value > 0) {
+            usageEl.textContent = `${plan.usageMultiple.value}x more usage than ${plan.usageMultiple.comparedTo || 'Free'}`;
+            usageEl.classList.remove('gl-hidden');
+          } else {
+            usageEl.textContent = '';
+            usageEl.classList.add('gl-hidden');
+          }
+        }
         if (priceEl) {
           priceEl.textContent = '';
           const suffix = `/${period}`;
@@ -1345,8 +1752,9 @@ async function showUpgradeMessage(
           }
         }
         if (billedEl) {
+          const savings = typeof plan.savingsLabel === 'string' ? plan.savingsLabel.trim() : '';
           if (isAnnualInterval) {
-            billedEl.textContent = 'Billed annually';
+            billedEl.textContent = savings ? `Billed annually · ${savings}` : 'Billed annually';
             billedEl.classList.remove('gl-hidden');
           } else {
             billedEl.textContent = '';
@@ -1376,7 +1784,15 @@ async function showUpgradeMessage(
         }
 
         if (ctaBtn) {
-          ctaBtn.textContent = plan.ctaText || 'Choose Plan';
+          let ctaLabel = plan.ctaText || 'Choose Plan';
+          if (plan.freeTrial?.available) {
+            const days = plan.freeTrial.value > 0 ? plan.freeTrial.value : null;
+            ctaLabel =
+              days != null
+                ? `Start ${days}-day free trial`
+                : plan.ctaText || 'Start Free Trial';
+          }
+          ctaBtn.textContent = ctaLabel;
           ctaBtn.addEventListener('click', async (e) => {
             e.preventDefault();
 
@@ -1388,7 +1804,8 @@ async function showUpgradeMessage(
                 source: upgradeSurface,
                 surface: upgradeSurface,
                 planId: plan.id || null,
-                interval: plan.interval || null
+                interval: plan.interval || null,
+                ...analyticsExtras
               }).catch(() => {});
             } catch (error) {
               // Silently fail - analytics should never break CTA
@@ -1400,7 +1817,27 @@ async function showUpgradeMessage(
         }
       });
 
-      tipBannerModule.wireActionButtons(upgradeWrapper);
+      // Reorder packs/plans/rewards per sectionOrder for conversion.
+      const tipBanner = upgradeWrapper.querySelector('.helpful-tip-banner');
+      const orderedNodes = [];
+      const sectionNodes = {
+        packs: creditsActionsEl,
+        rewards: rewardsActionsEl,
+        plans: subscriptionSection
+      };
+      sectionOrder.forEach((section) => {
+        const node = sectionNodes[section];
+        if (node && !orderedNodes.includes(node)) orderedNodes.push(node);
+      });
+      // Any section missing from a (mis)configured sectionOrder keeps a sane default position.
+      ['packs', 'plans', 'rewards'].forEach((section) => {
+        const node = sectionNodes[section];
+        if (node && !orderedNodes.includes(node)) orderedNodes.push(node);
+      });
+      orderedNodes.forEach((node) => upgradeWrapper.appendChild(node));
+      if (tipBanner) upgradeWrapper.appendChild(tipBanner);
+
+      if (showTip) tipBannerModule.wireActionButtons(upgradeWrapper);
       revealUpgradePrompt(upgradeWrapper, reviewContent, options);
     }
   );
@@ -1426,7 +1863,7 @@ function showPatchTooLargeMessage(patchSize, maxPatchSize) {
       body: `Your PR is ${patchSizeKB} KB, which exceeds the ${maxPatchSizeKB} KB limit for free accounts. Upgrade to review larger PRs with more powerful AI models.`
     },
     null,
-    { hideCreditPacks: true }
+    { hideCreditPacks: true, limitDetails: { limitType: 'prSize', planType: 'free' } }
   );
 }
 

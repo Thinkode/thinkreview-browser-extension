@@ -405,10 +405,12 @@ export class CloudService {
           limitError.limitDetails = {
             limitType: errorData.limitType || 'monthly',
             resetsAt: errorData.resetsAt || null,
+            dailyResetsAt: errorData.dailyResetsAt || null,
             monthlyLimit: errorData.monthlyLimit ?? null,
             dailyCap: errorData.dailyCap ?? errorData.burstLimit ?? null,
             burstLimit: errorData.dailyCap ?? errorData.burstLimit ?? null,
-            todayCount: errorData.todayCount ?? null
+            todayCount: errorData.todayCount ?? null,
+            planType: errorData.planType || null
           };
           throw limitError;
         }
@@ -622,10 +624,12 @@ export class CloudService {
               originalError.limitDetails = {
                 limitType: errorData.limitType || 'monthly',
                 resetsAt: errorData.resetsAt || null,
+                dailyResetsAt: errorData.dailyResetsAt || null,
                 monthlyLimit: errorData.monthlyLimit ?? null,
                 dailyCap: errorData.dailyCap ?? errorData.burstLimit ?? null,
                 burstLimit: errorData.dailyCap ?? errorData.burstLimit ?? null,
-                todayCount: errorData.todayCount ?? null
+                todayCount: errorData.todayCount ?? null,
+                planType: errorData.planType || null
               };
               originalError.rateLimitMessage = 'Daily review limit exceeded';
             }
@@ -1254,6 +1258,11 @@ export class CloudService {
       creditPacks: filterValidCreditPacks(data.creditPacks),
       promotionalMessage: typeof data.promotionalMessage === 'string' ? data.promotionalMessage : '',
       rewardsCta,
+      userPlan: typeof data.userPlan === 'string' ? data.userPlan.trim().toLowerCase() : null,
+      limitScreens:
+        data.limitScreens && typeof data.limitScreens === 'object' && !Array.isArray(data.limitScreens)
+          ? data.limitScreens
+          : null,
       remoteConfigApplied: data.remoteConfigApplied === true
     };
   }
