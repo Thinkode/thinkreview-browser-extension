@@ -1247,6 +1247,19 @@ async function showUpgradeMessage(
   dismissIntegratedReviewLoadingUI();
   mountUpgradePromptLoader(loadingHost);
 
+  // Monthly pool exhausted: record it so the settings-menu usage meter shows full now
+  // instead of waiting for the next user-data refresh.
+  if (limitTypeKey === 'monthly') {
+    import(chrome.runtime.getURL('components/popup-modules/credits-usage-bar.js'))
+      .then((creditsUsageModule) =>
+        creditsUsageModule.markMonthlyPoolExhausted({
+          limit: limitDetails?.monthlyLimit ?? dailyLimit,
+          resetsAt: limitDetails?.resetsAt || null
+        })
+      )
+      .catch(() => {});
+  }
+
   // Load subscription section styles
   if (!document.getElementById('subscription-styles')) {
     const linkEl = document.createElement('link');

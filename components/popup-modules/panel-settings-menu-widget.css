@@ -41,6 +41,68 @@
   margin: 4px 8px;
 }
 
+/* Monthly credit usage meter (non-interactive) */
+.thinkreview-settings-usage {
+  padding: 6px 14px 8px;
+}
+
+.thinkreview-settings-usage[hidden] {
+  display: none;
+}
+
+.thinkreview-settings-usage-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.thinkreview-settings-usage-title {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.thinkreview-settings-usage-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  font-variant-numeric: tabular-nums;
+}
+
+.thinkreview-settings-usage-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.thinkreview-settings-usage-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: #9b7ef0;
+  transition: width 0.25s ease;
+}
+
+.thinkreview-settings-usage-fill.is-warn {
+  background: #f59e0b;
+}
+
+.thinkreview-settings-usage-fill.is-full {
+  background: #ef4444;
+}
+
+.thinkreview-settings-usage-reset {
+  margin-top: 5px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.thinkreview-settings-usage-reset[hidden] {
+  display: none;
+}
+
 .thinkreview-settings-menu-item {
   display: flex;
   align-items: center;

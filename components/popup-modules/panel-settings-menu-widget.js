@@ -384,17 +384,20 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   const ideUrl = chrome.runtime.getURL('components/popup-modules/ide-assist-preference-widget.js');
   const textSizeUrl = chrome.runtime.getURL('components/popup-modules/panel-text-size-widget.js');
   const idePrefUrl = chrome.runtime.getURL('utils/ide-integration/ide-assist-preference.js');
+  const creditsUsageUrl = chrome.runtime.getURL('components/popup-modules/credits-usage-bar.js');
 
   let layoutMod;
   let ideMod;
   let textSizeMod;
   let getIdeAssistTarget;
+  let creditsUsageMod;
   try {
-    [layoutMod, ideMod, textSizeMod, { getIdeAssistTarget }] = await Promise.all([
+    [layoutMod, ideMod, textSizeMod, { getIdeAssistTarget }, creditsUsageMod] = await Promise.all([
       import(layoutUrl),
       import(ideUrl),
       import(textSizeUrl),
-      import(idePrefUrl)
+      import(idePrefUrl),
+      import(creditsUsageUrl)
     ]);
   } catch (e) {
     dbgWarn('Failed to load settings menu dependencies:', e);
@@ -473,6 +476,11 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   portalDivider.className = 'thinkreview-settings-menu-divider';
   portalDivider.setAttribute('role', 'separator');
   main.appendChild(portalDivider);
+
+  // Monthly credit usage (hidden until the plan pool is known from user data)
+  const creditsUsageMeter = creditsUsageMod.createCreditsUsageMeter();
+  main.appendChild(creditsUsageMeter);
+  creditsUsageMod.initCreditsUsageMeter(creditsUsageMeter);
 
   const buyCreditsRow = _createMenuRow({
     id: 'buy-credits',
