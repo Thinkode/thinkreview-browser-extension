@@ -1,6 +1,6 @@
 /**
  * First-open interactive tour for integrated panel settings.
- * Walks through review format, text size, settings gear, layout, and auto-start.
+ * Walks through review format, text size, settings gear, layout, auto-start, and credit usage.
  */
 
 import { dbgWarn } from '../../utils/logger.js';
@@ -196,7 +196,7 @@ function _buildSteps(panelEl) {
     {
       id: 'settings-menu',
       title: 'Open Settings',
-      body: 'The gear menu holds layout, implement-via IDE, text size, auto-start, credits, and portal links.',
+      body: 'The gear menu holds layout, implement-via IDE, text size, auto-start, your credit usage, and portal links.',
       getTarget: async () => {
         await _openSettingsMain();
         return document.getElementById('thinkreview-settings-btn');
@@ -227,6 +227,21 @@ function _buildSteps(panelEl) {
         api?.closeSubmenus?.();
         await _delay(30);
         return document.querySelector('[data-menu-action="auto-start-review"]');
+      }
+    },
+    {
+      id: 'usage',
+      title: 'Track your credit usage',
+      body: 'See how many review credits you have used this month and when they reset. Running low? Buy a credit pack from the row just below.',
+      getTarget: async () => {
+        await _openSettingsMain();
+        const api = _getSettingsMenuApi();
+        api?.closeSubmenus?.();
+        await _delay(30);
+        // The meter stays hidden until the plan limit is known; fall back to the Usage row.
+        const meter = document.querySelector('#thinkreview-settings-dropdown .thinkreview-settings-usage');
+        if (meter && !meter.hidden) return meter;
+        return document.querySelector('[data-menu-action="usage"]');
       }
     },
     {
@@ -459,7 +474,10 @@ function _runTour(panelEl) {
       extraRaise.push(formatDropdown);
     }
     if (
-      (step.id === 'settings-menu' || step.id === 'layout' || step.id === 'auto-start') &&
+      (step.id === 'settings-menu' ||
+        step.id === 'layout' ||
+        step.id === 'auto-start' ||
+        step.id === 'usage') &&
       settingsDropdown?.style.display !== 'none'
     ) {
       extraRaise.push(settingsDropdown);
