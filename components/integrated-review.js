@@ -541,6 +541,19 @@ async function createIntegratedReviewPanel(patchUrl) {
           </span>
         </div>
       </div>
+      <div id="thinkreview-credits-bar" class="thinkreview-credits-bar" hidden>
+        <div
+          class="thinkreview-credits-bar-track"
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuenow="0"
+          aria-valuemax="0"
+          aria-label="Review credits used this month"
+        >
+          <div class="thinkreview-credits-bar-fill"></div>
+        </div>
+        <span class="thinkreview-credits-bar-label"></span>
+      </div>
       <div class="thinkreview-card-body">
         <div id="review-loading" class="enhanced-loader">
           <div class="loader-container">
@@ -1825,7 +1838,7 @@ async function handleSendMessage(messageText) {
     if (error.isLimitExceeded && typeof window.showUpgradeMessage === 'function') {
       await window.showUpgradeMessage(
         error.currentCount ?? 0,
-        error.dailyLimit ?? 30,
+        error.limitDetails?.monthlyLimit ?? error.monthlyLimit ?? error.dailyLimit ?? 30,
         null,
         error.purchasedReviewCredits ?? null,
         { skipLoader: true, limitDetails: error.limitDetails || null }

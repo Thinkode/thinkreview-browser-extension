@@ -1176,7 +1176,9 @@ async function showUpgradeMessage(
 
       // Number(null) is 0, which would render "0 of today's N credits". Absent
       // values stay missing so the prompt falls back to the generic burst copy.
-      const burstLimitValue = limitDetails?.burstLimit == null ? NaN : Number(limitDetails.burstLimit);
+      const monthlyPool = Number(limitDetails?.monthlyLimit ?? dailyLimit);
+      const capSource = limitDetails?.dailyCap ?? limitDetails?.burstLimit;
+      const burstLimitValue = capSource == null ? NaN : Number(capSource);
       const burstTodayValue = limitDetails?.todayCount == null ? NaN : Number(limitDetails.todayCount);
       const hasBurstNumbers =
         isBurstLimit && Number.isFinite(burstLimitValue) && burstLimitValue > 0 && Number.isFinite(burstTodayValue);
@@ -1194,7 +1196,7 @@ async function showUpgradeMessage(
       } else {
         safeBody = String(upgradeConfig.prompt.limitBody || fallbackConfig.prompt.limitBody)
           .replace('{reviewCount}', String(reviewCount))
-          .replace('{dailyLimit}', String(dailyLimit))
+          .replace('{dailyLimit}', String(Number.isFinite(monthlyPool) ? monthlyPool : dailyLimit))
           .replace('{resetDate}', resetDateLabel || 'the 1st of next month');
         safeLimitTitle = String(upgradeConfig.prompt.limitTitle || fallbackConfig.prompt.limitTitle);
       }
@@ -1207,7 +1209,7 @@ async function showUpgradeMessage(
 
       // Burst limit: meter shows today's spend against the daily cap; otherwise the monthly pool.
       const meterUsed = isBurstLimit ? burstTodayValue : Number(reviewCount);
-      const meterTotal = isBurstLimit ? burstLimitValue : Number(dailyLimit);
+      const meterTotal = isBurstLimit ? burstLimitValue : monthlyPool;
       const showUsageMeter =
         !limitOverride &&
         Number.isFinite(meterUsed) &&
@@ -1776,8 +1778,8 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       if (bgResponse?.isLimitExceeded) {
         dbgLog('Daily review limit exceeded');
         showUpgradeMessage(
-          bgResponse.currentCount || bgResponse.dailyLimit,
-          bgResponse.dailyLimit || 30,
+          bgResponse.currentCount || bgResponse.limitDetails?.monthlyLimit || bgResponse.dailyLimit,
+          bgResponse.limitDetails?.monthlyLimit || bgResponse.dailyLimit || 30,
           null,
           bgResponse.purchasedReviewCredits,
           { limitDetails: bgResponse.limitDetails || null }

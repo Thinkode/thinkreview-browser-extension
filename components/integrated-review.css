@@ -204,6 +204,47 @@
   color: #fff;
 }
 
+#gitlab-mr-integrated-review .thinkreview-credits-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 16px 6px;
+  background: #f4f0fb;
+  border-bottom: 1px solid #e4dcf3;
+  flex-shrink: 0;
+}
+#gitlab-mr-integrated-review .thinkreview-credits-bar[hidden] {
+  display: none;
+}
+#gitlab-mr-integrated-review .thinkreview-credits-bar-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: #e3d8f5;
+  overflow: hidden;
+}
+#gitlab-mr-integrated-review .thinkreview-credits-bar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: #6b4fbb;
+  transition: width 0.25s ease;
+}
+#gitlab-mr-integrated-review .thinkreview-credits-bar-fill.is-warn {
+  background: #d97706;
+}
+#gitlab-mr-integrated-review .thinkreview-credits-bar-fill.is-full {
+  background: #dc2626;
+}
+#gitlab-mr-integrated-review .thinkreview-credits-bar-label {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: #4c1d95;
+  font-variant-numeric: tabular-nums;
+}
+
 #gitlab-mr-integrated-review .thinkreview-header-actions {
   display: flex;
   align-items: center;
