@@ -1304,8 +1304,8 @@ async function showUpgradeMessage(
           : (isBurstLimit ? 'Daily Burst Limit Reached' : 'Monthly Review Limit Reached');
         upgradeWrapper.innerHTML = `
           <div class="upgrade-prompt-header">
-            <div class="upgrade-prompt-kicker">${fallbackKicker}</div>
-            <h2 class="upgrade-prompt-title">${fallbackTitle}</h2>
+            <div class="upgrade-prompt-kicker"></div>
+            <h2 class="upgrade-prompt-title"></h2>
             <p class="upgrade-prompt-body">Unable to load upgrade options. Please try again or visit the portal.</p>
             <a href="https://portal.thinkreview.dev/subscription" target="_blank" rel="noopener noreferrer"
                class="upgrade-rewards-prize-btn" style="margin-top:12px;">
@@ -1313,6 +1313,9 @@ async function showUpgradeMessage(
             </a>
           </div>
         `;
+        // Set via textContent so a title from config/overrides is never parsed as HTML.
+        upgradeWrapper.querySelector('.upgrade-prompt-kicker').textContent = fallbackKicker;
+        upgradeWrapper.querySelector('.upgrade-prompt-title').textContent = fallbackTitle;
         revealUpgradePrompt(upgradeWrapper, reviewContent, options);
         return;
       }
