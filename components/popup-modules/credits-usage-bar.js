@@ -185,24 +185,34 @@ export async function refreshDailyCapMeter(meter) {
   return refreshMeter(meter, resolveDailyCapUsage);
 }
 
+const activeMeters = new Set();
+let storageListenerAttached = false;
+
+function pruneDisconnectedMeters() {
+  for (const entry of activeMeters) {
+    if (!entry.meter.isConnected) activeMeters.delete(entry);
+  }
+}
+
+function onStoredUsageChanged(changes, area) {
+  if (area !== 'local') return;
+  if (!STORAGE_KEYS.some((key) => key in changes)) return;
+  pruneDisconnectedMeters();
+  for (const entry of activeMeters) entry.refresh(entry.meter);
+}
+
 /**
- * Render the meter now and keep it in sync whenever the stored usage changes.
- * The listener removes itself once the meter is detached from the page.
+ * One storage listener for every meter on the page. Opening the menu again
+ * drops meters that were removed with the previous menu.
  */
 function initMeter(meter, refresh) {
   refresh(meter);
-
-  const onChanged = (changes, area) => {
-    if (!meter.isConnected) {
-      chrome.storage.onChanged.removeListener(onChanged);
-      return;
-    }
-    if (area !== 'local') return;
-    if (STORAGE_KEYS.some((key) => key in changes)) {
-      refresh(meter);
-    }
-  };
-  chrome.storage.onChanged.addListener(onChanged);
+  pruneDisconnectedMeters();
+  activeMeters.add({ meter, refresh });
+  if (!storageListenerAttached) {
+    chrome.storage.onChanged.addListener(onStoredUsageChanged);
+    storageListenerAttached = true;
+  }
 }
 
 /**
