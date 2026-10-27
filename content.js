@@ -1354,7 +1354,7 @@ async function showUpgradeMessage(
             period: 'month',
             currency: 'USD',
             ctaText: 'Choose Lite',
-            features: ['300 review credits per month', '10x more usage than Free', 'Bigger PR analysis', 'Lite flagship models'],
+            features: ['200 review credits per month', 'About 6.7x more usage than Free', 'Bigger PR analysis', 'Lite flagship models'],
             checkoutUrl: 'https://portal.thinkreview.dev/subscription',
             hasDiscount: false
           },
