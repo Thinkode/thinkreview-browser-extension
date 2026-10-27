@@ -399,8 +399,19 @@ export class CloudService {
           const limitError = new Error('Daily review limit exceeded');
           limitError.isLimitExceeded = true;
           limitError.dailyLimit = errorData.dailyLimit;
+          limitError.monthlyLimit = errorData.monthlyLimit ?? null;
           limitError.currentCount = errorData.currentCount;
           limitError.purchasedReviewCredits = errorData.purchasedReviewCredits;
+          limitError.limitDetails = {
+            limitType: errorData.limitType || 'monthly',
+            resetsAt: errorData.resetsAt || null,
+            dailyResetsAt: errorData.dailyResetsAt || null,
+            monthlyLimit: errorData.monthlyLimit ?? null,
+            dailyCap: errorData.dailyCap ?? errorData.burstLimit ?? null,
+            burstLimit: errorData.dailyCap ?? errorData.burstLimit ?? null,
+            todayCount: errorData.todayCount ?? null,
+            planType: errorData.planType || null
+          };
           throw limitError;
         }
         if (errorData.message === 'PR-size-limit-exceeded') {
@@ -607,8 +618,19 @@ export class CloudService {
             if (errorData.message === 'Reviews-limits-exceeded') {
               originalError.isLimitExceeded = true;
               originalError.dailyLimit = errorData.dailyLimit;
+              originalError.monthlyLimit = errorData.monthlyLimit ?? null;
               originalError.currentCount = errorData.currentCount;
               originalError.purchasedReviewCredits = errorData.purchasedReviewCredits;
+              originalError.limitDetails = {
+                limitType: errorData.limitType || 'monthly',
+                resetsAt: errorData.resetsAt || null,
+                dailyResetsAt: errorData.dailyResetsAt || null,
+                monthlyLimit: errorData.monthlyLimit ?? null,
+                dailyCap: errorData.dailyCap ?? errorData.burstLimit ?? null,
+                burstLimit: errorData.dailyCap ?? errorData.burstLimit ?? null,
+                todayCount: errorData.todayCount ?? null,
+                planType: errorData.planType || null
+              };
               originalError.rateLimitMessage = 'Daily review limit exceeded';
             }
           } catch (parseError) {
@@ -1014,6 +1036,8 @@ export class CloudService {
         return {
           reviewCount: data.reviewCount || 0,
           todayReviewCount: data.todayReviewCount || 0,
+          monthReviewCount: Number(data.monthReviewCount) || 0,
+          reviewQuota: data.reviewQuota && typeof data.reviewQuota === 'object' ? data.reviewQuota : null,
           lastReviewDate: data.lastReviewDate || null,
           lastFeedbackPromptInteraction: data.lastFeedbackPromptInteraction || null,
           purchasedReviewCredits:
@@ -1234,6 +1258,11 @@ export class CloudService {
       creditPacks: filterValidCreditPacks(data.creditPacks),
       promotionalMessage: typeof data.promotionalMessage === 'string' ? data.promotionalMessage : '',
       rewardsCta,
+      userPlan: typeof data.userPlan === 'string' ? data.userPlan.trim().toLowerCase() : null,
+      limitScreens:
+        data.limitScreens && typeof data.limitScreens === 'object' && !Array.isArray(data.limitScreens)
+          ? data.limitScreens
+          : null,
       remoteConfigApplied: data.remoteConfigApplied === true
     };
   }

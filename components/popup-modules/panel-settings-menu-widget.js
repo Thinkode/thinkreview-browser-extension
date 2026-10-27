@@ -384,17 +384,20 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   const ideUrl = chrome.runtime.getURL('components/popup-modules/ide-assist-preference-widget.js');
   const textSizeUrl = chrome.runtime.getURL('components/popup-modules/panel-text-size-widget.js');
   const idePrefUrl = chrome.runtime.getURL('utils/ide-integration/ide-assist-preference.js');
+  const creditsUsageUrl = chrome.runtime.getURL('components/popup-modules/credits-usage-bar.js');
 
   let layoutMod;
   let ideMod;
   let textSizeMod;
   let getIdeAssistTarget;
+  let creditsUsageMod;
   try {
-    [layoutMod, ideMod, textSizeMod, { getIdeAssistTarget }] = await Promise.all([
+    [layoutMod, ideMod, textSizeMod, { getIdeAssistTarget }, creditsUsageMod] = await Promise.all([
       import(layoutUrl),
       import(ideUrl),
       import(textSizeUrl),
-      import(idePrefUrl)
+      import(idePrefUrl),
+      import(creditsUsageUrl)
     ]);
   } catch (e) {
     dbgWarn('Failed to load settings menu dependencies:', e);
@@ -473,6 +476,16 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   portalDivider.className = 'thinkreview-settings-menu-divider';
   portalDivider.setAttribute('role', 'separator');
   main.appendChild(portalDivider);
+
+  // Monthly pool, then the daily cap on the next row. Both stay hidden until known.
+  const creditsUsageStack = document.createElement('div');
+  creditsUsageStack.className = 'thinkreview-settings-usage-stack';
+  const creditsUsageMeter = creditsUsageMod.createCreditsUsageMeter();
+  const dailyCapMeter = creditsUsageMod.createDailyCapMeter();
+  creditsUsageStack.append(creditsUsageMeter, dailyCapMeter);
+  main.appendChild(creditsUsageStack);
+  creditsUsageMod.initCreditsUsageMeter(creditsUsageMeter);
+  creditsUsageMod.initDailyCapMeter(dailyCapMeter);
 
   const buyCreditsRow = _createMenuRow({
     id: 'buy-credits',

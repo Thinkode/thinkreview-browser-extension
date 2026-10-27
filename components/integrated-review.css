@@ -204,6 +204,7 @@
   color: #fff;
 }
 
+
 #gitlab-mr-integrated-review .thinkreview-header-actions {
   display: flex;
   align-items: center;
@@ -302,6 +303,20 @@
 #gitlab-mr-integrated-review #review-content:has(#upgrade-message-wrapper) {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* Light surface fills the whole panel body (no dark gutters / empty dark area below) */
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+}
+
+/* The wrapper stretches to the full panel and drops its own card chrome; the
+   content area above provides the background. Loading state keeps its own rules. */
+#gitlab-mr-integrated-review #review-content #upgrade-message-wrapper.upgrade-prompt-panel:not(.is-loading) {
+  flex: 1 0 auto;
+  min-height: 100%;
+  padding: 14px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
 }
 
 #gitlab-mr-integrated-review #review-content:has(#upgrade-prompt-loading) {

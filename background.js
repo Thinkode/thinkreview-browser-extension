@@ -427,6 +427,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           dailyLimit: err.dailyLimit,
           currentCount: err.currentCount,
           purchasedReviewCredits: err.purchasedReviewCredits,
+          limitDetails: err.limitDetails || null,
           rateLimitMessage: err.rateLimitMessage || null,
           retryAfter: err.retryAfter || null,
           ...authExpiredPayload(err),
@@ -583,6 +584,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           dailyLimit: err.dailyLimit,
           currentCount: err.currentCount,
           purchasedReviewCredits: err.purchasedReviewCredits,
+          limitDetails: err.limitDetails || null,
           provider: settings.aiProvider || 'cloud',
           ...authExpiredPayload(err),
         });

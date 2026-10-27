@@ -1824,11 +1824,11 @@ async function handleSendMessage(messageText) {
     
     if (error.isLimitExceeded && typeof window.showUpgradeMessage === 'function') {
       await window.showUpgradeMessage(
-        error.currentCount ?? 0,
-        error.dailyLimit ?? 15,
+        error.currentCount || error.limitDetails?.monthlyLimit || error.monthlyLimit || error.dailyLimit || 30,
+        error.limitDetails?.monthlyLimit ?? error.monthlyLimit ?? error.dailyLimit ?? 30,
         null,
         error.purchasedReviewCredits ?? null,
-        { skipLoader: true }
+        { skipLoader: true, limitDetails: error.limitDetails || null }
       );
       return;
     }
