@@ -1444,6 +1444,12 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
       typeof message.userData.extensionAuthToken === 'string'
         ? message.userData.extensionAuthToken
         : null;
+
+    // Persist the new token before any cloud call. Otherwise sync uses the previous
+    // token, gets a 401, and that 401 wipes the session the review needs.
+    if (extensionAuthToken) {
+      await chrome.storage.local.set({ [EXTENSION_AUTH_TOKEN_KEY]: extensionAuthToken });
+    }
     
     // Sync user data with CloudService to get full user profile
     try {
