@@ -805,6 +805,20 @@ function showLoginPrompt(options = {}) {
     description.className = 'thinkreview-login-description';
     description.innerHTML =
       `Click the button below or open <a href="${portalSignInUrl}" target="_blank" rel="noopener noreferrer">${portalSignInUrl}</a>.`;
+    const signInLink = description.querySelector('a');
+    if (signInLink) {
+      signInLink.addEventListener('click', (event) => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+          return;
+        }
+        event.preventDefault();
+        chrome.runtime.sendMessage({ type: 'OPEN_SIGNIN_PORTAL' }, (response) => {
+          if (chrome.runtime.lastError || !response || !response.success) {
+            window.open(portalSignInUrl, '_blank', 'noopener,noreferrer');
+          }
+        });
+      });
+    }
     messageContainer.appendChild(description);
     
     loginPrompt.appendChild(messageContainer);
@@ -1409,7 +1423,7 @@ async function showUpgradeMessage(
             id: 'professional',
             name: 'Professional',
             interval: 'monthly',
-            price: 24,
+            price: 30,
             period: 'month',
             currency: 'USD',
             ctaText: 'Choose Professional',
