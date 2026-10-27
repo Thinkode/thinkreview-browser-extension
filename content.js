@@ -1249,14 +1249,19 @@ async function showUpgradeMessage(
 
   // Monthly pool exhausted: record it so the settings-menu usage meter shows full now
   // instead of waiting for the next user-data refresh.
-  if (limitTypeKey === 'monthly') {
+  if (limitTypeKey === 'monthly' || limitTypeKey === 'burst') {
     import(chrome.runtime.getURL('components/popup-modules/credits-usage-bar.js'))
-      .then((creditsUsageModule) =>
-        creditsUsageModule.markMonthlyPoolExhausted({
+      .then((creditsUsageModule) => {
+        if (limitTypeKey === 'burst') {
+          return creditsUsageModule.markDailyCapExhausted({
+            limit: limitDetails?.dailyCap ?? limitDetails?.burstLimit
+          });
+        }
+        return creditsUsageModule.markMonthlyPoolExhausted({
           limit: limitDetails?.monthlyLimit ?? dailyLimit,
           resetsAt: limitDetails?.resetsAt || null
-        })
-      )
+        });
+      })
       .catch(() => {});
   }
 

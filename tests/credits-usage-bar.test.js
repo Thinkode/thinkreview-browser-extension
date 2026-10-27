@@ -1,9 +1,12 @@
 import { jest } from '@jest/globals';
 import {
   resolveCreditsUsage,
+  resolveDailyCapUsage,
   createCreditsUsageMeter,
+  createDailyCapMeter,
   renderCreditsUsageMeter,
-  markMonthlyPoolExhausted
+  markMonthlyPoolExhausted,
+  markDailyCapExhausted
 } from '../components/popup-modules/credits-usage-bar.js';
 
 const FUTURE = new Date(Date.now() + 10 * 24 * 3600 * 1000).toISOString();
@@ -33,6 +36,39 @@ describe('resolveCreditsUsage', () => {
     expect(
       resolveCreditsUsage({ monthReviewCount: 25, reviewQuota: { monthlyLimit: 30, resetsAt: PAST } }).used
     ).toBe(0);
+  });
+});
+
+describe('resolveDailyCapUsage', () => {
+  test('uses today’s count when the last review was today', () => {
+    expect(
+      resolveDailyCapUsage({
+        todayReviewCount: 12,
+        lastReviewDate: new Date().toISOString(),
+        reviewQuota: { dailyCap: 50 }
+      })
+    ).toEqual({ used: 12, limit: 50, resetText: 'Resets tomorrow' });
+  });
+
+  test('ignores yesterday’s count', () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    expect(
+      resolveDailyCapUsage({
+        todayReviewCount: 40,
+        lastReviewDate: yesterday.toISOString(),
+        reviewQuota: { dailyCap: 50 }
+      }).used
+    ).toBe(0);
+  });
+
+  test('is null when the daily cap is missing or zero', () => {
+    expect(resolveDailyCapUsage({ todayReviewCount: 4, lastReviewDate: new Date().toISOString() })).toBeNull();
+    expect(resolveDailyCapUsage({
+      todayReviewCount: 4,
+      lastReviewDate: new Date().toISOString(),
+      reviewQuota: { dailyCap: 0 }
+    })).toBeNull();
   });
 });
 
@@ -83,6 +119,22 @@ describe('renderCreditsUsageMeter', () => {
 
     renderCreditsUsageMeter(meter, { used: 2.5, limit: 30 });
     expect(meter.querySelector('.thinkreview-settings-usage-value').textContent).toBe('2.5 / 30');
+  });
+
+  test('the daily meter is its own row under a separate title', () => {
+    const monthly = createCreditsUsageMeter();
+    const daily = createDailyCapMeter();
+    renderCreditsUsageMeter(daily, { used: 20, limit: 50, resetText: 'Resets tomorrow' });
+
+    expect(daily.classList.contains('thinkreview-settings-usage-daily')).toBe(true);
+    expect(monthly.querySelector('.thinkreview-settings-usage-title').textContent).toBe('Credits this month');
+    expect(daily.querySelector('.thinkreview-settings-usage-title').textContent).toBe('Credits today');
+    expect(daily.querySelector('.thinkreview-settings-usage-value').textContent).toBe('20 / 50');
+    expect(daily.querySelector('.thinkreview-settings-usage-fill').style.width).toBe('40%');
+    expect(daily.querySelector('.thinkreview-settings-usage-reset').textContent).toBe('Resets tomorrow');
+    expect(daily.querySelector('.thinkreview-settings-usage-track').getAttribute('aria-label')).toBe(
+      'Review credits used today'
+    );
   });
 
   test('hides the meter when there is no usage data and tolerates a missing meter', () => {
@@ -140,6 +192,39 @@ describe('markMonthlyPoolExhausted', () => {
   test('ignores an invalid limit', async () => {
     await markMonthlyPoolExhausted({ limit: 'nope' });
     await markMonthlyPoolExhausted({ limit: 0 });
+    expect(global.chrome.storage.local.set).not.toHaveBeenCalled();
+  });
+});
+
+describe('markDailyCapExhausted', () => {
+  let store;
+
+  beforeEach(() => {
+    store = { reviewQuota: { planType: 'professional', monthlyLimit: 600, dailyCap: 50, resetsAt: FUTURE } };
+    global.chrome = {
+      storage: {
+        local: {
+          get: jest.fn(async (keys) => Object.fromEntries(keys.map((k) => [k, store[k]]))),
+          set: jest.fn(async (values) => Object.assign(store, values))
+        }
+      }
+    };
+  });
+
+  afterEach(() => {
+    delete global.chrome;
+  });
+
+  test('marks today’s cap used and keeps the monthly pool', async () => {
+    await markDailyCapExhausted({ limit: 50 });
+    expect(store.todayReviewCount).toBe(50);
+    expect(store.reviewQuota.monthlyLimit).toBe(600);
+    expect(store.reviewQuota.dailyCap).toBe(50);
+    expect(resolveDailyCapUsage(store)).toEqual({ used: 50, limit: 50, resetText: 'Resets tomorrow' });
+  });
+
+  test('ignores an invalid cap', async () => {
+    await markDailyCapExhausted({ limit: 0 });
     expect(global.chrome.storage.local.set).not.toHaveBeenCalled();
   });
 });

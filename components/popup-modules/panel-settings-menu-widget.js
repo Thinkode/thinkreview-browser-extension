@@ -477,10 +477,15 @@ export async function mountPanelSettingsMenu(settingsButton, options = {}) {
   portalDivider.setAttribute('role', 'separator');
   main.appendChild(portalDivider);
 
-  // Monthly credit usage (hidden until the plan pool is known from user data)
+  // Monthly pool, then the daily cap on the next row. Both stay hidden until known.
+  const creditsUsageStack = document.createElement('div');
+  creditsUsageStack.className = 'thinkreview-settings-usage-stack';
   const creditsUsageMeter = creditsUsageMod.createCreditsUsageMeter();
-  main.appendChild(creditsUsageMeter);
+  const dailyCapMeter = creditsUsageMod.createDailyCapMeter();
+  creditsUsageStack.append(creditsUsageMeter, dailyCapMeter);
+  main.appendChild(creditsUsageStack);
   creditsUsageMod.initCreditsUsageMeter(creditsUsageMeter);
+  creditsUsageMod.initDailyCapMeter(dailyCapMeter);
 
   const buyCreditsRow = _createMenuRow({
     id: 'buy-credits',

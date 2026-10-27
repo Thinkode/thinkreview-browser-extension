@@ -232,7 +232,7 @@ function _buildSteps(panelEl) {
     {
       id: 'usage',
       title: 'Track your credit usage',
-      body: 'See how many review credits you have used this month and when they reset. Running low? Buy a credit pack from the row just below.',
+      body: 'See how many review credits you have used this month and today, and when they reset. Running low? Buy a credit pack from the row just below.',
       getTarget: async () => {
         await _openSettingsMain();
         const api = _getSettingsMenuApi();

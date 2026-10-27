@@ -41,9 +41,22 @@
   margin: 4px 8px;
 }
 
-/* Monthly credit usage meter (non-interactive) */
+/* Monthly pool, with the daily cap on the row underneath */
+.thinkreview-settings-usage-stack {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
 .thinkreview-settings-usage {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
   padding: 6px 14px 8px;
+}
+
+.thinkreview-settings-usage-daily {
+  padding-top: 0;
 }
 
 .thinkreview-settings-usage[hidden] {
