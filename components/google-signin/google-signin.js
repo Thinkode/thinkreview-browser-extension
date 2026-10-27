@@ -131,9 +131,6 @@ async function loadCloudService() {
 }
 
 class GoogleSignIn extends HTMLElement {
-  // Portal sign-in URL
-  static PORTAL_URL = 'https://portal.thinkreview.dev/signin-extension';
-  
   // Bug report URL for error reporting
   static BUG_REPORT_URL = 'https://thinkreview.dev/bug-report';
 
@@ -533,15 +530,17 @@ class GoogleSignIn extends HTMLElement {
       this.render(); // Update UI to show loading state
       
       dbgLog('Opening portal sign-in page');
-      
-      // Open the portal sign-in page in a new tab
+
+      // Background opens the portal and remembers this tab so the portal can return here.
       await new Promise((resolve, reject) => {
-        chrome.tabs.create({ url: GoogleSignIn.PORTAL_URL }, (tab) => {
+        chrome.runtime.sendMessage({ type: 'OPEN_SIGNIN_PORTAL' }, (response) => {
           if (chrome.runtime.lastError) {
             reject(new Error(chrome.runtime.lastError.message));
+          } else if (!response || !response.success) {
+            reject(new Error((response && response.error) || 'Failed to open sign-in'));
           } else {
-            dbgLog('Portal sign-in page opened in tab:', tab.id);
-            resolve(tab);
+            dbgLog('Portal sign-in page opened in tab:', response.tabId);
+            resolve(response);
           }
         });
       });

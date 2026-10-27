@@ -57,6 +57,9 @@ export class CloudService {
    */
   static async thinkReviewFetch(url, body, extraInit = {}) {
     const authHeaders = await getThinkReviewAuthHeaders();
+    const sentToken = typeof authHeaders.Authorization === 'string'
+      ? authHeaders.Authorization.replace(/^Bearer\s+/i, '')
+      : null;
     const { headers: extraHeaders, method, ...rest } = extraInit;
     const response = await fetch(url, {
       method: method || 'POST',
@@ -66,7 +69,7 @@ export class CloudService {
     });
 
     if (response.status === 401) {
-      await handleUnauthorizedResponse();
+      await handleUnauthorizedResponse(sentToken);
       throw new AuthExpiredError();
     }
 

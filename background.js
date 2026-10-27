@@ -9,6 +9,7 @@ import { CloudService } from './services/cloud-service.js';
 import { OllamaService } from './services/ollama-service.js';
 import { OpenRouterService } from './services/openrouter-service.js';
 import { isValidOrigin } from './utils/origin-validator.js';
+import { classifySignInReturnUrl, isExtensionPageUrl } from './utils/signin-return.js';
 import './vendor/diff.min.js';
 import { azureDevOpsFetcher } from './services/azure-devops-fetcher.js';
 import { AzureDevOpsAuthError } from './services/azure-devops-api.js';
@@ -45,6 +46,173 @@ const OPEN_PAGE_ALLOWED_ORIGINS = [
 
 /** Portal page for extension sign-up / sign-in (same as popup google-signin). */
 const SIGNIN_EXTENSION_PORTAL_URL = 'https://portal.thinkreview.dev/signin-extension';
+const SIGNIN_RETURN_STORAGE_KEY = 'signinReturnTabs';
+const SIGNIN_RETURN_TTL_MS = 30 * 60 * 1000;
+const SIGNIN_RETURN_MAX_ENTRIES = 8;
+
+function signInReturnStorageArea() {
+  return chrome.storage.session || chrome.storage.local;
+}
+
+function hostnameFromUrl(rawUrl) {
+  try {
+    return new URL(rawUrl).hostname;
+  } catch {
+    return '';
+  }
+}
+
+function chromeCallback(invoke) {
+  return new Promise((resolve, reject) => {
+    invoke((result) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+      } else {
+        resolve(result);
+      }
+    });
+  });
+}
+
+async function readSignInReturnMap() {
+  const stored = await signInReturnStorageArea().get(SIGNIN_RETURN_STORAGE_KEY);
+  const map = stored?.[SIGNIN_RETURN_STORAGE_KEY];
+  if (!map || typeof map !== 'object') return {};
+  const now = Date.now();
+  const fresh = {};
+  for (const [portalTabId, entry] of Object.entries(map)) {
+    if (!entry || typeof entry !== 'object') continue;
+    if (!entry.savedAt || now - entry.savedAt > SIGNIN_RETURN_TTL_MS) continue;
+    fresh[portalTabId] = entry;
+  }
+  return fresh;
+}
+
+async function writeSignInReturnMap(map) {
+  await signInReturnStorageArea().set({ [SIGNIN_RETURN_STORAGE_KEY]: map });
+}
+
+async function rememberSignInReturn(portalTabId, target) {
+  const map = await readSignInReturnMap();
+  const oldestFirst = Object.entries(map).sort(
+    (a, b) => (a[1].savedAt || 0) - (b[1].savedAt || 0)
+  );
+  while (oldestFirst.length >= SIGNIN_RETURN_MAX_ENTRIES) {
+    const [oldId] = oldestFirst.shift();
+    delete map[oldId];
+  }
+  map[String(portalTabId)] = {
+    tabId: target.tabId,
+    windowId: target.windowId ?? null,
+    kind: target.kind,
+    label: target.label,
+    url: target.kind === 'review' ? target.url : null,
+    savedAt: Date.now(),
+  };
+  await writeSignInReturnMap(map);
+}
+
+async function forgetSignInPortalTab(portalTabId) {
+  const map = await readSignInReturnMap();
+  if (!map[String(portalTabId)]) return;
+  delete map[String(portalTabId)];
+  await writeSignInReturnMap(map);
+}
+
+async function resolveSignInReturnTarget(sender) {
+  const senderUrl = sender?.url || sender?.tab?.url || '';
+  if (sender?.tab?.id != null && isExtensionPageUrl(senderUrl)) {
+    return {
+      tabId: sender.tab.id,
+      windowId: sender.tab.windowId,
+      kind: 'extension',
+      label: 'the extension',
+    };
+  }
+
+  if (sender?.tab?.id != null && senderUrl && !isExtensionPageUrl(senderUrl)) {
+    const classified = classifySignInReturnUrl(sender.tab.url || senderUrl, {
+      fromContentScript: true,
+    });
+    if (!classified) return null;
+    return {
+      tabId: sender.tab.id,
+      windowId: sender.tab.windowId,
+      ...classified,
+    };
+  }
+
+  const tabs = await chromeCallback((done) => chrome.tabs.query({ active: true, currentWindow: true }, done));
+  const active = tabs?.[0];
+  if (!active?.id || !active.url) return null;
+  const classified = classifySignInReturnUrl(active.url);
+  if (!classified) return null;
+  return {
+    tabId: active.id,
+    windowId: active.windowId,
+    ...classified,
+  };
+}
+
+async function openSignInPortalTab(sender) {
+  const returnTarget = await resolveSignInReturnTarget(sender);
+  const tab = await chromeCallback((done) => chrome.tabs.create({ url: SIGNIN_EXTENSION_PORTAL_URL }, done));
+  if (returnTarget && tab?.id != null) {
+    await rememberSignInReturn(tab.id, returnTarget);
+  }
+  return { success: true, tabId: tab?.id ?? null };
+}
+
+async function getSignInReturnInfo(portalTabId) {
+  const map = await readSignInReturnMap();
+  const entry = map[String(portalTabId)];
+  if (!entry?.label) return { available: false };
+  return { available: true, label: entry.label };
+}
+
+async function focusSignInReturnTab(portalTabId) {
+  const map = await readSignInReturnMap();
+  const entry = map[String(portalTabId)];
+  if (!entry?.tabId) return { success: false, error: 'no-return-tab' };
+
+  let focused = false;
+  try {
+    await chromeCallback((done) => chrome.tabs.update(entry.tabId, { active: true }, done));
+    if (entry.windowId != null) {
+      try {
+        await chromeCallback((done) => chrome.windows.update(entry.windowId, { focused: true }, done));
+      } catch (err) {
+        dbgLog('Could not focus sign-in return window:', err);
+      }
+    }
+    focused = true;
+  } catch (err) {
+    dbgLog('Sign-in return tab is gone:', err);
+  }
+
+  if (!focused && entry.kind === 'extension') {
+    await chromeCallback((done) => chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') }, done));
+    focused = true;
+  } else if (!focused && entry.url) {
+    const again = classifySignInReturnUrl(entry.url, { fromContentScript: true });
+    if (again?.url) {
+      await chromeCallback((done) => chrome.tabs.create({ url: again.url }, done));
+      focused = true;
+    }
+  }
+
+  if (!focused) return { success: false, error: 'return-tab-closed' };
+
+  delete map[String(portalTabId)];
+  await writeSignInReturnMap(map);
+  return { success: true, label: entry.label, closePortalTabId: portalTabId };
+}
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  forgetSignInPortalTab(tabId).catch((err) => {
+    dbgLog('Sign-in return cleanup failed:', err);
+  });
+});
 
 // Azure fetcher/API use singleton state, so serialize requests to avoid cross-tab races.
 let azureFetchQueue = Promise.resolve();
@@ -836,15 +1004,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
     dbgLog('Opening portal sign-in extension page in new tab');
-    chrome.tabs.create({ url: SIGNIN_EXTENSION_PORTAL_URL }, (tab) => {
-      if (chrome.runtime.lastError) {
-        dbgWarn('Error opening portal sign-in:', chrome.runtime.lastError);
-        sendResponse({ success: false, error: chrome.runtime.lastError.message });
-      } else {
-        dbgLog('Portal sign-in opened in tab:', tab.id);
-        sendResponse({ success: true, tabId: tab.id });
+    (async () => {
+      try {
+        sendResponse(await openSignInPortalTab(sender));
+      } catch (error) {
+        dbgWarn('Error opening portal sign-in:', error);
+        sendResponse({ success: false, error: error.message });
       }
-    });
+    })();
+    return true;
+  }
+
+  // Portal sign-in dialog asks which tab opened it, then focuses that tab.
+  if (message.type === 'GET_SIGNIN_RETURN_TARGET' || message.type === 'RETURN_TO_SIGNIN_SOURCE') {
+    const senderHost = hostnameFromUrl(sender?.url || '');
+    if (!sender?.tab?.id || !isValidOrigin(senderHost)) {
+      sendResponse({ success: false, available: false, error: 'Unauthorized origin' });
+      return true;
+    }
+    const portalTabId = sender.tab.id;
+    (async () => {
+      try {
+        if (message.type === 'GET_SIGNIN_RETURN_TARGET') {
+          sendResponse(await getSignInReturnInfo(portalTabId));
+          return;
+        }
+        const result = await focusSignInReturnTab(portalTabId);
+        const closePortalTabId = result.closePortalTabId;
+        sendResponse({ success: result.success, label: result.label, error: result.error });
+        if (closePortalTabId != null) {
+          chrome.tabs.remove(closePortalTabId, () => {
+            if (chrome.runtime.lastError) {
+              dbgLog('Could not close portal sign-in tab:', chrome.runtime.lastError.message);
+            }
+          });
+        }
+      } catch (error) {
+        dbgWarn('Sign-in return failed:', error);
+        sendResponse({ success: false, available: false, error: error.message });
+      }
+    })();
     return true;
   }
 
@@ -1245,6 +1444,12 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
       typeof message.userData.extensionAuthToken === 'string'
         ? message.userData.extensionAuthToken
         : null;
+
+    // Persist the new token before any cloud call. Otherwise sync uses the previous
+    // token, gets a 401, and that 401 wipes the session the review needs.
+    if (extensionAuthToken) {
+      await chrome.storage.local.set({ [EXTENSION_AUTH_TOKEN_KEY]: extensionAuthToken });
+    }
     
     // Sync user data with CloudService to get full user profile
     try {

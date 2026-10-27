@@ -110,6 +110,53 @@
     }
   
     dbgLog('Webapp auth content script loaded on:', currentOrigin);
+
+    window.addEventListener('thinkreview-request-signin-return', () => {
+      const reply = (detail) => {
+        window.dispatchEvent(new CustomEvent('thinkreview-signin-return-info', { detail }));
+      };
+      if (!canMessageExtension()) {
+        reply({ available: false });
+        return;
+      }
+      try {
+        chrome.runtime.sendMessage({ type: 'GET_SIGNIN_RETURN_TARGET' }, (response) => {
+          if (chrome.runtime.lastError || !response || response.available !== true) {
+            reply({ available: false });
+            return;
+          }
+          reply({ available: true, label: response.label || 'your review' });
+        });
+      } catch (error) {
+        dbgWarn('Failed to read sign-in return tab:', error);
+        reply({ available: false });
+      }
+    });
+
+    window.addEventListener('thinkreview-return-to-signin-source', () => {
+      const reply = (detail) => {
+        window.dispatchEvent(new CustomEvent('thinkreview-signin-return-result', { detail }));
+      };
+      if (!canMessageExtension()) {
+        reply({ success: false, error: 'extension-unavailable' });
+        return;
+      }
+      try {
+        chrome.runtime.sendMessage({ type: 'RETURN_TO_SIGNIN_SOURCE' }, (response) => {
+          if (chrome.runtime.lastError || !response || response.success !== true) {
+            reply({
+              success: false,
+              error: (chrome.runtime.lastError && chrome.runtime.lastError.message) || (response && response.error) || 'return-failed',
+            });
+            return;
+          }
+          reply({ success: true, label: response.label || null });
+        });
+      } catch (error) {
+        dbgWarn('Failed to return to sign-in source tab:', error);
+        reply({ success: false, error: error.message });
+      }
+    });
   
     // Maximum age for auth data (5 minutes)
     const MAX_AUTH_AGE = 5 * 60 * 1000;

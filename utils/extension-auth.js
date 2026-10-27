@@ -52,10 +52,35 @@ export function notifyAuthSessionExpired() {
   }
 }
 
-/** Clear local session and broadcast to extension UI. */
-export async function handleUnauthorizedResponse() {
+/**
+ * A 401 for a token that sign-in has already replaced must not wipe the new session.
+ * @param {string|null|undefined} sentToken
+ * @param {string|null|undefined} currentToken
+ * @returns {boolean}
+ */
+export function unauthorizedResponseIsStale(sentToken, currentToken) {
+  return typeof sentToken === 'string'
+    && sentToken.length > 0
+    && typeof currentToken === 'string'
+    && currentToken.length > 0
+    && sentToken !== currentToken;
+}
+
+/** Clear local session and broadcast to extension UI. Returns false when the 401 was for a replaced token. */
+export async function handleUnauthorizedResponse(sentToken) {
+  if (sentToken) {
+    try {
+      const stored = await chrome.storage.local.get([EXTENSION_AUTH_TOKEN_KEY]);
+      if (unauthorizedResponseIsStale(sentToken, stored[EXTENSION_AUTH_TOKEN_KEY])) {
+        return false;
+      }
+    } catch (_) {
+      // If storage cannot be read, fall through and clear the session.
+    }
+  }
   await clearExtensionAuthSession();
   notifyAuthSessionExpired();
+  return true;
 }
 
 export function isAuthExpiredError(err) {
