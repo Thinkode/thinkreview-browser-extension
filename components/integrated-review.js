@@ -217,6 +217,18 @@ async function maybeShowReviewPrompt() {
     }
 
     try {
+      const tourUrl = chrome.runtime.getURL('components/popup-modules/panel-settings-tour.js');
+      const { maybeStartPanelSettingsTour } = await import(tourUrl);
+      await maybeStartPanelSettingsTour(panel);
+    } catch (error) {
+      dbgWarn('Failed waiting for panel settings tour before feedback prompt:', error);
+    }
+
+    if (!panel.isConnected || panel.classList.contains('thinkreview-panel-minimized-to-button')) {
+      return;
+    }
+
+    try {
       const refreshResponse = await chrome.runtime.sendMessage({
         type: 'REFRESH_USER_DATA_STORAGE'
       });
