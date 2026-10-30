@@ -399,15 +399,16 @@ export class CloudService {
    * URL-based code review: the cloud function fetches PR changes using stored git credentials
    * (Azure DevOps OAuth / PAT in portal Integrations). Same pipeline as MCP reviewUrlCode.
    */
-  static async reviewUrlCode({
-    mrUrl,
-    language = 'English',
-    mrId = null,
-    forceRegenerate = false,
-    reviewFormat = 'severity',
-    runAgents = true,
-    reviewSource = 'extension',
-  } = {}) {
+  static async reviewUrlCode(opts = {}) {
+    const {
+      mrUrl,
+      language = 'English',
+      mrId = null,
+      forceRegenerate = false,
+      reviewFormat = 'severity',
+      runAgents = true,
+      reviewSource = 'extension',
+    } = opts;
     dbgLog('Sending URL for code review');
 
     if (!mrUrl || typeof mrUrl !== 'string') {
@@ -491,27 +492,32 @@ export class CloudService {
       gatewayError.isTransientTimeout = true;
       throw gatewayError;
     }
+
+    throw CloudService.parseFailedReviewError(response.status, errorText);
+  }
+
+  static parseFailedReviewError(status, errorText) {
     try {
       const errorData = JSON.parse(errorText);
       const serverMessage = String(errorData.message || '');
-      const isAzureUnauthorized = /TF400813/i.test(serverMessage) || /not authorized to access this resource/i.test(serverMessage);
+      const isAzureUnauthorized = /TF400813/i.test(serverMessage)
+        || /not authorized to access this resource/i.test(serverMessage);
       if (errorData.code === 'GIT_TOOLS_UNAVAILABLE' || isAzureUnauthorized) {
         const gitError = new Error(
           isAzureUnauthorized
             ? 'The connected Azure DevOps account does not have access to this organization. Invite that Microsoft account into the org, or reconnect Integrations with an account that has access.'
-            : (errorData.message ||
-              'Git credentials unavailable. Connect Azure DevOps in ThinkReview portal Integrations.')
+            : (errorData.message
+              || 'Git credentials unavailable. Connect Azure DevOps in ThinkReview portal Integrations.')
         );
         gitError.isGitToolsUnavailable = true;
-        throw gitError;
+        return gitError;
       }
     } catch (parseError) {
       if (parseError.isGitToolsUnavailable) {
-        throw parseError;
+        return parseError;
       }
     }
-
-    throw new Error(`HTTP error ${response.status}: ${errorText}`);
+    return new Error(`HTTP error ${status}: ${errorText}`);
   }
 
   static async fetchReviewPatchResult(url, requestBody) {
