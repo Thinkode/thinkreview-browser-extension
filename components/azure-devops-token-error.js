@@ -2,14 +2,15 @@
 // Module for displaying Azure DevOps token configuration error with helpful UI
 import { dbgLog, dbgWarn, dbgError } from '../utils/logger.js';
 
-
+const PORTAL_INTEGRATIONS_URL = 'https://portal.thinkreview.dev/integrations';
 
 /**
  * Shows Azure DevOps token configuration error with helpful UI
  * @param {Function} stopEnhancedLoader - Function to stop the enhanced loader if running
  * @param {string|null} extraInfo - Optional detail text from Azure DevOps
+ * @param {'pat'|'integration'} [kind='pat'] - PAT popup vs portal Integrations
  */
-export function showAzureDevOpsTokenError(stopEnhancedLoader = null, extraInfo = null) {
+export function showAzureDevOpsTokenError(stopEnhancedLoader = null, extraInfo = null, kind = 'pat') {
   // Stop the enhanced loader if it's running
   if (typeof stopEnhancedLoader === 'function') {
     stopEnhancedLoader();
@@ -36,11 +37,19 @@ export function showAzureDevOpsTokenError(stopEnhancedLoader = null, extraInfo =
     }
   }
   
-  // Update any contextual details
+  updateTokenErrorKind(tokenError, kind === 'integration' ? 'integration' : 'pat');
   updateTokenErrorDetails(tokenError, extraInfo);
   
   // Show the token error
   tokenError.classList.remove('gl-hidden');
+}
+
+/**
+ * Shows a portal Integrations prompt when cloud review cannot fetch the PR
+ * (no Azure DevOps OAuth / PAT stored for this repository).
+ */
+export function showAzureDevOpsIntegrationError(stopEnhancedLoader = null, extraInfo = null) {
+  showAzureDevOpsTokenError(stopEnhancedLoader, extraInfo, 'integration');
 }
 
 /**
@@ -167,8 +176,13 @@ function createSettingsButton(actionContainer) {
     Open Extension Settings
   `;
   
-  // Add click event to open extension popup
   settingsButton.addEventListener('click', () => {
+    const host = document.getElementById('review-azure-token-error');
+    if (host?.dataset?.errorKind === 'integration') {
+      window.open(PORTAL_INTEGRATIONS_URL, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
     dbgLog('Requesting background to open extension popup for Azure DevOps token configuration');
     
     // Ask background script to open the extension popup
@@ -222,6 +236,72 @@ function createLearnLink() {
   });
   
   return learnLink;
+}
+
+function updateTokenErrorKind(container, kind) {
+  container.dataset.errorKind = kind === 'integration' ? 'integration' : 'pat';
+
+  const heading = container.querySelector('.azure-devops-token-heading');
+  const description = container.querySelector('.azure-devops-token-description');
+  const settingsButton = container.querySelector('.azure-devops-token-settings-button');
+  const learnLink = container.querySelector('.azure-devops-token-learn-link');
+
+  if (kind === 'integration') {
+    if (heading) heading.textContent = 'Azure DevOps is not connected';
+    if (description) {
+      description.textContent =
+        'Connect Azure DevOps in ThinkReview portal Integrations so ThinkReview can fetch this pull request. Authentication happens in the cloud — no extension Personal Access Token is needed.';
+    }
+    if (settingsButton) {
+      settingsButton.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+      <polyline points="15 3 21 3 21 9"></polyline>
+      <line x1="10" y1="14" x2="21" y2="3"></line>
+    </svg>
+    Open Integrations
+  `;
+    }
+    if (learnLink) {
+      learnLink.href = PORTAL_INTEGRATIONS_URL;
+      learnLink.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+      <polyline points="15 3 21 3 21 9"></polyline>
+      <line x1="10" y1="14" x2="21" y2="3"></line>
+    </svg>
+    Open ThinkReview Integrations
+  `;
+    }
+    return;
+  }
+
+  if (heading) heading.textContent = 'Azure DevOps Personal Access Token Issue';
+  if (description) {
+    description.textContent =
+      'Your Azure DevOps Personal Access Token is incorrect, missing, expired, or does not have access to this organization/project.';
+  }
+  if (settingsButton) {
+    settingsButton.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"></path>
+    </svg>
+    Open Extension Settings
+  `;
+  }
+  if (learnLink) {
+    learnLink.href =
+      'https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=Windows';
+    learnLink.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+    Learn how to generate a Personal Access Token
+  `;
+  }
 }
 
 /**

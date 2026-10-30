@@ -2874,6 +2874,7 @@ async function displayIntegratedReview(
       enabledReviewAgents: enabledReviewAgents || [],
       patchContent,
       mrId: integrationOpts?.mrId ?? null,
+      mrUrl: integrationOpts?.mrUrl || window.location.href,
       provider: integrationOpts?.provider ?? provider ?? 'cloud',
       agentReviewsResultPromise: integrationOpts?.agentReviewsResultPromise,
       logger: { dbgLog, dbgWarn }

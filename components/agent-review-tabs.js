@@ -410,14 +410,15 @@ export { startAgentReviewsFetchForPatch } from '../utils/fetch-agent-reviews-bac
 /**
  * @param {Object} opts
  * @param {Array<{id: string, name: string}>} opts.enabledReviewAgents
- * @param {string} opts.patchContent - exact string sent to reviewPatchCode_1_1
+ * @param {string} opts.patchContent - exact string sent to reviewPatchCode_1_1 (empty for URL reviews)
  * @param {string|null|undefined} opts.mrId
+ * @param {string|null|undefined} [opts.mrUrl] - PR URL for URL-based reviews
  * @param {string} opts.provider - 'cloud' | 'ollama' | etc.
  * @param {Promise<{ success: boolean, data?: object, error?: string }>|null|undefined} [opts.agentReviewsResultPromise] - from startAgentReviewsFetchForPatch
  * @param {{ dbgLog?: Function, dbgWarn?: Function }} opts.logger
  */
 export async function mountAgentReviewTabs(opts) {
-  const { enabledReviewAgents, patchContent, mrId, provider, logger = {}, agentReviewsResultPromise } = opts;
+  const { enabledReviewAgents, patchContent, mrId, mrUrl, provider, logger = {}, agentReviewsResultPromise } = opts;
   const dbgLog = logger.dbgLog || (() => { });
   const dbgWarn = logger.dbgWarn || (() => { });
 
@@ -441,8 +442,10 @@ export async function mountAgentReviewTabs(opts) {
     return;
   }
 
-  if (!patchContent || typeof patchContent !== 'string') {
-    dbgWarn('mountAgentReviewTabs: no patch content');
+  const hasPatch = typeof patchContent === 'string' && patchContent.length > 0;
+  const hasMrUrl = typeof mrUrl === 'string' && mrUrl.trim().length > 0;
+  if (!hasPatch && !hasMrUrl) {
+    dbgWarn('mountAgentReviewTabs: no patch content or mrUrl');
     return;
   }
 
@@ -531,8 +534,9 @@ export async function mountAgentReviewTabs(opts) {
         chrome.runtime.sendMessage(
           {
             type: 'FETCH_AGENT_REVIEWS_FOR_PATCH',
-            patchContent,
-            mrId: mrId != null && mrId !== '' ? mrId : null
+            patchContent: hasPatch ? patchContent : '',
+            mrId: mrId != null && mrId !== '' ? mrId : null,
+            mrUrl: hasMrUrl ? mrUrl : null
           },
           resolve
         );

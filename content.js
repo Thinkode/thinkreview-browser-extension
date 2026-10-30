@@ -63,6 +63,7 @@ function classifyReviewError(error) {
   const msg = String(error?.message || '');
   if (msg.includes('patchContent') || msg.includes('no code changes')) return 'no_code_changes';
   if (msg.includes('Azure DevOps token')) return 'azure_token';
+  if (msg.includes('Integrations') || msg.includes('GIT_TOOLS') || msg.includes('Git credentials')) return 'azure_token';
   if (msg.includes('HTTP')) return 'http_error';
   if (msg.includes('Not a Merge request') || msg.includes('Not a Pull request')) return 'not_pr_page';
   return 'unknown';
@@ -2055,6 +2056,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     // Determine platform and get code changes
     let codeContent = '';
     let reviewId = null;
+    let useUrlReview = false;
 
     if (platformDetector && platformDetector.isOnGitLabMRPage()) {
       // GitLab: fetch patch file
@@ -2086,64 +2088,78 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       reviewId = getGitHubPRId();
       
     } else if (platformDetector && platformDetector.isOnAzureDevOpsPRPage()) {
-      // Azure DevOps: fetch via background script using stored PAT (cloud and on-prem)
-      dbgLog('Starting Azure DevOps code fetch');
-      const azureToken = await getAzureDevOpsToken();
-      if (!azureToken || azureToken === DUMMY_AZURE_DEVOPS_TOKEN) {
-        if (azureDevOpsTokenError) {
-          azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader);
-        } else {
-          throw new Error(
-            'Azure DevOps token not configured. Please set your Personal Access Token in the extension popup.'
-          );
-        }
-        return;
-      }
-
       const prInfo = platformDetector.detectPlatform().pageInfo;
-      dbgLog('PR info retrieved:', {
-        hasPrId: !!prInfo?.prId,
-        hasPrUrl: !!prInfo?.prUrl
-      });
+      reviewId = prInfo?.prId || null;
+      const hostname = window.location.hostname || '';
+      const isAzureServices = hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
+      const storedProvider = await chrome.storage.local.get(['aiProvider']);
+      const aiProvider = storedProvider.aiProvider || 'cloud';
 
-      try {
-        const azureResponse = await new Promise((resolve) => {
-          chrome.runtime.sendMessage(
-            {
-              type: 'FETCH_AZURE_DEVOPS_PATCH',
-              prInfo,
-              azureToken
-            },
-            resolve
-          );
+      // Azure DevOps Services + ThinkReview Cloud: send the PR URL; cloud functions
+      // fetch changes with stored OAuth/PAT (same pipeline as MCP reviewUrlCode).
+      if (isAzureServices && aiProvider === 'cloud') {
+        dbgLog('Azure DevOps Services: using reviewUrlCode (cloud fetches PR changes)');
+        useUrlReview = true;
+        codeContent = '';
+      } else {
+        // On-prem or local providers still fetch the patch with an extension PAT
+        dbgLog('Starting Azure DevOps code fetch');
+        const azureToken = await getAzureDevOpsToken();
+        if (!azureToken || azureToken === DUMMY_AZURE_DEVOPS_TOKEN) {
+          if (azureDevOpsTokenError) {
+            azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader);
+          } else {
+            throw new Error(
+              'Azure DevOps token not configured. Please set your Personal Access Token in the extension popup.'
+            );
+          }
+          return;
+        }
+
+        dbgLog('PR info retrieved:', {
+          hasPrId: !!prInfo?.prId,
+          hasPrUrl: !!prInfo?.prUrl
         });
 
-        if (!azureResponse || !azureResponse.success) {
-          if (azureResponse?.isAuthError) {
-            dbgLog('Azure DevOps token authentication/access failed, showing token error UI');
-            if (azureDevOpsTokenError) {
-              const detailMessage = azureResponse.detailMessage || azureResponse.error;
-              azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader, detailMessage);
-            } else {
-              throw new Error(
-                'Azure DevOps token is invalid or expired. Please update your Personal Access Token in the extension popup.'
-              );
+        try {
+          const azureResponse = await new Promise((resolve) => {
+            chrome.runtime.sendMessage(
+              {
+                type: 'FETCH_AZURE_DEVOPS_PATCH',
+                prInfo,
+                azureToken
+              },
+              resolve
+            );
+          });
+
+          if (!azureResponse || !azureResponse.success) {
+            if (azureResponse?.isAuthError) {
+              dbgLog('Azure DevOps token authentication/access failed, showing token error UI');
+              if (azureDevOpsTokenError) {
+                const detailMessage = azureResponse.detailMessage || azureResponse.error;
+                azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader, detailMessage);
+              } else {
+                throw new Error(
+                  'Azure DevOps token is invalid or expired. Please update your Personal Access Token in the extension popup.'
+                );
+              }
+              return;
             }
-            return;
+
+            throw new Error(azureResponse?.error || 'Failed to fetch Azure DevOps changes');
           }
 
-          throw new Error(azureResponse?.error || 'Failed to fetch Azure DevOps changes');
+          codeContent = azureResponse.content;
+          reviewId = prInfo.prId;
+
+          dbgLog('Azure DevOps changes fetched:', {
+            fileCount: azureResponse.fileCount || 0,
+            totalLines: azureResponse.totalLines || 0
+          });
+        } catch (error) {
+          throw error;
         }
-
-        codeContent = azureResponse.content;
-        reviewId = prInfo.prId;
-
-        dbgLog('Azure DevOps changes fetched:', {
-          fileCount: azureResponse.fileCount || 0,
-          totalLines: azureResponse.totalLines || 0
-        });
-      } catch (error) {
-        throw error;
       }
     } else if (platformDetector && platformDetector.isOnBitbucketPRPage()) {
       // Bitbucket: fetch patch via background script to avoid page CSP blocking connect-src
@@ -2226,8 +2242,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       return;
     }
 
-    // For auto-triggered reviews, run the decision maker before calling the cloud function
-    if (isAutoTriggered) {
+    // For auto-triggered reviews, run the decision maker before calling the cloud function.
+    // URL reviews have no local patch, so skip the local size check (quota lives on the server).
+    if (isAutoTriggered && !useUrlReview) {
       const { shouldProceedWithAutoReview } = await import(chrome.runtime.getURL('services/autoReviewDecisionMaker.js'));
       const decision = shouldProceedWithAutoReview(filteredCodeContent, { platform, mrId: reviewId });
       if (!decision.proceed) {
@@ -2265,24 +2282,51 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     
     // Send the code content for review via background script (avoids CSP fetch issues).
     // After ~4 min, also poll cache so Chrome dropping the long message does not lose the review.
-    const { requestPatchReviewFromBackground } = await import(
-      chrome.runtime.getURL('utils/request-patch-review-background.js')
-    );
-    const bgResponse = await requestPatchReviewFromBackground({
-      patchContent: filteredCodeContent,
-      mrId: reviewId,
-      mrUrl: mrUrl,
-      language,
-      platform,
-      forceRegenerate,
-      reviewFormat
-    });
+    let bgResponse;
+    if (useUrlReview) {
+      const { requestUrlReviewFromBackground } = await import(
+        chrome.runtime.getURL('utils/request-url-review-background.js')
+      );
+      bgResponse = await requestUrlReviewFromBackground({
+        mrUrl,
+        mrId: reviewId,
+        language,
+        forceRegenerate,
+        reviewFormat,
+        runAgents: true,
+        reviewSource: 'extension'
+      });
+    } else {
+      const { requestPatchReviewFromBackground } = await import(
+        chrome.runtime.getURL('utils/request-patch-review-background.js')
+      );
+      bgResponse = await requestPatchReviewFromBackground({
+        patchContent: filteredCodeContent,
+        mrId: reviewId,
+        mrUrl: mrUrl,
+        language,
+        platform,
+        forceRegenerate,
+        reviewFormat
+      });
+    }
 
     if (!bgResponse || !bgResponse.success) {
       if (bgResponse?.isAuthExpired) {
         dbgLog('Session expired during code review');
         showLoginPrompt({ sessionExpired: true });
         return;
+      }
+      if (bgResponse?.isGitToolsUnavailable) {
+        dbgLog('Git credentials unavailable for URL review');
+        if (azureDevOpsTokenError?.showAzureDevOpsIntegrationError) {
+          azureDevOpsTokenError.showAzureDevOpsIntegrationError(stopEnhancedLoader, bgResponse.error);
+          return;
+        }
+        throw new Error(
+          bgResponse.error ||
+            'Connect Azure DevOps in ThinkReview portal Integrations so ThinkReview can fetch this pull request.'
+        );
       }
       // Check if it's a free-tier PR size limit exceeded error
       if (bgResponse?.isPatchTooLarge) {
@@ -2354,8 +2398,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
           chrome.runtime.getURL('utils/fetch-agent-reviews-background.js')
         );
         agentReviewsResultPromise = startAgentReviewsFetchForPatch(
-          filteredCodeContent,
-          reviewId != null && reviewId !== '' ? reviewId : null
+          useUrlReview ? '' : filteredCodeContent,
+          reviewId != null && reviewId !== '' ? reviewId : null,
+          useUrlReview ? mrUrl : null
         );
       }
     }
@@ -2378,6 +2423,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       {
         enabledReviewAgents: data.enabledReviewAgents,
         mrId: reviewId,
+        mrUrl,
         provider: bgResponse.provider,
         platform,
         agentReviewsResultPromise
