@@ -1170,10 +1170,15 @@ function applyPlatformSpecificStyling(container) {
   // storage) so the check is consistent with the one that gates panel injection.
   // Fall back to hostname-only checks when the detector is not yet available.
   const hostname = window.location.hostname;
+  const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const isAzureServicesHost = host === 'dev.azure.com'
+    || host.endsWith('.dev.azure.com')
+    || host === 'visualstudio.com'
+    || host.endsWith('.visualstudio.com');
   const isAzureDevOps =
     (typeof platformDetector !== 'undefined' && platformDetector !== null)
       ? platformDetector.isAzureDevOpsSite()
-      : hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
+      : isAzureServicesHost;
 
   if (isAzureDevOps) {
     dbgLog('Detected Azure DevOps platform, applying Azure DevOps styling');

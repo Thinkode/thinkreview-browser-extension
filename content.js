@@ -163,6 +163,14 @@ let platformDetector = null;
 // Import Azure DevOps token error module
 let azureDevOpsTokenError = null;
 
+function isAzureDevOpsServicesHost(hostname) {
+  const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  return host === 'dev.azure.com'
+    || host.endsWith('.dev.azure.com')
+    || host === 'visualstudio.com'
+    || host.endsWith('.visualstudio.com');
+}
+
 function isAzureGitAuthText(text, flags) {
   if (flags && flags.isGitToolsUnavailable) return true;
   const msg = String(text || '');
@@ -204,7 +212,7 @@ async function initializeAzurePlatformExtras() {
     const apiModule = await import(chrome.runtime.getURL('services/azure-devops-api.js'));
 
     const hostname = window.location.hostname || '';
-    const isAzureCloud = hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
+    const isAzureCloud = isAzureDevOpsServicesHost(hostname);
     if (
       !isAzureCloud &&
       platformDetector &&
@@ -2123,7 +2131,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       const prInfo = platformDetector.detectPlatform().pageInfo;
       reviewId = prInfo?.prId || null;
       const hostname = window.location.hostname || '';
-      const isAzureServices = hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
+      const isAzureServices = isAzureDevOpsServicesHost(hostname);
       const storedProvider = await chrome.storage.local.get(['aiProvider']);
       const aiProvider = storedProvider.aiProvider || 'cloud';
 
