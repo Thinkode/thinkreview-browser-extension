@@ -60,11 +60,24 @@ export function renderReviewMetadataBar(
   // Clear previous content
   container.replaceChildren();
 
-  // If we don't have patch size info or original is missing, hide the container
-  if (!patchSize || !patchSize.original) {
+  const hasOriginal = patchSize && typeof patchSize.original === 'number' && patchSize.original > 0;
+  const fileCount = patchSize && (
+    Number(patchSize.changedFileCount) ||
+    Number(patchSize.filesIncluded) ||
+    0
+  );
+  const hasMetadata = hasOriginal
+    || Boolean(modelUsed)
+    || Boolean(reviewRequestLabel)
+    || fileCount > 0
+    || (patchSize && patchSize.filesExcluded > 0);
+
+  // URL reviews skip assembling a full patch; still show model / PR / file count.
+  if (!hasMetadata) {
     container.classList.add('gl-hidden');
     return;
   }
+  container.classList.remove('gl-hidden');
 
   // Helper to format sizes nicely
   const formatSize = (bytes) => {
@@ -101,13 +114,13 @@ export function renderReviewMetadataBar(
     };
   };
 
-  const originalSize = formatSize(patchSize.original);
-  const truncatedSize = patchSize.truncated ? formatSize(patchSize.truncated) : null;
-  const filesExcluded = patchSize.filesExcluded || 0;
-  const excludedFileNames = Array.isArray(patchSize.excludedFileNames)
+  const originalSize = hasOriginal ? formatSize(patchSize.original) : '';
+  const truncatedSize = patchSize && patchSize.truncated ? formatSize(patchSize.truncated) : null;
+  const filesExcluded = (patchSize && patchSize.filesExcluded) || 0;
+  const excludedFileNames = Array.isArray(patchSize && patchSize.excludedFileNames)
     ? patchSize.excludedFileNames.map(sanitizeFileName).filter(Boolean)
     : [];
-  const wasForcedTruncated = patchSize.wasForcedTruncated || false;
+  const wasForcedTruncated = !!(patchSize && patchSize.wasForcedTruncated);
   // Check if subscriptionType is 'free' (case-insensitive comparison, handle null/undefined)
   const isFreeSubscription = subscriptionType && subscriptionType.toLowerCase() === 'free';
   const showUpgradeMessage = wasForcedTruncated && isFreeSubscription;
@@ -146,12 +159,16 @@ export function renderReviewMetadataBar(
   if (reviewRequestLabel) {
     textParts.push(reviewRequestLabel);
   }
-  textParts.push(`Original patch: ${originalSize}`);
-  
+  if (hasOriginal) {
+    textParts.push(`Original patch: ${originalSize}`);
+  }
+  if (fileCount > 0) {
+    textParts.push(fileCount === 1 ? '1 file' : `${fileCount} files`);
+  }
   if (filesExcluded > 0) {
     textParts.push(`Files excluded: ${filesExcluded}`);
   }
-  if (patchSize.wasTruncated && truncatedSize) {
+  if (patchSize && patchSize.wasTruncated && truncatedSize) {
     textParts.push(`Truncated patch: ${truncatedSize}`);
   }
   if (modelUsed) {
