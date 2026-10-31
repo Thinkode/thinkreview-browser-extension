@@ -26,6 +26,14 @@ if (typeof dbgError === 'undefined') {
   var dbgError = (...args) => { if (DEBUG) console.error('[IntegratedReview]', ...args); };
 }
 
+let isAzureDevOpsServicesHost = (hostname) => {
+  const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  return host === 'dev.azure.com'
+    || host.endsWith('.dev.azure.com')
+    || host === 'visualstudio.com'
+    || host.endsWith('.visualstudio.com');
+};
+
 // Initialize logger functions with dynamic import
 (async () => {
   try {
@@ -35,6 +43,8 @@ if (typeof dbgError === 'undefined') {
     dbgLog = loggerModule.dbgLog;
     dbgWarn = loggerModule.dbgWarn;
     dbgError = loggerModule.dbgError;
+    const hostsModule = await import(chrome.runtime.getURL('utils/azure-devops-hosts.js'));
+    isAzureDevOpsServicesHost = hostsModule.isAzureDevOpsServicesHost;
   } catch (error) {
     // Keep using fallback functions if logger fails to load
     dbgWarn('Failed to load logger module, using console fallback:', error);
@@ -1170,15 +1180,10 @@ function applyPlatformSpecificStyling(container) {
   // storage) so the check is consistent with the one that gates panel injection.
   // Fall back to hostname-only checks when the detector is not yet available.
   const hostname = window.location.hostname;
-  const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
-  const isAzureServicesHost = host === 'dev.azure.com'
-    || host.endsWith('.dev.azure.com')
-    || host === 'visualstudio.com'
-    || host.endsWith('.visualstudio.com');
   const isAzureDevOps =
     (typeof platformDetector !== 'undefined' && platformDetector !== null)
       ? platformDetector.isAzureDevOpsSite()
-      : isAzureServicesHost;
+      : isAzureDevOpsServicesHost(hostname);
 
   if (isAzureDevOps) {
     dbgLog('Detected Azure DevOps platform, applying Azure DevOps styling');

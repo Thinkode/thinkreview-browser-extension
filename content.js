@@ -32,6 +32,8 @@ if (typeof dbgError === 'undefined') {
       dbgLog = loggerModule.dbgLog;
       dbgWarn = loggerModule.dbgWarn;
       dbgError = loggerModule.dbgError;
+      const hostsModule = await import(chrome.runtime.getURL('utils/azure-devops-hosts.js'));
+      isAzureDevOpsServicesHost = hostsModule.isAzureDevOpsServicesHost;
       dbgLog('Logger module loaded successfully');
     } catch (error) {
       // Keep using fallback functions if logger fails to load
@@ -163,13 +165,13 @@ let platformDetector = null;
 // Import Azure DevOps token error module
 let azureDevOpsTokenError = null;
 
-function isAzureDevOpsServicesHost(hostname) {
+let isAzureDevOpsServicesHost = (hostname) => {
   const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
   return host === 'dev.azure.com'
     || host.endsWith('.dev.azure.com')
     || host === 'visualstudio.com'
     || host.endsWith('.visualstudio.com');
-}
+};
 
 function isAzureGitAuthText(text, flags) {
   if (flags && flags.isGitToolsUnavailable) return true;

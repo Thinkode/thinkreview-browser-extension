@@ -27,6 +27,7 @@ function sendMessage(payload) {
 
 function isTerminalReviewResponse(resp) {
   if (!resp || resp.pending) return false;
+  if (resp.isTransientTimeout) return false;
   if (resp.success === true && (resp.data?.status === 'success' || resp.data?.review)) return true;
   if (resp.success === false) return true;
   if (resp.isAuthExpired || resp.isLimitExceeded || resp.isPatchTooLarge || resp.isGitToolsUnavailable) {
@@ -39,6 +40,8 @@ function isTerminalReviewResponse(resp) {
  * @param {object} payload - mrUrl, mrId, language, forceRegenerate, reviewFormat, runAgents, reviewSource
  * @returns {Promise<object>} background response { success, data?, error?, ... }
  */
+export { isTerminalReviewResponse };
+
 export async function requestUrlReviewFromBackground(payload) {
   const startedAt = Date.now();
   let settled = null;
