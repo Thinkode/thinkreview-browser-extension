@@ -15,4 +15,8 @@ describe('isTerminalReviewResponse', () => {
       error: 'Git credentials unavailable',
     })).toBe(true);
   });
+
+  it('treats a successful response with no review payload as finished', () => {
+    expect(isTerminalReviewResponse({ success: true, data: null })).toBe(true);
+  });
 });

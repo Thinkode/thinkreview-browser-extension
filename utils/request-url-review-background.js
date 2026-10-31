@@ -29,6 +29,7 @@ function isTerminalReviewResponse(resp) {
   if (!resp || resp.pending) return false;
   if (resp.isTransientTimeout) return false;
   if (resp.success === true && (resp.data?.status === 'success' || resp.data?.review)) return true;
+  if (resp.success === true && (resp.data == null || resp.data === '')) return true;
   if (resp.success === false) return true;
   if (resp.isAuthExpired || resp.isLimitExceeded || resp.isPatchTooLarge || resp.isGitToolsUnavailable) {
     return true;
@@ -68,7 +69,12 @@ export async function requestUrlReviewFromBackground(payload) {
     await wait(POLL_INTERVAL_MS);
   }
 
-  if (settled) return settled;
+  if (settled) {
+    if (settled.success === true && (settled.data == null || settled.data === '')) {
+      return { success: false, error: 'URL review returned no result' };
+    }
+    return settled;
+  }
   const late = await longReview;
   if (isTerminalReviewResponse(late)) return late;
   return { success: false, error: 'Review timed out. Please try again.' };
