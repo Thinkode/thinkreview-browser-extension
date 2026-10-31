@@ -163,6 +163,38 @@ let platformDetector = null;
 // Import Azure DevOps token error module
 let azureDevOpsTokenError = null;
 
+function isAzureGitAuthText(text, flags) {
+  if (flags && flags.isGitToolsUnavailable) return true;
+  const msg = String(text || '');
+  return /GIT_TOOLS_UNAVAILABLE/i.test(msg)
+    || /TF400813/i.test(msg)
+    || /Failed request:\s*\(\s*401\s*\)/i.test(msg)
+    || /not authorized to access this resource/i.test(msg)
+    || /does not have access to this organization/i.test(msg)
+    || /Entra OAuth cannot access/i.test(msg)
+    || /Git credentials unavailable/i.test(msg);
+}
+
+async function showAzureGitAuthErrorUi(stopEnhancedLoader, errorText, fallbackKind) {
+  let mod = azureDevOpsTokenError;
+  if (!mod) {
+    try {
+      mod = await import(chrome.runtime.getURL('components/azure-devops-token-error.js'));
+      azureDevOpsTokenError = mod;
+    } catch (_) {
+      mod = null;
+    }
+  }
+  const kind = typeof mod?.azureGitAuthErrorKind === 'function'
+    ? mod.azureGitAuthErrorKind(errorText)
+    : (fallbackKind || 'unauthorized');
+  if (mod?.showAzureDevOpsIntegrationError) {
+    mod.showAzureDevOpsIntegrationError(stopEnhancedLoader, null, kind);
+    return true;
+  }
+  return false;
+}
+
 /**
  * Azure-only extras (API helpers, token UI, on-prem version probe).
  * Kept off the critical path so the ThinkReview button can appear sooner.
@@ -2317,15 +2349,17 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         showLoginPrompt({ sessionExpired: true });
         return;
       }
-      if (bgResponse?.isGitToolsUnavailable) {
+      const gitAuthErrorText = bgResponse.error || '';
+      const looksLikeAzureGitAuth = isAzureGitAuthText(gitAuthErrorText, bgResponse)
+        || (typeof azureDevOpsTokenError?.isAzureGitAuthErrorMessage === 'function'
+          && azureDevOpsTokenError.isAzureGitAuthErrorMessage(gitAuthErrorText));
+      if (looksLikeAzureGitAuth && platformDetector && platformDetector.isOnAzureDevOpsPRPage()) {
         dbgLog('Git credentials unavailable for URL review');
-        if (azureDevOpsTokenError?.showAzureDevOpsIntegrationError) {
-          azureDevOpsTokenError.showAzureDevOpsIntegrationError(stopEnhancedLoader, bgResponse.error);
-          return;
-        }
+        const shown = await showAzureGitAuthErrorUi(stopEnhancedLoader, gitAuthErrorText, 'unauthorized');
+        if (shown) return;
         throw new Error(
-          bgResponse.error ||
-            'Connect Azure DevOps in ThinkReview portal Integrations so ThinkReview can fetch this pull request.'
+          gitAuthErrorText ||
+            'Connect Azure DevOps in ThinkReview Integrations. Personal Microsoft account orgs need a PAT.'
         );
       }
       // Check if it's a free-tier PR size limit exceeded error
@@ -2503,6 +2537,22 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     const noCodeChangesMessage = 'There are no code changes yet in this merge request. If you think this is a bug, please report it here: https://thinkreview.dev/bug-report';
     let userFriendlyMessage = error.message || 'Failed to complete code review';
     
+    const azureAuthError = platformDetector
+      && platformDetector.isOnAzureDevOpsPRPage()
+      && isAzureGitAuthText(error.message);
+    if (azureAuthError) {
+      await showAzureGitAuthErrorUi(stopEnhancedLoader, error.message, 'unauthorized');
+      if (sessionAtStart === reviewSessionId) {
+        trackAnalytics('review_failed', {
+          context: 'code_review',
+          trigger: isAutoTriggered ? 'auto' : 'manual',
+          error_type: 'azure_token',
+          duration_ms: Date.now() - reviewStartedAt
+        });
+      }
+      return;
+    }
+
     // Check if error is about missing patchContent
     if (error.message?.includes('patchContent')) {
       userFriendlyMessage = noCodeChangesMessage;

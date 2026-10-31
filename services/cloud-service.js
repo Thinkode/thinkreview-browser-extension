@@ -497,25 +497,29 @@ export class CloudService {
   }
 
   static parseFailedReviewError(status, errorText) {
+    const raw = String(errorText || '');
+    let errorData = null;
     try {
-      const errorData = JSON.parse(errorText);
-      const serverMessage = String(errorData.message || '');
-      const isAzureUnauthorized = /TF400813/i.test(serverMessage)
-        || /not authorized to access this resource/i.test(serverMessage);
-      if (errorData.code === 'GIT_TOOLS_UNAVAILABLE' || isAzureUnauthorized) {
-        const gitError = new Error(
-          isAzureUnauthorized
-            ? 'The connected Azure DevOps account does not have access to this organization. Invite that Microsoft account into the org, or reconnect Integrations with an account that has access.'
-            : (errorData.message
-              || 'Git credentials unavailable. Connect Azure DevOps in ThinkReview portal Integrations.')
-        );
-        gitError.isGitToolsUnavailable = true;
-        return gitError;
-      }
-    } catch (parseError) {
-      if (parseError.isGitToolsUnavailable) {
-        return parseError;
-      }
+      errorData = JSON.parse(raw);
+    } catch (_) {
+      errorData = null;
+    }
+    const serverMessage = String(errorData?.message || raw);
+    const serverCode = errorData?.code || '';
+    const isAzureUnauthorized = /TF400813/i.test(serverMessage)
+      || /not authorized to access this resource/i.test(serverMessage)
+      || /Failed request:\s*\(\s*401\s*\)/i.test(serverMessage)
+      || /does not have access to this organization/i.test(serverMessage)
+      || /Entra OAuth cannot access/i.test(serverMessage);
+    if (serverCode === 'GIT_TOOLS_UNAVAILABLE' || isAzureUnauthorized) {
+      const gitError = new Error(
+        isAzureUnauthorized
+          ? 'The connected Azure DevOps account does not have access to this organization. Invite that Microsoft account into the org, or reconnect Integrations with an account that has access.'
+          : (errorData?.message
+            || 'Git credentials unavailable. Connect Azure DevOps in ThinkReview portal Integrations.')
+      );
+      gitError.isGitToolsUnavailable = true;
+      return gitError;
     }
     return new Error(`HTTP error ${status}: ${errorText}`);
   }

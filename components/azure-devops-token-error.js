@@ -37,7 +37,10 @@ export function showAzureDevOpsTokenError(stopEnhancedLoader = null, extraInfo =
     }
   }
   
-  updateTokenErrorKind(tokenError, kind === 'integration' ? 'integration' : 'pat');
+  updateTokenErrorKind(
+    tokenError,
+    kind === 'unauthorized' || kind === 'integration' ? kind : 'pat'
+  );
   updateTokenErrorDetails(tokenError, extraInfo);
   
   // Show the token error
@@ -48,8 +51,32 @@ export function showAzureDevOpsTokenError(stopEnhancedLoader = null, extraInfo =
  * Shows a portal Integrations prompt when cloud review cannot fetch the PR
  * (no Azure DevOps OAuth / PAT stored for this repository).
  */
-export function showAzureDevOpsIntegrationError(stopEnhancedLoader = null, extraInfo = null) {
-  showAzureDevOpsTokenError(stopEnhancedLoader, extraInfo, 'integration');
+export function isAzureGitAuthErrorMessage(message) {
+  const msg = String(message || '');
+  return /GIT_TOOLS_UNAVAILABLE/i.test(msg)
+    || /TF400813/i.test(msg)
+    || /Failed request:\s*\(\s*401\s*\)/i.test(msg)
+    || /not authorized to access this resource/i.test(msg)
+    || /does not have access to this organization/i.test(msg)
+    || /Entra OAuth cannot access/i.test(msg)
+    || /Git credentials unavailable/i.test(msg);
+}
+
+export function azureGitAuthErrorKind(message) {
+  const msg = String(message || '');
+  if (/TF400813|Failed request:\s*\(\s*401\s*\)|does not have access|not authorized|Entra OAuth cannot access/i.test(msg)) {
+    return 'unauthorized';
+  }
+  return 'integration';
+}
+
+export function showAzureDevOpsIntegrationError(stopEnhancedLoader = null, extraInfo = null, kind = 'integration') {
+  const resolvedKind = kind === 'unauthorized' ? 'unauthorized' : 'integration';
+  showAzureDevOpsTokenError(
+    stopEnhancedLoader,
+    resolvedKind === 'unauthorized' ? null : extraInfo,
+    resolvedKind
+  );
 }
 
 /**
@@ -178,7 +205,7 @@ function createSettingsButton(actionContainer) {
   
   settingsButton.addEventListener('click', () => {
     const host = document.getElementById('review-azure-token-error');
-    if (host?.dataset?.errorKind === 'integration') {
+    if (host?.dataset?.errorKind === 'integration' || host?.dataset?.errorKind === 'unauthorized') {
       window.open(PORTAL_INTEGRATIONS_URL, '_blank', 'noopener,noreferrer');
       return;
     }
@@ -239,18 +266,24 @@ function createLearnLink() {
 }
 
 function updateTokenErrorKind(container, kind) {
-  container.dataset.errorKind = kind === 'integration' ? 'integration' : 'pat';
+  const resolvedKind = kind === 'unauthorized' || kind === 'integration' ? kind : 'pat';
+  container.dataset.errorKind = resolvedKind;
 
   const heading = container.querySelector('.azure-devops-token-heading');
   const description = container.querySelector('.azure-devops-token-description');
   const settingsButton = container.querySelector('.azure-devops-token-settings-button');
   const learnLink = container.querySelector('.azure-devops-token-learn-link');
 
-  if (kind === 'integration') {
-    if (heading) heading.textContent = 'Azure DevOps is not connected';
+  if (resolvedKind === 'integration' || resolvedKind === 'unauthorized') {
+    if (heading) {
+      heading.textContent = resolvedKind === 'unauthorized'
+        ? "Can't access this Azure DevOps organization"
+        : 'Azure DevOps is not connected';
+    }
     if (description) {
-      description.textContent =
-        'Connect Azure DevOps in ThinkReview portal Integrations so ThinkReview can fetch this pull request. Authentication happens in the cloud — no extension Personal Access Token is needed.';
+      description.textContent = resolvedKind === 'unauthorized'
+        ? 'ThinkReview connected with Entra OAuth, but Azure DevOps rejected that identity for this organization. Personal Microsoft account orgs (not connected to Entra ID) need a PAT in Integrations. Work orgs can instead invite the connected account, or connect the org to Microsoft Entra ID and reconnect OAuth.'
+        : 'Connect Azure DevOps in ThinkReview portal Integrations so ThinkReview can fetch this pull request. Authentication happens in the cloud — no extension Personal Access Token is needed.';
     }
     if (settingsButton) {
       settingsButton.innerHTML = `
