@@ -26,6 +26,14 @@ if (typeof dbgError === 'undefined') {
   var dbgError = (...args) => { if (DEBUG) console.error('[IntegratedReview]', ...args); };
 }
 
+let isAzureDevOpsServicesHost = (hostname) => {
+  const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  return host === 'dev.azure.com'
+    || host.endsWith('.dev.azure.com')
+    || host === 'visualstudio.com'
+    || host.endsWith('.visualstudio.com');
+};
+
 // Initialize logger functions with dynamic import
 (async () => {
   try {
@@ -35,6 +43,8 @@ if (typeof dbgError === 'undefined') {
     dbgLog = loggerModule.dbgLog;
     dbgWarn = loggerModule.dbgWarn;
     dbgError = loggerModule.dbgError;
+    const hostsModule = await import(chrome.runtime.getURL('utils/azure-devops-hosts.js'));
+    isAzureDevOpsServicesHost = hostsModule.isAzureDevOpsServicesHost;
   } catch (error) {
     // Keep using fallback functions if logger fails to load
     dbgWarn('Failed to load logger module, using console fallback:', error);
@@ -1173,7 +1183,7 @@ function applyPlatformSpecificStyling(container) {
   const isAzureDevOps =
     (typeof platformDetector !== 'undefined' && platformDetector !== null)
       ? platformDetector.isAzureDevOpsSite()
-      : hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
+      : isAzureDevOpsServicesHost(hostname);
 
   if (isAzureDevOps) {
     dbgLog('Detected Azure DevOps platform, applying Azure DevOps styling');
@@ -2874,6 +2884,7 @@ async function displayIntegratedReview(
       enabledReviewAgents: enabledReviewAgents || [],
       patchContent,
       mrId: integrationOpts?.mrId ?? null,
+      mrUrl: integrationOpts?.mrUrl || window.location.href,
       provider: integrationOpts?.provider ?? provider ?? 'cloud',
       agentReviewsResultPromise: integrationOpts?.agentReviewsResultPromise,
       logger: { dbgLog, dbgWarn }

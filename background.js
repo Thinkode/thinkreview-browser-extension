@@ -761,6 +761,85 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep channel open
   }
 
+  if (message.type === 'REVIEW_URL_CODE') {
+    const { mrUrl, mrId, language, forceRegenerate, reviewFormat, runAgents, reviewSource } = message;
+
+    (async () => {
+      try {
+        const settings = await chrome.storage.local.get(['aiProvider']);
+        const provider = settings.aiProvider || 'cloud';
+        if (provider !== 'cloud') {
+          sendResponse({
+            success: false,
+            error: 'URL review is only available with ThinkReview Cloud.',
+            provider,
+          });
+          return;
+        }
+        if (!mrUrl || typeof mrUrl !== 'string') {
+          sendResponse({ success: false, error: 'Missing pull request URL', provider: 'cloud' });
+          return;
+        }
+
+        const data = await CloudService.reviewUrlCode({
+          mrUrl,
+          language,
+          mrId,
+          forceRegenerate,
+          reviewFormat,
+          runAgents: runAgents !== false,
+          reviewSource: reviewSource || 'extension',
+        });
+
+        (async () => {
+          try {
+            const storageResult = await chrome.storage.local.get(['userData', 'user']);
+            let email = storageResult.userData?.email || null;
+            if (!email && storageResult.user) {
+              try {
+                const parsed = JSON.parse(storageResult.user);
+                if (parsed?.email) email = parsed.email;
+              } catch {
+                /* ignore */
+              }
+            }
+            const userData = await CloudService.refreshUserData();
+            const toStore = { ...userData };
+            if (email) {
+              const subscriptionData = await CloudService.getUserSubscriptionData(email);
+              if (subscriptionData) toStore.userSubscriptionData = subscriptionData;
+            }
+            await chrome.storage.local.set(toStore);
+            dbgLog('Post-URL-review user data refresh stored');
+          } catch (refreshErr) {
+            dbgWarn('Post-URL-review user data refresh failed:', refreshErr?.message || refreshErr);
+          }
+        })();
+
+        sendResponse({ success: true, data, provider: 'cloud' });
+      } catch (err) {
+        dbgWarn('URL review fetch error:', err);
+        sendResponse({
+          success: false,
+          error: err.message,
+          isTransientTimeout: err.isTransientTimeout === true,
+          isLimitExceeded: err.isLimitExceeded || false,
+          isPatchTooLarge: err.isPatchTooLarge || false,
+          isGitToolsUnavailable: err.isGitToolsUnavailable === true,
+          patchSize: err.patchSize,
+          maxPatchSize: err.maxPatchSize,
+          dailyLimit: err.dailyLimit,
+          currentCount: err.currentCount,
+          purchasedReviewCredits: err.purchasedReviewCredits,
+          limitDetails: err.limitDetails || null,
+          provider: 'cloud',
+          ...authExpiredPayload(err),
+        });
+      }
+    })();
+    return true;
+  }
+
   if (message.type === 'POLL_REVIEW_PATCH_CODE') {
     const { patchContent, mrId, reviewFormat, startedAt } = message;
     (async () => {
@@ -799,7 +878,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'FETCH_AGENT_REVIEWS_FOR_PATCH') {
-    const { patchContent, mrId } = message;
+    const { patchContent, mrId, mrUrl } = message;
     (async () => {
       try {
         const storageResult = await chrome.storage.local.get(['userData', 'user']);
@@ -816,11 +895,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ success: false, error: 'Not logged in' });
           return;
         }
-        if (!patchContent || typeof patchContent !== 'string') {
-          sendResponse({ success: false, error: 'Missing patch content' });
+        const hasPatch = typeof patchContent === 'string' && patchContent.length > 0;
+        const hasMrUrl = typeof mrUrl === 'string' && mrUrl.trim().length > 0;
+        if (!hasPatch && !hasMrUrl) {
+          sendResponse({ success: false, error: 'Missing patch content or mrUrl' });
           return;
         }
-        const payload = await CloudService.fetchAgentReviewsForPatch(email, patchContent, mrId);
+        const payload = await CloudService.fetchAgentReviewsForPatch(
+          email,
+          hasPatch ? patchContent : '',
+          mrId,
+          hasMrUrl ? mrUrl : null
+        );
         sendResponse({ success: true, data: payload });
       } catch (err) {
         dbgWarn('FETCH_AGENT_REVIEWS_FOR_PATCH error:', err);

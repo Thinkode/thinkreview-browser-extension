@@ -32,6 +32,8 @@ if (typeof dbgError === 'undefined') {
       dbgLog = loggerModule.dbgLog;
       dbgWarn = loggerModule.dbgWarn;
       dbgError = loggerModule.dbgError;
+      const hostsModule = await import(chrome.runtime.getURL('utils/azure-devops-hosts.js'));
+      isAzureDevOpsServicesHost = hostsModule.isAzureDevOpsServicesHost;
       dbgLog('Logger module loaded successfully');
     } catch (error) {
       // Keep using fallback functions if logger fails to load
@@ -63,6 +65,7 @@ function classifyReviewError(error) {
   const msg = String(error?.message || '');
   if (msg.includes('patchContent') || msg.includes('no code changes')) return 'no_code_changes';
   if (msg.includes('Azure DevOps token')) return 'azure_token';
+  if (msg.includes('Integrations') || msg.includes('GIT_TOOLS') || msg.includes('Git credentials')) return 'azure_token';
   if (msg.includes('HTTP')) return 'http_error';
   if (msg.includes('Not a Merge request') || msg.includes('Not a Pull request')) return 'not_pr_page';
   return 'unknown';
@@ -162,6 +165,46 @@ let platformDetector = null;
 // Import Azure DevOps token error module
 let azureDevOpsTokenError = null;
 
+let isAzureDevOpsServicesHost = (hostname) => {
+  const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  return host === 'dev.azure.com'
+    || host.endsWith('.dev.azure.com')
+    || host === 'visualstudio.com'
+    || host.endsWith('.visualstudio.com');
+};
+
+function isAzureGitAuthText(text, flags) {
+  if (flags && flags.isGitToolsUnavailable) return true;
+  const msg = String(text || '');
+  return /GIT_TOOLS_UNAVAILABLE/i.test(msg)
+    || /TF400813/i.test(msg)
+    || /Failed request:\s*\(\s*401\s*\)/i.test(msg)
+    || /not authorized to access this resource/i.test(msg)
+    || /does not have access to this organization/i.test(msg)
+    || /Entra OAuth cannot access/i.test(msg)
+    || /Git credentials unavailable/i.test(msg);
+}
+
+async function showAzureGitAuthErrorUi(stopEnhancedLoader, errorText, fallbackKind) {
+  let mod = azureDevOpsTokenError;
+  if (!mod) {
+    try {
+      mod = await import(chrome.runtime.getURL('components/azure-devops-token-error.js'));
+      azureDevOpsTokenError = mod;
+    } catch (_) {
+      mod = null;
+    }
+  }
+  const kind = typeof mod?.azureGitAuthErrorKind === 'function'
+    ? mod.azureGitAuthErrorKind(errorText)
+    : (fallbackKind || 'unauthorized');
+  if (mod?.showAzureDevOpsIntegrationError) {
+    mod.showAzureDevOpsIntegrationError(stopEnhancedLoader, null, kind);
+    return true;
+  }
+  return false;
+}
+
 /**
  * Azure-only extras (API helpers, token UI, on-prem version probe).
  * Kept off the critical path so the ThinkReview button can appear sooner.
@@ -171,7 +214,7 @@ async function initializeAzurePlatformExtras() {
     const apiModule = await import(chrome.runtime.getURL('services/azure-devops-api.js'));
 
     const hostname = window.location.hostname || '';
-    const isAzureCloud = hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com');
+    const isAzureCloud = isAzureDevOpsServicesHost(hostname);
     if (
       !isAzureCloud &&
       platformDetector &&
@@ -2055,6 +2098,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     // Determine platform and get code changes
     let codeContent = '';
     let reviewId = null;
+    let useUrlReview = false;
 
     if (platformDetector && platformDetector.isOnGitLabMRPage()) {
       // GitLab: fetch patch file
@@ -2086,64 +2130,78 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       reviewId = getGitHubPRId();
       
     } else if (platformDetector && platformDetector.isOnAzureDevOpsPRPage()) {
-      // Azure DevOps: fetch via background script using stored PAT (cloud and on-prem)
-      dbgLog('Starting Azure DevOps code fetch');
-      const azureToken = await getAzureDevOpsToken();
-      if (!azureToken || azureToken === DUMMY_AZURE_DEVOPS_TOKEN) {
-        if (azureDevOpsTokenError) {
-          azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader);
-        } else {
-          throw new Error(
-            'Azure DevOps token not configured. Please set your Personal Access Token in the extension popup.'
-          );
-        }
-        return;
-      }
-
       const prInfo = platformDetector.detectPlatform().pageInfo;
-      dbgLog('PR info retrieved:', {
-        hasPrId: !!prInfo?.prId,
-        hasPrUrl: !!prInfo?.prUrl
-      });
+      reviewId = prInfo?.prId || null;
+      const hostname = window.location.hostname || '';
+      const isAzureServices = isAzureDevOpsServicesHost(hostname);
+      const storedProvider = await chrome.storage.local.get(['aiProvider']);
+      const aiProvider = storedProvider.aiProvider || 'cloud';
 
-      try {
-        const azureResponse = await new Promise((resolve) => {
-          chrome.runtime.sendMessage(
-            {
-              type: 'FETCH_AZURE_DEVOPS_PATCH',
-              prInfo,
-              azureToken
-            },
-            resolve
-          );
+      // Azure DevOps Services + ThinkReview Cloud: send the PR URL; cloud functions
+      // fetch changes with stored OAuth/PAT (same pipeline as MCP reviewUrlCode).
+      if (isAzureServices && aiProvider === 'cloud') {
+        dbgLog('Azure DevOps Services: using reviewUrlCode (cloud fetches PR changes)');
+        useUrlReview = true;
+        codeContent = '';
+      } else {
+        // On-prem or local providers still fetch the patch with an extension PAT
+        dbgLog('Starting Azure DevOps code fetch');
+        const azureToken = await getAzureDevOpsToken();
+        if (!azureToken || azureToken === DUMMY_AZURE_DEVOPS_TOKEN) {
+          if (azureDevOpsTokenError) {
+            azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader);
+          } else {
+            throw new Error(
+              'Azure DevOps token not configured. Please set your Personal Access Token in the extension popup.'
+            );
+          }
+          return;
+        }
+
+        dbgLog('PR info retrieved:', {
+          hasPrId: !!prInfo?.prId,
+          hasPrUrl: !!prInfo?.prUrl
         });
 
-        if (!azureResponse || !azureResponse.success) {
-          if (azureResponse?.isAuthError) {
-            dbgLog('Azure DevOps token authentication/access failed, showing token error UI');
-            if (azureDevOpsTokenError) {
-              const detailMessage = azureResponse.detailMessage || azureResponse.error;
-              azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader, detailMessage);
-            } else {
-              throw new Error(
-                'Azure DevOps token is invalid or expired. Please update your Personal Access Token in the extension popup.'
-              );
+        try {
+          const azureResponse = await new Promise((resolve) => {
+            chrome.runtime.sendMessage(
+              {
+                type: 'FETCH_AZURE_DEVOPS_PATCH',
+                prInfo,
+                azureToken
+              },
+              resolve
+            );
+          });
+
+          if (!azureResponse || !azureResponse.success) {
+            if (azureResponse?.isAuthError) {
+              dbgLog('Azure DevOps token authentication/access failed, showing token error UI');
+              if (azureDevOpsTokenError) {
+                const detailMessage = azureResponse.detailMessage || azureResponse.error;
+                azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader, detailMessage);
+              } else {
+                throw new Error(
+                  'Azure DevOps token is invalid or expired. Please update your Personal Access Token in the extension popup.'
+                );
+              }
+              return;
             }
-            return;
+
+            throw new Error(azureResponse?.error || 'Failed to fetch Azure DevOps changes');
           }
 
-          throw new Error(azureResponse?.error || 'Failed to fetch Azure DevOps changes');
+          codeContent = azureResponse.content;
+          reviewId = prInfo.prId;
+
+          dbgLog('Azure DevOps changes fetched:', {
+            fileCount: azureResponse.fileCount || 0,
+            totalLines: azureResponse.totalLines || 0
+          });
+        } catch (error) {
+          throw error;
         }
-
-        codeContent = azureResponse.content;
-        reviewId = prInfo.prId;
-
-        dbgLog('Azure DevOps changes fetched:', {
-          fileCount: azureResponse.fileCount || 0,
-          totalLines: azureResponse.totalLines || 0
-        });
-      } catch (error) {
-        throw error;
       }
     } else if (platformDetector && platformDetector.isOnBitbucketPRPage()) {
       // Bitbucket: fetch patch via background script to avoid page CSP blocking connect-src
@@ -2226,8 +2284,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       return;
     }
 
-    // For auto-triggered reviews, run the decision maker before calling the cloud function
-    if (isAutoTriggered) {
+    // For auto-triggered reviews, run the decision maker before calling the cloud function.
+    // URL reviews have no local patch, so skip the local size check (quota lives on the server).
+    if (isAutoTriggered && !useUrlReview) {
       const { shouldProceedWithAutoReview } = await import(chrome.runtime.getURL('services/autoReviewDecisionMaker.js'));
       const decision = shouldProceedWithAutoReview(filteredCodeContent, { platform, mrId: reviewId });
       if (!decision.proceed) {
@@ -2265,24 +2324,53 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     
     // Send the code content for review via background script (avoids CSP fetch issues).
     // After ~4 min, also poll cache so Chrome dropping the long message does not lose the review.
-    const { requestPatchReviewFromBackground } = await import(
-      chrome.runtime.getURL('utils/request-patch-review-background.js')
-    );
-    const bgResponse = await requestPatchReviewFromBackground({
-      patchContent: filteredCodeContent,
-      mrId: reviewId,
-      mrUrl: mrUrl,
-      language,
-      platform,
-      forceRegenerate,
-      reviewFormat
-    });
+    let bgResponse;
+    if (useUrlReview) {
+      const { requestUrlReviewFromBackground } = await import(
+        chrome.runtime.getURL('utils/request-url-review-background.js')
+      );
+      bgResponse = await requestUrlReviewFromBackground({
+        mrUrl,
+        mrId: reviewId,
+        language,
+        forceRegenerate,
+        reviewFormat,
+        runAgents: true,
+        reviewSource: 'extension'
+      });
+    } else {
+      const { requestPatchReviewFromBackground } = await import(
+        chrome.runtime.getURL('utils/request-patch-review-background.js')
+      );
+      bgResponse = await requestPatchReviewFromBackground({
+        patchContent: filteredCodeContent,
+        mrId: reviewId,
+        mrUrl: mrUrl,
+        language,
+        platform,
+        forceRegenerate,
+        reviewFormat
+      });
+    }
 
     if (!bgResponse || !bgResponse.success) {
       if (bgResponse?.isAuthExpired) {
         dbgLog('Session expired during code review');
         showLoginPrompt({ sessionExpired: true });
         return;
+      }
+      const gitAuthErrorText = bgResponse.error || '';
+      const looksLikeAzureGitAuth = isAzureGitAuthText(gitAuthErrorText, bgResponse)
+        || (typeof azureDevOpsTokenError?.isAzureGitAuthErrorMessage === 'function'
+          && azureDevOpsTokenError.isAzureGitAuthErrorMessage(gitAuthErrorText));
+      if (looksLikeAzureGitAuth && platformDetector && platformDetector.isOnAzureDevOpsPRPage()) {
+        dbgLog('Git credentials unavailable for URL review');
+        const shown = await showAzureGitAuthErrorUi(stopEnhancedLoader, gitAuthErrorText, 'unauthorized');
+        if (shown) return;
+        throw new Error(
+          gitAuthErrorText ||
+            'Connect Azure DevOps in ThinkReview Integrations. Personal Microsoft account orgs need a PAT.'
+        );
       }
       // Check if it's a free-tier PR size limit exceeded error
       if (bgResponse?.isPatchTooLarge) {
@@ -2354,8 +2442,9 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
           chrome.runtime.getURL('utils/fetch-agent-reviews-background.js')
         );
         agentReviewsResultPromise = startAgentReviewsFetchForPatch(
-          filteredCodeContent,
-          reviewId != null && reviewId !== '' ? reviewId : null
+          useUrlReview ? '' : filteredCodeContent,
+          reviewId != null && reviewId !== '' ? reviewId : null,
+          useUrlReview ? mrUrl : null
         );
       }
     }
@@ -2378,6 +2467,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       {
         enabledReviewAgents: data.enabledReviewAgents,
         mrId: reviewId,
+        mrUrl,
         provider: bgResponse.provider,
         platform,
         agentReviewsResultPromise
@@ -2457,6 +2547,22 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     const noCodeChangesMessage = 'There are no code changes yet in this merge request. If you think this is a bug, please report it here: https://thinkreview.dev/bug-report';
     let userFriendlyMessage = error.message || 'Failed to complete code review';
     
+    const azureAuthError = platformDetector
+      && platformDetector.isOnAzureDevOpsPRPage()
+      && isAzureGitAuthText(error.message);
+    if (azureAuthError) {
+      await showAzureGitAuthErrorUi(stopEnhancedLoader, error.message, 'unauthorized');
+      if (sessionAtStart === reviewSessionId) {
+        trackAnalytics('review_failed', {
+          context: 'code_review',
+          trigger: isAutoTriggered ? 'auto' : 'manual',
+          error_type: 'azure_token',
+          duration_ms: Date.now() - reviewStartedAt
+        });
+      }
+      return;
+    }
+
     // Check if error is about missing patchContent
     if (error.message?.includes('patchContent')) {
       userFriendlyMessage = noCodeChangesMessage;
