@@ -165,13 +165,15 @@ let platformDetector = null;
 // Import Azure DevOps token error module
 let azureDevOpsTokenError = null;
 
-let isAzureDevOpsServicesHost = (hostname) => {
-  const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
-  return host === 'dev.azure.com'
-    || host.endsWith('.dev.azure.com')
-    || host === 'visualstudio.com'
-    || host.endsWith('.visualstudio.com');
-};
+if (typeof isAzureDevOpsServicesHost === 'undefined') {
+  var isAzureDevOpsServicesHost = (hostname) => {
+    const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
+    return host === 'dev.azure.com'
+      || host.endsWith('.dev.azure.com')
+      || host === 'visualstudio.com'
+      || host.endsWith('.visualstudio.com');
+  };
+}
 
 function isAzureGitAuthText(text, flags) {
   if (flags && flags.isGitToolsUnavailable) return true;
@@ -2136,18 +2138,18 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       const isAzureServices = isAzureDevOpsServicesHost(hostname);
       const storedProvider = await chrome.storage.local.get(['aiProvider']);
       const aiProvider = storedProvider.aiProvider || 'cloud';
+      const azureToken = await getAzureDevOpsToken();
+      const hasExtensionPat = Boolean(azureToken) && azureToken !== DUMMY_AZURE_DEVOPS_TOKEN;
 
-      // Azure DevOps Services + ThinkReview Cloud: send the PR URL; cloud functions
-      // fetch changes with stored OAuth/PAT (same pipeline as MCP reviewUrlCode).
-      if (isAzureServices && aiProvider === 'cloud') {
-        dbgLog('Azure DevOps Services: using reviewUrlCode (cloud fetches PR changes)');
+      // Azure DevOps Services + ThinkReview Cloud: portal Integrations (OAuth/PAT)
+      // unless the user saved an extension PAT (original local-diff path).
+      if (isAzureServices && aiProvider === 'cloud' && !hasExtensionPat) {
+        dbgLog('Azure DevOps Services: using reviewUrlCode (portal Integrations)');
         useUrlReview = true;
         codeContent = '';
       } else {
-        // On-prem or local providers still fetch the patch with an extension PAT
-        dbgLog('Starting Azure DevOps code fetch');
-        const azureToken = await getAzureDevOpsToken();
-        if (!azureToken || azureToken === DUMMY_AZURE_DEVOPS_TOKEN) {
+        dbgLog('Starting Azure DevOps code fetch with extension PAT');
+        if (!hasExtensionPat) {
           if (azureDevOpsTokenError) {
             azureDevOpsTokenError.showAzureDevOpsTokenError(stopEnhancedLoader);
           } else {
@@ -2369,7 +2371,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         if (shown) return;
         throw new Error(
           gitAuthErrorText ||
-            'Connect Azure DevOps in ThinkReview Integrations. Personal Microsoft account orgs need a PAT.'
+            'Connect Azure DevOps in ThinkReview Integrations, or save a Personal Access Token in the extension popup.'
         );
       }
       // Check if it's a free-tier PR size limit exceeded error

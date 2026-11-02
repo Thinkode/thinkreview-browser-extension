@@ -26,13 +26,15 @@ if (typeof dbgError === 'undefined') {
   var dbgError = (...args) => { if (DEBUG) console.error('[IntegratedReview]', ...args); };
 }
 
-let isAzureDevOpsServicesHost = (hostname) => {
-  const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
-  return host === 'dev.azure.com'
-    || host.endsWith('.dev.azure.com')
-    || host === 'visualstudio.com'
-    || host.endsWith('.visualstudio.com');
-};
+if (typeof isAzureDevOpsServicesHost === 'undefined') {
+  var isAzureDevOpsServicesHost = (hostname) => {
+    const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
+    return host === 'dev.azure.com'
+      || host.endsWith('.dev.azure.com')
+      || host === 'visualstudio.com'
+      || host.endsWith('.visualstudio.com');
+  };
+}
 
 // Initialize logger functions with dynamic import
 (async () => {

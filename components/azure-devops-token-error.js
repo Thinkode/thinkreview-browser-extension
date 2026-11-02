@@ -261,7 +261,17 @@ function createLearnLink() {
   learnLink.addEventListener('mouseleave', () => {
     learnLink.style.textDecoration = 'none';
   });
-  
+  learnLink.addEventListener('click', (event) => {
+    const host = document.getElementById('review-azure-token-error');
+    if (host?.dataset?.errorKind !== 'integration' && host?.dataset?.errorKind !== 'unauthorized') {
+      return;
+    }
+    event.preventDefault();
+    chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_POPUP' }, () => {
+      void chrome.runtime.lastError;
+    });
+  });
+
   return learnLink;
 }
 
@@ -282,8 +292,8 @@ function updateTokenErrorKind(container, kind) {
     }
     if (description) {
       description.textContent = resolvedKind === 'unauthorized'
-        ? 'ThinkReview connected with Entra OAuth, but Azure DevOps rejected that identity for this organization. Personal Microsoft account orgs (not connected to Entra ID) need a PAT in Integrations. Work orgs can instead invite the connected account, or connect the org to Microsoft Entra ID and reconnect OAuth.'
-        : 'Connect Azure DevOps in ThinkReview portal Integrations so ThinkReview can fetch this pull request. Authentication happens in the cloud — no extension Personal Access Token is needed.';
+        ? 'ThinkReview connected with Entra OAuth, but Azure DevOps rejected that identity for this organization. Save a Personal Access Token in the extension popup, or invite the connected work account / reconnect OAuth in Integrations.'
+        : 'Connect Azure DevOps in ThinkReview portal Integrations, or save a Personal Access Token in the extension popup.';
     }
     if (settingsButton) {
       settingsButton.innerHTML = `
@@ -296,14 +306,14 @@ function updateTokenErrorKind(container, kind) {
   `;
     }
     if (learnLink) {
-      learnLink.href = PORTAL_INTEGRATIONS_URL;
+      learnLink.href = '#';
       learnLink.innerHTML = `
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-      <polyline points="15 3 21 3 21 9"></polyline>
-      <line x1="10" y1="14" x2="21" y2="3"></line>
+      <circle cx="12" cy="12" r="10"></circle>
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+      <line x1="12" y1="17" x2="12.01" y2="17"></line>
     </svg>
-    Open ThinkReview Integrations
+    Or save a Personal Access Token in the extension
   `;
     }
     return;
