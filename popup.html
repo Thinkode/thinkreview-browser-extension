@@ -281,7 +281,7 @@
             <div class="platform-card-info">
               <span class="platform-card-name">Azure DevOps Cloud</span>
               <span class="platform-card-subtitle">dev.azure.com or *.visualstudio.com</span>
-              <span class="platform-badge platform-badge-setup" id="badge-azure-cloud">⚙ Setup needed</span>
+              <span class="platform-badge platform-badge-ready" id="badge-azure-cloud">✓ Ready</span>
             </div>
           </button>
 
@@ -679,11 +679,11 @@
         <!-- Cloud wizard -->
         <div class="wizard-card wizard-card--ready">
           <div class="wizard-ready-badge">Azure DevOps Cloud</div>
-          <p class="wizard-ready-desc">Requires a Personal Access Token (save below) for <strong>dev.azure.com</strong> and <strong>*.visualstudio.com</strong></p>
+          <p class="wizard-ready-desc">Use portal <strong>Integrations</strong> (OAuth) or save a <strong>Personal Access Token</strong> below for <strong>dev.azure.com</strong> and <strong>*.visualstudio.com</strong></p>
           <div class="wizard-steps">
             <div class="wizard-step" style="--step-delay:0s">
               <div class="wizard-step-num">1</div>
-              <span>Create a PAT in Azure DevOps and save it in the section below</span>
+              <span>Connect Azure DevOps at <strong>portal.thinkreview.dev → Integrations</strong>, or save a PAT in the section below</span>
             </div>
             <div class="wizard-step" style="--step-delay:0.15s">
               <div class="wizard-step-num">2</div>
@@ -701,7 +701,7 @@
         <div class="platform-subsection platform-subsection--required" id="azure-server-subsection">
           <div class="subsection-required-badge">Setup required</div>
           <h4 class="subsection-title">Azure DevOps Server (Self-Hosted)</h4>
-          <p class="settings-description">On-premises or self-hosted Azure DevOps? Follow these steps to get started:</p>
+          <p class="settings-description">On-premises Azure DevOps Server requires a PAT. The same token also works for Azure DevOps Cloud if you prefer the original extension flow instead of portal Integrations.</p>
           <div class="wizard-steps wizard-steps--compact">
             <div class="wizard-step wizard-step--compact" style="--step-delay:0s">
               <div class="wizard-step-num">1</div>
@@ -724,6 +724,7 @@
           <div class="token-input-section" style="margin-top:12px;">
             <input type="password" id="azure-token-input" placeholder="Enter your Azure DevOps Personal Access Token" class="token-input">
             <button id="save-token-btn" class="save-token-btn">Save Token</button>
+            <button type="button" id="remove-token-btn" class="save-token-btn">Remove</button>
           </div>
           <div id="token-status" class="token-status"></div>
 

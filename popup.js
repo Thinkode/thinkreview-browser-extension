@@ -2142,12 +2142,18 @@ function initializeAzureSettings() {
   setupAzureEventListeners();
 }
 
+const MASKED_AZURE_TOKEN_PLACEHOLDER = '••••••••••••••••••••••••••••••••••••••••••••••••••';
+
 function setupAzureEventListeners() {
   const saveButton = document.getElementById('save-token-btn');
+  const removeButton = document.getElementById('remove-token-btn');
   const tokenInput = document.getElementById('azure-token-input');
   
   // Save token button click
   saveButton.addEventListener('click', saveAzureToken);
+  if (removeButton) {
+    removeButton.addEventListener('click', removeAzureToken);
+  }
   
   // Enter key in input field
   tokenInput.addEventListener('keypress', (event) => {
@@ -2166,7 +2172,7 @@ async function loadAzureToken() {
       clearTokenStatus();
       const tokenInput = document.getElementById('azure-token-input');
       if (tokenInput) {
-        tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
+        tokenInput.value = MASKED_AZURE_TOKEN_PLACEHOLDER;
         tokenInput.type = 'password';
       }
     } else {
@@ -2182,6 +2188,17 @@ async function saveAzureToken() {
   const tokenInput = document.getElementById('azure-token-input');
   const saveButton = document.getElementById('save-token-btn');
   const token = tokenInput.value.trim();
+
+  if (token === MASKED_AZURE_TOKEN_PLACEHOLDER) {
+    updateTokenStatus('Token already saved', 'info');
+    setTimeout(clearTokenStatus, 4000);
+    return;
+  }
+
+  if (!token) {
+    await removeAzureToken();
+    return;
+  }
   
   const originalButtonText = saveButton.textContent;
   try {
@@ -2190,10 +2207,10 @@ async function saveAzureToken() {
 
     await chrome.storage.local.set({ azureDevOpsToken: token });
 
-    updateTokenStatus('Token saved successfully', 'success');
+    updateTokenStatus('Token saved successfully. Azure Cloud reviews will use this PAT.', 'success');
     setTimeout(clearTokenStatus, 5000);
 
-    tokenInput.value = '••••••••••••••••••••••••••••••••••••••••••••••••••';
+    tokenInput.value = MASKED_AZURE_TOKEN_PLACEHOLDER;
     tokenInput.type = 'password';
 
     dbgLog('Azure DevOps token saved successfully');
@@ -2203,6 +2220,31 @@ async function saveAzureToken() {
   } finally {
     saveButton.disabled = false;
     saveButton.textContent = originalButtonText;
+  }
+}
+
+async function removeAzureToken() {
+  const tokenInput = document.getElementById('azure-token-input');
+  const removeButton = document.getElementById('remove-token-btn');
+  const originalButtonText = removeButton ? removeButton.textContent : '';
+  try {
+    if (removeButton) {
+      removeButton.textContent = 'Removing...';
+      removeButton.disabled = true;
+    }
+    await chrome.storage.local.remove('azureDevOpsToken');
+    if (tokenInput) tokenInput.value = '';
+    updateTokenStatus('PAT removed. Azure Cloud reviews will use portal Integrations.', 'success');
+    setTimeout(clearTokenStatus, 5000);
+    dbgLog('Azure DevOps token removed');
+  } catch (error) {
+    dbgWarn('Error removing Azure token:', error);
+    updateTokenStatus('Error removing token. Please try again.', 'error');
+  } finally {
+    if (removeButton) {
+      removeButton.disabled = false;
+      removeButton.textContent = originalButtonText || 'Remove';
+    }
   }
 }
 
@@ -2926,8 +2968,7 @@ async function computePlatformStatuses() {
     // Cloud variants
     setBadge('github-com',  'ready');
     setBadge('gitlab-com',  'ready');
-    const azureCloudReady = result.azureDevOpsToken && String(result.azureDevOpsToken).trim();
-    setBadge('azure-cloud', azureCloudReady ? 'ready' : 'setup');
+    setBadge('azure-cloud', 'ready');
 
     // GitHub Enterprise Server: ready once at least one domain is saved
     const ghesdomains = result.githubEnterpriseDomains;

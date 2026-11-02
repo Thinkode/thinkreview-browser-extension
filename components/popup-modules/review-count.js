@@ -60,11 +60,11 @@ export class ReviewCountModule {
       return null;
     }
 
-    // Convert to number if it's a string
-    const numericCount = typeof count === 'string' ? parseInt(count, 10) : count;
+    // Convert to number if it's a string. Counts are credit totals and can be fractional.
+    const numericCount = typeof count === 'string' ? Number(count) : count;
     
     // Check if it's a valid number
-    if (isNaN(numericCount) || numericCount < 0) {
+    if (!Number.isFinite(numericCount) || numericCount < 0) {
       dbgWarn('Invalid count value:', count);
       return null;
     }
@@ -119,16 +119,16 @@ export class ReviewCountModule {
    * @returns {string} - Formatted display text
    */
   _formatCountText(count) {
-    if (count === 0) {
-      return '0';
-    } else if (count === 1) {
-      return '1';
-    } else if (count < 1000) {
-      return count.toString();
-    } else if (count < 1000000) {
-      return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    // Credit totals are stored as floats (0.2 / 0.5 increments) and drift, e.g. 51.400000000000006.
+    // Match server roundCreditAmount: one decimal place, then drop a trailing .0.
+    const rounded = Math.round(count * 10) / 10;
+
+    if (rounded < 1000) {
+      return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+    } else if (rounded < 1000000) {
+      return (rounded / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
     } else {
-      return (count / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+      return (rounded / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
     }
   }
 
@@ -203,7 +203,7 @@ export class ReviewCountModule {
   incrementCount(increment = 1) {
     const currentElement = document.getElementById(this.countElementId);
     if (currentElement) {
-      const currentCount = parseInt(currentElement.textContent) || 0;
+      const currentCount = parseFloat(currentElement.textContent) || 0;
       this.updateCount(currentCount + increment);
     }
   }
@@ -215,7 +215,7 @@ export class ReviewCountModule {
   getCurrentCount() {
     const currentElement = document.getElementById(this.countElementId);
     if (currentElement) {
-      return parseInt(currentElement.textContent) || 0;
+      return parseFloat(currentElement.textContent) || 0;
     }
     return 0;
   }

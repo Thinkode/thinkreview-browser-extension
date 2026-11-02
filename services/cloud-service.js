@@ -119,6 +119,11 @@ export class CloudService {
     return `${base}/getReviewPatchCode_1_1`;
   }
 
+  static async getReviewUrlStatusUrl() {
+    const base = await CloudService.getReviewApiBaseUrl();
+    return `${base}/getReviewUrlCode_1_1`;
+  }
+
   static async getConversationalReviewUrlV11() {
     const base = await CloudService.getReviewApiBaseUrl();
     return `${base}/getConversationalReview_1_1`;
@@ -391,6 +396,60 @@ export class CloudService {
       return CloudService.fetchReviewPatchResult(reviewUrl, requestBody);
   }
 
+  static async getReviewUrlCodeUrl() {
+    const base = await CloudService.getReviewApiBaseUrl();
+    return `${base}/reviewUrlCode_1_1`;
+  }
+
+  /**
+   * URL-based code review: the cloud function fetches PR changes using stored git credentials
+   * (Azure DevOps OAuth / PAT in portal Integrations). Same pipeline as MCP reviewUrlCode.
+   */
+  static async reviewUrlCode(opts = {}) {
+    const {
+      mrUrl,
+      language = 'English',
+      mrId = null,
+      forceRegenerate = false,
+      reviewFormat = 'severity',
+      runAgents = true,
+      reviewSource = 'extension',
+    } = opts;
+    dbgLog('Sending URL for code review');
+
+    if (!mrUrl || typeof mrUrl !== 'string') {
+      dbgWarn('Cannot review URL: Missing mrUrl');
+      return null;
+    }
+
+    let email = null;
+    try {
+      const storageData = await new Promise((resolve) => {
+        chrome.storage.local.get(['userData', 'user'], resolve);
+      });
+      if (storageData.userData?.email) {
+        email = storageData.userData.email;
+      } else if (storageData.user) {
+        try {
+          const parsed = JSON.parse(storageData.user);
+          if (parsed?.email) email = parsed.email;
+        } catch (_) { /* ignore */ }
+      }
+    } catch (error) {
+      dbgWarn('Error getting user email for URL review:', error);
+    }
+
+    const requestBody = { mrUrl, runAgents: runAgents === true };
+    if (email) requestBody.email = email;
+    if (language) requestBody.language = language;
+    if (mrId) requestBody.mrId = mrId;
+    if (forceRegenerate) requestBody.forceRegenerate = true;
+    if (reviewFormat) requestBody.reviewFormat = reviewFormat;
+    if (reviewSource) requestBody.reviewSource = reviewSource;
+
+    return CloudService.fetchReviewPatchResult(await CloudService.getReviewUrlCodeUrl(), requestBody);
+  }
+
   static async throwIfFailedReviewResponse(response) {
     if (response.ok) return;
     const errorText = await response.text();
@@ -440,7 +499,35 @@ export class CloudService {
       throw gatewayError;
     }
 
-    throw new Error(`HTTP error ${response.status}: ${errorText}`);
+    throw CloudService.parseFailedReviewError(response.status, errorText);
+  }
+
+  static parseFailedReviewError(status, errorText) {
+    const raw = String(errorText || '');
+    let errorData = null;
+    try {
+      errorData = JSON.parse(raw);
+    } catch (_) {
+      errorData = null;
+    }
+    const serverMessage = String(errorData?.message || raw);
+    const serverCode = errorData?.code || '';
+    const isAzureUnauthorized = /TF400813/i.test(serverMessage)
+      || /not authorized to access this resource/i.test(serverMessage)
+      || /Failed request:\s*\(\s*401\s*\)/i.test(serverMessage)
+      || /does not have access to this organization/i.test(serverMessage)
+      || /Entra OAuth cannot access/i.test(serverMessage);
+    if (serverCode === 'GIT_TOOLS_UNAVAILABLE' || isAzureUnauthorized) {
+      const gitError = new Error(
+        isAzureUnauthorized
+          ? 'The connected Azure DevOps account does not have access to this organization. Invite that Microsoft account into the org, or reconnect Integrations with an account that has access.'
+          : (errorData?.message
+            || 'Git credentials unavailable. Connect Azure DevOps in ThinkReview portal Integrations.')
+      );
+      gitError.isGitToolsUnavailable = true;
+      return gitError;
+    }
+    return new Error(`HTTP error ${status}: ${errorText}`);
   }
 
   static async fetchReviewPatchResult(url, requestBody) {
@@ -493,19 +580,55 @@ export class CloudService {
   }
 
   /**
+   * Cache-only poll for a URL review. Does not start a new LLM review.
+   */
+  static async pollReviewUrlStatus({ mrUrl, reviewFormat, startedAt }) {
+    let email = null;
+    try {
+      const storageData = await new Promise((resolve) => {
+        chrome.storage.local.get(['userData', 'user'], resolve);
+      });
+      if (storageData.userData?.email) {
+        email = storageData.userData.email;
+      } else if (storageData.user) {
+        try {
+          const parsed = JSON.parse(storageData.user);
+          if (parsed?.email) email = parsed.email;
+        } catch (_) { /* ignore */ }
+      }
+    } catch (_) { /* ignore */ }
+
+    const requestBody = { mrUrl };
+    if (email) requestBody.email = email;
+    if (reviewFormat) requestBody.reviewFormat = reviewFormat;
+    const statusUrl = await CloudService.getReviewUrlStatusUrl();
+    const response = await CloudService.thinkReviewFetch(statusUrl, {
+      ...requestBody,
+      startedAt,
+    });
+    await CloudService.throwIfFailedReviewResponse(response);
+    return response.json();
+  }
+
+  /**
    * Wait (server-side poll) for agent review documents for this patch checksum.
    * @param {string} email
-   * @param {string} patchContent - Same string sent to reviewPatchCode_1_1
+   * @param {string} patchContent - Same string sent to reviewPatchCode_1_1 (optional when mrUrl is set)
    * @param {string|null} mrId
+   * @param {string|null} [mrUrl] - PR URL for URL-based reviews (no local patch)
    * @returns {Promise<Object>} - { status, patchChecksum, agents, pendingAgentIds?, missingAgentIds? }
    */
-  static async fetchAgentReviewsForPatch(email, patchContent, mrId = null) {
-    if (!email || !patchContent) {
-      dbgWarn('fetchAgentReviewsForPatch: missing email or patch');
+  static async fetchAgentReviewsForPatch(email, patchContent, mrId = null, mrUrl = null) {
+    const hasPatch = typeof patchContent === 'string' && patchContent.length > 0;
+    const hasMrUrl = typeof mrUrl === 'string' && mrUrl.trim().length > 0;
+    if (!email || (!hasPatch && !hasMrUrl)) {
+      dbgWarn('fetchAgentReviewsForPatch: missing email or patch/mrUrl');
       return null;
     }
     try {
-      const body = { email, patchContent };
+      const body = { email };
+      if (hasPatch) body.patchContent = patchContent;
+      if (hasMrUrl) body.mrUrl = mrUrl;
       if (mrId != null && mrId !== '') {
         body.mrId = mrId;
       }
@@ -533,7 +656,12 @@ export class CloudService {
   static async getConversationalResponse(patchContent, conversationHistory, mrId = null, mrUrl = null, language = 'English') {
     dbgLog('Sending conversation for review');
     
-    if (!patchContent || !conversationHistory) {
+    if (!conversationHistory) {
+      dbgWarn('Cannot get conversational review: Missing conversation history');
+      return null;
+    }
+    const hasPatch = typeof patchContent === 'string' && patchContent.trim().length > 0;
+    if (!hasPatch && !mrUrl) {
       dbgWarn('Cannot get conversational review: Missing patch content or history');
       return null;
     }
@@ -571,7 +699,7 @@ export class CloudService {
     
     try {
       const requestBody = {
-        patchContent,
+        patchContent: hasPatch ? patchContent : '',
         conversationHistory
       };
       
