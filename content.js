@@ -208,7 +208,7 @@ async function showAzureGitAuthErrorUi(stopEnhancedLoader, errorText, fallbackKi
     ? mod.azureGitAuthErrorKind(errorText)
     : (fallbackKind || 'unauthorized');
   if (mod?.showAzureDevOpsIntegrationError) {
-    mod.showAzureDevOpsIntegrationError(stopEnhancedLoader, null, kind);
+    mod.showAzureDevOpsIntegrationError(stopEnhancedLoader, errorText, kind);
     return true;
   }
   return false;

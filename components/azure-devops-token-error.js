@@ -74,7 +74,7 @@ export function showAzureDevOpsIntegrationError(stopEnhancedLoader = null, extra
   const resolvedKind = kind === 'unauthorized' ? 'unauthorized' : 'integration';
   showAzureDevOpsTokenError(
     stopEnhancedLoader,
-    resolvedKind === 'unauthorized' ? null : extraInfo,
+    extraInfo,
     resolvedKind
   );
 }

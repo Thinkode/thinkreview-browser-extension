@@ -396,8 +396,9 @@ export class CloudService {
       return CloudService.fetchReviewPatchResult(reviewUrl, requestBody);
   }
 
-  static getReviewUrlCodeUrl() {
-    return `${CLOUD_FUNCTIONS_BASE_URL}/reviewUrlCode_1_1`;
+  static async getReviewUrlCodeUrl() {
+    const base = await CloudService.getReviewApiBaseUrl();
+    return `${base}/reviewUrlCode_1_1`;
   }
 
   /**
@@ -446,7 +447,7 @@ export class CloudService {
     if (reviewFormat) requestBody.reviewFormat = reviewFormat;
     if (reviewSource) requestBody.reviewSource = reviewSource;
 
-    return CloudService.fetchReviewPatchResult(CloudService.getReviewUrlCodeUrl(), requestBody);
+    return CloudService.fetchReviewPatchResult(await CloudService.getReviewUrlCodeUrl(), requestBody);
   }
 
   static async throwIfFailedReviewResponse(response) {
