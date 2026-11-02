@@ -19,4 +19,8 @@ describe('isTerminalReviewResponse', () => {
   it('treats a successful response with no review payload as finished', () => {
     expect(isTerminalReviewResponse({ success: true, data: null })).toBe(true);
   });
+
+  it('does not treat a cache poll pending response as finished', () => {
+    expect(isTerminalReviewResponse({ success: true, pending: true })).toBe(false);
+  });
 });

@@ -840,6 +840,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'POLL_REVIEW_URL_CODE') {
+    const { mrUrl, reviewFormat, startedAt } = message;
+    (async () => {
+      try {
+        const settings = await chrome.storage.local.get(['aiProvider']);
+        const provider = settings.aiProvider || 'cloud';
+        if (provider !== 'cloud') {
+          sendResponse({ success: true, pending: true, provider });
+          return;
+        }
+        if (!mrUrl || typeof mrUrl !== 'string') {
+          sendResponse({ success: true, pending: true, provider: 'cloud' });
+          return;
+        }
+        const data = await CloudService.pollReviewUrlStatus({
+          mrUrl,
+          reviewFormat,
+          startedAt,
+        });
+        if (data?.status === 'success' && data.review) {
+          sendResponse({ success: true, data, provider: 'cloud' });
+          return;
+        }
+        sendResponse({ success: true, pending: true, provider: 'cloud' });
+      } catch (err) {
+        sendResponse({
+          success: false,
+          error: err.message,
+          isTransientTimeout: err.isTransientTimeout === true,
+          isGitToolsUnavailable: err.isGitToolsUnavailable === true,
+          ...authExpiredPayload(err),
+        });
+      }
+    })();
+    return true;
+  }
+
   if (message.type === 'POLL_REVIEW_PATCH_CODE') {
     const { patchContent, mrId, reviewFormat, startedAt } = message;
     (async () => {

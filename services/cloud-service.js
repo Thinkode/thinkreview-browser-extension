@@ -119,6 +119,11 @@ export class CloudService {
     return `${base}/getReviewPatchCode_1_1`;
   }
 
+  static async getReviewUrlStatusUrl() {
+    const base = await CloudService.getReviewApiBaseUrl();
+    return `${base}/getReviewUrlCode_1_1`;
+  }
+
   static async getConversationalReviewUrlV11() {
     const base = await CloudService.getReviewApiBaseUrl();
     return `${base}/getConversationalReview_1_1`;
@@ -571,6 +576,37 @@ export class CloudService {
     if (mrId) requestBody.mrId = mrId;
     if (reviewFormat) requestBody.reviewFormat = reviewFormat;
     return CloudService.pollReviewPatchCodeOnce(requestBody, startedAt);
+  }
+
+  /**
+   * Cache-only poll for a URL review. Does not start a new LLM review.
+   */
+  static async pollReviewUrlStatus({ mrUrl, reviewFormat, startedAt }) {
+    let email = null;
+    try {
+      const storageData = await new Promise((resolve) => {
+        chrome.storage.local.get(['userData', 'user'], resolve);
+      });
+      if (storageData.userData?.email) {
+        email = storageData.userData.email;
+      } else if (storageData.user) {
+        try {
+          const parsed = JSON.parse(storageData.user);
+          if (parsed?.email) email = parsed.email;
+        } catch (_) { /* ignore */ }
+      }
+    } catch (_) { /* ignore */ }
+
+    const requestBody = { mrUrl };
+    if (email) requestBody.email = email;
+    if (reviewFormat) requestBody.reviewFormat = reviewFormat;
+    const statusUrl = await CloudService.getReviewUrlStatusUrl();
+    const response = await CloudService.thinkReviewFetch(statusUrl, {
+      ...requestBody,
+      startedAt,
+    });
+    await CloudService.throwIfFailedReviewResponse(response);
+    return response.json();
   }
 
   /**

@@ -61,6 +61,13 @@ function countReviewFindings(review) {
   return len(review.suggestions) + len(review.securityIssues) + len(review.bestPractices);
 }
 
+function analyticsPatchSizeBytes(patchSize, fallbackContent) {
+  const raw = patchSize && typeof patchSize === 'object' ? patchSize.original : patchSize;
+  const n = Number(raw);
+  if (Number.isFinite(n) && n > 0) return n;
+  return typeof fallbackContent === 'string' ? fallbackContent.length : 0;
+}
+
 function classifyReviewError(error) {
   const msg = String(error?.message || '');
   if (msg.includes('patchContent') || msg.includes('no code changes')) return 'no_code_changes';
@@ -2489,7 +2496,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       model_key: modelKey,
       findings_count: findingsCount,
       duration_ms: Date.now() - reviewStartedAt,
-      patch_size: data.patchSize || (typeof filteredCodeContent === 'string' ? filteredCodeContent.length : 0)
+      patch_size: analyticsPatchSizeBytes(data.patchSize, filteredCodeContent)
     });
     if (findingsCount === 0) {
       trackAnalytics('review_empty', {

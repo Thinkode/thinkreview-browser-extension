@@ -1,6 +1,7 @@
 /**
  * Start REVIEW_URL_CODE (reviewUrlCode_1_1). If Chrome / GFE drops the long
- * message (~5–6 min), retry so in-flight / cache can complete the review.
+ * message (~5–6 min), poll POLL_REVIEW_URL_CODE (getReviewUrlCode_1_1) after
+ * the safe window. Do not re-call REVIEW_URL_CODE — that starts another LLM run.
  * Do not abort the long fetch: Cloud Run can cancel on disconnect.
  */
 
@@ -57,13 +58,19 @@ export async function requestUrlReviewFromBackground(payload) {
       await wait(PRE_POLL_CHECK_MS);
       continue;
     }
-    const retryResp = await sendMessage({
-      type: 'REVIEW_URL_CODE',
-      ...payload,
-      forceRegenerate: false,
+    const pollResp = await sendMessage({
+      type: 'POLL_REVIEW_URL_CODE',
+      mrUrl: payload.mrUrl,
+      mrId: payload.mrId,
+      reviewFormat: payload.reviewFormat,
+      startedAt,
     });
-    if (isTerminalReviewResponse(retryResp)) {
-      settled = retryResp;
+    if (pollResp?.success && pollResp.data?.status === 'success') {
+      settled = pollResp;
+      break;
+    }
+    if (isTerminalReviewResponse(pollResp)) {
+      settled = pollResp;
       break;
     }
     await wait(POLL_INTERVAL_MS);
