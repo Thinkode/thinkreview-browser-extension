@@ -8,7 +8,7 @@ import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
 import { normalizeGatewayBaseUrl, canUseEnterpriseGatewayFromStorage } from './utils/enterprise-gateway.js';
 import { getThinkReviewAuthHeaders } from './utils/extension-auth.js';
-import { cloudHostsFromIntegrations } from './utils/integration-status.js';
+import { azureHostBadges, cloudHostsFromIntegrations } from './utils/integration-status.js';
 
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_SIGNIN_WAIT = 500;
@@ -811,8 +811,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Platform "Not working?" chips — platform-specific event names
   const platformNotWorkingLinks = [
     { id: 'not-working-github',    event: 'not_working_clicked_github' },
+    { id: 'not-working-github-enterprise', event: 'not_working_clicked_github' },
     { id: 'not-working-gitlab',    event: 'not_working_clicked_gitlab' },
+    { id: 'not-working-gitlab-self-managed', event: 'not_working_clicked_gitlab' },
     { id: 'not-working-azure',     event: 'not_working_clicked_azure' },
+    { id: 'not-working-azure-server', event: 'not_working_clicked_azure' },
   ];
   platformNotWorkingLinks.forEach(({ id, event }) => {
     const el = document.getElementById(id);
@@ -829,8 +832,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Platform "Setup guide" chips
   const platformSetupGuideLinks = [
     { id: 'setup-guide-github',    event: 'setup_guide_opened_github' },
+    { id: 'setup-guide-github-enterprise', event: 'setup_guide_opened_github' },
     { id: 'setup-guide-gitlab',    event: 'setup_guide_opened_gitlab' },
+    { id: 'setup-guide-gitlab-self-managed', event: 'setup_guide_opened_gitlab' },
     { id: 'setup-guide-azure',     event: 'setup_guide_opened_azure' },
+    { id: 'setup-guide-azure-server', event: 'setup_guide_opened_azure' },
     { id: 'setup-guide-bitbucket', event: 'setup_guide_opened_bitbucket' },
   ];
   platformSetupGuideLinks.forEach(({ id, event }) => {
@@ -3011,8 +3017,8 @@ async function computePlatformStatuses() {
   try {
     const result = await chrome.storage.local.get([
       'azureDevOpsToken',
-      'customDomains',
-      'azureCustomDomains',
+      'gitlabDomains',
+      'azureDevOpsDomains',
       'githubEnterpriseDomains',
       'bitbucketToken',
       'bitbucketEmail',
@@ -3030,7 +3036,12 @@ async function computePlatformStatuses() {
 
     setBadge('github-com', portalHosts.github ? 'connected' : 'connect');
     setBadge('gitlab-com', portalHosts.gitlab ? 'connected' : 'connect');
-    setBadge('azure-cloud', portalHosts.azure ? 'connected' : 'connect');
+    const azureBadges = azureHostBadges({
+      portalConnected: portalHosts.azure,
+      localToken: result.azureDevOpsToken,
+      serverDomains: result.azureDevOpsDomains,
+    });
+    setBadge('azure-cloud', azureBadges.cloud);
     setConnectControl('github', portalHosts.github);
     setConnectControl('gitlab', portalHosts.gitlab);
     setConnectControl('azure', portalHosts.azure);
@@ -3039,13 +3050,11 @@ async function computePlatformStatuses() {
     const ghesReady = Array.isArray(ghesdomains) && ghesdomains.length > 0;
     setBadge('github-enterprise', ghesReady ? 'ready' : 'setup');
 
-    const gitlabDomains = result.customDomains;
+    const gitlabDomains = result.gitlabDomains;
     const gitlabSMReady = Array.isArray(gitlabDomains) && gitlabDomains.length > 0;
     setBadge('gitlab-self-managed', gitlabSMReady ? 'ready' : 'setup');
 
-    const azureDomains = result.azureCustomDomains;
-    const azureServerReady = Array.isArray(azureDomains) && azureDomains.length > 0;
-    setBadge('azure-server', azureServerReady ? 'ready' : 'setup');
+    setBadge('azure-server', azureBadges.server);
 
     const bitbucketConfigured = portalHosts.bitbucket || (result.bitbucketEnabled &&
       (result.bitbucketToken || result.bitbucketEmail));

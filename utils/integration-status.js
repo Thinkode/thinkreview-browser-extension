@@ -33,3 +33,20 @@ export function cloudHostsFromIntegrations(integrations) {
   );
   return hosts;
 }
+
+export function hasSavedValue(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+/**
+ * Azure badges. A token saved in the extension counts as connected for cloud,
+ * and the server page is ready only when that token and a domain are both saved.
+ */
+export function azureHostBadges({ portalConnected, localToken, serverDomains }) {
+  const tokenSaved = hasSavedValue(localToken);
+  const hasDomain = Array.isArray(serverDomains) && serverDomains.length > 0;
+  return {
+    cloud: portalConnected || tokenSaved ? 'connected' : 'connect',
+    server: hasDomain && tokenSaved ? 'ready' : 'setup',
+  };
+}
