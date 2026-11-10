@@ -215,7 +215,7 @@
         <!-- Platform Cards -->
         <div class="platform-section-header">
           <h3 class="settings-title">Platform Setup</h3>
-          <p class="settings-description">Select your Git platform to configure and see how to get started</p>
+          <p class="settings-description">Cloud hosts connect with OAuth. On-prem hosts still use a token and a domain.</p>
         </div>
 
         <div class="platform-cards-grid">
@@ -281,7 +281,7 @@
             <div class="platform-card-info">
               <span class="platform-card-name">Azure DevOps Cloud</span>
               <span class="platform-card-subtitle">dev.azure.com or *.visualstudio.com</span>
-              <span class="platform-badge platform-badge-ready" id="badge-azure-cloud">✓ Ready</span>
+              <span class="platform-badge platform-badge-connect" id="badge-azure-cloud">Connect</span>
             </div>
           </button>
 
@@ -307,7 +307,7 @@
             </div>
             <div class="platform-card-info">
               <span class="platform-card-name">Bitbucket Cloud</span>
-              <span class="platform-badge platform-badge-setup" id="badge-bitbucket">⚙ Setup needed</span>
+              <span class="platform-badge platform-badge-connect" id="badge-bitbucket">Connect</span>
             </div>
           </button>
 
@@ -522,24 +522,12 @@
           <h3>GitHub</h3>
         </div>
 
-        <!-- github.com wizard -->
-        <div class="wizard-card wizard-card--ready">
-          <div class="wizard-ready-badge">✓ Works out of the box</div>
-          <p class="wizard-ready-desc">No setup needed for <strong>github.com</strong></p>
-          <div class="wizard-steps">
-            <div class="wizard-step" style="--step-delay:0s">
-              <div class="wizard-step-num">1</div>
-              <span>Navigate to any pull request on <strong>github.com</strong></span>
-            </div>
-            <div class="wizard-step" style="--step-delay:0.15s">
-              <div class="wizard-step-num">2</div>
-              <span>ThinkReview button appears automatically</span>
-            </div>
-            <div class="wizard-step" style="--step-delay:0.3s">
-              <div class="wizard-step-num">3</div>
-              <span>Click it to get an instant AI code review</span>
-            </div>
-          </div>
+        <!-- github.com connect -->
+        <div class="wizard-card wizard-card--connect">
+          <div class="wizard-ready-badge wizard-ready-badge--connect">Recommended</div>
+          <p class="wizard-ready-desc">Connect <strong>github.com</strong> so private repositories and full file context work without a personal access token.</p>
+          <button type="button" class="oauth-connect-btn" data-connect-platform="github">Connect with GitHub</button>
+          <p class="help-text">You can still review a github.com pull request before connecting. GitHub Enterprise Server uses a domain and a PAT below.</p>
         </div>
 
         <!-- GHES section -->
@@ -599,24 +587,12 @@
           <h3>GitLab</h3>
         </div>
 
-        <!-- gitlab.com wizard -->
-        <div class="wizard-card wizard-card--ready">
-          <div class="wizard-ready-badge">✓ Works out of the box</div>
-          <p class="wizard-ready-desc">No setup needed for <strong>gitlab.com</strong></p>
-          <div class="wizard-steps">
-            <div class="wizard-step" style="--step-delay:0s">
-              <div class="wizard-step-num">1</div>
-              <span>Navigate to any merge request on <strong>gitlab.com</strong></span>
-            </div>
-            <div class="wizard-step" style="--step-delay:0.15s">
-              <div class="wizard-step-num">2</div>
-              <span>ThinkReview button appears automatically</span>
-            </div>
-            <div class="wizard-step" style="--step-delay:0.3s">
-              <div class="wizard-step-num">3</div>
-              <span>Click it to get an instant AI code review</span>
-            </div>
-          </div>
+        <!-- gitlab.com connect -->
+        <div class="wizard-card wizard-card--connect">
+          <div class="wizard-ready-badge wizard-ready-badge--connect">Recommended</div>
+          <p class="wizard-ready-desc">Connect <strong>gitlab.com</strong> so private projects and full file context work without a personal access token.</p>
+          <button type="button" class="oauth-connect-btn" data-connect-platform="gitlab">Connect with GitLab</button>
+          <p class="help-text">You can still review a gitlab.com merge request before connecting. Self-managed GitLab uses a domain and a PAT below.</p>
         </div>
 
         <!-- Self-managed section -->
@@ -676,32 +652,18 @@
           <h3>Azure DevOps</h3>
         </div>
 
-        <!-- Cloud wizard -->
-        <div class="wizard-card wizard-card--ready">
-          <div class="wizard-ready-badge">Azure DevOps Cloud</div>
-          <p class="wizard-ready-desc">Use portal <strong>Integrations</strong> (OAuth) or save a <strong>Personal Access Token</strong> below for <strong>dev.azure.com</strong> and <strong>*.visualstudio.com</strong></p>
-          <div class="wizard-steps">
-            <div class="wizard-step" style="--step-delay:0s">
-              <div class="wizard-step-num">1</div>
-              <span>Connect Azure DevOps at <strong>portal.thinkreview.dev → Integrations</strong>, or save a PAT in the section below</span>
-            </div>
-            <div class="wizard-step" style="--step-delay:0.15s">
-              <div class="wizard-step-num">2</div>
-              <span>Navigate to any pull request on <strong>dev.azure.com</strong> or <strong>*.visualstudio.com</strong></span>
-            </div>
-            <div class="wizard-step" style="--step-delay:0.3s">
-              <div class="wizard-step-num">3</div>
-              <span>Click the ThinkReview button to get an AI code review</span>
-            </div>
-          </div>
-
+        <div class="wizard-card wizard-card--connect">
+          <div class="wizard-ready-badge wizard-ready-badge--connect">Recommended for cloud</div>
+          <p class="wizard-ready-desc">Connect <strong>dev.azure.com</strong> and <strong>*.visualstudio.com</strong> with a Microsoft work or school account.</p>
+          <button type="button" class="oauth-connect-btn" data-connect-platform="azure">Connect with Azure DevOps</button>
+          <p class="help-text">Personal Microsoft accounts cannot use this button. Azure DevOps Server uses a personal access token below.</p>
         </div>
 
-        <!-- Self-hosted section (mandatory PAT) -->
+        <!-- PAT: on-prem, personal accounts, or a cloud token limited to one org -->
         <div class="platform-subsection platform-subsection--required" id="azure-server-subsection">
-          <div class="subsection-required-badge">Setup required</div>
-          <h4 class="subsection-title">Azure DevOps Server (Self-Hosted)</h4>
-          <p class="settings-description">On-premises Azure DevOps Server requires a PAT. The same token also works for Azure DevOps Cloud if you prefer the original extension flow instead of portal Integrations.</p>
+          <div class="subsection-required-badge">Token option</div>
+          <h4 class="subsection-title">Personal access token</h4>
+          <p class="settings-description">Use a PAT for Azure DevOps Server, a personal Microsoft account, or when you want the token limited to one organization. The same token works on dev.azure.com.</p>
           <div class="wizard-steps wizard-steps--compact">
             <div class="wizard-step wizard-step--compact" style="--step-delay:0s">
               <div class="wizard-step-num">1</div>
@@ -713,7 +675,7 @@
             </div>
             <div class="wizard-step wizard-step--compact" style="--step-delay:0.3s">
               <div class="wizard-step-num">3</div>
-              <span>Enter your custom domain (e.g. <code>devops.mycompany.com</code>) and click <strong>Add</strong></span>
+              <span>For Azure DevOps Server, enter your domain (e.g. <code>devops.mycompany.com</code>) and click <strong>Add</strong>. Cloud hosts do not need a domain.</span>
             </div>
             <div class="wizard-step wizard-step--compact" style="--step-delay:0.45s">
               <div class="wizard-step-num">4</div>
@@ -767,27 +729,16 @@
           <h3>Bitbucket Cloud</h3>
         </div>
 
+        <div class="wizard-card wizard-card--connect">
+          <div class="wizard-ready-badge wizard-ready-badge--connect">Recommended</div>
+          <p class="wizard-ready-desc">Connect <strong>bitbucket.org</strong>. Allow the browser permission below so the review button can appear on pull requests.</p>
+          <button type="button" class="oauth-connect-btn" data-connect-platform="bitbucket">Connect with Bitbucket</button>
+        </div>
+
         <div class="platform-subsection platform-subsection--required">
-          <div class="subsection-required-badge">Setup required</div>
-          <p class="settings-description">Bitbucket requires you to grant browser permission and add an app password to enable the extension.</p>
-          <div class="wizard-steps">
-            <div class="wizard-step" style="--step-delay:0s">
-              <div class="wizard-step-num">1</div>
-              <span>Click <strong>Allow Bitbucket</strong> below to grant browser permission</span>
-            </div>
-            <div class="wizard-step" style="--step-delay:0.15s">
-              <div class="wizard-step-num">2</div>
-              <span>In Bitbucket, go to <strong>Profile → App passwords</strong> and create one with <em>Read Repository access</em> and <em>Read pull requests</em> permissions</span>
-            </div>
-            <div class="wizard-step" style="--step-delay:0.3s">
-              <div class="wizard-step-num">3</div>
-              <span>Enter your Atlassian email and app password below, then save</span>
-            </div>
-            <div class="wizard-step" style="--step-delay:0.45s">
-              <div class="wizard-step-num">4</div>
-              <span>Navigate to any pull request on <strong>bitbucket.org</strong></span>
-            </div>
-          </div>
+          <div class="subsection-required-badge">Also required</div>
+          <h4 class="subsection-title">Allow Bitbucket in the browser</h4>
+          <p class="settings-description">ThinkReview needs permission to run on bitbucket.org. Connecting the account does not replace this.</p>
 
           <!-- Allow button -->
           <div class="bitbucket-header-row" style="margin-top:14px;">
@@ -806,7 +757,8 @@
             </div>
           </div>
 
-          <!-- Credentials -->
+          <h4 class="subsection-title" style="margin-top:16px;">App password or API token</h4>
+          <p class="settings-description">Use this instead of Connect with Bitbucket, or when you want a token with narrower access. Bitbucket Data Center stays on its own page.</p>
           <div id="bitbucket-token-section" class="token-input-section bitbucket-token-section" style="margin-top:10px;">
             <input type="email" id="bitbucket-email-input" placeholder="Atlassian account email" class="token-input bitbucket-email-input">
             <input type="password" id="bitbucket-token-input" class="token-input" placeholder="App password or API token" aria-label="Bitbucket API token">

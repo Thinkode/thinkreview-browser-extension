@@ -2904,6 +2904,22 @@ function initializePlatformNavigation() {
     btn.addEventListener('click', () => showPlatformHome());
   });
 
+  document.querySelectorAll('[data-connect-platform]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const platform = btn.getAttribute('data-connect-platform');
+      try {
+        const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        trackUserAction('oauth_connect_clicked', { context: `connect_${platform}` }).catch(() => {});
+      } catch (e) { /* silent */ }
+      try {
+        const { portalConnectUrl } = await import(chrome.runtime.getURL('utils/portal-connect.js'));
+        chrome.tabs.create({ url: portalConnectUrl(platform) });
+      } catch (err) {
+        dbgWarn('Failed to start platform connect:', err);
+      }
+    });
+  });
+
   // Compute and render status badges on load
   computePlatformStatuses();
 }
@@ -2968,7 +2984,7 @@ async function computePlatformStatuses() {
     // Cloud variants
     setBadge('github-com',  'ready');
     setBadge('gitlab-com',  'ready');
-    setBadge('azure-cloud', 'ready');
+    setBadge('azure-cloud', 'connect');
 
     // GitHub Enterprise Server: ready once at least one domain is saved
     const ghesdomains = result.githubEnterpriseDomains;
@@ -2988,7 +3004,7 @@ async function computePlatformStatuses() {
     // Bitbucket Cloud: requires explicit permission grant + token
     const bitbucketConfigured = result.bitbucketEnabled &&
       (result.bitbucketToken || result.bitbucketEmail);
-    setBadge('bitbucket', bitbucketConfigured ? 'ready' : 'setup');
+    setBadge('bitbucket', bitbucketConfigured ? 'ready' : 'connect');
 
     // Bitbucket Data Center: ready when at least one domain is saved with a token
     const dcDomains = result.bitbucketDataCenterDomains;
@@ -3006,6 +3022,9 @@ function setBadge(platform, status) {
   if (status === 'ready') {
     badge.textContent = '✓ Ready';
     badge.className = 'platform-badge platform-badge-ready';
+  } else if (status === 'connect') {
+    badge.textContent = 'Connect';
+    badge.className = 'platform-badge platform-badge-connect';
   } else {
     badge.textContent = '⚙ Setup needed';
     badge.className = 'platform-badge platform-badge-setup';

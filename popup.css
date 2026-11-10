@@ -2221,6 +2221,12 @@ footer {
   border: 1px solid #ffe082;
 }
 
+.platform-badge-connect {
+  background: #f3eefc;
+  color: #5a3ea5;
+  border: 1px solid #d4c6f3;
+}
+
 /* Collapsible AI Provider header */
 
 .collapsible-header {
@@ -2333,6 +2339,11 @@ footer {
   border: 1.5px solid #a5d6a7;
 }
 
+.wizard-card--connect {
+  background: #f6f3fc;
+  border: 1.5px solid #d4c6f3;
+}
+
 .wizard-ready-badge {
   display: inline-block;
   background: #2e7d32;
@@ -2342,6 +2353,28 @@ footer {
   padding: 3px 10px;
   border-radius: 20px;
   margin-bottom: 6px;
+}
+
+.wizard-ready-badge--connect {
+  background: #6b4fbb;
+}
+
+.oauth-connect-btn {
+  display: block;
+  width: 100%;
+  margin: 8px 0 6px;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #6b4fbb;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.oauth-connect-btn:hover {
+  background: #5a3ea5;
 }
 
 .wizard-ready-desc {
