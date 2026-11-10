@@ -2489,3 +2489,75 @@ footer {
   margin-bottom: 6px;
 }
 
+.host-panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+
+.host-panel--cloud {
+  border-color: #ddd6fe;
+  background: #faf8ff;
+}
+
+.host-panel--prem {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.host-panel-kicker {
+  display: inline-block;
+  margin: 0 0 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.host-panel--cloud .host-panel-kicker {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.host-panel--prem .host-panel-kicker {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.host-panel-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.host-split {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 12px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.host-split::before,
+.host-split::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.host-panel .wizard-card,
+.host-panel .platform-subsection {
+  margin-bottom: 0;
+  background: #fff;
+}
+

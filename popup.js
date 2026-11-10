@@ -2878,26 +2878,34 @@ document.head.appendChild(style);
 // PLATFORM NAVIGATION
 // =====================================================================
 
-const PLATFORM_IDS = ['github', 'gitlab', 'azure', 'bitbucket', 'bitbucket-dc'];
+const PLATFORM_IDS = [
+  'github-com',
+  'github-enterprise',
+  'gitlab-com',
+  'gitlab-self-managed',
+  'azure-cloud',
+  'azure-server',
+  'bitbucket',
+  'bitbucket-dc',
+];
 
-// Card definitions: id → { platform view to open, optional scroll target id }
 const PLATFORM_CARDS = [
-  { cardId: 'card-github-com',          platform: 'github',        scrollTarget: null },
-  { cardId: 'card-github-enterprise',   platform: 'github',        scrollTarget: 'github-enterprise-subsection' },
-  { cardId: 'card-gitlab-com',          platform: 'gitlab',        scrollTarget: null },
-  { cardId: 'card-gitlab-self-managed', platform: 'gitlab',        scrollTarget: 'gitlab-self-managed-subsection' },
-  { cardId: 'card-azure-cloud',         platform: 'azure',         scrollTarget: null },
-  { cardId: 'card-azure-server',        platform: 'azure',         scrollTarget: 'azure-server-subsection' },
-  { cardId: 'card-bitbucket',           platform: 'bitbucket',     scrollTarget: null },
-  { cardId: 'card-bitbucket-dc',        platform: 'bitbucket-dc',  scrollTarget: null },
+  { cardId: 'card-github-com', platform: 'github-com' },
+  { cardId: 'card-github-enterprise', platform: 'github-enterprise' },
+  { cardId: 'card-gitlab-com', platform: 'gitlab-com' },
+  { cardId: 'card-gitlab-self-managed', platform: 'gitlab-self-managed' },
+  { cardId: 'card-azure-cloud', platform: 'azure-cloud' },
+  { cardId: 'card-azure-server', platform: 'azure-server' },
+  { cardId: 'card-bitbucket', platform: 'bitbucket' },
+  { cardId: 'card-bitbucket-dc', platform: 'bitbucket-dc' },
 ];
 
 function initializePlatformNavigation() {
   // Platform card click → show detail view, optionally scroll to subsection
-  PLATFORM_CARDS.forEach(({ cardId, platform, scrollTarget }) => {
+  PLATFORM_CARDS.forEach(({ cardId, platform }) => {
     const card = document.getElementById(cardId);
     if (card) {
-      card.addEventListener('click', () => showPlatformView(platform, scrollTarget));
+      card.addEventListener('click', () => showPlatformView(platform));
     }
   });
 
@@ -2942,9 +2950,15 @@ function showPlatformHome() {
   computePlatformStatuses();
 }
 
-function showPlatformView(platform, scrollTarget = null) {
+function showPlatformView(platform) {
   const home = document.getElementById('platform-home');
   if (home) home.style.display = 'none';
+
+  if (platform === 'azure-cloud' || platform === 'azure-server') {
+    const slot = document.querySelector(`#platform-view-${platform} [data-shared-slot="azure-token"]`);
+    const block = document.getElementById('azure-shared-token');
+    if (slot && block && block.parentElement !== slot) slot.appendChild(block);
+  }
 
   PLATFORM_IDS.forEach(p => {
     const view = document.getElementById(`platform-view-${p}`);
@@ -2955,13 +2969,6 @@ function showPlatformView(platform, scrollTarget = null) {
         view.style.animation = 'none';
         void view.offsetWidth;
         view.style.animation = '';
-        // Scroll to subsection if specified
-        if (scrollTarget) {
-          requestAnimationFrame(() => {
-            const target = document.getElementById(scrollTarget);
-            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          });
-        }
       } else {
         view.style.display = 'none';
       }
