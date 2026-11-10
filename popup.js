@@ -8,7 +8,7 @@ import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
 import { normalizeGatewayBaseUrl, canUseEnterpriseGatewayFromStorage } from './utils/enterprise-gateway.js';
 import { getThinkReviewAuthHeaders } from './utils/extension-auth.js';
-import { azureHostBadges, cloudHostsFromIntegrations } from './utils/integration-status.js';
+import { azureHostBadges, cloudHostsFromIntegrations, selfHostedHostsFromIntegrations } from './utils/integration-status.js';
 
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_SIGNIN_WAIT = 500;
@@ -3004,6 +3004,18 @@ async function fetchPortalIntegrations() {
   return data && data.integrations ? data.integrations : null;
 }
 
+function showPortalHosts(elementId, hosts) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  if (!hosts || hosts.length === 0) {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  el.style.display = 'block';
+  el.textContent = `Connected in ThinkReview: ${hosts.join(', ')}`;
+}
+
 function setConnectControl(platform, connected) {
   const button = document.querySelector(`[data-connect-platform="${platform}"]`);
   if (!button) return;
@@ -3028,11 +3040,19 @@ async function computePlatformStatuses() {
     ]);
 
     let portalHosts = { github: false, gitlab: false, bitbucket: false, azure: false };
+    let selfHosted = { github: [], gitlab: [], azure: [], bitbucket: [] };
     try {
-      portalHosts = cloudHostsFromIntegrations(await fetchPortalIntegrations());
+      const integrations = await fetchPortalIntegrations();
+      portalHosts = cloudHostsFromIntegrations(integrations);
+      selfHosted = selfHostedHostsFromIntegrations(integrations);
     } catch (err) {
       dbgWarn('Could not load portal integrations:', err);
     }
+
+    showPortalHosts('github-enterprise-portal-status', selfHosted.github);
+    showPortalHosts('gitlab-self-managed-portal-status', selfHosted.gitlab);
+    showPortalHosts('azure-server-portal-status', selfHosted.azure);
+    showPortalHosts('bitbucket-dc-portal-status', selfHosted.bitbucket);
 
     setBadge('github-com', portalHosts.github ? 'connected' : 'connect');
     setBadge('gitlab-com', portalHosts.gitlab ? 'connected' : 'connect');
@@ -3047,14 +3067,15 @@ async function computePlatformStatuses() {
     setConnectControl('azure', portalHosts.azure);
 
     const ghesdomains = result.githubEnterpriseDomains;
-    const ghesReady = Array.isArray(ghesdomains) && ghesdomains.length > 0;
-    setBadge('github-enterprise', ghesReady ? 'ready' : 'setup');
+    const ghesReady = (Array.isArray(ghesdomains) && ghesdomains.length > 0) || selfHosted.github.length > 0;
+    setBadge('github-enterprise', ghesReady ? 'connected' : 'setup');
 
     const gitlabDomains = result.gitlabDomains;
-    const gitlabSMReady = Array.isArray(gitlabDomains) && gitlabDomains.length > 0;
-    setBadge('gitlab-self-managed', gitlabSMReady ? 'ready' : 'setup');
+    const gitlabSMReady = (Array.isArray(gitlabDomains) && gitlabDomains.length > 0) || selfHosted.gitlab.length > 0;
+    setBadge('gitlab-self-managed', gitlabSMReady ? 'connected' : 'setup');
 
-    setBadge('azure-server', azureBadges.server);
+    const azureServerReady = azureBadges.server === 'ready' || selfHosted.azure.length > 0;
+    setBadge('azure-server', azureServerReady ? 'connected' : 'setup');
 
     const bitbucketConfigured = portalHosts.bitbucket || (result.bitbucketEnabled &&
       (result.bitbucketToken || result.bitbucketEmail));
@@ -3062,9 +3083,10 @@ async function computePlatformStatuses() {
     setConnectControl('bitbucket', Boolean(portalHosts.bitbucket));
 
     const dcDomains = result.bitbucketDataCenterDomains;
-    const dcReady = Array.isArray(dcDomains) && dcDomains.length > 0 &&
-      result.bitbucketDataCenterToken && String(result.bitbucketDataCenterToken).trim();
-    setBadge('bitbucket-dc', dcReady ? 'ready' : 'setup');
+    const dcReady = ((Array.isArray(dcDomains) && dcDomains.length > 0 &&
+      result.bitbucketDataCenterToken && String(result.bitbucketDataCenterToken).trim()) ||
+      selfHosted.bitbucket.length > 0);
+    setBadge('bitbucket-dc', dcReady ? 'connected' : 'setup');
   } catch (err) {
     dbgWarn('Error computing platform statuses:', err);
   }

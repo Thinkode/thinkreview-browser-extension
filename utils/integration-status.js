@@ -34,6 +34,49 @@ export function cloudHostsFromIntegrations(integrations) {
   return hosts;
 }
 
+const SELF_HOSTED_PROFILES = {
+  github: 'github_enterprise',
+  gitlab: 'gitlab_self_hosted',
+  azureDevOps: 'azure_server',
+};
+
+function credentialLabel(row) {
+  const raw = row.baseUrl || row.organizationUrl || row.customDomainHost || '';
+  return String(raw).trim();
+}
+
+/**
+ * Portal credentials for self-hosted hosts. A baseUrl such as a custom GitLab
+ * domain counts even when the profile name varies.
+ * @returns {{ github: string[], gitlab: string[], azure: string[], bitbucket: string[] }}
+ */
+export function selfHostedHostsFromIntegrations(integrations) {
+  const empty = { github: [], gitlab: [], azure: [], bitbucket: [] };
+  if (!integrations || typeof integrations !== 'object') return empty;
+  const rows = (key) => (Array.isArray(integrations[key]) ? integrations[key] : []);
+
+  const labelsFor = (key, profile, extra) => {
+    const seen = new Set();
+    rows(key).forEach((row) => {
+      if (!row || row.authType === 'github_app' || row.authType === 'gitlab_oauth' || row.authType === 'bitbucket_oauth' || row.authType === 'azure_devops_oauth') {
+        return;
+      }
+      const selfHosted = row.profile === profile || extra(row);
+      if (!selfHosted) return;
+      const label = credentialLabel(row) || row.profile || 'Saved token';
+      seen.add(label);
+    });
+    return [...seen];
+  };
+
+  return {
+    github: labelsFor('github', SELF_HOSTED_PROFILES.github, (row) => Boolean(row.baseUrl) && row.profile !== 'github_cloud'),
+    gitlab: labelsFor('gitlab', SELF_HOSTED_PROFILES.gitlab, (row) => Boolean(row.baseUrl) && row.profile !== 'gitlab_com'),
+    azure: labelsFor('azureDevOps', SELF_HOSTED_PROFILES.azureDevOps, (row) => Boolean(row.baseUrl)),
+    bitbucket: labelsFor('bitbucket', 'bitbucket_data_center', (row) => Boolean(row.baseUrl) && row.profile !== 'bitbucket_cloud'),
+  };
+}
+
 export function hasSavedValue(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }

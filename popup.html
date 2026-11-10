@@ -567,6 +567,7 @@
           <h4 class="host-panel-title">Your GitHub domain</h4>
           <div class="platform-subsection" id="github-enterprise-subsection">
             <p class="settings-description">Add your enterprise domain so the extension can activate on your instance. This uses a personal access token, not the GitHub App.</p>
+            <p id="github-enterprise-portal-status" class="portal-credential-status" style="display:none;"></p>
             <div class="domain-input-section">
               <input type="text" id="github-enterprise-domain-input" placeholder="e.g., github.mycompany.com" class="domain-input">
               <button id="add-github-enterprise-domain-btn" class="add-domain-btn">Add</button>
@@ -652,6 +653,7 @@
           <h4 class="host-panel-title">Your GitLab domain</h4>
           <div class="platform-subsection" id="gitlab-self-managed-subsection">
             <p class="settings-description">Add your domain so the extension can activate on your server. Self-managed GitLab uses a personal access token, not OAuth.</p>
+            <p id="gitlab-self-managed-portal-status" class="portal-credential-status" style="display:none;"></p>
             <div class="domain-input-section">
               <input type="text" id="domain-input" placeholder="e.g., gitlab.mycompany.com, localhost:8083" class="domain-input">
               <button id="add-domain-btn" class="add-domain-btn">Add</button>
@@ -750,6 +752,7 @@
           <div data-shared-slot="azure-token"></div>
           <div class="platform-subsection">
             <p class="settings-description">Add your server domain. The personal access token above is the same one saved for cloud.</p>
+            <p id="azure-server-portal-status" class="portal-credential-status" style="display:none;"></p>
             <div class="domain-input-section" style="margin-top:10px;">
               <input type="text" id="azure-domain-input" placeholder="e.g., devops.mycompany.com" class="domain-input">
               <button id="add-azure-domain-btn" class="add-domain-btn">Add</button>
@@ -863,6 +866,7 @@
           <h4 class="host-panel-title">Your Bitbucket domain</h4>
           <div class="platform-subsection platform-subsection--required">
             <p class="settings-description">Connect ThinkReview to your self-hosted Bitbucket Data Center instance. This does not use the bitbucket.org connection.</p>
+            <p id="bitbucket-dc-portal-status" class="portal-credential-status" style="display:none;"></p>
           <div class="wizard-steps wizard-steps--compact">
             <div class="wizard-step wizard-step--compact" style="--step-delay:0s">
               <div class="wizard-step-num">1</div>

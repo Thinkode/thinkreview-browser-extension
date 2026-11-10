@@ -2561,3 +2561,14 @@ footer {
   background: #fff;
 }
 
+.portal-credential-status {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #e6f4ea;
+  color: #1b5e20;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+

@@ -1,4 +1,4 @@
-import { azureHostBadges, cloudHostsFromIntegrations } from '../utils/integration-status.js';
+import { azureHostBadges, cloudHostsFromIntegrations, selfHostedHostsFromIntegrations } from '../utils/integration-status.js';
 
 describe('cloudHostsFromIntegrations', () => {
   it('marks a host connected only for its cloud OAuth or cloud profile', () => {
@@ -43,5 +43,22 @@ describe('azureHostBadges', () => {
       localToken: '   ',
       serverDomains: ['devops.example.com'],
     })).toEqual({ cloud: 'connected', server: 'setup' });
+  });
+});
+
+describe('selfHostedHostsFromIntegrations', () => {
+  it('reads a self-hosted GitLab base URL and ignores gitlab.com OAuth', () => {
+    expect(selfHostedHostsFromIntegrations({
+      gitlab: [
+        { authType: 'gitlab_oauth', profile: 'gitlab_com' },
+        { authType: 'pat', profile: 'gitlab_self_hosted', baseUrl: 'https://afef-149-86-86-166.ngrok-free.app' },
+      ],
+      github: [{ authType: 'pat', profile: 'github_enterprise', baseUrl: 'https://github.example.com' }],
+    })).toEqual({
+      github: ['https://github.example.com'],
+      gitlab: ['https://afef-149-86-86-166.ngrok-free.app'],
+      azure: [],
+      bitbucket: [],
+    });
   });
 });
