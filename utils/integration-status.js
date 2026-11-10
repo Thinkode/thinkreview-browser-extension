@@ -72,7 +72,11 @@ export function selfHostedHostsFromIntegrations(integrations) {
   return {
     github: labelsFor('github', SELF_HOSTED_PROFILES.github, (row) => Boolean(row.baseUrl) && row.profile !== 'github_cloud'),
     gitlab: labelsFor('gitlab', SELF_HOSTED_PROFILES.gitlab, (row) => Boolean(row.baseUrl) && row.profile !== 'gitlab_com'),
-    azure: labelsFor('azureDevOps', SELF_HOSTED_PROFILES.azureDevOps, (row) => Boolean(row.baseUrl)),
+    azure: labelsFor(
+      'azureDevOps',
+      SELF_HOSTED_PROFILES.azureDevOps,
+      (row) => Boolean(row.baseUrl) && row.profile !== 'azure_dev' && row.profile !== 'azure_visualstudio'
+    ),
     bitbucket: labelsFor('bitbucket', 'bitbucket_data_center', (row) => Boolean(row.baseUrl) && row.profile !== 'bitbucket_cloud'),
   };
 }

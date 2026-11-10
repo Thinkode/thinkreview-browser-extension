@@ -2964,6 +2964,12 @@ function showPlatformView(platform) {
     const slot = document.querySelector(`#platform-view-${platform} [data-shared-slot="azure-token"]`);
     const block = document.getElementById('azure-shared-token');
     if (slot && block && block.parentElement !== slot) slot.appendChild(block);
+    const desc = document.getElementById('azure-shared-token-desc');
+    if (desc) {
+      desc.textContent = platform === 'azure-server'
+        ? 'Required for Azure DevOps Server. This is the same token used for cloud.'
+        : 'Optional on cloud: use a PAT for a personal Microsoft account, or to limit the token to one organization. The same saved token is used for Azure DevOps Server.';
+    }
   }
 
   PLATFORM_IDS.forEach(p => {

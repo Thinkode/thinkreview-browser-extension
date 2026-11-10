@@ -61,4 +61,13 @@ describe('selfHostedHostsFromIntegrations', () => {
       bitbucket: [],
     });
   });
+
+  it('does not treat a cloud Azure DevOps URL as an on-prem server', () => {
+    expect(selfHostedHostsFromIntegrations({
+      azureDevOps: [
+        { authType: 'pat', profile: 'azure_dev', baseUrl: 'https://dev.azure.com/myorg' },
+        { authType: 'pat', profile: 'azure_server', baseUrl: 'https://devops.example.com/tfs/DefaultCollection' },
+      ],
+    }).azure).toEqual(['https://devops.example.com/tfs/DefaultCollection']);
+  });
 });
