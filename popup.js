@@ -7,6 +7,8 @@ import { reviewCount } from './components/popup-modules/review-count.js';
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
 import { normalizeGatewayBaseUrl, canUseEnterpriseGatewayFromStorage } from './utils/enterprise-gateway.js';
+import { getThinkReviewAuthHeaders } from './utils/extension-auth.js';
+import { azureHostBadges, cloudHostsFromIntegrations, selfHostedHostsFromIntegrations } from './utils/integration-status.js';
 
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_SIGNIN_WAIT = 500;
@@ -809,8 +811,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Platform "Not working?" chips — platform-specific event names
   const platformNotWorkingLinks = [
     { id: 'not-working-github',    event: 'not_working_clicked_github' },
+    { id: 'not-working-github-enterprise', event: 'not_working_clicked_github' },
     { id: 'not-working-gitlab',    event: 'not_working_clicked_gitlab' },
+    { id: 'not-working-gitlab-self-managed', event: 'not_working_clicked_gitlab' },
     { id: 'not-working-azure',     event: 'not_working_clicked_azure' },
+    { id: 'not-working-azure-server', event: 'not_working_clicked_azure' },
   ];
   platformNotWorkingLinks.forEach(({ id, event }) => {
     const el = document.getElementById(id);
@@ -827,8 +832,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Platform "Setup guide" chips
   const platformSetupGuideLinks = [
     { id: 'setup-guide-github',    event: 'setup_guide_opened_github' },
+    { id: 'setup-guide-github-enterprise', event: 'setup_guide_opened_github' },
     { id: 'setup-guide-gitlab',    event: 'setup_guide_opened_gitlab' },
+    { id: 'setup-guide-gitlab-self-managed', event: 'setup_guide_opened_gitlab' },
     { id: 'setup-guide-azure',     event: 'setup_guide_opened_azure' },
+    { id: 'setup-guide-azure-server', event: 'setup_guide_opened_azure' },
     { id: 'setup-guide-bitbucket', event: 'setup_guide_opened_bitbucket' },
   ];
   platformSetupGuideLinks.forEach(({ id, event }) => {
@@ -2876,32 +2884,56 @@ document.head.appendChild(style);
 // PLATFORM NAVIGATION
 // =====================================================================
 
-const PLATFORM_IDS = ['github', 'gitlab', 'azure', 'bitbucket', 'bitbucket-dc'];
+const PLATFORM_IDS = [
+  'github-com',
+  'github-enterprise',
+  'gitlab-com',
+  'gitlab-self-managed',
+  'azure-cloud',
+  'azure-server',
+  'bitbucket',
+  'bitbucket-dc',
+];
 
-// Card definitions: id → { platform view to open, optional scroll target id }
 const PLATFORM_CARDS = [
-  { cardId: 'card-github-com',          platform: 'github',        scrollTarget: null },
-  { cardId: 'card-github-enterprise',   platform: 'github',        scrollTarget: 'github-enterprise-subsection' },
-  { cardId: 'card-gitlab-com',          platform: 'gitlab',        scrollTarget: null },
-  { cardId: 'card-gitlab-self-managed', platform: 'gitlab',        scrollTarget: 'gitlab-self-managed-subsection' },
-  { cardId: 'card-azure-cloud',         platform: 'azure',         scrollTarget: null },
-  { cardId: 'card-azure-server',        platform: 'azure',         scrollTarget: 'azure-server-subsection' },
-  { cardId: 'card-bitbucket',           platform: 'bitbucket',     scrollTarget: null },
-  { cardId: 'card-bitbucket-dc',        platform: 'bitbucket-dc',  scrollTarget: null },
+  { cardId: 'card-github-com', platform: 'github-com' },
+  { cardId: 'card-github-enterprise', platform: 'github-enterprise' },
+  { cardId: 'card-gitlab-com', platform: 'gitlab-com' },
+  { cardId: 'card-gitlab-self-managed', platform: 'gitlab-self-managed' },
+  { cardId: 'card-azure-cloud', platform: 'azure-cloud' },
+  { cardId: 'card-azure-server', platform: 'azure-server' },
+  { cardId: 'card-bitbucket', platform: 'bitbucket' },
+  { cardId: 'card-bitbucket-dc', platform: 'bitbucket-dc' },
 ];
 
 function initializePlatformNavigation() {
   // Platform card click → show detail view, optionally scroll to subsection
-  PLATFORM_CARDS.forEach(({ cardId, platform, scrollTarget }) => {
+  PLATFORM_CARDS.forEach(({ cardId, platform }) => {
     const card = document.getElementById(cardId);
     if (card) {
-      card.addEventListener('click', () => showPlatformView(platform, scrollTarget));
+      card.addEventListener('click', () => showPlatformView(platform));
     }
   });
 
   // Back buttons → return to platform home
   document.querySelectorAll('[data-back]').forEach(btn => {
     btn.addEventListener('click', () => showPlatformHome());
+  });
+
+  document.querySelectorAll('[data-connect-platform]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const platform = btn.getAttribute('data-connect-platform');
+      try {
+        const { trackUserAction } = await import(chrome.runtime.getURL('utils/analytics-service.js'));
+        trackUserAction('oauth_connect_clicked', { context: `connect_${platform}` }).catch(() => {});
+      } catch (e) { /* silent */ }
+      try {
+        const { portalConnectUrl } = await import(chrome.runtime.getURL('utils/portal-connect.js'));
+        chrome.tabs.create({ url: portalConnectUrl(platform) });
+      } catch (err) {
+        dbgWarn('Failed to start platform connect:', err);
+      }
+    });
   });
 
   // Compute and render status badges on load
@@ -2924,9 +2956,21 @@ function showPlatformHome() {
   computePlatformStatuses();
 }
 
-function showPlatformView(platform, scrollTarget = null) {
+function showPlatformView(platform) {
   const home = document.getElementById('platform-home');
   if (home) home.style.display = 'none';
+
+  if (platform === 'azure-cloud' || platform === 'azure-server') {
+    const slot = document.querySelector(`#platform-view-${platform} [data-shared-slot="azure-token"]`);
+    const block = document.getElementById('azure-shared-token');
+    if (slot && block && block.parentElement !== slot) slot.appendChild(block);
+    const desc = document.getElementById('azure-shared-token-desc');
+    if (desc) {
+      desc.textContent = platform === 'azure-server'
+        ? 'Required for Azure DevOps Server. This is the same token used for cloud.'
+        : 'Optional on cloud: use a PAT for a personal Microsoft account, or to limit the token to one organization. The same saved token is used for Azure DevOps Server.';
+    }
+  }
 
   PLATFORM_IDS.forEach(p => {
     const view = document.getElementById(`platform-view-${p}`);
@@ -2937,13 +2981,6 @@ function showPlatformView(platform, scrollTarget = null) {
         view.style.animation = 'none';
         void view.offsetWidth;
         view.style.animation = '';
-        // Scroll to subsection if specified
-        if (scrollTarget) {
-          requestAnimationFrame(() => {
-            const target = document.getElementById(scrollTarget);
-            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          });
-        }
       } else {
         view.style.display = 'none';
       }
@@ -2951,12 +2988,55 @@ function showPlatformView(platform, scrollTarget = null) {
   });
 }
 
+async function fetchPortalIntegrations() {
+  const stored = await chrome.storage.local.get(['user', 'userData']);
+  let email = stored.userData && stored.userData.email;
+  if (!email && typeof stored.user === 'string') {
+    try {
+      email = JSON.parse(stored.user).email;
+    } catch {
+      email = null;
+    }
+  }
+  if (!email) return null;
+  const headers = await getThinkReviewAuthHeaders();
+  const response = await fetch('https://us-central1-thinkgpt.cloudfunctions.net/listPATIntegrationsThinkReview', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ email }),
+  });
+  if (!response.ok) return null;
+  const data = await response.json();
+  return data && data.integrations ? data.integrations : null;
+}
+
+function showPortalHosts(elementId, hosts) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  if (!hosts || hosts.length === 0) {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  el.style.display = 'block';
+  el.textContent = `Connected in ThinkReview: ${hosts.join(', ')}`;
+}
+
+function setConnectControl(platform, connected) {
+  const button = document.querySelector(`[data-connect-platform="${platform}"]`);
+  if (!button) return;
+  if (!button.dataset.defaultLabel) button.dataset.defaultLabel = button.textContent.trim();
+  button.textContent = connected ? 'Connected' : button.dataset.defaultLabel;
+  button.disabled = connected;
+  button.classList.toggle('oauth-connect-btn--connected', connected);
+}
+
 async function computePlatformStatuses() {
   try {
     const result = await chrome.storage.local.get([
       'azureDevOpsToken',
-      'customDomains',                  // GitLab custom domains
-      'azureCustomDomains',             // Azure on-prem domains
+      'gitlabDomains',
+      'azureDevOpsDomains',
       'githubEnterpriseDomains',
       'bitbucketToken',
       'bitbucketEmail',
@@ -2965,36 +3045,54 @@ async function computePlatformStatuses() {
       'bitbucketDataCenterToken',
     ]);
 
-    // Cloud variants
-    setBadge('github-com',  'ready');
-    setBadge('gitlab-com',  'ready');
-    setBadge('azure-cloud', 'ready');
+    let portalHosts = { github: false, gitlab: false, bitbucket: false, azure: false };
+    let selfHosted = { github: [], gitlab: [], azure: [], bitbucket: [] };
+    try {
+      const integrations = await fetchPortalIntegrations();
+      portalHosts = cloudHostsFromIntegrations(integrations);
+      selfHosted = selfHostedHostsFromIntegrations(integrations);
+    } catch (err) {
+      dbgWarn('Could not load portal integrations:', err);
+    }
 
-    // GitHub Enterprise Server: ready once at least one domain is saved
+    showPortalHosts('github-enterprise-portal-status', selfHosted.github);
+    showPortalHosts('gitlab-self-managed-portal-status', selfHosted.gitlab);
+    showPortalHosts('azure-server-portal-status', selfHosted.azure);
+    showPortalHosts('bitbucket-dc-portal-status', selfHosted.bitbucket);
+
+    setBadge('github-com', portalHosts.github ? 'connected' : 'connect');
+    setBadge('gitlab-com', portalHosts.gitlab ? 'connected' : 'connect');
+    const azureBadges = azureHostBadges({
+      portalConnected: portalHosts.azure,
+      localToken: result.azureDevOpsToken,
+      serverDomains: result.azureDevOpsDomains,
+    });
+    setBadge('azure-cloud', azureBadges.cloud);
+    setConnectControl('github', portalHosts.github);
+    setConnectControl('gitlab', portalHosts.gitlab);
+    setConnectControl('azure', portalHosts.azure);
+
     const ghesdomains = result.githubEnterpriseDomains;
-    const ghesReady = Array.isArray(ghesdomains) && ghesdomains.length > 0;
-    setBadge('github-enterprise', ghesReady ? 'ready' : 'setup');
+    const ghesReady = (Array.isArray(ghesdomains) && ghesdomains.length > 0) || selfHosted.github.length > 0;
+    setBadge('github-enterprise', ghesReady ? 'connected' : 'setup');
 
-    // GitLab Self-Managed: ready once at least one custom domain is saved
-    const gitlabDomains = result.customDomains;
-    const gitlabSMReady = Array.isArray(gitlabDomains) && gitlabDomains.length > 0;
-    setBadge('gitlab-self-managed', gitlabSMReady ? 'ready' : 'setup');
+    const gitlabDomains = result.gitlabDomains;
+    const gitlabSMReady = (Array.isArray(gitlabDomains) && gitlabDomains.length > 0) || selfHosted.gitlab.length > 0;
+    setBadge('gitlab-self-managed', gitlabSMReady ? 'connected' : 'setup');
 
-    // Azure DevOps Server: ready once at least one custom domain is saved
-    const azureDomains = result.azureCustomDomains;
-    const azureServerReady = Array.isArray(azureDomains) && azureDomains.length > 0;
-    setBadge('azure-server', azureServerReady ? 'ready' : 'setup');
+    const azureServerReady = azureBadges.server === 'ready' || selfHosted.azure.length > 0;
+    setBadge('azure-server', azureServerReady ? 'connected' : 'setup');
 
-    // Bitbucket Cloud: requires explicit permission grant + token
-    const bitbucketConfigured = result.bitbucketEnabled &&
-      (result.bitbucketToken || result.bitbucketEmail);
-    setBadge('bitbucket', bitbucketConfigured ? 'ready' : 'setup');
+    const bitbucketConfigured = portalHosts.bitbucket || (result.bitbucketEnabled &&
+      (result.bitbucketToken || result.bitbucketEmail));
+    setBadge('bitbucket', bitbucketConfigured ? 'connected' : 'connect');
+    setConnectControl('bitbucket', Boolean(portalHosts.bitbucket));
 
-    // Bitbucket Data Center: ready when at least one domain is saved with a token
     const dcDomains = result.bitbucketDataCenterDomains;
-    const dcReady = Array.isArray(dcDomains) && dcDomains.length > 0 &&
-      result.bitbucketDataCenterToken && String(result.bitbucketDataCenterToken).trim();
-    setBadge('bitbucket-dc', dcReady ? 'ready' : 'setup');
+    const dcReady = ((Array.isArray(dcDomains) && dcDomains.length > 0 &&
+      result.bitbucketDataCenterToken && String(result.bitbucketDataCenterToken).trim()) ||
+      selfHosted.bitbucket.length > 0);
+    setBadge('bitbucket-dc', dcReady ? 'connected' : 'setup');
   } catch (err) {
     dbgWarn('Error computing platform statuses:', err);
   }
@@ -3003,9 +3101,12 @@ async function computePlatformStatuses() {
 function setBadge(platform, status) {
   const badge = document.getElementById(`badge-${platform}`);
   if (!badge) return;
-  if (status === 'ready') {
-    badge.textContent = '✓ Ready';
+  if (status === 'ready' || status === 'connected') {
+    badge.textContent = status === 'connected' ? 'Connected' : '✓ Ready';
     badge.className = 'platform-badge platform-badge-ready';
+  } else if (status === 'connect') {
+    badge.textContent = 'Connect';
+    badge.className = 'platform-badge platform-badge-connect';
   } else {
     badge.textContent = '⚙ Setup needed';
     badge.className = 'platform-badge platform-badge-setup';

@@ -2221,6 +2221,12 @@ footer {
   border: 1px solid #ffe082;
 }
 
+.platform-badge-connect {
+  background: #f3eefc;
+  color: #5a3ea5;
+  border: 1px solid #d4c6f3;
+}
+
 /* Collapsible AI Provider header */
 
 .collapsible-header {
@@ -2333,6 +2339,11 @@ footer {
   border: 1.5px solid #a5d6a7;
 }
 
+.wizard-card--connect {
+  background: #f6f3fc;
+  border: 1.5px solid #d4c6f3;
+}
+
 .wizard-ready-badge {
   display: inline-block;
   background: #2e7d32;
@@ -2342,6 +2353,36 @@ footer {
   padding: 3px 10px;
   border-radius: 20px;
   margin-bottom: 6px;
+}
+
+.wizard-ready-badge--connect {
+  background: #6b4fbb;
+}
+
+.oauth-connect-btn {
+  display: block;
+  width: 100%;
+  margin: 8px 0 6px;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #6b4fbb;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.oauth-connect-btn:hover {
+  background: #5a3ea5;
+}
+
+.oauth-connect-btn--connected,
+.oauth-connect-btn--connected:hover,
+.oauth-connect-btn--connected:disabled {
+  background: #2e7d32;
+  cursor: default;
+  opacity: 1;
 }
 
 .wizard-ready-desc {
@@ -2446,5 +2487,88 @@ footer {
   padding: 2px 9px;
   border-radius: 20px;
   margin-bottom: 6px;
+}
+
+.host-panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+
+.host-panel--cloud {
+  border-color: #ddd6fe;
+  background: #faf8ff;
+}
+
+.host-panel--prem {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.host-panel-kicker {
+  display: inline-block;
+  margin: 0 0 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.host-panel--cloud .host-panel-kicker {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.host-panel--prem .host-panel-kicker {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.host-panel-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.host-split {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 12px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.host-split::before,
+.host-split::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.host-panel .wizard-card,
+.host-panel .platform-subsection {
+  margin-bottom: 0;
+  background: #fff;
+}
+
+.portal-credential-status {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #e6f4ea;
+  color: #1b5e20;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
