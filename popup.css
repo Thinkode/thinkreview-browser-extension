@@ -2377,6 +2377,14 @@ footer {
   background: #5a3ea5;
 }
 
+.oauth-connect-btn--connected,
+.oauth-connect-btn--connected:hover,
+.oauth-connect-btn--connected:disabled {
+  background: #2e7d32;
+  cursor: default;
+  opacity: 1;
+}
+
 .wizard-ready-desc {
   font-size: 12px;
   color: #4a4a4a;

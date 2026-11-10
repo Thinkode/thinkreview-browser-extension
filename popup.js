@@ -7,6 +7,8 @@ import { reviewCount } from './components/popup-modules/review-count.js';
 import { dbgLog, dbgWarn, dbgError } from './utils/logger.js';
 import { clampTemperature, clampTopP, clampTopK } from './utils/ollama-options.js';
 import { normalizeGatewayBaseUrl, canUseEnterpriseGatewayFromStorage } from './utils/enterprise-gateway.js';
+import { getThinkReviewAuthHeaders } from './utils/extension-auth.js';
+import { cloudHostsFromIntegrations } from './utils/integration-status.js';
 
 // Timing constants (in milliseconds)
 const TIMEOUT_AUTO_SIGNIN_WAIT = 500;
@@ -2967,12 +2969,43 @@ function showPlatformView(platform, scrollTarget = null) {
   });
 }
 
+async function fetchPortalIntegrations() {
+  const stored = await chrome.storage.local.get(['user', 'userData']);
+  let email = stored.userData && stored.userData.email;
+  if (!email && typeof stored.user === 'string') {
+    try {
+      email = JSON.parse(stored.user).email;
+    } catch {
+      email = null;
+    }
+  }
+  if (!email) return null;
+  const headers = await getThinkReviewAuthHeaders();
+  const response = await fetch('https://us-central1-thinkgpt.cloudfunctions.net/listPATIntegrationsThinkReview', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ email }),
+  });
+  if (!response.ok) return null;
+  const data = await response.json();
+  return data && data.integrations ? data.integrations : null;
+}
+
+function setConnectControl(platform, connected) {
+  const button = document.querySelector(`[data-connect-platform="${platform}"]`);
+  if (!button) return;
+  if (!button.dataset.defaultLabel) button.dataset.defaultLabel = button.textContent.trim();
+  button.textContent = connected ? 'Connected' : button.dataset.defaultLabel;
+  button.disabled = connected;
+  button.classList.toggle('oauth-connect-btn--connected', connected);
+}
+
 async function computePlatformStatuses() {
   try {
     const result = await chrome.storage.local.get([
       'azureDevOpsToken',
-      'customDomains',                  // GitLab custom domains
-      'azureCustomDomains',             // Azure on-prem domains
+      'customDomains',
+      'azureCustomDomains',
       'githubEnterpriseDomains',
       'bitbucketToken',
       'bitbucketEmail',
@@ -2981,32 +3014,37 @@ async function computePlatformStatuses() {
       'bitbucketDataCenterToken',
     ]);
 
-    // Cloud variants
-    setBadge('github-com',  'ready');
-    setBadge('gitlab-com',  'ready');
-    setBadge('azure-cloud', 'connect');
+    let portalHosts = { github: false, gitlab: false, bitbucket: false, azure: false };
+    try {
+      portalHosts = cloudHostsFromIntegrations(await fetchPortalIntegrations());
+    } catch (err) {
+      dbgWarn('Could not load portal integrations:', err);
+    }
 
-    // GitHub Enterprise Server: ready once at least one domain is saved
+    setBadge('github-com', portalHosts.github ? 'connected' : 'connect');
+    setBadge('gitlab-com', portalHosts.gitlab ? 'connected' : 'connect');
+    setBadge('azure-cloud', portalHosts.azure ? 'connected' : 'connect');
+    setConnectControl('github', portalHosts.github);
+    setConnectControl('gitlab', portalHosts.gitlab);
+    setConnectControl('azure', portalHosts.azure);
+
     const ghesdomains = result.githubEnterpriseDomains;
     const ghesReady = Array.isArray(ghesdomains) && ghesdomains.length > 0;
     setBadge('github-enterprise', ghesReady ? 'ready' : 'setup');
 
-    // GitLab Self-Managed: ready once at least one custom domain is saved
     const gitlabDomains = result.customDomains;
     const gitlabSMReady = Array.isArray(gitlabDomains) && gitlabDomains.length > 0;
     setBadge('gitlab-self-managed', gitlabSMReady ? 'ready' : 'setup');
 
-    // Azure DevOps Server: ready once at least one custom domain is saved
     const azureDomains = result.azureCustomDomains;
     const azureServerReady = Array.isArray(azureDomains) && azureDomains.length > 0;
     setBadge('azure-server', azureServerReady ? 'ready' : 'setup');
 
-    // Bitbucket Cloud: requires explicit permission grant + token
-    const bitbucketConfigured = result.bitbucketEnabled &&
-      (result.bitbucketToken || result.bitbucketEmail);
-    setBadge('bitbucket', bitbucketConfigured ? 'ready' : 'connect');
+    const bitbucketConfigured = portalHosts.bitbucket || (result.bitbucketEnabled &&
+      (result.bitbucketToken || result.bitbucketEmail));
+    setBadge('bitbucket', bitbucketConfigured ? 'connected' : 'connect');
+    setConnectControl('bitbucket', Boolean(portalHosts.bitbucket));
 
-    // Bitbucket Data Center: ready when at least one domain is saved with a token
     const dcDomains = result.bitbucketDataCenterDomains;
     const dcReady = Array.isArray(dcDomains) && dcDomains.length > 0 &&
       result.bitbucketDataCenterToken && String(result.bitbucketDataCenterToken).trim();
@@ -3019,8 +3057,8 @@ async function computePlatformStatuses() {
 function setBadge(platform, status) {
   const badge = document.getElementById(`badge-${platform}`);
   if (!badge) return;
-  if (status === 'ready') {
-    badge.textContent = '✓ Ready';
+  if (status === 'ready' || status === 'connected') {
+    badge.textContent = status === 'connected' ? 'Connected' : '✓ Ready';
     badge.className = 'platform-badge platform-badge-ready';
   } else if (status === 'connect') {
     badge.textContent = 'Connect';
