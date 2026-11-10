@@ -3,13 +3,15 @@
 import { dbgLog, dbgWarn } from '../utils/logger.js';
 
 const BITBUCKET_DOCS_URL = 'https://thinkreview.dev/docs/bitbucket-integration';
+const PORTAL_INTEGRATIONS_URL = 'https://portal.thinkreview.dev/integrations?platform=bitbucket';
 
 /**
  * Shows Bitbucket token configuration error with helpful UI
  * @param {Function} stopEnhancedLoader - Function to stop the enhanced loader if running
  * @param {string|null} extraInfo - Optional server error message to surface to the user
+ * @param {'pat'|'integration'} [kind='pat'] - Popup token vs portal Integrations
  */
-export function showBitbucketTokenError(stopEnhancedLoader = null, extraInfo = null) {
+export function showBitbucketTokenError(stopEnhancedLoader = null, extraInfo = null, kind = 'pat') {
   if (typeof stopEnhancedLoader === 'function') {
     stopEnhancedLoader();
   }
@@ -31,6 +33,7 @@ export function showBitbucketTokenError(stopEnhancedLoader = null, extraInfo = n
     }
   }
 
+  updateTokenErrorKind(tokenError, kind === 'integration' ? 'integration' : 'pat');
   updateTokenErrorDetails(tokenError, extraInfo);
   tokenError.classList.remove('gl-hidden');
 }
@@ -114,6 +117,11 @@ function createTokenErrorElement() {
   });
   settingsButton.textContent = 'Open Extension Settings';
   settingsButton.addEventListener('click', () => {
+    const host = document.getElementById('review-bitbucket-token-error');
+    if (host?.dataset?.errorKind === 'integration') {
+      window.open(PORTAL_INTEGRATIONS_URL, '_blank', 'noopener,noreferrer');
+      return;
+    }
     dbgLog('[Content] Requesting background to open extension popup for Bitbucket token');
     chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_POPUP' }, (response) => {
       if (chrome.runtime.lastError) {
@@ -136,6 +144,14 @@ function createTokenErrorElement() {
   learnLink.textContent = 'How to generate Bitbucket token for ThinkReview (takes 60 seconds)';
   learnLink.addEventListener('mouseenter', () => { learnLink.style.textDecoration = 'underline'; });
   learnLink.addEventListener('mouseleave', () => { learnLink.style.textDecoration = 'none'; });
+  learnLink.addEventListener('click', (event) => {
+    const host = document.getElementById('review-bitbucket-token-error');
+    if (host?.dataset?.errorKind !== 'integration') return;
+    event.preventDefault();
+    chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_POPUP' }, () => {
+      void chrome.runtime.lastError;
+    });
+  });
   actionContainer.appendChild(learnLink);
 
   tokenError.appendChild(actionContainer);
@@ -147,6 +163,39 @@ function createTokenErrorElement() {
  * @param {HTMLElement} container - The token error container element
  * @param {string|null} extraInfo - Raw server message (may be plain text or JSON/HTML)
  */
+function updateTokenErrorKind(container, kind) {
+  const resolvedKind = kind === 'integration' ? 'integration' : 'pat';
+  container.dataset.errorKind = resolvedKind;
+
+  const heading = container.querySelector('.bitbucket-token-heading');
+  const description = container.querySelector('.bitbucket-token-description');
+  const settingsButton = container.querySelector('.bitbucket-token-settings-button');
+  const learnLink = container.querySelector('.bitbucket-token-learn-link');
+
+  if (resolvedKind === 'integration') {
+    if (heading) heading.textContent = 'Bitbucket is not connected';
+    if (description) {
+      description.textContent = 'Connect Bitbucket in ThinkReview portal Integrations, or save an API token in the extension popup.';
+    }
+    if (settingsButton) settingsButton.textContent = 'Open Integrations';
+    if (learnLink) {
+      learnLink.href = '#';
+      learnLink.textContent = 'Or save an API token in the extension';
+    }
+    return;
+  }
+
+  if (heading) heading.textContent = 'Bitbucket API token required';
+  if (description) {
+    description.textContent = 'Generate a Bitbucket API token for ThinkReview. It takes about 60 seconds.';
+  }
+  if (settingsButton) settingsButton.textContent = 'Open Extension Settings';
+  if (learnLink) {
+    learnLink.href = BITBUCKET_DOCS_URL;
+    learnLink.textContent = 'How to generate Bitbucket token for ThinkReview (takes 60 seconds)';
+  }
+}
+
 function updateTokenErrorDetails(container, extraInfo) {
   const extraElement = container.querySelector('.bitbucket-token-extra');
   if (!extraElement) return;

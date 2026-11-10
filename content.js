@@ -182,6 +182,20 @@ if (typeof isAzureDevOpsServicesHost === 'undefined') {
   };
 }
 
+function isBitbucketCloudHost(hostname) {
+  const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  return host === 'bitbucket.org';
+}
+
+function isBitbucketGitAuthText(text, flags) {
+  if (flags && flags.isGitToolsUnavailable) return true;
+  const msg = String(text || '');
+  return /GIT_TOOLS_UNAVAILABLE/i.test(msg)
+    || /Git credentials unavailable/i.test(msg)
+    || /Bitbucket API 401/i.test(msg)
+    || /Token is invalid, expired, or not supported/i.test(msg);
+}
+
 function isAzureGitAuthText(text, flags) {
   if (flags && flags.isGitToolsUnavailable) return true;
   const msg = String(text || '');
@@ -2005,6 +2019,24 @@ function showPatchTooLargeMessage(patchSize, maxPatchSize) {
 const DUMMY_AZURE_DEVOPS_TOKEN = 'thinkreview-azure-no-token-placeholder';
 
 /**
+ * Get the Bitbucket API token saved in the extension popup.
+ * Empty when the user relies on portal Integrations.
+ * @returns {Promise<string>}
+ */
+async function getBitbucketToken() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['bitbucketToken'], (result) => {
+      if (chrome.runtime.lastError) {
+        dbgWarn('Error accessing Bitbucket token storage:', chrome.runtime.lastError);
+        resolve('');
+        return;
+      }
+      resolve(result.bitbucketToken ? String(result.bitbucketToken).trim() : '');
+    });
+  });
+}
+
+/**
  * Get Azure DevOps token from storage
  * @returns {Promise<string>} Azure DevOps token, or a dummy placeholder if not set
  */
@@ -2213,31 +2245,47 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
         }
       }
     } else if (platformDetector && platformDetector.isOnBitbucketPRPage()) {
-      // Bitbucket: fetch patch via background script to avoid page CSP blocking connect-src
-      const patchUrl = getPatchUrl();
-      dbgLog('Fetching Bitbucket patch through background script:', patchUrl);
-      const bgResponse = await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ type: 'FETCH_BITBUCKET_PATCH', url: patchUrl }, resolve);
-      });
-      if (!bgResponse || !bgResponse.success) {
-        // 401/403 from Bitbucket API (e.g. GET .../repositories/.../pullrequests/1) or token missing: show token prompt
-        const errMsg = (bgResponse?.error || '').toLowerCase();
-        const authRequired = bgResponse?.bitbucketAuthRequired === true || errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('unauthorized') || errMsg.includes('forbidden');
-        if (authRequired) {
-          try {
-            const bitbucketTokenErrorModule = await import(chrome.runtime.getURL('components/bitbucket-token-error.js'));
-            bitbucketTokenErrorModule.showBitbucketTokenError(stopEnhancedLoader, bgResponse?.serverMessage || null);
-          } catch (e) {
-            dbgWarn('Failed to show Bitbucket token error UI:', e);
-            throw new Error('Generate a Bitbucket API token for ThinkReview (takes about 60 seconds): https://thinkreview.dev/docs/bitbucket-integration');
-          }
-          return;
-        }
-        throw new Error(bgResponse?.error || `Not a pull request page or there are no code changes yet in this PR. If you think this is a bug, please report it here: https://thinkreview.dev/bug-report`);
-      }
-      codeContent = bgResponse.content;
+      const hostname = window.location.hostname || '';
+      const isBitbucketCloud = isBitbucketCloudHost(hostname);
+      const storedProvider = await chrome.storage.local.get(['aiProvider']);
+      const aiProvider = storedProvider.aiProvider || 'cloud';
+      const bitbucketToken = await getBitbucketToken();
+      const hasExtensionToken = Boolean(bitbucketToken);
       const prInfo = platformDetector.detectPlatform().pageInfo;
       reviewId = prInfo?.prId || null;
+
+      // Bitbucket Cloud + ThinkReview Cloud: portal Integrations (OAuth/API token)
+      // unless the user saved an extension token (original local-diff path).
+      if (isBitbucketCloud && aiProvider === 'cloud' && !hasExtensionToken) {
+        dbgLog('Bitbucket Cloud: using reviewUrlCode (portal Integrations)');
+        useUrlReview = true;
+        codeContent = '';
+      } else {
+        // Bitbucket: fetch patch via background script to avoid page CSP blocking connect-src
+        const patchUrl = getPatchUrl();
+        dbgLog('Fetching Bitbucket patch through background script:', patchUrl);
+        const bgResponse = await new Promise((resolve) => {
+          chrome.runtime.sendMessage({ type: 'FETCH_BITBUCKET_PATCH', url: patchUrl }, resolve);
+        });
+        if (!bgResponse || !bgResponse.success) {
+          // 401/403 from Bitbucket API (e.g. GET .../repositories/.../pullrequests/1) or token missing: show token prompt
+          const errMsg = (bgResponse?.error || '').toLowerCase();
+          const authRequired = bgResponse?.bitbucketAuthRequired === true || errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('unauthorized') || errMsg.includes('forbidden');
+          if (authRequired) {
+            try {
+              const bitbucketTokenErrorModule = await import(chrome.runtime.getURL('components/bitbucket-token-error.js'));
+              bitbucketTokenErrorModule.showBitbucketTokenError(stopEnhancedLoader, bgResponse?.serverMessage || null);
+            } catch (e) {
+              dbgWarn('Failed to show Bitbucket token error UI:', e);
+              throw new Error('Generate a Bitbucket API token for ThinkReview (takes about 60 seconds): https://thinkreview.dev/docs/bitbucket-integration');
+            }
+            return;
+          }
+          throw new Error(bgResponse?.error || `Not a pull request page or there are no code changes yet in this PR. If you think this is a bug, please report it here: https://thinkreview.dev/bug-report`);
+        }
+        codeContent = bgResponse.content;
+        reviewId = prInfo?.prId || reviewId;
+      }
     } else {
       throw new Error('Unsupported platform');
     }
@@ -2248,7 +2296,7 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
     let filteredCodeContent = codeContent;
     let filterSummaryText = null;
     
-    if (platformDetector && (platformDetector.isOnGitLabMRPage() || platformDetector.isOnGitHubPRPage() || platformDetector.isOnBitbucketPRPage())) {
+    if (!useUrlReview && platformDetector && (platformDetector.isOnGitLabMRPage() || platformDetector.isOnGitHubPRPage() || platformDetector.isOnBitbucketPRPage())) {
       // Dynamically import patch filtering utilities for GitLab and GitHub
       const patchFilterModule = await import(chrome.runtime.getURL('utils/patch-filter.js'));
       const { filterPatch, getFilterSummary } = patchFilterModule;
@@ -2372,6 +2420,25 @@ async function fetchAndDisplayCodeReview(forceRegenerate = false, isAutoTriggere
       const looksLikeAzureGitAuth = isAzureGitAuthText(gitAuthErrorText, bgResponse)
         || (typeof azureDevOpsTokenError?.isAzureGitAuthErrorMessage === 'function'
           && azureDevOpsTokenError.isAzureGitAuthErrorMessage(gitAuthErrorText));
+      if (
+        useUrlReview
+        && platformDetector
+        && platformDetector.isOnBitbucketPRPage()
+        && isBitbucketGitAuthText(gitAuthErrorText, bgResponse)
+      ) {
+        dbgLog('Git credentials unavailable for Bitbucket URL review');
+        try {
+          const bitbucketTokenErrorModule = await import(chrome.runtime.getURL('components/bitbucket-token-error.js'));
+          bitbucketTokenErrorModule.showBitbucketTokenError(stopEnhancedLoader, gitAuthErrorText, 'integration');
+        } catch (e) {
+          dbgWarn('Failed to show Bitbucket integration error UI:', e);
+          throw new Error(
+            gitAuthErrorText ||
+              'Connect Bitbucket in ThinkReview Integrations, or save an API token in the extension popup.'
+          );
+        }
+        return;
+      }
       if (looksLikeAzureGitAuth && platformDetector && platformDetector.isOnAzureDevOpsPRPage()) {
         dbgLog('Git credentials unavailable for URL review');
         const shown = await showAzureGitAuthErrorUi(stopEnhancedLoader, gitAuthErrorText, 'unauthorized');
