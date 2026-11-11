@@ -82,6 +82,50 @@
 
     // Listen for request to open extension page — runs on any domain (including localhost)
     // so the button works in dev environments too. Low-risk: only opens a new tab.
+    window.addEventListener('thinkreview-open-platform', (event) => {
+      const platform = event && event.detail && typeof event.detail.platform === 'string'
+        ? event.detail.platform
+        : '';
+      const reply = (detail) => {
+        window.dispatchEvent(new CustomEvent('thinkreview-open-platform-result', { detail }));
+      };
+      dbgLog('Received open-platform event from page', platform);
+      if (!canMessageExtension()) {
+        reply({ success: false, platform, error: 'extension-unavailable' });
+        return;
+      }
+      (async () => {
+        try {
+          const moduleUrl = getExtensionResourceUrl('utils/extension-page-url.js');
+          if (!moduleUrl) {
+            reply({ success: false, platform, error: 'extension-unavailable' });
+            return;
+          }
+          const { isExtensionPagePlatform } = await import(moduleUrl);
+          if (!isExtensionPagePlatform(platform)) {
+            reply({ success: false, platform, error: 'unknown-platform' });
+            return;
+          }
+          chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_PAGE', platform }, (response) => {
+            if (chrome.runtime.lastError || !response || response.success !== true) {
+              reply({
+                success: false,
+                platform,
+                error: (chrome.runtime.lastError && chrome.runtime.lastError.message)
+                  || (response && response.error)
+                  || 'open-failed',
+              });
+              return;
+            }
+            reply({ success: true, platform });
+          });
+        } catch (error) {
+          dbgError('Error opening platform page:', error);
+          reply({ success: false, platform, error: error.message });
+        }
+      })();
+    });
+
     window.addEventListener('thinkreview-open-extension', () => {
       dbgLog('Received open-extension event from webapp');
       if (!canMessageExtension()) {

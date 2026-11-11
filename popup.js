@@ -881,6 +881,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize platform navigation (cards + back buttons + status badges)
   initializePlatformNavigation();
 
+  const requestedPlatform = urlParams.get('platform');
+  if (requestedPlatform && PLATFORM_IDS.includes(requestedPlatform)) {
+    showPlatformView(requestedPlatform);
+  }
+
   // Initialize collapsible AI Provider header
   initializeAIProviderCollapsible();
 
