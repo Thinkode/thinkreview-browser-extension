@@ -10,6 +10,7 @@ import { OllamaService } from './services/ollama-service.js';
 import { OpenRouterService } from './services/openrouter-service.js';
 import { isValidOrigin } from './utils/origin-validator.js';
 import { classifySignInReturnUrl, isExtensionPageUrl } from './utils/signin-return.js';
+import { extensionPageUrl } from './utils/extension-page-url.js';
 import './vendor/diff.min.js';
 import { azureDevOpsFetcher } from './services/azure-devops-fetcher.js';
 import { AzureDevOpsAuthError } from './services/azure-devops-api.js';
@@ -1105,7 +1106,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     dbgLog('Opening extension page in new tab with auto sign-in');
-    const extensionUrl = chrome.runtime.getURL('popup.html') + '?autoSignIn=true';
+    const extensionUrl = extensionPageUrl(chrome.runtime.getURL('popup.html'), {
+      autoSignIn: true,
+      platform: message.platform,
+    });
     chrome.tabs.create({ url: extensionUrl }, (tab) => {
       if (chrome.runtime.lastError) {
         dbgWarn('Error opening extension page:', chrome.runtime.lastError);
