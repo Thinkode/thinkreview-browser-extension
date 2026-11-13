@@ -24,6 +24,20 @@
   markExtensionInstalled();
   document.addEventListener('thinkreview-extension-presence', markExtensionInstalled);
 
+  let openExtensionInFlight = false;
+  function openExtensionFromPortal() {
+    if (openExtensionInFlight || !canMessageExtension()) return;
+    openExtensionInFlight = true;
+    setTimeout(() => { openExtensionInFlight = false; }, 1000);
+    try {
+      chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_PAGE' }, () => {
+        void chrome.runtime.lastError;
+      });
+    } catch (_) {}
+  }
+  document.addEventListener('thinkreview-open-extension', openExtensionFromPortal);
+  window.addEventListener('thinkreview-open-extension', openExtensionFromPortal);
+
   // Debug toggle: set to false to disable console logs in production
   const DEBUG = false;
   
@@ -95,27 +109,6 @@
   
   function initializeContentScript() {
     if (!originValidatorLoaded) return;
-
-    // Listen for request to open extension page — runs on any domain (including localhost)
-    // so the button works in dev environments too. Low-risk: only opens a new tab.
-    window.addEventListener('thinkreview-open-extension', () => {
-      dbgLog('Received open-extension event from webapp');
-      if (!canMessageExtension()) {
-        dbgWarn('Extension context unavailable; refresh the page after updating ThinkReview.');
-        return;
-      }
-      try {
-        chrome.runtime.sendMessage({ type: 'OPEN_EXTENSION_PAGE' }, (response) => {
-          if (chrome.runtime.lastError) {
-            dbgWarn('Failed to open extension page:', chrome.runtime.lastError);
-          } else {
-            dbgLog('Open extension page response:', response);
-          }
-        });
-      } catch (error) {
-        dbgError('Error sending open-extension message:', error);
-      }
-    });
 
     const currentOrigin = window.location.hostname;
     const isAllowedOrigin = isValidOrigin(currentOrigin);
