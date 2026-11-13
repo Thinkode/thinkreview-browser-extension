@@ -8,13 +8,15 @@
 (function() {
   'use strict';
 
-  // Answer as soon as this script is injected, before origin checks load.
-  // Orphaned content scripts stay in open tabs after disable, uninstall, or reload;
-  // only reply while this context can still talk to the extension.
-  window.addEventListener('thinkreview-extension-presence', () => {
+  // The page and this script do not share window listeners, so the mark is
+  // written on the shared document element.
+  function markExtensionInstalled() {
     if (!canMessageExtension()) return;
-    window.dispatchEvent(new CustomEvent('thinkreview-extension-present'));
-  });
+    document.documentElement.setAttribute('data-thinkreview-extension', '1');
+    document.dispatchEvent(new CustomEvent('thinkreview-extension-present'));
+  }
+  markExtensionInstalled();
+  document.addEventListener('thinkreview-extension-presence', markExtensionInstalled);
 
   // Debug toggle: set to false to disable console logs in production
   const DEBUG = false;
