@@ -7,7 +7,12 @@
 
 (function() {
   'use strict';
-  
+
+  // Answer as soon as this script is injected, before origin checks load.
+  window.addEventListener('thinkreview-extension-presence', () => {
+    window.dispatchEvent(new CustomEvent('thinkreview-extension-present'));
+  });
+
   // Debug toggle: set to false to disable console logs in production
   const DEBUG = false;
   
