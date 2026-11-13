@@ -8,12 +8,18 @@
 (function() {
   'use strict';
 
-  // The page and this script do not share window listeners, so the mark is
-  // written on the shared document element.
+  // The portal reads this attribute from the shared document. The same event is
+  // also dispatched on document and window.
   function markExtensionInstalled() {
-    if (!canMessageExtension()) return;
-    document.documentElement.setAttribute('data-thinkreview-extension', '1');
+    const root = document.documentElement;
+    if (!root) return;
+    if (!canMessageExtension()) {
+      root.removeAttribute('data-thinkreview-extension');
+      return;
+    }
+    root.setAttribute('data-thinkreview-extension', '1');
     document.dispatchEvent(new CustomEvent('thinkreview-extension-present'));
+    window.dispatchEvent(new CustomEvent('thinkreview-extension-present'));
   }
   markExtensionInstalled();
   document.addEventListener('thinkreview-extension-presence', markExtensionInstalled);
