@@ -9,7 +9,10 @@
   'use strict';
 
   // Answer as soon as this script is injected, before origin checks load.
+  // Orphaned content scripts stay in open tabs after disable, uninstall, or reload;
+  // only reply while this context can still talk to the extension.
   window.addEventListener('thinkreview-extension-presence', () => {
+    if (!canMessageExtension()) return;
     window.dispatchEvent(new CustomEvent('thinkreview-extension-present'));
   });
 
