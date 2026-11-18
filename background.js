@@ -1711,12 +1711,12 @@ async function reconcileContentScripts() {
     ]);
     // Bitbucket remains opt-in, with the existing optional host permission.
     const allDomains = [
-      ...(result.gitlabDomains || []),
-      ...(result.azureDevOpsDomains || []),
-      ...(result.githubEnterpriseDomains || []),
-      ...(result.bitbucketAllowed === true ? ['https://bitbucket.org'] : []),
-      ...(result.bitbucketDataCenterDomains || [])
-    ];
+      result.gitlabDomains, result.azureDevOpsDomains, result.githubEnterpriseDomains,
+      result.bitbucketAllowed === true ? ['https://bitbucket.org'] : [],
+      result.bitbucketDataCenterDomains
+    ].flatMap(domains => Array.isArray(domains)
+      ? domains.filter(domain => typeof domain === 'string').map(domain => domain.trim()).filter(Boolean)
+      : []);
     const registeredScripts = await chrome.scripting.getRegisteredContentScripts();
     const existingScriptIds = new Set(registeredScripts.map(script => script.id));
     const targetScriptIds = new Set();
@@ -1726,10 +1726,17 @@ async function reconcileContentScripts() {
     for (const domain of new Set(allDomains)) {
       let matchPattern;
       try {
-        const normalized = /^https?:\/\//.test(domain) ? domain : `https://${domain}`;
+        const normalized = /^https?:\/\//i.test(domain) ? domain : `https://${domain}`;
         // URL accepts wildcard hostnames; preserve the wildcard match pattern.
         const url = new URL(normalized);
+        if (!['http:', 'https:'].includes(url.protocol) || !url.host) continue;
         matchPattern = `${url.protocol}//${url.host}/*`;
+      } catch (error) {
+        // Invalid saved configuration cannot be repaired by retrying browser APIs.
+        dbgWarn('Ignoring invalid saved review domain:', domain, error);
+        continue;
+      }
+      try {
         if (seenPatterns.has(matchPattern)) continue;
         seenPatterns.add(matchPattern);
         // Remove legacy dynamic registrations for sites now covered by the manifest.

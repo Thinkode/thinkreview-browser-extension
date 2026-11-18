@@ -253,3 +253,20 @@ test('keeps a working legacy custom script if migration to its normalized ID fai
   expect(scripts.has(legacy.id)).toBe(false);
   expect(scripts.size).toBe(1);
 });
+
+
+test('invalid saved domains do not block valid domains or keep retrying registration', async () => {
+  const { api, events, scripts, setStored, settle } = background();
+  setStored({
+    gitlabDomains: [null, 12, {}, '', '  ', 'https://', 'https://host:invalid', '  https://gitlab.example.com/  '],
+    azureDevOpsDomains: 'not-an-array', githubEnterpriseDomains: { bad: true }
+  });
+  await expect(settle()).resolves.toMatchObject({ success: true });
+  expect([...scripts.values()].map(script => script.matches)).toEqual([['https://gitlab.example.com/*']]);
+  expect(api.scripting.registerContentScripts).toHaveBeenCalledTimes(1);
+  const reads = api.scripting.getRegisteredContentScripts.mock.calls.length;
+  // Healthy state avoids repeated background API work on subsequent page loads.
+  events.tab(9, { status: 'complete' });
+  await Promise.resolve();
+  expect(api.scripting.getRegisteredContentScripts).toHaveBeenCalledTimes(reads);
+});
