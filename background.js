@@ -1631,7 +1631,7 @@ chrome.permissions.onAdded.addListener(updateContentScripts);
 chrome.permissions.onRemoved.addListener(updateContentScripts);
 // A page load is also a recovery opportunity if an earlier registration failed.
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === 'complete' && updateContentScripts.needsRecovery()) updateContentScripts();
+  if (changeInfo.status === 'complete') updateContentScripts.recoverIfNeeded();
 });
 chrome.runtime.onInstalled.addListener(async (details) => {
   // Finish registration and activate existing tabs before opening onboarding.

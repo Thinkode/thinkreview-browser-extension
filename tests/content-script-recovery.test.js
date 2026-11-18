@@ -9,9 +9,10 @@ const config = {
 };
 const success = () => ({ success: true, configs: [config], errors: [] });
 const failure = () => ({ success: false, configs: [], errors: ['registration failed'] });
-function setup(reconcile = jest.fn(async () => success())) {
+function setup(reconcile = jest.fn(async () => success()), session) {
   const api = {
     runtime: { getManifest: () => ({ version: '2.3.18' }) },
+    storage: { session },
     tabs: { query: jest.fn(async () => [{ id: 7, status: 'complete' }]) },
     scripting: { executeScript: jest.fn(async () => [{ result: {} }]) },
   };
@@ -67,6 +68,7 @@ test('serializes requests and reruns when settings change during registration', 
     .mockResolvedValue(success());
   const { update } = setup(reconcile);
   const first = update();
+  await Promise.resolve();
   const second = update();
   expect(first).toBe(second);
   release(success());
@@ -269,4 +271,83 @@ test('invalid saved domains do not block valid domains or keep retrying registra
   events.tab(9, { status: 'complete' });
   await Promise.resolve();
   expect(api.scripting.getRegisteredContentScripts).toHaveBeenCalledTimes(reads);
+});
+
+
+function sessionStorage(initial = {}) {
+  const data = { ...initial };
+  return {
+    get: jest.fn(async () => ({ ...data })),
+    set: jest.fn(async values => { Object.assign(data, values); }),
+    data,
+  };
+}
+const healthKey = 'contentScriptRegistrationHealth';
+
+test('healthy session state survives worker restarts without reconciliation or tab probes', async () => {
+  const session = sessionStorage();
+  const { api, reconcile, update } = setup(undefined, session);
+  await update();
+  expect(session.data[healthKey]).toEqual({ version: '2.3.18', healthy: true });
+  reconcile.mockClear(); api.tabs.query.mockClear(); api.scripting.executeScript.mockClear();
+  const restarted = createContentScriptRecovery(api, reconcile);
+  await Promise.all([restarted.recoverIfNeeded(), restarted.recoverIfNeeded()]);
+  await restarted.recoverIfNeeded();
+  expect(session.get).toHaveBeenCalledTimes(1);
+  expect(reconcile).not.toHaveBeenCalled();
+  expect(api.tabs.query).not.toHaveBeenCalled();
+  expect(api.scripting.executeScript).not.toHaveBeenCalled();
+});
+
+test('failed registration stays pending across worker restarts and is repaired', async () => {
+  const session = sessionStorage();
+  const { api, update } = setup(jest.fn(async () => failure()), session);
+  await update();
+  expect(session.data[healthKey].healthy).toBe(false);
+  const reconcile = jest.fn(async () => success());
+  await createContentScriptRecovery(api, reconcile).recoverIfNeeded();
+  expect(reconcile).toHaveBeenCalledTimes(1);
+  expect(session.data[healthKey].healthy).toBe(true);
+});
+
+test('forced domain/permission reconciliation marks a previous healthy session pending before work', async () => {
+  const session = sessionStorage({ [healthKey]: { version: '2.3.18', healthy: true } });
+  const reconcile = jest.fn(async () => {
+    expect(session.data[healthKey].healthy).toBe(false);
+    return success();
+  });
+  const { update } = setup(reconcile, session);
+  await update();
+  expect(reconcile).toHaveBeenCalledTimes(1);
+  expect(session.data[healthKey].healthy).toBe(true);
+});
+
+test.each([{}, { version: 'old-version', healthy: true }, { version: '2.3.18', healthy: false }])(
+  'missing, outdated, and pending session health trigger recovery: %j', async health => {
+    const session = sessionStorage({ [healthKey]: health });
+    const { update, reconcile } = setup(undefined, session);
+    await update.recoverIfNeeded();
+    expect(reconcile).toHaveBeenCalledTimes(1);
+  }
+);
+
+test('a slow session read cannot overwrite the outcome of a forced update', async () => {
+  let release;
+  const session = sessionStorage();
+  session.get.mockImplementation(() => new Promise(resolve => { release = resolve; }));
+  const { update, reconcile } = setup(jest.fn(async () => failure()), session);
+  const recovery = update.recoverIfNeeded();
+  await update();
+  // A stale healthy read must not hide the failed permission/domain update.
+  release({ [healthKey]: { version: '2.3.18', healthy: true } });
+  await recovery;
+  expect(update.needsRecovery()).toBe(true);
+  expect(reconcile).toHaveBeenCalledTimes(6);
+});
+
+test('unavailable session storage falls back to recovery without blocking registration', async () => {
+  const session = { get: jest.fn(async () => { throw new Error('unavailable'); }), set: jest.fn(async () => { throw new Error('unavailable'); }) };
+  const { update, reconcile } = setup(undefined, session);
+  await expect(update.recoverIfNeeded()).resolves.toMatchObject({ success: true });
+  expect(reconcile).toHaveBeenCalledTimes(1);
 });
