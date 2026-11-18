@@ -12,7 +12,6 @@ const failure = () => ({ success: false, configs: [], errors: ['registration fai
 function setup(reconcile = jest.fn(async () => success())) {
   const api = {
     runtime: { getManifest: () => ({ version: '2.3.18' }) },
-    alarms: { create: jest.fn(async () => {}), clear: jest.fn(async () => {}) },
     tabs: { query: jest.fn(async () => [{ id: 7, status: 'complete' }]) },
     scripting: { executeScript: jest.fn(async () => [{ result: {} }]) },
   };
@@ -24,25 +23,23 @@ test('retries transient failure, verifies success before responding, and activat
   const { api, update } = setup(reconcile);
   await expect(update()).resolves.toEqual({ success: true, errors: [] });
   expect(reconcile).toHaveBeenCalledTimes(2);
-  expect(api.alarms.create).toHaveBeenCalledWith('thinkreview-content-script-retry', { delayInMinutes: 1 });
-  expect(api.alarms.clear).toHaveBeenCalledTimes(1);
   expect(api.tabs.query).toHaveBeenCalledWith({ url: config.matches });
   expect(api.scripting.executeScript).toHaveBeenLastCalledWith({ target: { tabId: 7 }, files: config.js });
 });
 
-test('persistent failure returns failure and retains a durable retry', async () => {
+test('persistent failure returns failure and leaves browser-event recovery enabled', async () => {
   const { api, reconcile, update } = setup(jest.fn(async () => failure()));
   await expect(update()).resolves.toEqual({ success: false, errors: ['registration failed'] });
   expect(reconcile).toHaveBeenCalledTimes(3);
-  expect(api.alarms.clear).not.toHaveBeenCalled();
+  expect(update.needsRecovery()).toBe(true);
   expect(api.tabs.query).not.toHaveBeenCalled();
 });
 
-test('unexpected failure also retains the retry scheduled before registration', async () => {
+test('unexpected failure leaves recovery enabled without the alarms API', async () => {
   const { api, update } = setup(jest.fn(async () => { throw new Error('storage unavailable'); }));
   await expect(update()).resolves.toEqual({ success: false, errors: ['storage unavailable'] });
-  expect(api.alarms.create).toHaveBeenCalledTimes(1);
-  expect(api.alarms.clear).not.toHaveBeenCalled();
+  expect(update.needsRecovery()).toBe(true);
+  expect(api.alarms).toBeUndefined();
 });
 
 test('skips a tab only when both bundles are already running the current version', async () => {
@@ -70,7 +67,6 @@ test('serializes requests and reruns when settings change during registration', 
     .mockResolvedValue(success());
   const { update } = setup(reconcile);
   const first = update();
-  await Promise.resolve();
   const second = update();
   expect(first).toBe(second);
   release(success());
@@ -84,11 +80,11 @@ function background() {
   const events = {};
   const scripts = new Map();
   const event = name => ({ addListener(fn) { events[name] = fn; } });
-  let stored = {};
+  let stored = { gitlabDomains: ['https://code.example.com'] };
+  const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
   const api = {
-    runtime: { onInstalled: event('install'), onStartup: event('startup'), onMessage: event('message'), getManifest: () => ({ version: 'test' }) },
+    runtime: { onInstalled: event('install'), onStartup: event('startup'), onMessage: event('message'), getManifest: () => ({ ...manifest, version: 'test' }) },
     permissions: { onAdded: event('grant'), onRemoved: event('revoke'), contains: jest.fn(async () => true) },
-    alarms: { onAlarm: event('alarm'), create: jest.fn(async () => {}), clear: jest.fn(async () => {}) },
     storage: { onChanged: event('storage'), local: { get: jest.fn(async () => stored), set: jest.fn(async () => {}) } },
     tabs: { onUpdated: event('tab'), create: jest.fn(), query: jest.fn(async () => []) },
     scripting: {
@@ -106,11 +102,21 @@ function background() {
   return { api, events, scripts, settle, setStored(value) { stored = value; } };
 }
 
-test('fresh installation registers all default platforms and GitLab SPA entry pages', async () => {
-  const { scripts, settle } = background();
+test('built-in platforms load from the manifest with no added permissions', async () => {
+  const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+  const reviewScript = manifest.content_scripts.find(script => script.js.includes('content.js'));
+  expect(reviewScript.matches).toEqual([
+    'https://gitlab.com/*', 'https://github.com/*', 'https://dev.azure.com/*', 'https://*.visualstudio.com/*'
+  ]);
+  expect(reviewScript.run_at).toBe('document_end');
+  const baseline = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+  expect(baseline.permissions).toEqual(['storage', 'identity', 'scripting', 'activeTab']);
+  const { api, scripts, settle, setStored } = background();
+  setStored({});
   await settle();
-  expect(scripts.size).toBe(4);
-  expect([...scripts.values()].find(c => c.matches[0].includes('gitlab.com')).matches).toEqual(['https://gitlab.com/*']);
+  expect(scripts.size).toBe(0);
+  expect(api.scripting.registerContentScripts).not.toHaveBeenCalled();
+  expect(api.tabs.query).toHaveBeenCalledWith({ url: reviewScript.matches });
 });
 
 test('failed installation recovers on a later page load without browser restart', async () => {
@@ -121,7 +127,7 @@ test('failed installation recovers on a later page load without browser restart'
   api.scripting.registerContentScripts.mockImplementation(async configs => configs.forEach(c => scripts.set(c.id, c)));
   events.tab(7, { status: 'complete' });
   await expect(settle()).resolves.toMatchObject({ success: true });
-  expect(scripts.size).toBe(4);
+  expect(scripts.size).toBe(1);
 });
 
 test('permission grants recover skipped registrations and revocation removes them', async () => {
@@ -131,7 +137,7 @@ test('permission grants recover skipped registrations and revocation removes the
   expect(scripts.size).toBe(0);
   api.permissions.contains.mockResolvedValue(true);
   await events.grant();
-  expect(scripts.size).toBe(4);
+  expect(scripts.size).toBe(1);
   api.permissions.contains.mockResolvedValue(false);
   await events.revoke();
   expect(scripts.size).toBe(0);
@@ -152,7 +158,7 @@ test('verification catches registration silently failing to persist', async () =
   const { api, settle } = background();
   api.scripting.registerContentScripts.mockResolvedValue();
   await expect(settle()).resolves.toMatchObject({ success: false });
-  expect(api.alarms.clear).not.toHaveBeenCalled();
+  expect(api.alarms).toBeUndefined();
 });
 
 test('GitHub Enterprise storage changes trigger registration', async () => {
@@ -175,4 +181,42 @@ test('healthy registrations do not reconcile or probe tabs on unrelated page loa
   await Promise.resolve();
   expect(api.tabs.query).toHaveBeenCalledTimes(queries);
   expect(api.scripting.getRegisteredContentScripts).toHaveBeenCalledTimes(reads);
+});
+
+
+test('removes legacy built-in registrations without registering duplicates', async () => {
+  const { api, scripts, setStored, settle } = background();
+  const legacy = {
+    id: 'code-review-https---github-com', matches: ['https://github.com/*'], js: config.js,
+  };
+  scripts.set(legacy.id, legacy);
+  setStored({ gitlabDomains: ['https://gitlab.com'], githubEnterpriseDomains: ['https://github.com'] });
+  await settle();
+  expect(api.scripting.registerContentScripts).not.toHaveBeenCalled();
+  expect(scripts.size).toBe(0);
+  expect(api.scripting.unregisterContentScripts).toHaveBeenCalledWith({ ids: [legacy.id] });
+});
+
+test('built-in open tabs still activate when custom registration APIs fail', async () => {
+  const { api, settle } = background();
+  api.scripting.getRegisteredContentScripts.mockRejectedValue(new Error('scripting API unavailable'));
+  api.tabs.query.mockResolvedValue([{ id: 7 }]);
+  api.scripting.executeScript = jest.fn(async () => [{ result: {} }]);
+  await expect(settle()).resolves.toMatchObject({ success: false });
+  expect(api.tabs.query.mock.calls[0][0].url).toContain('https://github.com/*');
+  expect(api.scripting.executeScript).toHaveBeenLastCalledWith({
+    target: { tabId: 7 },
+    files: ['vendor/honeybadger.ext.min.js', 'content.js', 'vendor/diff.min.js', 'components/integrated-review.js'],
+  });
+});
+
+test('Bitbucket Cloud stays opt-in and requires its existing host permission', async () => {
+  const { api, scripts, setStored, settle } = background();
+  setStored({ bitbucketAllowed: true });
+  api.permissions.contains.mockResolvedValue(false);
+  await settle();
+  expect(scripts.size).toBe(0);
+  api.permissions.contains.mockResolvedValue(true);
+  await settle();
+  expect([...scripts.values()].map(script => script.matches)).toEqual([['https://bitbucket.org/*']]);
 });

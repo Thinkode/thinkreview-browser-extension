@@ -1624,16 +1624,11 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
 }
 
 // Dynamic Content Script Registration for Custom Domains
-const DEFAULT_DOMAINS = ['https://gitlab.com'];
-
 const updateContentScripts = createContentScriptRecovery(chrome, reconcileContentScripts, dbgWarn);
 
 chrome.runtime.onStartup.addListener(updateContentScripts);
 chrome.permissions.onAdded.addListener(updateContentScripts);
 chrome.permissions.onRemoved.addListener(updateContentScripts);
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'thinkreview-content-script-retry') updateContentScripts();
-});
 // A page load is also a recovery opportunity if an earlier registration failed.
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status === 'complete' && updateContentScripts.needsRecovery()) updateContentScripts();
@@ -1701,145 +1696,45 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 });
 
 async function reconcileContentScripts() {
+  // Keep activation of built-in sites independent of the dynamic scripting API.
+  // Existing tabs still need explicit injection after an installation or update.
+  const builtInConfigs = chrome.runtime.getManifest().content_scripts
+    .filter(script => script.js?.includes('content.js'))
+    .map(script => ({ matches: script.matches, js: script.js, runAt: script.run_at }));
+  const builtInMatches = new Set(builtInConfigs.flatMap(script => script.matches));
+  const activeConfigs = [...builtInConfigs];
+  const failures = [];
   try {
-    const failures = [];
-    const activeConfigs = [];
-    // Get current domains from storage
-    const result = await chrome.storage.local.get(['gitlabDomains', 'azureDevOpsDomains', 'bitbucketAllowed', 'githubEnterpriseDomains', 'bitbucketDataCenterDomains']);
-    const gitlabDomains = result.gitlabDomains || DEFAULT_DOMAINS;
-    const customAzureDevOpsDomains = result.azureDevOpsDomains || [];
-    const githubEnterpriseDomains = result.githubEnterpriseDomains || [];
-    const bitbucketDataCenterDomains = result.bitbucketDataCenterDomains || [];
-
-    // Built-in Azure DevOps domains (always included)
-    const builtInAzureDevOpsDomains = [
-      'https://dev.azure.com',
-      'https://*.visualstudio.com'
-    ];
-
-    // Add GitHub domains (GitHub.com + GitHub Enterprise/self-hosted)
-    const githubDomains = [
-      'https://github.com',
-      ...githubEnterpriseDomains
-    ];
-
-    // Add Bitbucket Cloud when user has allowed it and we have permission
-    const bitbucketDomains = [];
-    if (result.bitbucketAllowed === true) {
-      const hasBitbucket = await chrome.permissions.contains({ origins: ['https://bitbucket.org/*'] });
-      if (hasBitbucket) {
-        bitbucketDomains.push('https://bitbucket.org');
-      }
-    }
-
+    const result = await chrome.storage.local.get([
+      'gitlabDomains', 'azureDevOpsDomains', 'githubEnterpriseDomains',
+      'bitbucketAllowed', 'bitbucketDataCenterDomains'
+    ]);
+    // Bitbucket remains opt-in, with the existing optional host permission.
     const allDomains = [
-      ...gitlabDomains,
-      ...builtInAzureDevOpsDomains,
-      ...customAzureDevOpsDomains,
-      ...githubDomains,
-      ...bitbucketDomains,
-      ...bitbucketDataCenterDomains
+      ...(result.gitlabDomains || []),
+      ...(result.azureDevOpsDomains || []),
+      ...(result.githubEnterpriseDomains || []),
+      ...(result.bitbucketAllowed === true ? ['https://bitbucket.org'] : []),
+      ...(result.bitbucketDataCenterDomains || [])
     ];
-    const azureMatchAllDomains = new Set([...builtInAzureDevOpsDomains, ...customAzureDevOpsDomains]);
-    const bitbucketMatchAllDomains = new Set([...bitbucketDomains, ...bitbucketDataCenterDomains]);
-    const githubMatchAllHosts = new Set(
-      githubDomains
-        .filter(d => typeof d === 'string')
-        .map(d => {
-          try {
-            const hasProtocol = d.startsWith('http://') || d.startsWith('https://');
-            const url = new URL(hasProtocol ? d : `https://${d}`);
-            return url.hostname;
-          } catch {
-            return null;
-          }
-        })
-        .filter(Boolean)
-    );
-    
-    dbgLog('Updating content scripts for domains:', allDomains);
-    
-    // Get existing registered scripts
     const registeredScripts = await chrome.scripting.getRegisteredContentScripts();
+    const existingScriptIds = new Set(registeredScripts.map(script => script.id));
+    const targetScriptIds = new Set();
+    const dynamicConfigs = [];
 
-    // Track script IDs we want to keep
-    const targetScriptIds = [];
-    // Track script IDs that already exist and need updating rather than creating
-    const existingScriptIds = registeredScripts.map(script => script.id);
-    
-    // Register content scripts for each domain
-  for (const domain of new Set(allDomains)) {
-    try {
-      // Generate a safe script ID from the domain
-      // Use a generic prefix since we now support multiple platforms
-      const scriptId = `code-review-${domain.replace(/[^a-zA-Z0-9]/g, '-')}`;
-      targetScriptIds.push(scriptId);
-      
-      // Check if this script ID already exists
-      const scriptExists = existingScriptIds.includes(scriptId);
-      
-      // Parse the domain to create the correct match pattern
-      let matchPattern;
-      let originPattern;
-      
-      const hasProtocol = domain.startsWith('http://') || domain.startsWith('https://');
-      const hasWildcard = domain.includes('*');
-      
-      if (hasWildcard) {
-        // Normalize wildcard domains (e.g., https://*.visualstudio.com)
-        const normalizedDomain = hasProtocol ? domain : `https://${domain}`;
-        const suffixedDomain = normalizedDomain.endsWith('/*') ? normalizedDomain : `${normalizedDomain}/*`;
-        originPattern = suffixedDomain;
-        matchPattern = suffixedDomain;
-      } else if (hasProtocol) {
-        // Full URL provided (e.g., http://localhost:8083, https://gitlab.example.com)
-        const url = new URL(domain);
-        originPattern = `${url.protocol}//${url.host}/*`;
-        
-        // Create more inclusive match patterns for local instances
-        if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-          // For localhost, be more permissive with paths
-          matchPattern = `${url.protocol}//${url.host}/*`;
-          dbgLog(`Using permissive localhost pattern: ${matchPattern}`);
-        } else if (azureMatchAllDomains.has(domain) || azureMatchAllDomains.has(url.hostname)) {
-          // Azure DevOps (built-in or custom): match all pages (SPA - button always visible, but only works on PR pages)
-          matchPattern = `${url.protocol}//${url.host}/*`;
-        } else if (githubMatchAllHosts.has(url.hostname)) {
-          // GitHub & GitHub Enterprise: match all pages (SPA - button always visible, but only works on PR pages)
-          matchPattern = `${url.protocol}//${url.host}/*`;
-        } else if (bitbucketMatchAllDomains.has(domain) || url.hostname === 'bitbucket.org') {
-          // Bitbucket: match all pages (SPA - button visible on PR pages)
-          matchPattern = `${url.protocol}//${url.host}/*`;
-        } else {
-          // GitLab: include repository pages so SPA navigation into an MR works.
-          matchPattern = `${url.protocol}//${url.host}/*`;
-        }
-      } else {
-        // Simple domain provided (e.g., gitlab.com, github.com, devops.companyname.com)
-        originPattern = `https://${domain}/*`;
-        if (azureMatchAllDomains.has(domain) || domain === 'github.com' || domain.endsWith('.github.com') || domain === 'bitbucket.org' || bitbucketMatchAllDomains.has(domain)) {
-          matchPattern = `https://${domain}/*`;
-        } else {
-          // GitLab: include repository pages so SPA navigation into an MR works.
-          matchPattern = `https://${domain}/*`;
-        }
-      }
-        
-        // Check if we have permission for this domain
-        const hasPermission = await chrome.permissions.contains({
-          origins: [originPattern]
-        });
-        
-        if (!hasPermission) {
-          const targetIndex = targetScriptIds.indexOf(scriptId);
-          targetScriptIds.splice(targetIndex, 1);
-          dbgLog(`No permission for ${originPattern}, content script won't be registered`);
-          continue;
-        }
-        
-        // Prepare script configuration
-        // content.js first so the ThinkReview trigger can inject before the heavy panel bundle parses.
-        // document_end: don't wait for full page idle (images/network) before showing the button.
+    for (const domain of new Set(allDomains)) {
+      try {
+        const normalized = /^https?:\/\//.test(domain) ? domain : `https://${domain}`;
+        // URL accepts wildcard hostnames; preserve the wildcard match pattern.
+        const url = new URL(normalized);
+        const matchPattern = `${url.protocol}//${url.host}/*`;
+        // Remove legacy dynamic registrations for sites now covered by the manifest.
+        if (builtInMatches.has(matchPattern)) continue;
+        if (!await chrome.permissions.contains({ origins: [matchPattern] })) continue;
+
+        const scriptId = `code-review-${domain.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        targetScriptIds.add(scriptId);
+        // Include repository pages to detect SPA navigation into PRs/MRs.
         const scriptConfig = {
           id: scriptId,
           matches: [matchPattern],
@@ -1847,45 +1742,28 @@ async function reconcileContentScripts() {
           runAt: 'document_end',
           persistAcrossSessions: true
         };
-        
-        if (scriptExists) {
-          // Update existing script instead of creating a new one
+        if (existingScriptIds.has(scriptId)) {
           await chrome.scripting.updateContentScripts([scriptConfig]);
-          dbgLog(`Updated existing content script for domain: ${domain} (pattern: ${matchPattern})`);
         } else {
-          // Register new script
           await chrome.scripting.registerContentScripts([scriptConfig]);
-          dbgLog(`Registered new content script for domain: ${domain} (pattern: ${matchPattern})`);
         }
+        dynamicConfigs.push(scriptConfig);
         activeConfigs.push(scriptConfig);
       } catch (error) {
         failures.push(`${domain}: ${error.message}`);
         dbgWarn(`Failed to register content script for domain ${domain}:`, error);
-        // console.error('Full error:', error);
-      }
-    }
-    
-    // Remove any scripts that are no longer needed
-    // Check for both old and new script ID prefixes for backward compatibility
-    const scriptsToRemove = registeredScripts
-      .filter(script => 
-        (script.id.startsWith('gitlab-mr-reviews-') || script.id.startsWith('code-review-')) && 
-        !targetScriptIds.includes(script.id)
-      )
-      .map(script => script.id);
-      
-    if (scriptsToRemove.length > 0) {
-      dbgLog('Removing unused content scripts:', scriptsToRemove);
-      try {
-        await chrome.scripting.unregisterContentScripts({ ids: scriptsToRemove });
-      } catch (error) {
-        failures.push(error.message);
-        dbgWarn('Error removing unused scripts:', error);
       }
     }
 
+    const scriptsToRemove = registeredScripts.filter(script =>
+      (script.id.startsWith('gitlab-mr-reviews-') || script.id.startsWith('code-review-'))
+      && !targetScriptIds.has(script.id)
+    ).map(script => script.id);
+    if (scriptsToRemove.length) {
+      await chrome.scripting.unregisterContentScripts({ ids: scriptsToRemove });
+    }
     const verified = await chrome.scripting.getRegisteredContentScripts();
-    for (const config of activeConfigs) {
+    for (const config of dynamicConfigs) {
       const actual = verified.find(script => script.id === config.id);
       if (!actual || JSON.stringify(actual.matches) !== JSON.stringify(config.matches)
         || JSON.stringify(actual.js) !== JSON.stringify(config.js) || actual.runAt !== config.runAt) {
@@ -1894,10 +1772,10 @@ async function reconcileContentScripts() {
     }
     return { success: failures.length === 0, errors: failures, configs: activeConfigs };
   } catch (error) {
-    dbgWarn('Error updating content scripts:', error);
-    return { success: false, errors: [error.message], configs: [] };
+    dbgWarn('Error updating custom content scripts:', error);
+    return { success: false, errors: [error.message], configs: activeConfigs };
   }
 }
 
-// Installation, startup, alarms, and the first completed tab after a worker wake
-// provide recovery without reconciling on every unrelated worker event.
+// Installation, startup, permission changes, and the first completed tab after a
+// worker wake provide recovery without adding permissions or a persistent timer.

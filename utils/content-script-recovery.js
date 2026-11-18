@@ -1,7 +1,6 @@
-// Registration is shared by every review platform. Keep failures recoverable even
-// when the service worker is suspended, and activate pages open before install.
+// Built-in platforms load from the manifest. Retry custom-domain registration
+// on browser events and activate pages that were already open before install.
 export function createContentScriptRecovery(api, reconcile, warn = () => {}) {
-  const alarmName = 'thinkreview-content-script-retry';
   let running = null;
   let requested = false;
   let lastReconcileSucceeded = false;
@@ -38,15 +37,11 @@ export function createContentScriptRecovery(api, reconcile, warn = () => {}) {
     do {
       requested = false;
       try {
-        // Persist the recovery opportunity BEFORE attempting registration. This
-        // also covers unexpected worker termination during initialization.
-        await api.alarms.create(alarmName, { delayInMinutes: 1 });
         for (let attempt = 0; attempt < 3; attempt++) {
           result = await reconcile();
           if (result.success) break;
         }
-        if (result.success) await api.alarms.clear(alarmName);
-        else warn('Content script registration failed; scheduled retry:', result.errors);
+        if (!result.success) warn('Custom content script registration failed; will retry on the next browser event:', result.errors);
         await activateOpenTabs(result.configs || []);
       } catch (error) {
         warn('Content script recovery failed:', error);
