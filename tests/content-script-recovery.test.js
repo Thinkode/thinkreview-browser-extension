@@ -220,3 +220,36 @@ test('Bitbucket Cloud stays opt-in and requires its existing host permission', a
   await settle();
   expect([...scripts.values()].map(script => script.matches)).toEqual([['https://bitbucket.org/*']]);
 });
+
+
+test('distinct dot and hyphen origins get distinct IDs; aliases register once', async () => {
+  const { api, scripts, setStored, settle } = background();
+  setStored({ gitlabDomains: [
+    'https://gitlab.example.com', 'https://gitlab-example.com',
+    'gitlab.example.com/', 'https://GITLAB.EXAMPLE.COM/'
+  ] });
+  await expect(settle()).resolves.toMatchObject({ success: true });
+  expect(api.scripting.registerContentScripts).toHaveBeenCalledTimes(2);
+  expect(scripts.size).toBe(2);
+  expect([...scripts.values()].map(script => script.matches[0])).toEqual([
+    'https://gitlab.example.com/*', 'https://gitlab-example.com/*'
+  ]);
+  await settle();
+  expect(api.scripting.registerContentScripts).toHaveBeenCalledTimes(2);
+  expect(api.scripting.updateContentScripts).toHaveBeenCalledTimes(2);
+});
+
+test('keeps a working legacy custom script if migration to its normalized ID fails', async () => {
+  const { api, scripts, setStored, settle } = background();
+  const legacy = { id: 'code-review-https---gitlab-example-com', matches: ['https://gitlab.example.com/*'], js: config.js };
+  scripts.set(legacy.id, legacy);
+  setStored({ gitlabDomains: ['https://gitlab.example.com'] });
+  api.scripting.registerContentScripts.mockRejectedValue(new Error('API unavailable'));
+  await expect(settle()).resolves.toMatchObject({ success: false });
+  expect(scripts.has(legacy.id)).toBe(true);
+  expect(api.scripting.unregisterContentScripts).not.toHaveBeenCalled();
+  api.scripting.registerContentScripts.mockImplementation(async configs => configs.forEach(c => scripts.set(c.id, c)));
+  await expect(settle()).resolves.toMatchObject({ success: true });
+  expect(scripts.has(legacy.id)).toBe(false);
+  expect(scripts.size).toBe(1);
+});

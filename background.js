@@ -1721,18 +1721,25 @@ async function reconcileContentScripts() {
     const existingScriptIds = new Set(registeredScripts.map(script => script.id));
     const targetScriptIds = new Set();
     const dynamicConfigs = [];
+    const seenPatterns = new Set();
 
     for (const domain of new Set(allDomains)) {
+      let matchPattern;
       try {
         const normalized = /^https?:\/\//.test(domain) ? domain : `https://${domain}`;
         // URL accepts wildcard hostnames; preserve the wildcard match pattern.
         const url = new URL(normalized);
-        const matchPattern = `${url.protocol}//${url.host}/*`;
+        matchPattern = `${url.protocol}//${url.host}/*`;
+        if (seenPatterns.has(matchPattern)) continue;
+        seenPatterns.add(matchPattern);
         // Remove legacy dynamic registrations for sites now covered by the manifest.
         if (builtInMatches.has(matchPattern)) continue;
         if (!await chrome.permissions.contains({ origins: [matchPattern] })) continue;
 
-        const scriptId = `code-review-${domain.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        // Encode every ASCII character of the normalized URL without losing
+        // separators: dots and hyphens must identify distinct origins.
+        const scriptId = `code-review-${Array.from(matchPattern, char =>
+          char.charCodeAt(0).toString(16).padStart(2, '0')).join('')}`;
         targetScriptIds.add(scriptId);
         // Include repository pages to detect SPA navigation into PRs/MRs.
         const scriptConfig = {
@@ -1750,6 +1757,10 @@ async function reconcileContentScripts() {
         dynamicConfigs.push(scriptConfig);
         activeConfigs.push(scriptConfig);
       } catch (error) {
+        // Keep a working legacy registration if migrating its ID failed.
+        for (const script of registeredScripts) {
+          if (script.matches?.includes(matchPattern)) targetScriptIds.add(script.id);
+        }
         failures.push(`${domain}: ${error.message}`);
         dbgWarn(`Failed to register content script for domain ${domain}:`, error);
       }
