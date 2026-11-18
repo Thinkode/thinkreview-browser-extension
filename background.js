@@ -1636,7 +1636,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 // A page load is also a recovery opportunity if an earlier registration failed.
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === 'complete') updateContentScripts();
+  if (changeInfo.status === 'complete' && updateContentScripts.needsRecovery()) updateContentScripts();
 });
 chrome.runtime.onInstalled.addListener(async (details) => {
   // Finish registration and activate existing tabs before opening onboarding.
@@ -1899,5 +1899,5 @@ async function reconcileContentScripts() {
   }
 }
 
-// Reconcile whenever the worker starts, including wake-ups after a failed installation.
-updateContentScripts();
+// Installation, startup, alarms, and the first completed tab after a worker wake
+// provide recovery without reconciling on every unrelated worker event.

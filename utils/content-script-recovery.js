@@ -4,6 +4,7 @@ export function createContentScriptRecovery(api, reconcile, warn = () => {}) {
   const alarmName = 'thinkreview-content-script-retry';
   let running = null;
   let requested = false;
+  let lastReconcileSucceeded = false;
 
   async function activateOpenTabs(configs) {
     const matches = [...new Set(configs.flatMap(config => config.matches))];
@@ -52,12 +53,15 @@ export function createContentScriptRecovery(api, reconcile, warn = () => {}) {
         result = { success: false, errors: [error.message] };
       }
     } while (requested);
+    lastReconcileSucceeded = result.success;
     return { success: result.success, errors: result.errors || [] };
   }
 
-  return function updateContentScripts() {
+  function updateContentScripts() {
     requested = true;
     if (!running) running = run().finally(() => { running = null; });
     return running;
-  };
+  }
+  updateContentScripts.needsRecovery = () => !lastReconcileSucceeded;
+  return updateContentScripts;
 }

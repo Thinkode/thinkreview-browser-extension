@@ -15,7 +15,8 @@ function monitor() {
     chrome: { runtime: { id: 'extension' } },
     setInterval: jest.fn(fn => { tick = fn; return 1; }), clearInterval: jest.fn(),
     _teardownRetryObserver: jest.fn(),
-    platformDetector: {},
+    platformDetector: {}, initialPanelPending: false,
+    isSupportedPage: jest.fn(() => supported),
     initializePlatformDetection: jest.fn(async () => { ctx.platformDetector = {}; }),
     shouldShowButton: jest.fn(() => supported),
     areButtonsInjected: jest.fn(() => button),
@@ -64,6 +65,25 @@ test('stops polling after the extension context is invalidated', async () => {
   await tick();
   expect(ctx.clearInterval).toHaveBeenCalledWith(1);
   expect(ctx.injectButtons).not.toHaveBeenCalled();
+});
+
+test('does not try to create a panel on non-PR pages', async () => {
+  const { ctx, tick } = monitor();
+  ctx.isSupportedPage.mockReturnValue(false);
+  await tick();
+  await tick();
+  expect(ctx.injectButtons).toHaveBeenCalledTimes(1);
+  expect(ctx.checkAndTriggerReviewForNewPR).not.toHaveBeenCalled();
+});
+
+test('waits for initial panel startup before attempting panel recovery', async () => {
+  const { ctx, tick } = monitor();
+  ctx.initialPanelPending = true;
+  await tick();
+  expect(ctx.checkAndTriggerReviewForNewPR).not.toHaveBeenCalled();
+  ctx.initialPanelPending = false;
+  await tick();
+  expect(ctx.checkAndTriggerReviewForNewPR).toHaveBeenCalledTimes(1);
 });
 
 test('does not overlap asynchronous UI recovery attempts', async () => {

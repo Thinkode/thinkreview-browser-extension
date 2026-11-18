@@ -163,3 +163,16 @@ test('GitHub Enterprise storage changes trigger registration', async () => {
   await settle();
   expect([...scripts.values()].some(c => c.matches.includes('https://code.example.com/*'))).toBe(true);
 });
+
+
+test('healthy registrations do not reconcile or probe tabs on unrelated page loads', async () => {
+  const { api, events, settle } = background();
+  await settle();
+  const queries = api.tabs.query.mock.calls.length;
+  const reads = api.scripting.getRegisteredContentScripts.mock.calls.length;
+  events.tab(8, { status: 'complete' });
+  events.tab(9, { status: 'complete' });
+  await Promise.resolve();
+  expect(api.tabs.query).toHaveBeenCalledTimes(queries);
+  expect(api.scripting.getRegisteredContentScripts).toHaveBeenCalledTimes(reads);
+});

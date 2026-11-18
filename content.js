@@ -131,6 +131,9 @@ let pendingAutoReviewTimeoutId = null;
 // Track current PR ID for detecting navigation to new PRs
 let currentPRId = null;
 
+// Let initial panel creation finish before the recovery monitor attempts it.
+let initialPanelPending = true;
+
 // State for the button-injection retry observer — grouped to reduce namespace pollution.
 const retryState = {
   observer: null,        // MutationObserver instance
@@ -2993,7 +2996,8 @@ function startSPANavigationMonitoring() {
       if (!platformDetector) await initializePlatformDetection();
       if (shouldShowButton()) {
         if (!areButtonsInjected()) await injectButtons();
-        if (navigated || !document.getElementById('gitlab-mr-integrated-review')) {
+        if (!initialPanelPending && (navigated || (isSupportedPage()
+          && !document.getElementById('gitlab-mr-integrated-review')))) {
           await checkAndTriggerReviewForNewPR();
         }
       }
@@ -3064,9 +3068,10 @@ async function initializeExtension() {
       retryState.timeoutId = setTimeout(_teardownRetryObserver, 10_000);
     }
 
-    // Wait for the page to fully load before injecting the integrated review panel
-    setTimeout(() => {
-      injectIntegratedReviewPanel();
+    // The trigger is visible already; finish panel startup before recovery can
+    // attempt another creation. Non-PR pages only need their trigger.
+    if (isSupportedPage()) {
+      await injectIntegratedReviewPanel();
       // Panel is already created in minimized state to prevent flash
       // Just update the button arrow to up arrow
       const reviewBtn = document.getElementById('code-review-btn');
@@ -3079,14 +3084,16 @@ async function initializeExtension() {
 
       // Save the minimized state to extension storage
       chrome.storage.local.set({ 'code-review-minimized-to-button': 'true' });
-    }, 1000);
+    }
   } else {
     dbgLog('Current page does not need the button');
   }
 }
 
 // Initialize the extension
-initializeExtension().catch(error => dbgWarn('Extension initialization failed:', error));
+initializeExtension()
+  .catch(error => dbgWarn('Extension initialization failed:', error))
+  .finally(() => { initialPanelPending = false; });
 
 // ── Live layout change handling ────────────────────────────
 // Re-apply trigger and docked mode when settings change (from popup or in-panel widget)
