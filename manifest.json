@@ -35,6 +35,17 @@
   "content_scripts": [
     {
       "matches": [
+        "https://gitlab.com/*",
+        "https://github.com/*",
+        "https://dev.azure.com/*",
+        "https://*.visualstudio.com/*"
+      ],
+      "js": ["vendor/honeybadger.ext.min.js", "content.js", "vendor/diff.min.js", "components/integrated-review.js"],
+      "run_at": "document_end",
+      "all_frames": false
+    },
+    {
+      "matches": [
         "https://thinkreview.dev/*",
         "https://portal.thinkreview.dev/*",
         "https://app.thinkreview.dev/*"

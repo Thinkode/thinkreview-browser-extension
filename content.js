@@ -1,3 +1,7 @@
+// Scope classic-script declarations so automatic and recovery injection can race safely.
+(() => {
+const contentVersion = chrome.runtime.getManifest().version;
+if (globalThis.__thinkReviewContentVersion === contentVersion) return;
 // content.js
 // Detects GitLab MR and Azure DevOps PR pages, fetches code changes, injects UI, and displays integrated code review
 // Debug toggle: set to false to disable console logs in production
@@ -127,6 +131,9 @@ let pendingAutoReviewTimeoutId = null;
 // Track current PR ID for detecting navigation to new PRs
 let currentPRId = null;
 
+// Let initial panel creation finish before the recovery monitor attempts it.
+let initialPanelPending = true;
+
 // State for the button-injection retry observer — grouped to reduce namespace pollution.
 const retryState = {
   observer: null,        // MutationObserver instance
@@ -168,6 +175,8 @@ document.addEventListener('thinkreview-ollama-model-changed', async (e) => {
 
 // Import platform detection services
 let platformDetector = null;
+Object.defineProperty(window, 'platformDetector', { configurable: true, get: () => platformDetector });
+window.fetchAndDisplayCodeReview = fetchAndDisplayCodeReview;
 
 // Import Azure DevOps token error module
 let azureDevOpsTokenError = null;
@@ -2968,25 +2977,41 @@ window.getAIResponse = (patchContent, conversationHistory, language = 'English')
  */
 function startSPANavigationMonitoring() {
   let lastUrl = window.location.href;
-  
-  // Simple approach: check if URL changed periodically
-  setInterval(() => {
-    const currentUrl = window.location.href;
-    if (currentUrl !== lastUrl) {
-      lastUrl = currentUrl;
-
-      // Tear down any pending retry observer (and its timers) immediately so it
-      // doesn't fire on the new page's DOM mutations.
-      if (retryState.observer) {
-        _teardownRetryObserver();
-        dbgLog('Disconnected stale retryObserver on SPA navigation');
-      }
-
-      checkAndTriggerReviewForNewPR();
+  let recovering = false;
+  const checkPage = async () => {
+    // Old content contexts cannot recover after an extension update.
+    if (!chrome.runtime?.id) {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', checkPage);
+      _teardownRetryObserver();
+      return;
     }
-  }, 1000);
-  
-  dbgLog('Started SPA navigation monitoring');
+    // Hidden tabs need no DOM/platform recovery work. Resume immediately when
+    // visible so background navigation does not delay the first usable button.
+    if (document.hidden || recovering) return;
+    recovering = true;
+    try {
+      const currentUrl = window.location.href;
+      const navigated = currentUrl !== lastUrl;
+      lastUrl = currentUrl;
+      if (navigated) _teardownRetryObserver();
+      // Retry failed platform imports and late-rendered enterprise detection.
+      if (!platformDetector) await initializePlatformDetection();
+      if (shouldShowButton()) {
+        if (!areButtonsInjected()) await injectButtons();
+        if (!initialPanelPending && (navigated || (isSupportedPage()
+          && !document.getElementById('gitlab-mr-integrated-review')))) {
+          await checkAndTriggerReviewForNewPR();
+        }
+      }
+    } catch (error) {
+      dbgWarn('Could not recover review UI:', error);
+    } finally {
+      recovering = false;
+    }
+  };
+  const interval = setInterval(checkPage, 1000);
+  document.addEventListener('visibilitychange', checkPage);
 }
 
 // Initialize when the page is loaded
@@ -2999,6 +3024,7 @@ async function initializeExtension() {
     return null;
   });
 
+  startSPANavigationMonitoring();
   await initializePlatformDetection();
 
   // Check if we should show the button (always true for Azure DevOps and GitHub, only on MR pages for GitLab)
@@ -3047,15 +3073,10 @@ async function initializeExtension() {
       retryState.timeoutId = setTimeout(_teardownRetryObserver, 10_000);
     }
 
-    // Start SPA navigation monitoring for GitHub, Azure DevOps, and Bitbucket (SPAs)
-    // Check by site (domain) rather than platform, because platform is null on non-PR pages
-    if (platformDetector && (platformDetector.isGitHubSite() || platformDetector.isAzureDevOpsSite() || platformDetector.isBitbucketSite())) {
-      startSPANavigationMonitoring();
-    }
-
-    // Wait for the page to fully load before injecting the integrated review panel
-    setTimeout(() => {
-      injectIntegratedReviewPanel();
+    // The trigger is visible already; finish panel startup before recovery can
+    // attempt another creation. Non-PR pages only need their trigger.
+    if (isSupportedPage()) {
+      await injectIntegratedReviewPanel();
       // Panel is already created in minimized state to prevent flash
       // Just update the button arrow to up arrow
       const reviewBtn = document.getElementById('code-review-btn');
@@ -3068,14 +3089,16 @@ async function initializeExtension() {
 
       // Save the minimized state to extension storage
       chrome.storage.local.set({ 'code-review-minimized-to-button': 'true' });
-    }, 1000);
+    }
   } else {
     dbgLog('Current page does not need the button');
   }
 }
 
 // Initialize the extension
-initializeExtension();
+initializeExtension()
+  .catch(error => dbgWarn('Extension initialization failed:', error))
+  .finally(() => { initialPanelPending = false; });
 
 // ── Live layout change handling ────────────────────────────
 // Re-apply trigger and docked mode when settings change (from popup or in-panel widget)
@@ -3147,3 +3170,6 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     dbgWarn('Failed to apply panel text size from storage:', e);
   }
 });
+
+globalThis.__thinkReviewContentVersion = contentVersion;
+})();
