@@ -1,3 +1,6 @@
+(() => {
+const panelVersion = chrome.runtime.getManifest().version;
+if (globalThis.__thinkReviewPanelVersion === panelVersion) return;
 // integrated-review.js
 // Component for displaying code review results directly in GitLab MR page
 // Debug toggle: set to false to disable console logs in production
@@ -3056,3 +3059,9 @@ function setLanguagePreference(language) {
   chrome.storage.local.set({ 'code-review-language': language });
 }
 
+
+// Explicit shared APIs used by content.js; all other declarations stay scoped.
+window.displayIntegratedReview = displayIntegratedReview;
+window.showIntegratedReviewError = showIntegratedReviewError;
+globalThis.__thinkReviewPanelVersion = panelVersion;
+})();

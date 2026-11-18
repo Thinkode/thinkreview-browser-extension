@@ -1,3 +1,7 @@
+// Scope classic-script declarations so automatic and recovery injection can race safely.
+(() => {
+const contentVersion = chrome.runtime.getManifest().version;
+if (globalThis.__thinkReviewContentVersion === contentVersion) return;
 // content.js
 // Detects GitLab MR and Azure DevOps PR pages, fetches code changes, injects UI, and displays integrated code review
 // Debug toggle: set to false to disable console logs in production
@@ -168,6 +172,8 @@ document.addEventListener('thinkreview-ollama-model-changed', async (e) => {
 
 // Import platform detection services
 let platformDetector = null;
+Object.defineProperty(window, 'platformDetector', { configurable: true, get: () => platformDetector });
+window.fetchAndDisplayCodeReview = fetchAndDisplayCodeReview;
 
 // Import Azure DevOps token error module
 let azureDevOpsTokenError = null;
@@ -2968,25 +2974,35 @@ window.getAIResponse = (patchContent, conversationHistory, language = 'English')
  */
 function startSPANavigationMonitoring() {
   let lastUrl = window.location.href;
-  
-  // Simple approach: check if URL changed periodically
-  setInterval(() => {
-    const currentUrl = window.location.href;
-    if (currentUrl !== lastUrl) {
+  let recovering = false;
+  const interval = setInterval(async () => {
+    // Old content contexts cannot recover after an extension update.
+    if (!chrome.runtime?.id) {
+      clearInterval(interval);
+      _teardownRetryObserver();
+      return;
+    }
+    if (recovering) return;
+    recovering = true;
+    try {
+      const currentUrl = window.location.href;
+      const navigated = currentUrl !== lastUrl;
       lastUrl = currentUrl;
-
-      // Tear down any pending retry observer (and its timers) immediately so it
-      // doesn't fire on the new page's DOM mutations.
-      if (retryState.observer) {
-        _teardownRetryObserver();
-        dbgLog('Disconnected stale retryObserver on SPA navigation');
+      if (navigated) _teardownRetryObserver();
+      // Retry failed platform imports and late-rendered enterprise detection.
+      if (!platformDetector) await initializePlatformDetection();
+      if (shouldShowButton()) {
+        if (!areButtonsInjected()) await injectButtons();
+        if (navigated || !document.getElementById('gitlab-mr-integrated-review')) {
+          await checkAndTriggerReviewForNewPR();
+        }
       }
-
-      checkAndTriggerReviewForNewPR();
+    } catch (error) {
+      dbgWarn('Could not recover review UI:', error);
+    } finally {
+      recovering = false;
     }
   }, 1000);
-  
-  dbgLog('Started SPA navigation monitoring');
 }
 
 // Initialize when the page is loaded
@@ -2999,6 +3015,7 @@ async function initializeExtension() {
     return null;
   });
 
+  startSPANavigationMonitoring();
   await initializePlatformDetection();
 
   // Check if we should show the button (always true for Azure DevOps and GitHub, only on MR pages for GitLab)
@@ -3047,12 +3064,6 @@ async function initializeExtension() {
       retryState.timeoutId = setTimeout(_teardownRetryObserver, 10_000);
     }
 
-    // Start SPA navigation monitoring for GitHub, Azure DevOps, and Bitbucket (SPAs)
-    // Check by site (domain) rather than platform, because platform is null on non-PR pages
-    if (platformDetector && (platformDetector.isGitHubSite() || platformDetector.isAzureDevOpsSite() || platformDetector.isBitbucketSite())) {
-      startSPANavigationMonitoring();
-    }
-
     // Wait for the page to fully load before injecting the integrated review panel
     setTimeout(() => {
       injectIntegratedReviewPanel();
@@ -3075,7 +3086,7 @@ async function initializeExtension() {
 }
 
 // Initialize the extension
-initializeExtension();
+initializeExtension().catch(error => dbgWarn('Extension initialization failed:', error));
 
 // ── Live layout change handling ────────────────────────────
 // Re-apply trigger and docked mode when settings change (from popup or in-panel widget)
@@ -3147,3 +3158,6 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     dbgWarn('Failed to apply panel text size from storage:', e);
   }
 });
+
+globalThis.__thinkReviewContentVersion = contentVersion;
+})();

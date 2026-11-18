@@ -9,7 +9,7 @@
       "strict_min_version": "109.0"
     }
   },
-  "permissions": ["storage", "identity", "scripting", "activeTab"],
+  "permissions": ["storage", "identity", "scripting", "activeTab", "alarms"],
 
   "host_permissions": [
     "https://gitlab.com/*",

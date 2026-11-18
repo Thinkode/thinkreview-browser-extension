@@ -20,6 +20,7 @@ import { getThinkReviewAuthHeaders, EXTENSION_AUTH_TOKEN_KEY, isAuthExpiredError
 import { hasOpenRouterHostPermission } from './utils/openrouter-permissions.js';
 import { assertSelfHostedGatewayReady } from './utils/enterprise-gateway.js';
 import { fetchPatchContent } from './services/bitbucket-api.js';
+import { createContentScriptRecovery } from './utils/content-script-recovery.js';
 // Logger module will automatically initialize Honeybadger
 // Set uninstall URL to redirect users to feedback page
 chrome.runtime.setUninstallURL('https://thinkreview.dev/goodbye.html', () => {
@@ -1625,11 +1626,20 @@ async function handleWebappAuthChanged(message, sender, sendResponse) {
 // Dynamic Content Script Registration for Custom Domains
 const DEFAULT_DOMAINS = ['https://gitlab.com'];
 
-// Register content scripts for stored domains on startup
+const updateContentScripts = createContentScriptRecovery(chrome, reconcileContentScripts, dbgWarn);
+
 chrome.runtime.onStartup.addListener(updateContentScripts);
+chrome.permissions.onAdded.addListener(updateContentScripts);
+chrome.permissions.onRemoved.addListener(updateContentScripts);
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'thinkreview-content-script-retry') updateContentScripts();
+});
+// A page load is also a recovery opportunity if an earlier registration failed.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status === 'complete') updateContentScripts();
+});
 chrome.runtime.onInstalled.addListener(async (details) => {
-  // Await so the service worker stays alive until all scripts are registered/updated.
-  // Without await, the SW can be terminated mid-registration (sporadic missing button on install/update).
+  // Finish registration and activate existing tabs before opening onboarding.
   await updateContentScripts();
   
   // Open onboarding page on first install
@@ -1671,8 +1681,8 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 // Listen for manual content script update requests
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'UPDATE_CONTENT_SCRIPTS') {
-    updateContentScripts();
-    sendResponse({ success: true });
+    updateContentScripts().then(sendResponse);
+    return true;
   }
 });
 
@@ -1681,6 +1691,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local' && (
     changes.gitlabDomains ||
     changes.azureDevOpsDomains ||
+    changes.githubEnterpriseDomains ||
     changes.bitbucketAllowed ||
     changes.bitbucketDataCenterDomains
   )) {
@@ -1689,8 +1700,10 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
   }
 });
 
-async function updateContentScripts() {
+async function reconcileContentScripts() {
   try {
+    const failures = [];
+    const activeConfigs = [];
     // Get current domains from storage
     const result = await chrome.storage.local.get(['gitlabDomains', 'azureDevOpsDomains', 'bitbucketAllowed', 'githubEnterpriseDomains', 'bitbucketDataCenterDomains']);
     const gitlabDomains = result.gitlabDomains || DEFAULT_DOMAINS;
@@ -1747,21 +1760,15 @@ async function updateContentScripts() {
     dbgLog('Updating content scripts for domains:', allDomains);
     
     // Get existing registered scripts
-    let registeredScripts = [];
-    try {
-      registeredScripts = await chrome.scripting.getRegisteredContentScripts();
-      dbgLog('Current registered scripts:', registeredScripts.map(s => s.id));
-    } catch (error) {
-      dbgWarn('Error getting registered scripts:', error.message);
-    }
-    
+    const registeredScripts = await chrome.scripting.getRegisteredContentScripts();
+
     // Track script IDs we want to keep
     const targetScriptIds = [];
     // Track script IDs that already exist and need updating rather than creating
     const existingScriptIds = registeredScripts.map(script => script.id);
     
     // Register content scripts for each domain
-  for (const domain of allDomains) {
+  for (const domain of new Set(allDomains)) {
     try {
       // Generate a safe script ID from the domain
       // Use a generic prefix since we now support multiple platforms
@@ -1804,8 +1811,8 @@ async function updateContentScripts() {
           // Bitbucket: match all pages (SPA - button visible on PR pages)
           matchPattern = `${url.protocol}//${url.host}/*`;
         } else {
-          // GitLab: match merge request pages only
-          matchPattern = `${url.protocol}//${url.host}/*/merge_requests/*`;
+          // GitLab: include repository pages so SPA navigation into an MR works.
+          matchPattern = `${url.protocol}//${url.host}/*`;
         }
       } else {
         // Simple domain provided (e.g., gitlab.com, github.com, devops.companyname.com)
@@ -1813,8 +1820,8 @@ async function updateContentScripts() {
         if (azureMatchAllDomains.has(domain) || domain === 'github.com' || domain.endsWith('.github.com') || domain === 'bitbucket.org' || bitbucketMatchAllDomains.has(domain)) {
           matchPattern = `https://${domain}/*`;
         } else {
-          // GitLab: match merge request pages only
-          matchPattern = `https://${domain}/*/merge_requests/*`;
+          // GitLab: include repository pages so SPA navigation into an MR works.
+          matchPattern = `https://${domain}/*`;
         }
       }
         
@@ -1824,6 +1831,8 @@ async function updateContentScripts() {
         });
         
         if (!hasPermission) {
+          const targetIndex = targetScriptIds.indexOf(scriptId);
+          targetScriptIds.splice(targetIndex, 1);
           dbgLog(`No permission for ${originPattern}, content script won't be registered`);
           continue;
         }
@@ -1835,7 +1844,8 @@ async function updateContentScripts() {
           id: scriptId,
           matches: [matchPattern],
           js: ['vendor/honeybadger.ext.min.js', 'content.js', 'vendor/diff.min.js', 'components/integrated-review.js'],
-          runAt: 'document_end'
+          runAt: 'document_end',
+          persistAcrossSessions: true
         };
         
         if (scriptExists) {
@@ -1847,7 +1857,9 @@ async function updateContentScripts() {
           await chrome.scripting.registerContentScripts([scriptConfig]);
           dbgLog(`Registered new content script for domain: ${domain} (pattern: ${matchPattern})`);
         }
+        activeConfigs.push(scriptConfig);
       } catch (error) {
+        failures.push(`${domain}: ${error.message}`);
         dbgWarn(`Failed to register content script for domain ${domain}:`, error);
         // console.error('Full error:', error);
       }
@@ -1867,12 +1879,25 @@ async function updateContentScripts() {
       try {
         await chrome.scripting.unregisterContentScripts({ ids: scriptsToRemove });
       } catch (error) {
+        failures.push(error.message);
         dbgWarn('Error removing unused scripts:', error);
       }
     }
-    
+
+    const verified = await chrome.scripting.getRegisteredContentScripts();
+    for (const config of activeConfigs) {
+      const actual = verified.find(script => script.id === config.id);
+      if (!actual || JSON.stringify(actual.matches) !== JSON.stringify(config.matches)
+        || JSON.stringify(actual.js) !== JSON.stringify(config.js) || actual.runAt !== config.runAt) {
+        failures.push(`Registration verification failed: ${config.id}`);
+      }
+    }
+    return { success: failures.length === 0, errors: failures, configs: activeConfigs };
   } catch (error) {
     dbgWarn('Error updating content scripts:', error);
-    // console.error('Full error:', error);
+    return { success: false, errors: [error.message], configs: [] };
   }
 }
+
+// Reconcile whenever the worker starts, including wake-ups after a failed installation.
+updateContentScripts();
