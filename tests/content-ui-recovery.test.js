@@ -21,7 +21,7 @@ function monitor() {
     shouldShowButton: jest.fn(() => supported),
     areButtonsInjected: jest.fn(() => button),
     injectButtons: jest.fn(async () => { button = true; }),
-    document: { getElementById: jest.fn(() => null) },
+    document: { hidden: false, getElementById: jest.fn(() => null), addEventListener: jest.fn(), removeEventListener: jest.fn() },
     checkAndTriggerReviewForNewPR: jest.fn(async () => {}), dbgWarn: jest.fn(),
   };
   vm.createContext(ctx);
@@ -129,4 +129,33 @@ test('both classic bundles can be injected repeatedly without redeclaration or d
   expect(typeof ctx.createIntegratedReviewPanel).toBe('function');
   expect(typeof ctx.displayIntegratedReview).toBe('function');
   expect(typeof ctx.showIntegratedReviewError).toBe('function');
+});
+
+
+test('skips platform imports and DOM recovery in hidden tabs', async () => {
+  const { ctx, tick } = monitor();
+  ctx.document.hidden = true;
+  ctx.platformDetector = null;
+  ctx.window.location.href += '/pull/1';
+  await tick();
+  await tick();
+  expect(ctx.initializePlatformDetection).not.toHaveBeenCalled();
+  expect(ctx.shouldShowButton).not.toHaveBeenCalled();
+  expect(ctx.document.getElementById).not.toHaveBeenCalled();
+  expect(ctx.injectButtons).not.toHaveBeenCalled();
+});
+
+test('visibility change immediately recovers navigation and a missing trigger', async () => {
+  const { ctx, tick } = monitor();
+  ctx.document.hidden = true;
+  ctx.window.location.href += '/pull/1';
+  await tick();
+  const resume = ctx.document.addEventListener.mock.calls.find(([name]) => name === 'visibilitychange')[1];
+  ctx.document.hidden = false;
+  await resume();
+  expect(ctx.injectButtons).toHaveBeenCalledTimes(1);
+  expect(ctx.checkAndTriggerReviewForNewPR).toHaveBeenCalledTimes(1);
+  delete ctx.chrome.runtime.id;
+  await resume();
+  expect(ctx.document.removeEventListener).toHaveBeenCalledWith('visibilitychange', resume);
 });

@@ -2978,14 +2978,17 @@ window.getAIResponse = (patchContent, conversationHistory, language = 'English')
 function startSPANavigationMonitoring() {
   let lastUrl = window.location.href;
   let recovering = false;
-  const interval = setInterval(async () => {
+  const checkPage = async () => {
     // Old content contexts cannot recover after an extension update.
     if (!chrome.runtime?.id) {
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', checkPage);
       _teardownRetryObserver();
       return;
     }
-    if (recovering) return;
+    // Hidden tabs need no DOM/platform recovery work. Resume immediately when
+    // visible so background navigation does not delay the first usable button.
+    if (document.hidden || recovering) return;
     recovering = true;
     try {
       const currentUrl = window.location.href;
@@ -3006,7 +3009,9 @@ function startSPANavigationMonitoring() {
     } finally {
       recovering = false;
     }
-  }, 1000);
+  };
+  const interval = setInterval(checkPage, 1000);
+  document.addEventListener('visibilitychange', checkPage);
 }
 
 // Initialize when the page is loaded
